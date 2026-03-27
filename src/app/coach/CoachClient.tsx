@@ -31,6 +31,14 @@ export default function CoachClient({ session, teamData, today }) {
   const [clubLogo, setClubLogo] = useState<string|null>(null)
   const router = useRouter()
 
+  // Load club logo from DB on mount
+  useEffect(() => {
+    fetch('/api/admin/settings')
+      .then(r => r.json())
+      .then(d => { if (d.club_foto) setClubLogo(d.club_foto) })
+      .catch(() => {})
+  }, [])
+
   const CICLO_DAYS = { microciclo:7, mesociclo:28, macrociclo:365 }
   const CICLO_WELLNESS_DAYS = { microciclo:7, mesociclo:28, macrociclo:90 }
 
@@ -112,7 +120,16 @@ export default function CoachClient({ session, teamData, today }) {
                   <div style={{ width:52, height:52, borderRadius:10, overflow:'hidden', background:'var(--ink3)', border:`2px solid ${clubLogo?'var(--lime)':'var(--fog)'}`, display:'flex', alignItems:'center', justifyContent:'center', transition:'border-color .15s' }}>
                     {clubLogo ? <img src={clubLogo} style={{ width:'100%', height:'100%', objectFit:'contain', padding:4 }} alt="escudo"/> : <span style={{ fontSize:22 }}>🛡️</span>}
                   </div>
-                  <input type="file" accept="image/*" style={{ display:'none' }} onChange={e=>{ const f=e.target.files?.[0]; if(!f) return; const r=new FileReader(); r.onload=()=>setClubLogo(r.result as string); r.readAsDataURL(f) }} />
+                  <input type="file" accept="image/*" style={{ display:'none' }} onChange={e=>{ 
+                    const f=e.target.files?.[0]; if(!f) return
+                    const r=new FileReader()
+                    r.onload=async()=>{
+                      const dataUrl = r.result as string
+                      setClubLogo(dataUrl)
+                      await fetch('/api/admin/settings', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ club_foto: dataUrl }) })
+                    }
+                    r.readAsDataURL(f)
+                  }} />
                 </label>
                 <div><h2 className="display" style={{ fontSize:32, color:'var(--snow)' }}>PLANTEL</h2><p style={{ fontSize:11, color:'var(--silver)', marginTop:2 }}>Por posición · {today}</p></div>
               </div>
@@ -794,10 +811,10 @@ function AddMatchForm({ teamData, onSuccess, onCancel }) {
     try {
       if (bulk) {
         await Promise.all(Object.entries(bulkMins).filter(([,m])=>m&&Number(m)>0).map(([jid,m])=>
-          fetch('/api/partidos',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({jugador_id:Number(jid),fecha:form.fecha,rival:form.rival,tipo_partido:form.tipo_partido,minutos:Number(m)})})
+          fetch('/api/partidos',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({jugador_id:Number(jid),fecha:form.fecha,rival:form.rival,tipo_partido:form.tipo_partido,minutos:Number(m),rival_foto:rivalLogo||null})})
         ))
       } else {
-        await fetch('/api/partidos',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...form,jugador_id:Number(form.jugador_id),minutos:Number(form.minutos)})})
+        await fetch('/api/partidos',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...form,jugador_id:Number(form.jugador_id),minutos:Number(form.minutos),rival_foto:rivalLogo||null})})
       }
       onSuccess()
     } finally { setLoading(false) }

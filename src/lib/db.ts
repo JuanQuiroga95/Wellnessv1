@@ -13,6 +13,9 @@ export const SCHEMA_STATEMENTS = [
   `CREATE INDEX IF NOT EXISTS idx_partido_j ON partido_logs(jugador_id, fecha DESC)`,
   `CREATE INDEX IF NOT EXISTS idx_lesiones_j ON lesiones(jugador_id, activa)`,
   // Migrations
+  // Club settings & rival photo
+  `ALTER TABLE partido_logs ADD COLUMN IF NOT EXISTS rival_foto TEXT`,
+  `CREATE TABLE IF NOT EXISTS club_settings (id SERIAL PRIMARY KEY, admin_id INTEGER, club_nombre VARCHAR(100) DEFAULT 'Mi Club', club_foto TEXT, updated_at TIMESTAMPTZ DEFAULT NOW())`,
   `ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS email VARCHAR(200)`,
   `ALTER TABLE jugadores ADD COLUMN IF NOT EXISTS email VARCHAR(200)`,
   `ALTER TABLE jugadores ADD COLUMN IF NOT EXISTS fecha_nacimiento DATE`,
