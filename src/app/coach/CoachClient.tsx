@@ -639,6 +639,9 @@ function MinutosPanel({ teamData }) {
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(false)
   const [showAdd, setShowAdd] = useState(false)
+  const [selectedPlayer, setSelectedPlayer] = useState<any>(null)
+  const [playerMatches, setPlayerMatches] = useState<any[]>([])
+  const [loadingMatches, setLoadingMatches] = useState(false)
 
   useEffect(()=>{ load() }, [desde, hasta])
 
@@ -646,6 +649,16 @@ function MinutosPanel({ teamData }) {
     setLoading(true)
     try { const r = await fetch(`/api/minutos?desde=${desde}&hasta=${hasta}`); setData(await r.json()) }
     finally { setLoading(false) }
+  }
+
+  async function openPlayerMatches(p: any) {
+    if (selectedPlayer?.jugador_id === p.jugador_id) { setSelectedPlayer(null); setPlayerMatches([]); return }
+    setSelectedPlayer(p); setLoadingMatches(true)
+    try {
+      const r = await fetch(`/api/partidos?jugadorId=${p.jugador_id}&desde=${desde}&hasta=${hasta}`)
+      setPlayerMatches(await r.json())
+    } catch { setPlayerMatches([]) }
+    finally { setLoadingMatches(false) }
   }
 
   const players = data?.players || []
@@ -682,26 +695,72 @@ function MinutosPanel({ teamData }) {
                 ))}
               </div>
               <div style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:16, overflow:'hidden' }}>
-                {players.map((p,i)=>(
-                  <div key={p.jugador_id} style={{ padding:'10px 18px', borderBottom:i<players.length-1?'1px solid var(--mist)':'none' }}>
-                    <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:5 }}>
-                      <span style={{ fontSize:13, fontWeight:500, color:'var(--snow)', minWidth:160, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{p.nombre}</span>
-                      <span style={{ fontSize:10, color:'var(--silver)', minWidth:80, flexShrink:0 }}>{p.posicion||'—'}</span>
-                      <div style={{ flex:1 }}>
-                        <div style={{ height:10, background:'var(--mist)', borderRadius:3, overflow:'hidden', marginBottom:3 }}>
-                          <div style={{ height:'100%', width:`${(p.min_entreno/maxMin)*100}%`, background:'var(--lime)', borderRadius:3, opacity:.85 }} />
+                {players.map((p,i)=>{
+                  const isSelected = selectedPlayer?.jugador_id === p.jugador_id
+                  return (
+                    <div key={p.jugador_id} style={{ borderBottom:i<players.length-1?'1px solid var(--mist)':'none' }}>
+                      <button onClick={()=>openPlayerMatches(p)} style={{ width:'100%', padding:'10px 18px', background: isSelected?'rgba(200,241,53,.06)':'transparent', border:'none', cursor:'pointer', textAlign:'left', transition:'background .12s' }}
+                        onMouseEnter={e=>{ if(!isSelected) e.currentTarget.style.background='var(--ink3)' }}
+                        onMouseLeave={e=>{ if(!isSelected) e.currentTarget.style.background='transparent' }}
+                      >
+                        <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:5 }}>
+                          <span style={{ fontSize:13, fontWeight:500, color: isSelected?'var(--lime)':'var(--snow)', minWidth:160, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{p.nombre}</span>
+                          <span style={{ fontSize:10, color:'var(--silver)', minWidth:80, flexShrink:0 }}>{p.posicion||'—'}</span>
+                          <div style={{ flex:1 }}>
+                            <div style={{ height:10, background:'var(--mist)', borderRadius:3, overflow:'hidden', marginBottom:3 }}>
+                              <div style={{ height:'100%', width:`${(p.min_entreno/maxMin)*100}%`, background:'var(--lime)', borderRadius:3, opacity:.85 }} />
+                            </div>
+                            <div style={{ height:10, background:'var(--mist)', borderRadius:3, overflow:'hidden' }}>
+                              <div style={{ height:'100%', width:`${(p.min_partido/maxMin)*100}%`, background:'#3b82f6', borderRadius:3, opacity:.85 }} />
+                            </div>
+                          </div>
+                          <div style={{ textAlign:'right', minWidth:110, flexShrink:0 }}>
+                            <div className="mono" style={{ fontSize:13, color:'var(--snow)', fontWeight:600 }}>{p.min_total} min</div>
+                            <div style={{ fontSize:10, color:'var(--silver)' }}><span style={{ color:'var(--lime)' }}>{p.min_entreno}</span> + <span style={{ color:'#60a5fa' }}>{p.min_partido}</span></div>
+                          </div>
+                          <span style={{ fontSize:11, color: isSelected?'var(--lime)':'var(--fog)', flexShrink:0 }}>{isSelected?'▲':'▼'}</span>
                         </div>
-                        <div style={{ height:10, background:'var(--mist)', borderRadius:3, overflow:'hidden' }}>
-                          <div style={{ height:'100%', width:`${(p.min_partido/maxMin)*100}%`, background:'#3b82f6', borderRadius:3, opacity:.85 }} />
+                      </button>
+                      {isSelected && (
+                        <div style={{ padding:'0 18px 14px', background:'rgba(200,241,53,.03)', borderTop:'1px solid rgba(200,241,53,.12)' }}>
+                          <p style={{ fontSize:10, fontWeight:700, color:'var(--lime)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:10, paddingTop:12 }}>
+                            Partidos jugados — {p.nombre.split(' ')[0]}
+                          </p>
+                          {loadingMatches
+                            ? <p style={{ fontSize:12, color:'var(--silver)', padding:'10px 0' }}>Cargando...</p>
+                            : playerMatches.length === 0
+                              ? <p style={{ fontSize:12, color:'var(--fog)', padding:'10px 0' }}>Sin partidos registrados en este período.</p>
+                              : <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
+                                  {playerMatches.map((m:any)=>(
+                                    <div key={m.id} style={{ display:'flex', alignItems:'center', gap:12, padding:'8px 12px', background:'var(--ink2)', borderRadius:10, border:'1px solid var(--mist)' }}>
+                                      {/* Rival logo placeholder or initial */}
+                                      <div style={{ width:36, height:36, borderRadius:8, background:'rgba(96,165,250,.15)', border:'1px solid rgba(96,165,250,.3)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                                        {m.rival_foto
+                                          ? <img src={m.rival_foto} style={{ width:32, height:32, objectFit:'contain', borderRadius:6 }} alt={m.rival||'rival'} />
+                                          : <span style={{ fontSize:14, fontWeight:700, color:'#60a5fa' }}>{(m.rival||'?').charAt(0).toUpperCase()}</span>
+                                        }
+                                      </div>
+                                      <div style={{ flex:1, minWidth:0 }}>
+                                        <div style={{ fontSize:13, fontWeight:600, color:'var(--snow)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                                          vs. {m.rival||'Rival'}
+                                        </div>
+                                        <div style={{ fontSize:10, color:'var(--silver)', marginTop:1 }}>
+                                          {m.fecha} · {m.tipo_partido}
+                                        </div>
+                                      </div>
+                                      <div style={{ textAlign:'right', flexShrink:0 }}>
+                                        <div className="mono" style={{ fontSize:15, fontWeight:700, color:'#60a5fa' }}>{m.minutos} min</div>
+                                        {m.titular && <div style={{ fontSize:9, color:'#fbbf24', textTransform:'uppercase', letterSpacing:'0.06em' }}>Titular</div>}
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                          }
                         </div>
-                      </div>
-                      <div style={{ textAlign:'right', minWidth:110, flexShrink:0 }}>
-                        <div className="mono" style={{ fontSize:13, color:'var(--snow)', fontWeight:600 }}>{p.min_total} min</div>
-                        <div style={{ fontSize:10, color:'var(--silver)' }}><span style={{ color:'var(--lime)' }}>{p.min_entreno}</span> + <span style={{ color:'#60a5fa' }}>{p.min_partido}</span></div>
-                      </div>
+                      )}
                     </div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
               <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:10 }}>
                 {[
@@ -890,9 +949,9 @@ function MediaEquipoPanel() {
 
   const pctColor = (pct:number|null) => {
     if (pct === null) return 'var(--silver)'
-    if (pct > 10) return '#ef4444'
+    if (pct > 15) return '#ef4444'
     if (pct > 0) return '#f59e0b'
-    if (pct < -10) return '#60a5fa'
+    if (pct < -15) return '#60a5fa'
     return '#22c55e'
   }
 
@@ -941,14 +1000,17 @@ function MediaEquipoPanel() {
                     const pctChange = d.pct_change
                     const col = pctColor(pctChange)
                     return (
-                      <div key={i} style={{ flex:'0 0 auto', minWidth:32, display:'flex', flexDirection:'column', alignItems:'center', gap:3 }}>
-                        <div className="mono" style={{ fontSize:9, color:col, fontWeight:700 }}>
-                          {pctChange!==null ? `${pctChange>0?'+':''}${pctChange}%` : ''}
+                      <div key={i} style={{ flex:'0 0 auto', minWidth:40, display:'flex', flexDirection:'column', alignItems:'center', gap:2 }}>
+                        <div className="mono" style={{ fontSize:9, color:col, fontWeight:700, whiteSpace:'nowrap', lineHeight:1.2, textAlign:'center' }}>
+                          {d.avg_ua > 0 ? `${d.avg_ua}` : ''}
                         </div>
-                        <div title={`${d.label}: ${d.avg_ua} UA`} style={{ width:28, height:80, background:'var(--mist)', borderRadius:4, overflow:'hidden', display:'flex', alignItems:'flex-end', cursor:'default' }}>
+                        <div className="mono" style={{ fontSize:8, color: pctChange!==null ? col : 'transparent', fontWeight:600, whiteSpace:'nowrap', lineHeight:1, textAlign:'center' }}>
+                          {pctChange!==null ? `${pctChange>0?'+':''}${pctChange}%` : '·'}
+                        </div>
+                        <div title={`${d.label}: ${d.avg_ua} UA`} style={{ width:28, height:70, background:'var(--mist)', borderRadius:4, overflow:'hidden', display:'flex', alignItems:'flex-end', cursor:'default' }}>
                           <div style={{ width:'100%', height:`${pct}%`, background:col, borderRadius:4, transition:'height .3s', minHeight: d.avg_ua>0?4:0 }} />
                         </div>
-                        <div style={{ fontSize:8, color:'var(--fog)', textAlign:'center', lineHeight:1.2, maxWidth:32, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                        <div style={{ fontSize:8, color:'var(--fog)', textAlign:'center', lineHeight:1.2, maxWidth:40, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
                           {d.label?.slice(5)||d.label}
                         </div>
                       </div>
@@ -956,7 +1018,7 @@ function MediaEquipoPanel() {
                   })}
                 </div>
                 <div style={{ marginTop:12, display:'flex', gap:12, flexWrap:'wrap' }}>
-                  {[['#22c55e','Carga estable/baja'],['#f59e0b','Aumento moderado'],['#ef4444','Aumento alto (>10%)'],['#60a5fa','Reducción notable']].map(([c,l])=>(
+                  {[['#22c55e','Carga estable/baja'],['#f59e0b','Aumento moderado'],['#ef4444','Aumento alto (>15%)'],['#60a5fa','Reducción notable (>15%)']].map(([c,l])=>(
                     <div key={l} style={{ display:'flex', alignItems:'center', gap:5, fontSize:10, color:'var(--silver)' }}>
                       <div style={{ width:8, height:8, borderRadius:2, background:c }} />{l}
                     </div>
