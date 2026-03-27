@@ -29,15 +29,30 @@ export default function CoachClient({ session, teamData, today }) {
   const [showNew, setShowNew] = useState(false)
   const [ciclo, setCiclo] = useState('microciclo')
   const [clubLogo, setClubLogo] = useState<string|null>(null)
+  const [teamName, setTeamName] = useState<string>('PLANTEL')
+  const [editingTeamName, setEditingTeamName] = useState(false)
+  const [teamNameDraft, setTeamNameDraft] = useState<string>('PLANTEL')
   const router = useRouter()
 
-  // Load club logo from DB on mount
+  // Load club logo and team name from DB on mount
   useEffect(() => {
     fetch('/api/admin/settings')
       .then(r => r.json())
-      .then(d => { if (d.club_foto) setClubLogo(d.club_foto) })
+      .then(d => {
+        if (d.club_foto) setClubLogo(d.club_foto)
+        if (d.club_nombre && d.club_nombre !== 'Mi Club') {
+          setTeamName(d.club_nombre)
+          setTeamNameDraft(d.club_nombre)
+        }
+      })
       .catch(() => {})
   }, [])
+
+  async function saveTeamName() {
+    setTeamName(teamNameDraft)
+    setEditingTeamName(false)
+    await fetch('/api/admin/settings', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ club_nombre: teamNameDraft }) })
+  }
 
   const CICLO_DAYS = { microciclo:7, mesociclo:28, macrociclo:365 }
   const CICLO_WELLNESS_DAYS = { microciclo:7, mesociclo:28, macrociclo:90 }
@@ -131,7 +146,27 @@ export default function CoachClient({ session, teamData, today }) {
                     r.readAsDataURL(f)
                   }} />
                 </label>
-                <div><h2 className="display" style={{ fontSize:32, color:'var(--snow)' }}>PLANTEL</h2><p style={{ fontSize:11, color:'var(--silver)', marginTop:2 }}>Por posición · {today}</p></div>
+                <div>
+                  {editingTeamName ? (
+                    <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                      <input
+                        value={teamNameDraft}
+                        onChange={e=>setTeamNameDraft(e.target.value.toUpperCase())}
+                        onKeyDown={e=>{ if(e.key==='Enter') saveTeamName(); if(e.key==='Escape') setEditingTeamName(false) }}
+                        autoFocus
+                        style={{ fontFamily:'var(--font-display,monospace)', fontSize:28, fontWeight:900, color:'var(--lime)', background:'transparent', border:'none', borderBottom:'2px solid var(--lime)', outline:'none', width:200, letterSpacing:'0.02em' }}
+                      />
+                      <button onClick={saveTeamName} style={{ fontSize:12, padding:'4px 10px', borderRadius:7, background:'var(--lime)', color:'var(--ink)', border:'none', cursor:'pointer', fontWeight:700 }}>✓</button>
+                      <button onClick={()=>setEditingTeamName(false)} style={{ fontSize:12, padding:'4px 8px', borderRadius:7, background:'transparent', color:'var(--fog)', border:'1px solid var(--fog)', cursor:'pointer' }}>✕</button>
+                    </div>
+                  ) : (
+                    <div style={{ display:'flex', alignItems:'center', gap:8, cursor:'pointer' }} onClick={()=>{ setTeamNameDraft(teamName); setEditingTeamName(true) }}>
+                      <h2 className="display" style={{ fontSize:32, color:'var(--snow)' }}>{teamName}</h2>
+                      <span style={{ fontSize:11, color:'var(--fog)', marginTop:4 }} title="Editar nombre del equipo">✏️</span>
+                    </div>
+                  )}
+                  <p style={{ fontSize:11, color:'var(--silver)', marginTop:2 }}>Por posición · {today}</p>
+                </div>
               </div>
               <button className="btn-ghost" style={{ fontSize:12, padding:'8px 14px' }} onClick={async()=>{ await fetch('/api/seed/demo',{method:'POST'}); router.refresh() }}>+ Datos demo</button>
             </div>
