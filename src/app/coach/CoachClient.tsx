@@ -8,6 +8,24 @@ import WellnessTrend from '@/components/charts/WellnessTrend'
 import { buildACWRHistory, buildDailyDetail } from '@/lib/acwr'
 import AnalyticsPanel from './AnalyticsPanel'
 
+
+// Compress image to max 400px and 0.7 quality before saving to DB
+function compressImage(dataUrl: string, maxSize = 400, quality = 0.7): Promise<string> {
+  return new Promise((resolve) => {
+    const img = new Image()
+    img.onload = () => {
+      const canvas = document.createElement('canvas')
+      const ratio = Math.min(maxSize / img.width, maxSize / img.height, 1)
+      canvas.width = Math.round(img.width * ratio)
+      canvas.height = Math.round(img.height * ratio)
+      const ctx = canvas.getContext('2d')!
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+      resolve(canvas.toDataURL('image/jpeg', quality))
+    }
+    img.src = dataUrl
+  })
+}
+
 const TABS = [{id:'team',label:'Equipo'},{id:'analytics',label:'Analytics'},{id:'minutos',label:'Minutaje'},{id:'media-equipo',label:'Media Equipo'},{id:'cambio-carga',label:'Cambio de Carga'},{id:'lesiones',label:'Lesiones'},{id:'players',label:'Jugadores'}]
 const SC = {optimo:'#22c55e',precaucion:'#f59e0b',peligro:'#ef4444',sin_datos:'#555'}
 const SL = {optimo:'ÓPTIMO',precaucion:'PRECAUCIÓN',peligro:'RIESGO',sin_datos:'—'}
@@ -139,9 +157,9 @@ export default function CoachClient({ session, teamData, today }) {
                     const f=e.target.files?.[0]; if(!f) return
                     const r=new FileReader()
                     r.onload=async()=>{
-                      const dataUrl = r.result as string
-                      setClubLogo(dataUrl)
-                      await fetch('/api/admin/settings', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ club_foto: dataUrl }) })
+                      const compressed = await compressImage(r.result as string, 300, 0.75)
+                      setClubLogo(compressed)
+                      await fetch('/api/admin/settings', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ club_foto: compressed }) })
                     }
                     r.readAsDataURL(f)
                   }} />
@@ -875,7 +893,7 @@ function AddMatchForm({ teamData, onSuccess, onCancel }) {
                 <div style={{ width:36, height:36, borderRadius:8, overflow:'hidden', background:'var(--ink3)', border:`1px solid ${rivalLogo?'var(--lime)':'var(--fog)'}`, display:'flex', alignItems:'center', justifyContent:'center' }}>
                   {rivalLogo ? <img src={rivalLogo} style={{ width:'100%', height:'100%', objectFit:'contain', padding:2 }} alt="rival"/> : <span style={{ fontSize:16 }}>🛡️</span>}
                 </div>
-                <input type="file" accept="image/*" style={{ display:'none' }} onChange={e=>{ const f=e.target.files?.[0]; if(!f) return; const r=new FileReader(); r.onload=()=>setRivalLogo(r.result as string); r.readAsDataURL(f) }} />
+                <input type="file" accept="image/*" style={{ display:'none' }} onChange={e=>{ const f=e.target.files?.[0]; if(!f) return; const r=new FileReader(); r.onload=async()=>{ const c=await compressImage(r.result as string,200,0.75); setRivalLogo(c) }; r.readAsDataURL(f) }} />
               </label>
             </div>
           </div>
@@ -1282,7 +1300,7 @@ function NewPlayerForm({ onSuccess, onCancel }) {
               <input type="file" accept="image/*" style={{ display:'none' }} onChange={e=>{
                 const file=e.target.files?.[0]; if(!file) return
                 const reader=new FileReader()
-                reader.onload=()=>set('foto_url', reader.result as string)
+                reader.onload=async()=>{ const c=await compressImage(reader.result as string,400,0.8); set('foto_url',c) }
                 reader.readAsDataURL(file)
               }}/>
             </label>
