@@ -31,7 +31,7 @@ export default function LoginPage() {
       const data = await res.json()
       if (!res.ok) { setError(data.error || 'Error al ingresar'); return }
       await new Promise(r => setTimeout(r, 100))
-      router.push(data.rol === 'master_admin' ? '/coach' : data.rol === 'admin' ? '/coach' : '/player')
+      router.push(data.rol === 'master_admin' ? '/master' : data.rol === 'admin' ? '/coach' : '/player')
     } catch { setError('Error de conexión') }
     finally { setLoading(false) }
   }
