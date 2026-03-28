@@ -4,11 +4,11 @@ import { getSessionFromRequest } from '@/lib/auth'
 import bcrypt from 'bcryptjs'
 const POS_ORDER: Record<string,number> = {'portero':1,'defensa central':2,'lateral derecho':2,'lateral izquierdo':2,'defensa':2,'mediocampista':3,'mediocentro':3,'mediocentro defensivo':3,'mediocentro ofensivo':3,'volante':4,'volante derecho':4,'volante izquierdo':4,'extremo':5,'extremo derecho':5,'extremo izquierdo':5,'delantero':6,'centro delantero':6}
 
-function isCoach(s: any) { return s?.rol === 'admin' }
+function isAdmin(s: any) { return s?.rol === 'admin' || s?.rol === 'master_admin' }
 
 export async function GET(req: NextRequest) {
   const s = await getSessionFromRequest(req)
-  if (!s || !isCoach(s)) return NextResponse.json({error:'No autorizado'},{status:403})
+  if (!s || !isAdmin(s)) return NextResponse.json({error:'No autorizado'},{status:403})
   const sql = getDb()
   const r = await sql`
     SELECT u.id,u.nombre,u.usuario,u.activo,j.id AS jugador_id,j.posicion,j.edad,
@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const s = await getSessionFromRequest(req)
-  if (!s || !isCoach(s)) return NextResponse.json({error:'No autorizado'},{status:403})
+  if (!s || !isAdmin(s)) return NextResponse.json({error:'No autorizado'},{status:403})
   const b = await req.json()
   const {nombre,usuario,password,posicion,edad,peso_kg,estatura_cm,pie_habil,foto_url,email,fecha_nacimiento,hora_recordatorio} = b
   if (!nombre||!usuario||!password) return NextResponse.json({error:'Nombre, usuario y contraseña requeridos'},{status:400})

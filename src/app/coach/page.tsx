@@ -9,7 +9,7 @@ function posOrder(pos) { return pos ? (POS_ORDER[String(pos).toLowerCase()] ?? 9
 
 export default async function CoachPage() {
   const session = await getSession()
-  if (!session || session.rol !== 'admin') redirect('/login')
+  if (!session || session.rol !== 'admin' && session.rol !== 'master_admin') redirect('/login')
   const sql = getDb()
   const today = new Date().toISOString().split('T')[0]
   const clubId = session.clubId ?? null

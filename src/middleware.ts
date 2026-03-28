@@ -12,10 +12,10 @@ export async function middleware(req: NextRequest) {
 
   // master_admin solo puede ir a /master
   if (pathname.startsWith('/master') && s.rol !== 'master_admin') return NextResponse.redirect(new URL('/login',req.url))
-  if (s.rol === 'master_admin' && !pathname.startsWith('/master') && !pathname.startsWith('/api')) return NextResponse.redirect(new URL('/master',req.url))
+  // master_admin can access /master or /coach freely — only redirect if hitting /player or /login
 
-  if (pathname.startsWith('/coach') && s.rol !== 'admin') return NextResponse.redirect(new URL('/player',req.url))
-  if (pathname.startsWith('/player') && s.rol === 'admin') return NextResponse.redirect(new URL('/coach',req.url))
+  if (pathname.startsWith('/coach') && s.rol !== 'admin' && s.rol !== 'master_admin') return NextResponse.redirect(new URL('/player',req.url))
+  if (pathname.startsWith('/player') && (s.rol === 'admin' || s.rol === 'master_admin')) return NextResponse.redirect(new URL('/coach',req.url))
   return NextResponse.next()
 }
 export const config = { matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'] }

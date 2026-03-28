@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getDb } from '@/lib/db'
 import { getSessionFromRequest } from '@/lib/auth'
+function isAdmin(s: any) { return s?.rol === 'admin' || s?.rol === 'master_admin' }
 
 export async function GET(req: NextRequest) {
   const s = await getSessionFromRequest(req)
-  if (!s || s.rol !== 'admin') return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
+  if (!s || !isAdmin(s)) return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
   const { searchParams } = new URL(req.url)
   const jid = searchParams.get('jugadorId')
   const desde = searchParams.get('desde') || '2024-01-01'
@@ -24,7 +25,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const s = await getSessionFromRequest(req)
-  if (!s || s.rol !== 'admin') return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
+  if (!s || !isAdmin(s)) return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
   const { jugador_id, fecha, rival, tipo_partido, minutos, titular, notas, rival_foto } = await req.json()
   const sql = getDb()
   const d = fecha || new Date().toISOString().split('T')[0]

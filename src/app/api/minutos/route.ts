@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getDb } from '@/lib/db'
 import { getSessionFromRequest } from '@/lib/auth'
+function isAdmin(s: any) { return s?.rol === 'admin' || s?.rol === 'master_admin' }
 export async function GET(req: NextRequest) {
-  const s = await getSessionFromRequest(req); if(!s||s.rol!=='admin') return NextResponse.json({error:'No autorizado'},{status:403})
+  const s = await getSessionFromRequest(req); if(!s||!isAdmin(s)) return NextResponse.json({error:'No autorizado'},{status:403})
   const {searchParams} = new URL(req.url)
   const desde = searchParams.get('desde')||'2024-01-01'
   const hasta = searchParams.get('hasta')||new Date().toISOString().split('T')[0]

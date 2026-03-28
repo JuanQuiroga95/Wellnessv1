@@ -2,10 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getDb } from '@/lib/db'
 import { getSessionFromRequest } from '@/lib/auth'
 import bcrypt from 'bcryptjs'
+function isAdmin(s: any) { return s?.rol === 'admin' || s?.rol === 'master_admin' }
 
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
   const s = await getSessionFromRequest(req)
-  if (!s || s.rol !== 'admin') return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
+  if (!s || !isAdmin(s)) return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
   const sql = getDb()
   const b = await req.json()
   const id = parseInt(params.id)
@@ -34,7 +35,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 
 export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
   const s = await getSessionFromRequest(req)
-  if (!s || s.rol !== 'admin') return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
+  if (!s || !isAdmin(s)) return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
   const sql = getDb()
   await sql`DELETE FROM usuarios WHERE id=${parseInt(params.id)} AND rol='jugador'`
   return NextResponse.json({ ok: true })

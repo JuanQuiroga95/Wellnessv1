@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getDb } from '@/lib/db'
 import { getSessionFromRequest } from '@/lib/auth'
+function isAdmin(s: any) { return s?.rol === 'admin' || s?.rol === 'master_admin' }
 export async function POST(req: NextRequest) {
   const s = await getSessionFromRequest(req)
-  if (!s||s.rol!=='admin') return NextResponse.json({error:'No autorizado'},{status:403})
+  if (!s||!isAdmin(s)) return NextResponse.json({error:'No autorizado'},{status:403})
   const sql = getDb()
   const players = await sql`SELECT id FROM jugadores`
   for (const p of players as any[]) {

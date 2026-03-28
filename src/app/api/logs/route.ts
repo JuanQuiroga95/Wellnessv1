@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getDb } from '@/lib/db'
 import { getSessionFromRequest } from '@/lib/auth'
+function isAdmin(s: any) { return s?.rol === 'admin' || s?.rol === 'master_admin' }
 export async function GET(req: NextRequest) {
   const s = await getSessionFromRequest(req); if(!s) return NextResponse.json({error:'No autorizado'},{status:401})
   const {searchParams} = new URL(req.url); const jid = searchParams.get('jugadorId'); const days = parseInt(searchParams.get('days')||'28')
@@ -22,7 +23,7 @@ export async function POST(req: NextRequest) {
 }
 export async function PATCH(req: NextRequest) {
   const s = await getSessionFromRequest(req); if(!s) return NextResponse.json({error:'No autorizado'},{status:401})
-  if (s.rol!=='admin') return NextResponse.json({error:'Solo el Coach puede editar minutos'},{status:403})
+  if (!isAdmin(s)) return NextResponse.json({error:'Solo el Coach puede editar minutos'},{status:403})
   const {id,duracion_min} = await req.json()
   if (!id) return NextResponse.json({error:'id requerido'},{status:400})
   if (!duracion_min || duracion_min <= 0) return NextResponse.json({error:'duracion_min debe ser mayor a 0'},{status:400})

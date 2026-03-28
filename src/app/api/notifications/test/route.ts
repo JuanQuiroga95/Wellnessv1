@@ -4,13 +4,14 @@ import { sendReminderEmail, sendBirthdayEmail } from '@/lib/email'
 import { getSessionFromRequest } from '@/lib/auth'
 
 export const dynamic = 'force-dynamic'
+function isAdmin(s: any) { return s?.rol === 'admin' || s?.rol === 'master_admin' }
 
 // Manual test endpoint — only accessible by admin
 // GET /api/notifications/test?type=reminder   → sends reminder to all players with email
 // GET /api/notifications/test?type=birthday   → sends birthday test to admin
 export async function GET(req: NextRequest) {
   const s = await getSessionFromRequest(req)
-  if (!s || s.rol !== 'admin') return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
+  if (!s || !isAdmin(s)) return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
 
   const type = req.nextUrl.searchParams.get('type') || 'reminder'
   const sql = getDb()
