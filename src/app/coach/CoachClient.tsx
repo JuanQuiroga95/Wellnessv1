@@ -95,7 +95,7 @@ export default function CoachClient({ session, teamData, today }) {
 
   return (
     <div style={{ minHeight:'100vh', background:'var(--ink)' }}>
-      <Topbar nombre={session.nombre} rol="admin" tabs={TABS} activeTab={tab} onTabChange={t=>{ setTab(t); setSelected(null) }} clubNombre={session.clubNombre||null} />
+      <Topbar nombre={session.nombre} rol={session.rol} tabs={TABS} activeTab={tab} onTabChange={t=>{ setTab(t); setSelected(null) }} clubNombre={session.clubNombre||null} />
       <main style={{ maxWidth:980, margin:'0 auto', padding:'24px 16px' }}>
 
         {tab==='team' && !selected && (
