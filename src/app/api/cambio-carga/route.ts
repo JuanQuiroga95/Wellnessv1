@@ -14,6 +14,7 @@ export async function GET(req: NextRequest) {
   const minPartido = parseInt(searchParams.get('minPartido') || '0')
 
   const clubId = s.clubId ?? null
+  const isMaster = s.rol === 'master_admin'
   const sql = getDb()
 
   // Get all training logs with player names in date range
@@ -30,7 +31,7 @@ export async function GET(req: NextRequest) {
     JOIN usuarios u ON u.id = j.usuario_id
     WHERE el.fecha BETWEEN ${desde} AND ${hasta}
       AND u.activo = true
-      AND u.club_id = ${clubId}
+      AND (${isMaster}::boolean OR u.club_id = ${clubId})
     ORDER BY el.fecha ASC
   `
 
@@ -44,7 +45,7 @@ export async function GET(req: NextRequest) {
     JOIN jugadores j ON j.id = pl.jugador_id
     JOIN usuarios u ON u.id = j.usuario_id
     WHERE pl.fecha BETWEEN ${desde} AND ${hasta}
-      AND u.club_id = ${clubId}
+      AND (${isMaster}::boolean OR u.club_id = ${clubId})
     ORDER BY pl.fecha ASC
   `
 

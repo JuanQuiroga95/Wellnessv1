@@ -13,17 +13,24 @@ export default async function CoachPage() {
   const sql = getDb()
   const today = new Date().toISOString().split('T')[0]
   const clubId = session.clubId ?? null
+  const isMaster = session.rol === 'master_admin'
 
   const [players, lesionesRows] = await Promise.all([
-    sql`SELECT u.id, u.nombre, u.usuario, u.activo, j.id AS jugador_id, j.posicion, j.edad,
-               j.peso_kg::text AS peso_kg, j.estatura_cm, j.pie_habil, j.foto_url
-        FROM usuarios u JOIN jugadores j ON j.usuario_id=u.id
-        WHERE u.rol='jugador' AND u.club_id=${clubId}
-        ORDER BY u.nombre`,
-    sql`SELECT l.jugador_id::int, l.tipo_lesion, l.zona, l.estado, l.eta_dias::int, l.fecha_inicio::text
-        FROM lesiones l
-        JOIN jugadores j ON j.id=l.jugador_id
-        WHERE l.activa=true AND j.club_id=${clubId}`,
+    isMaster
+      ? sql`SELECT u.id, u.nombre, u.usuario, u.activo, j.id AS jugador_id, j.posicion, j.edad,
+                   j.peso_kg::text AS peso_kg, j.estatura_cm, j.pie_habil, j.foto_url
+            FROM usuarios u JOIN jugadores j ON j.usuario_id=u.id
+            WHERE u.rol='jugador' ORDER BY u.nombre`
+      : sql`SELECT u.id, u.nombre, u.usuario, u.activo, j.id AS jugador_id, j.posicion, j.edad,
+                   j.peso_kg::text AS peso_kg, j.estatura_cm, j.pie_habil, j.foto_url
+            FROM usuarios u JOIN jugadores j ON j.usuario_id=u.id
+            WHERE u.rol='jugador' AND u.club_id=${clubId} ORDER BY u.nombre`,
+    isMaster
+      ? sql`SELECT l.jugador_id::int, l.tipo_lesion, l.zona, l.estado, l.eta_dias::int, l.fecha_inicio::text
+            FROM lesiones l JOIN jugadores j ON j.id=l.jugador_id WHERE l.activa=true`
+      : sql`SELECT l.jugador_id::int, l.tipo_lesion, l.zona, l.estado, l.eta_dias::int, l.fecha_inicio::text
+            FROM lesiones l JOIN jugadores j ON j.id=l.jugador_id
+            WHERE l.activa=true AND j.club_id=${clubId}`,
   ])
 
   const lesionMap = {}

@@ -11,7 +11,7 @@ export default function Topbar({ nombre, rol, activeTab, onTabChange, tabs, club
             <svg width="14" height="14" viewBox="0 0 32 32" fill="none"><path d="M6 22l5-10 5 7 3-5 5 8" stroke="#080808" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
           </div>
           <span className="display" style={{ fontSize:20, color:'var(--snow)', letterSpacing:'0.05em' }}>W&P</span>
-          <span style={{ fontFamily:'DM Mono,monospace', fontSize:10, color:'var(--silver)', marginLeft:4, textTransform:'uppercase', letterSpacing:'0.06em' }}>{rol==='admin'?'Preparador':'Jugador'}</span>
+          <span style={{ fontFamily:'DM Mono,monospace', fontSize:10, color:'var(--silver)', marginLeft:4, textTransform:'uppercase', letterSpacing:'0.06em' }}>{rol==='master_admin'?'Master Admin':rol==='admin'?'Preparador':'Jugador'}</span>
           {clubNombre && (
             <span style={{ fontFamily:'DM Mono,monospace', fontSize:10, color:'var(--lime)', background:'rgba(200,241,53,.08)', border:'1px solid rgba(200,241,53,.2)', borderRadius:6, padding:'2px 8px', marginLeft:4 }}>
               🏟️ {clubNombre}

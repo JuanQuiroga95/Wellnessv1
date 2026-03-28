@@ -10,12 +10,16 @@ export async function GET(req: NextRequest) {
   const s = await getSessionFromRequest(req)
   if (!s || !isAdmin(s)) return NextResponse.json({error:'No autorizado'},{status:403})
   const sql = getDb()
-  const r = await sql`
-    SELECT u.id,u.nombre,u.usuario,u.activo,j.id AS jugador_id,j.posicion,j.edad,
-           j.peso_kg::text AS peso_kg,j.estatura_cm,j.pie_habil,j.foto_url
-    FROM usuarios u LEFT JOIN jugadores j ON j.usuario_id=u.id
-    WHERE u.rol='jugador' AND u.club_id=${s.clubId??null}
-    ORDER BY u.nombre`
+  const r = s.rol === 'master_admin'
+    ? await sql`SELECT u.id,u.nombre,u.usuario,u.activo,j.id AS jugador_id,j.posicion,j.edad,
+               j.peso_kg::text AS peso_kg,j.estatura_cm,j.pie_habil,j.foto_url
+               FROM usuarios u LEFT JOIN jugadores j ON j.usuario_id=u.id
+               WHERE u.rol='jugador' ORDER BY u.nombre`
+    : await sql`SELECT u.id,u.nombre,u.usuario,u.activo,j.id AS jugador_id,j.posicion,j.edad,
+               j.peso_kg::text AS peso_kg,j.estatura_cm,j.pie_habil,j.foto_url
+               FROM usuarios u LEFT JOIN jugadores j ON j.usuario_id=u.id
+               WHERE u.rol='jugador' AND u.club_id=${s.clubId??null}
+               ORDER BY u.nombre`
   return NextResponse.json(r)
 }
 

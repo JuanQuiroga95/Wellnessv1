@@ -9,6 +9,7 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const weeks = parseInt(searchParams.get('weeks')||'4')
   const clubId = s.clubId ?? null
+  const isMaster = s.rol === 'master_admin'
   const sql = getDb()
 
   const wRows = await sql`
@@ -27,7 +28,7 @@ export async function GET(req: NextRequest) {
     JOIN usuarios u ON u.id=j.usuario_id
     WHERE w.fecha >= CURRENT_DATE - (${weeks}*7)
       AND w.fatiga IS NOT NULL
-      AND u.club_id = ${clubId}
+      AND (${isMaster}::boolean OR u.club_id = ${clubId})
     GROUP BY j.id, u.nombre, j.posicion, j.foto_url, DATE_TRUNC('week',w.fecha)
     ORDER BY semana DESC, u.nombre`
 
@@ -41,7 +42,7 @@ export async function GET(req: NextRequest) {
     JOIN jugadores j ON j.id=el.jugador_id
     JOIN usuarios u ON u.id=j.usuario_id
     WHERE el.fecha >= CURRENT_DATE - (${weeks}*7)
-      AND u.club_id = ${clubId}
+      AND (${isMaster}::boolean OR u.club_id = ${clubId})
     GROUP BY el.jugador_id, DATE_TRUNC('week',el.fecha)
     ORDER BY semana DESC`
 
@@ -52,7 +53,7 @@ export async function GET(req: NextRequest) {
            w.tqr, w.dolor_zona, w.dolor_eva, w.entrena_grupo, w.fue_gimnasio
     FROM jugadores j JOIN usuarios u ON u.id=j.usuario_id
     LEFT JOIN wellness_logs w ON w.jugador_id=j.id AND w.fecha=CURRENT_DATE
-    WHERE u.rol='jugador' AND u.activo=true AND u.club_id=${clubId}
+    WHERE u.rol='jugador' AND u.activo=true AND (${isMaster}::boolean OR u.club_id=${clubId})
     ORDER BY u.nombre`
 
   return NextResponse.json({ wRows, rpeRows, todayRows })
