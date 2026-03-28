@@ -47,6 +47,7 @@ export default function CoachClient({ session, teamData, today }) {
   const [showNew, setShowNew] = useState(false)
   const [ciclo, setCiclo] = useState('microciclo')
   const [clubLogo, setClubLogo] = useState<string|null>(null)
+  const [logoSaving, setLogoSaving] = useState<'idle'|'saving'|'ok'|'error'>('idle')
   const [teamName, setTeamName] = useState<string>('PLANTEL')
   const [editingTeamName, setEditingTeamName] = useState(false)
   const [teamNameDraft, setTeamNameDraft] = useState<string>('PLANTEL')
@@ -57,13 +58,14 @@ export default function CoachClient({ session, teamData, today }) {
     fetch('/api/admin/settings')
       .then(r => r.json())
       .then(d => {
+        console.log('[Settings loaded]', { userId: d.debug_userId, has_foto: !!d.club_foto, club_nombre: d.club_nombre })
         if (d.club_foto) setClubLogo(d.club_foto)
         if (d.club_nombre && d.club_nombre !== 'Mi Club') {
           setTeamName(d.club_nombre)
           setTeamNameDraft(d.club_nombre)
         }
       })
-      .catch(() => {})
+      .catch((e) => console.error('[Settings load error]', e))
   }, [])
 
   async function saveTeamName() {
@@ -150,16 +152,27 @@ export default function CoachClient({ session, teamData, today }) {
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
               <div style={{ display:'flex', alignItems:'center', gap:14 }}>
                 <label style={{ cursor:'pointer', flexShrink:0 }}>
-                  <div style={{ width:52, height:52, borderRadius:10, overflow:'hidden', background:'var(--ink3)', border:`2px solid ${clubLogo?'var(--lime)':'var(--fog)'}`, display:'flex', alignItems:'center', justifyContent:'center', transition:'border-color .15s' }}>
-                    {clubLogo ? <img src={clubLogo} style={{ width:'100%', height:'100%', objectFit:'contain', padding:4 }} alt="escudo"/> : <span style={{ fontSize:22 }}>🛡️</span>}
+                  <div style={{ position:'relative' }}>
+                    <div style={{ width:52, height:52, borderRadius:10, overflow:'hidden', background:'var(--ink3)', border:`2px solid ${logoSaving==='error'?'#ef4444':logoSaving==='ok'?'var(--lime)':clubLogo?'var(--lime)':'var(--fog)'}`, display:'flex', alignItems:'center', justifyContent:'center', transition:'border-color .15s' }}>
+                      {logoSaving==='saving' 
+                        ? <span style={{ fontSize:14, animation:'spin 1s linear infinite' }}>⏳</span>
+                        : clubLogo ? <img src={clubLogo} style={{ width:'100%', height:'100%', objectFit:'contain', padding:4 }} alt="escudo"/> : <span style={{ fontSize:22 }}>🛡️</span>}
+                    </div>
+                    {logoSaving==='ok' && <span style={{ position:'absolute', top:-4, right:-4, fontSize:12, background:'var(--lime)', borderRadius:'50%', width:16, height:16, display:'flex', alignItems:'center', justifyContent:'center', color:'var(--ink)', fontWeight:700 }}>✓</span>}
+                    {logoSaving==='error' && <span style={{ position:'absolute', top:-4, right:-4, fontSize:10, background:'#ef4444', borderRadius:'50%', width:16, height:16, display:'flex', alignItems:'center', justifyContent:'center', color:'white', fontWeight:700 }}>✕</span>}
                   </div>
                   <input type="file" accept="image/*" style={{ display:'none' }} onChange={e=>{ 
                     const f=e.target.files?.[0]; if(!f) return
                     const r=new FileReader()
                     r.onload=async()=>{
-                      const compressed = await compressImage(r.result as string, 300, 0.75)
-                      setClubLogo(compressed)
-                      await fetch('/api/admin/settings', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ club_foto: compressed }) })
+                      setLogoSaving('saving')
+                      try {
+                        const compressed = await compressImage(r.result as string, 300, 0.75)
+                        setClubLogo(compressed)
+                        const res = await fetch('/api/admin/settings', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ club_foto: compressed }) })
+                        setLogoSaving(res.ok ? 'ok' : 'error')
+                        setTimeout(() => setLogoSaving('idle'), 3000)
+                      } catch { setLogoSaving('error'); setTimeout(() => setLogoSaving('idle'), 3000) }
                     }
                     r.readAsDataURL(f)
                   }} />

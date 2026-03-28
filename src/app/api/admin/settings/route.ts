@@ -8,13 +8,23 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
   const sql = getDb()
   const [user] = await sql`SELECT email FROM usuarios WHERE id=${session.userId}`
-  // Get club settings for this admin
-  const rows = await sql`SELECT club_nombre, club_foto FROM club_settings WHERE admin_id=${session.userId} LIMIT 1`
-  const club = rows[0] as any
+  
+  // Try to find club settings by admin_id (userId)
+  let rows = await sql`SELECT club_nombre, club_foto FROM club_settings WHERE admin_id=${session.userId} LIMIT 1`
+  
+  // Fallback: if no record found, try to find by matching club_id from usuarios table
+  if (!(rows as any[]).length && session.clubId) {
+    rows = await sql`SELECT cs.club_nombre, cs.club_foto FROM club_settings cs 
+      JOIN usuarios u ON u.id = cs.admin_id 
+      WHERE u.club_id = ${session.clubId} AND u.rol = 'admin' LIMIT 1`
+  }
+  
+  const club = (rows as any[])[0]
   return NextResponse.json({ 
     email: (user as any)?.email || null,
     club_nombre: club?.club_nombre || 'Mi Club',
     club_foto: club?.club_foto || null,
+    debug_userId: session.userId,
   })
 }
 
