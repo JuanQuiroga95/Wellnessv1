@@ -25,38 +25,34 @@ export async function GET(req: NextRequest) {
     // Partidos ya registrados (distintos por fecha+rival)
     let partidos: any[] = []
     try {
-      if (s.clubId != null) {
-        const raw = await sql`
-          SELECT pl.fecha::text, pl.rival, pl.tipo_partido, pl.rival_foto
-          FROM partido_logs pl
-          JOIN jugadores j ON j.id = pl.jugador_id
-          JOIN usuarios u ON u.id = j.usuario_id
-          WHERE pl.fecha BETWEEN ${desde} AND ${hasta}
-            AND u.club_id = ${s.clubId}
-          ORDER BY pl.fecha DESC`
-        // Deduplicate by fecha+rival in JS to avoid DISTINCT ON issues
-        const seen = new Set<string>()
-        for (const r of raw as any[]) {
-          const key = `${r.fecha}__${r.rival}`
-          if (!seen.has(key)) { seen.add(key); partidos.push(r) }
-        }
+      const raw = await sql`
+        SELECT pl.fecha::text, pl.rival, pl.tipo_partido, pl.rival_foto
+        FROM partido_logs pl
+        JOIN jugadores j ON j.id = pl.jugador_id
+        JOIN usuarios u ON u.id = j.usuario_id
+        WHERE pl.fecha BETWEEN ${desde} AND ${hasta}
+          AND u.club_id = ${s.clubId ?? null}
+        ORDER BY pl.fecha DESC`
+      // Deduplicate by fecha+rival in JS to avoid DISTINCT ON issues
+      const seen = new Set<string>()
+      for (const r of raw as any[]) {
+        const key = `${r.fecha}__${r.rival}`
+        if (!seen.has(key)) { seen.add(key); partidos.push(r) }
       }
     } catch { partidos = [] }
 
     // Logs de entrenamiento reales agrupados por día
     let logs: any[] = []
     try {
-      if (s.clubId != null) {
-        logs = await sql`
-          SELECT el.fecha::text, MAX(el.rpe)::int AS max_rpe
-          FROM entrenamiento_logs el
-          JOIN jugadores j ON j.id = el.jugador_id
-          JOIN usuarios u ON u.id = j.usuario_id
-          WHERE el.fecha BETWEEN ${desde} AND ${hasta}
-            AND u.club_id = ${s.clubId}
-          GROUP BY el.fecha
-          ORDER BY el.fecha` as any[]
-      }
+      logs = await sql`
+        SELECT el.fecha::text, MAX(el.rpe)::int AS max_rpe
+        FROM entrenamiento_logs el
+        JOIN jugadores j ON j.id = el.jugador_id
+        JOIN usuarios u ON u.id = j.usuario_id
+        WHERE el.fecha BETWEEN ${desde} AND ${hasta}
+          AND u.club_id = ${s.clubId ?? null}
+        GROUP BY el.fecha
+        ORDER BY el.fecha` as any[]
     } catch { logs = [] }
 
     return NextResponse.json({ sesiones, partidos, logs })
