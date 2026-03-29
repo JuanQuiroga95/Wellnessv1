@@ -33,7 +33,7 @@ export async function GET(req: NextRequest) {
 
   // Logs de entrenamiento reales (para calcular recuperación)
   const logs = await sql`
-    SELECT DISTINCT ON (el.fecha) el.fecha::text, MAX(el.rpe)::int AS max_rpe
+    SELECT el.fecha::text, MAX(el.rpe)::int AS max_rpe
     FROM entrenamiento_logs el
     JOIN jugadores j ON j.id=el.jugador_id
     JOIN usuarios u ON u.id=j.usuario_id
