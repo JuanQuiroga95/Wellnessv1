@@ -733,8 +733,11 @@ function CambioCargaPanel() {
 
 // ── CALENDARIO PANEL ──────────────────────────────────────────────────────────
 
-const OBJETIVOS = ['Fuerza','Resistencia','Velocidad','Táctica','Técnica','Físico','Recuperación','Libre']
-const MATERIALES_LIST = ['Balones','Conos','Petos','Portería','Elásticos','Sogas','Escaleras','Pesas','Ninguno']
+const OBJETIVOS_FISICOS = ['Fuerza','Resistencia','Velocidad','Recuperación-Compensación','Recuperación','Competición']
+const OBJETIVOS_SECUNDARIOS = ['Táctico','Técnico','Técnico-Táctico']
+const TITULOS_SESION = ['MD+1','MD+2','MD+3','MD-4','MD-3','MD-2','MD-1','MD']
+const VENTANAS_METODOLOGIA = ['Activación Campo','Activación Gimnasio','Circuito Técnico','Pliometría','Movilidad','Aceleración Neuromuscular','Descripción Series/Rep/Paso','Grandes Espacios','Isométricos','Excéntricos','Movilidad','Estabilidad','Tracción','Empuje']
+const TIPOS_JUEGO = ['Atracantes','Defensores','Empuje','Atracantes vs Defensores','Comodines','Partidos','Entrenamientos','Partido Modificado','Partido Reducido','Juego de Posesión','Juego de Posición','Partido Oficial','Partido Amistoso','Partido Entrenamiento']
 const TIPO_COLORES = { entrenamiento:'#c8f135', partido:'#3b82f6', recuperacion:'#f59e0b', descanso:'#555' }
 const TIPO_ICONOS = { entrenamiento:'⚽', partido:'🏆', recuperacion:'🔄', descanso:'😴' }
 
@@ -1027,21 +1030,18 @@ function CalendarioPanel({ teamData }) {
                           <span style={{ fontSize:12, fontWeight:700, color:TIPO_COLORES[s.tipo]||'#888' }}>{TIPO_ICONOS[s.tipo]} {s.titulo||s.tipo}</span>
                           {s.rpe_objetivo && <span style={{ fontSize:11, color:'var(--lime)', fontFamily:'DM Mono,monospace' }}>RPE obj. {s.rpe_objetivo}</span>}
                         </div>
-                        {s.objetivo && <div style={{ fontSize:11, color:'var(--silver)', marginBottom:4 }}>🎯 {s.objetivo}</div>}
+                        {s.objetivo && <div style={{ fontSize:11, color:'var(--silver)', marginBottom:2 }}>🎯 {s.objetivo}{s.objetivo_secundario ? ` · ${s.objetivo_secundario}` : ''}</div>}
                         {s.hora_inicio && <div style={{ fontSize:11, color:'var(--fog)' }}>🕐 {s.hora_inicio.slice(0,5)}{s.hora_fin?` – ${s.hora_fin.slice(0,5)}`:''}</div>}
-                        {s.descripcion && <div style={{ fontSize:11, color:'var(--silver)', marginTop:4, lineHeight:1.5 }}>{s.descripcion}</div>}
                         {s.ejercicios?.length>0 && (
                           <div style={{ marginTop:6 }}>
-                            {s.ejercicios.map((ej:any,i:number)=>(
+                            {s.ejercicios.map((bl:any,i:number)=>(
                               <div key={i} style={{ fontSize:10, color:'var(--silver)', padding:'2px 0', borderTop:'1px solid var(--mist)', display:'flex', gap:8 }}>
-                                <span style={{ fontWeight:600, color:'var(--snow)' }}>{ej.nombre}</span>
-                                {ej.series && <span>{ej.series}×{ej.reps}</span>}
-                                {ej.rpe && <span style={{ color:'var(--lime)' }}>RPE {ej.rpe}</span>}
+                                <span style={{ fontWeight:600, color:'var(--snow)' }}>{bl.ventana||`Tarea ${i+1}`}</span>
+                                {bl.series && bl.minutos && <span>{bl.series}×{bl.minutos}min</span>}
                               </div>
                             ))}
                           </div>
                         )}
-                        {s.materiales && <div style={{ fontSize:10, color:'var(--fog)', marginTop:6 }}>🎒 {s.materiales}</div>}
                       </div>
                     ))}
                   </div>
@@ -1079,23 +1079,26 @@ function CalendarioPanel({ teamData }) {
                     <button onClick={async()=>{ await fetch(`/api/calendario?id=${s.id}`,{method:'DELETE'}); load() }} style={{ fontSize:11, padding:'3px 8px', borderRadius:6, background:'rgba(239,68,68,.1)', border:'1px solid rgba(239,68,68,.25)', color:'#f87171', cursor:'pointer' }}>🗑</button>
                   </div>
                 </div>
-                {s.objetivo && <p style={{ fontSize:12, color:'var(--silver)', marginTop:4 }}>🎯 {s.objetivo}</p>}
+                {(s.objetivo||s.objetivo_secundario) && <p style={{ fontSize:12, color:'var(--silver)', marginTop:4 }}>🎯 {[s.objetivo,s.objetivo_secundario].filter(Boolean).join(' · ')}</p>}
+                {s.rpe_objetivo && <p style={{ fontSize:12, color:'var(--lime)', fontFamily:'DM Mono,monospace', marginTop:2 }}>RPE objetivo: {s.rpe_objetivo}</p>}
                 {s.hora_inicio && <p style={{ fontSize:12, color:'var(--fog)' }}>🕐 {s.hora_inicio.slice(0,5)}{s.hora_fin?` – ${s.hora_fin.slice(0,5)}`:''}</p>}
-                {s.descripcion && <p style={{ fontSize:12, color:'var(--silver)', marginTop:4, lineHeight:1.6 }}>{s.descripcion}</p>}
                 {s.ejercicios?.length>0 && (
-                  <div style={{ marginTop:8, background:'var(--ink2)', borderRadius:8, padding:'8px 12px' }}>
-                    <p style={{ fontSize:10, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:6 }}>Ejercicios</p>
-                    {s.ejercicios.map((ej:any,i:number)=>(
-                      <div key={i} style={{ display:'flex', gap:12, padding:'4px 0', borderTop:i>0?'1px solid var(--mist)':'none', fontSize:12 }}>
-                        <span style={{ fontWeight:600, color:'var(--snow)', flex:1 }}>{ej.nombre}</span>
-                        {ej.series&&<span style={{ color:'var(--silver)' }}>{ej.series}×{ej.reps}</span>}
-                        {ej.intensidad&&<span style={{ color:'var(--silver)' }}>{ej.intensidad}</span>}
-                        {ej.rpe&&<span style={{ color:'var(--lime)', fontFamily:'DM Mono,monospace' }}>RPE {ej.rpe}</span>}
+                  <div style={{ marginTop:8 }}>
+                    <p style={{ fontSize:10, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:6 }}>Tareas ({s.ejercicios.length})</p>
+                    {s.ejercicios.map((bl:any,i:number)=>(
+                      <div key={i} style={{ background:'var(--ink2)', borderRadius:8, padding:'8px 10px', marginBottom:6 }}>
+                        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:bl.descripcion||bl.imagen?4:0 }}>
+                          <span style={{ fontSize:12, fontWeight:700, color:'var(--lime)' }}>Tarea {i+1}{bl.ventana?` · ${bl.ventana}`:''}</span>
+                          <span style={{ fontSize:11, color:'var(--silver)', fontFamily:'DM Mono,monospace' }}>
+                            {[bl.series&&`${bl.series}×${bl.minutos}min`, bl.jugadores&&`${bl.jugadores}jug`, (bl.largo&&bl.ancho)&&`${bl.largo}×${bl.ancho}m`].filter(Boolean).join(' · ')}
+                          </span>
+                        </div>
+                        {bl.descripcion && <p style={{ fontSize:11, color:'var(--silver)', lineHeight:1.5, margin:0 }}>{bl.descripcion}</p>}
+                        {bl.imagen && <img src={bl.imagen} style={{ marginTop:6, maxWidth:'100%', maxHeight:120, borderRadius:6, objectFit:'contain' }} />}
                       </div>
                     ))}
                   </div>
                 )}
-                {s.materiales && <p style={{ fontSize:11, color:'var(--fog)', marginTop:6 }}>🎒 {s.materiales}</p>}
                 {s.notas && <p style={{ fontSize:11, color:'var(--silver)', marginTop:4, fontStyle:'italic' }}>📝 {s.notas}</p>}
               </div>
             ))}
@@ -1152,6 +1155,171 @@ function CalendarioPanel({ teamData }) {
   )
 }
 
+function getCuadrante(densidad: number) {
+  // Based on Casamichana & Castellano literature on SSG density zones
+  if (densidad < 50)  return { label: 'Espacio Muy Reducido', color: '#ef4444', bg: 'rgba(239,68,68,.1)', border: 'rgba(239,68,68,.3)', desc: 'Alta intensidad · Muchos contactos · Poco espacio individual' }
+  if (densidad < 100) return { label: 'Espacio Reducido',     color: '#f59e0b', bg: 'rgba(245,158,11,.1)', border: 'rgba(245,158,11,.3)', desc: 'Intensidad media-alta · Buen balance técnico-físico' }
+  if (densidad < 175) return { label: 'Espacio Medio',        color: '#22c55e', bg: 'rgba(34,197,94,.1)',  border: 'rgba(34,197,94,.3)',  desc: 'Intensidad media · Mayor demanda aeróbica · Más desplazamiento' }
+  if (densidad < 300) return { label: 'Espacio Amplio',       color: '#3b82f6', bg: 'rgba(59,130,246,.1)', border: 'rgba(59,130,246,.3)', desc: 'Baja-media intensidad · Alta distancia · Sprints frecuentes' }
+  return               { label: 'Espacio Muy Amplio',         color: '#a855f7', bg: 'rgba(168,85,247,.1)', border: 'rgba(168,85,247,.3)', desc: 'Baja intensidad · Alta distancia total · Domina carrera continua' }
+}
+
+function calcularDistancias(jugadores: number, largo: number, ancho: number, series: number, minutos: number) {
+  if (!jugadores || !largo || !ancho || !series || !minutos) return null
+  const espacioM2 = largo * ancho
+  const densidad = espacioM2 / jugadores
+  const tiempoTotal = series * minutos
+  const distTotal = Math.max(0, (19.243 * Math.log(densidad) - 5.029) * tiempoTotal)
+  const distSprint = Math.max(0, (0.018 * densidad - 0.844) * tiempoTotal)
+  const distMP = Math.max(0, (7.0421 * Math.log(densidad) - 15.255) * tiempoTotal)
+  const distAcel = Math.max(0, (1.321 * Math.log(densidad) - 0.629) * tiempoTotal)
+  const distDecel = Math.max(0, (1.157 * Math.log(densidad) - 0.418) * tiempoTotal)
+  const nSprints = Math.max(0, (0.001 * densidad - 0.046) * tiempoTotal)
+  const nAcel = Math.max(0, (0.212 * Math.log(densidad) - 0.23) * tiempoTotal)
+  const nDecel = Math.max(0, (0.1041 * Math.log(densidad) - 0.096) * tiempoTotal)
+  return { distTotal, distSprint, distMP, distAcel, distDecel, nSprints, nAcel, nDecel, densidad, tiempoTotal }
+}
+
+function BloqueMetodologia({ bloque, index, onChange, onRemove }) {
+  const [imgPreview, setImgPreview] = useState<string|null>(bloque.imagen || null)
+  const calc = calcularDistancias(
+    Number(bloque.jugadores), Number(bloque.largo), Number(bloque.ancho),
+    Number(bloque.series), Number(bloque.minutos)
+  )
+  function handleImg(e: any) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = ev => { const url = ev.target?.result as string; setImgPreview(url); onChange('imagen', url) }
+    reader.readAsDataURL(file)
+  }
+  const inp = (field, placeholder, type='text') => (
+    <input className="wp-input" type={type} placeholder={placeholder} value={bloque[field]||''} onChange={e=>onChange(field,e.target.value)}
+      style={{ padding:'5px 8px', fontSize:11, width:'100%' }} />
+  )
+  return (
+    <div style={{ background:'var(--ink3)', border:'1px solid rgba(200,241,53,.15)', borderRadius:12, padding:14, marginBottom:10 }}>
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10 }}>
+        <span style={{ fontSize:11, fontWeight:700, color:'var(--lime)', textTransform:'uppercase', letterSpacing:'0.06em' }}>Tarea {index+1}</span>
+        <button onClick={onRemove} style={{ background:'rgba(239,68,68,.1)', border:'1px solid rgba(239,68,68,.25)', borderRadius:6, color:'#f87171', cursor:'pointer', padding:'2px 8px', fontSize:11 }}>✕</button>
+      </div>
+      {/* Ventana */}
+      <div style={{ marginBottom:8 }}>
+        <label style={{ fontSize:9, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:3 }}>Ventana</label>
+        <select className="wp-input" value={bloque.ventana||''} onChange={e=>onChange('ventana',e.target.value)} style={{ padding:'5px 8px', fontSize:12, appearance:'none', width:'100%' }}>
+          <option value="">— Seleccionar —</option>
+          {VENTANAS_METODOLOGIA.map(v=><option key={v} value={v} style={{ background:'var(--ink2)' }}>{v}</option>)}
+        </select>
+      </div>
+      {/* Grid principal: espacio + imagen */}
+      <div style={{ display:'grid', gridTemplateColumns:'1fr auto', gap:10, marginBottom:8 }}>
+        <div>
+          {/* Jugadores / Bloques / Min / Pausa */}
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:6, marginBottom:6 }}>
+            <div><label style={{ fontSize:9, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:2 }}>Jugadores</label>{inp('jugadores','Nº jugadores','number')}</div>
+            <div><label style={{ fontSize:9, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:2 }}>Bloques</label>{inp('series','Nº bloques','number')}</div>
+            <div><label style={{ fontSize:9, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:2 }}>Min / bloque</label>{inp('minutos','Min','number')}</div>
+            <div><label style={{ fontSize:9, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:2 }}>Pausa x bloque (min)</label>{inp('pausa','Min descanso','number')}</div>
+          </div>
+          {/* Espacio: Largo / Ancho */}
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:6, marginBottom:4 }}>
+            <div><label style={{ fontSize:9, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:2 }}>Largo (m)</label>{inp('largo','m','number')}</div>
+            <div><label style={{ fontSize:9, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:2 }}>Ancho (m)</label>{inp('ancho','m','number')}</div>
+          </div>
+          {/* Tiempo total sesión */}
+          {(bloque.series && bloque.minutos) && (
+            <div style={{ fontSize:10, color:'var(--lime)', fontFamily:'DM Mono,monospace', marginTop:4 }}>
+              ⏱ Tiempo activo: {(Number(bloque.series)*Number(bloque.minutos))} min
+              {bloque.pausa ? ` + ${(Number(bloque.series)*Number(bloque.pausa))} min pausa = ${(Number(bloque.series)*(Number(bloque.minutos)+Number(bloque.pausa)))} min total` : ''}
+            </div>
+          )}
+        </div>
+        {/* Imagen de la tarea */}
+        <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:4 }}>
+          <label style={{ fontSize:9, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em' }}>Imagen tarea</label>
+          <label style={{ cursor:'pointer', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', width:90, height:90, borderRadius:10, border: imgPreview ? 'none' : '2px dashed rgba(200,241,53,.3)', background:'var(--ink2)', overflow:'hidden' }}>
+            {imgPreview
+              ? <img src={imgPreview} style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+              : <span style={{ fontSize:22 }}>📷</span>}
+            <input type="file" accept="image/*" onChange={handleImg} style={{ display:'none' }} />
+          </label>
+          {imgPreview && <button onClick={()=>{ setImgPreview(null); onChange('imagen','') }} style={{ fontSize:9, color:'#f87171', background:'none', border:'none', cursor:'pointer' }}>Quitar</button>}
+        </div>
+      </div>
+      {/* Descripción de la tarea */}
+      <div style={{ marginBottom:8 }}>
+        <label style={{ fontSize:9, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:2 }}>Descripción / Series / Rep / Paso</label>
+        <textarea className="wp-input" value={bloque.descripcion||''} onChange={e=>onChange('descripcion',e.target.value)} rows={2} placeholder="Descripción de la tarea, series, repeticiones, pasaje..." style={{ padding:'6px 8px', fontSize:12, resize:'vertical', fontFamily:'inherit', width:'100%' }} />
+      </div>
+      {/* Calculadora de distancias */}
+      {calc && (() => {
+        const cuad = getCuadrante(calc.densidad)
+        return (
+          <div style={{ background:'rgba(200,241,53,.04)', border:'1px solid rgba(200,241,53,.15)', borderRadius:8, padding:10 }}>
+            {/* Cuadrante badge */}
+            <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:10 }}>
+              <div style={{ flex:1, background:cuad.bg, border:`1px solid ${cuad.border}`, borderRadius:8, padding:'7px 12px' }}>
+                <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+                  <span style={{ fontSize:12, fontWeight:800, color:cuad.color, textTransform:'uppercase', letterSpacing:'0.05em' }}>
+                    ▣ {cuad.label}
+                  </span>
+                  <span style={{ fontSize:11, fontWeight:700, color:'var(--snow)', fontFamily:'DM Mono,monospace' }}>
+                    {calc.densidad.toFixed(1)} m²/jug
+                  </span>
+                </div>
+                <p style={{ fontSize:10, color:cuad.color, opacity:0.85, margin:'3px 0 0', fontStyle:'italic' }}>{cuad.desc}</p>
+              </div>
+            </div>
+            {/* Escala visual de cuadrantes */}
+            <div style={{ marginBottom:10 }}>
+              <div style={{ display:'flex', borderRadius:6, overflow:'hidden', height:6 }}>
+                {[
+                  { label:'Muy Red.', max:50,  color:'#ef4444' },
+                  { label:'Reducido', max:100, color:'#f59e0b' },
+                  { label:'Medio',    max:175, color:'#22c55e' },
+                  { label:'Amplio',   max:300, color:'#3b82f6' },
+                  { label:'Muy Amp.', max:500, color:'#a855f7' },
+                ].map((z, i, arr) => {
+                  const prev = arr[i-1]?.max || 0
+                  const zWidth = Math.min(z.max, 500) - prev
+                  const isActive = calc.densidad >= prev && calc.densidad < z.max
+                  return (
+                    <div key={z.label} style={{ flex:zWidth, background:z.color, opacity: isActive ? 1 : 0.25, transition:'opacity .2s' }} />
+                  )
+                })}
+              </div>
+              <div style={{ display:'flex', justifyContent:'space-between', marginTop:2 }}>
+                {['<50','50','100','175','300+'].map(v=>(
+                  <span key={v} style={{ fontSize:8, color:'var(--fog)', fontFamily:'DM Mono,monospace' }}>{v}</span>
+                ))}
+              </div>
+            </div>
+            {/* Métricas */}
+            <p style={{ fontSize:9, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:6 }}>📐 Estimación de carga externa · {calc.tiempoTotal} min activos</p>
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:5 }}>
+              {[
+                ['Dist. total',        'distTotal', 'm'],
+                ['Sprint >21km/h',     'distSprint','m'],
+                ['Alta pot. >20W/kg',  'distMP',    'm'],
+                ['Acel. >2m/s²',       'distAcel',  'm'],
+                ['Decel. >-2m/s²',     'distDecel', 'm'],
+                ['Nº sprints',         'nSprints',  ''],
+                ['Nº acel. >3m/s²',    'nAcel',     ''],
+                ['Nº decel. >-3m/s²',  'nDecel',    ''],
+              ].map(([label, key, unit])=>(
+                <div key={key} style={{ textAlign:'center', background:'var(--ink2)', borderRadius:6, padding:'5px 4px' }}>
+                  <div style={{ fontSize:8, color:'var(--silver)', marginBottom:2, lineHeight:1.3 }}>{label}</div>
+                  <div style={{ fontSize:13, fontWeight:700, color:'var(--snow)', fontFamily:'DM Mono,monospace' }}>{Math.round(calc[key])}<span style={{ fontSize:9, color:'var(--fog)' }}>{unit}</span></div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )
+      })()}
+    </div>
+  )
+}
+
 function SesionEditor({ sesion, defaultFecha, onSave, onDelete, onCancel }) {
   const [f, setF] = useState({
     fecha: sesion?.fecha || defaultFecha,
@@ -1160,25 +1328,27 @@ function SesionEditor({ sesion, defaultFecha, onSave, onDelete, onCancel }) {
     tipo: sesion?.tipo || 'entrenamiento',
     titulo: sesion?.titulo || '',
     objetivo: sesion?.objetivo || '',
+    objetivo_secundario: sesion?.objetivo_secundario || '',
     descripcion: sesion?.descripcion || '',
     rpe_objetivo: sesion?.rpe_objetivo ? String(sesion.rpe_objetivo) : '',
-    materiales: sesion?.materiales || '',
     notas: sesion?.notas || '',
   })
-  const [ejercicios, setEjercicios] = useState<any[]>(sesion?.ejercicios || [])
+  const [bloques, setBloques] = useState<any[]>(() => {
+    try { return sesion?.ejercicios?.length ? sesion.ejercicios : [] } catch { return [] }
+  })
   const [loading, setLoading] = useState(false)
   const [saveError, setSaveError] = useState('')
   const set = (k,v) => setF(p=>({...p,[k]:v}))
 
-  function addEjercicio() { setEjercicios(e=>[...e, { nombre:'', series:'', reps:'', intensidad:'', rpe:'' }]) }
-  function updateEj(i,k,v) { setEjercicios(e=>e.map((ej,idx)=>idx===i?{...ej,[k]:v}:ej)) }
-  function removeEj(i) { setEjercicios(e=>e.filter((_,idx)=>idx!==i)) }
+  function addBloque() { setBloques(b=>[...b, { ventana:'', jugadores:'', series:'', minutos:'', pausa:'', largo:'', ancho:'', descripcion:'', imagen:'' }]) }
+  function updateBloque(i,k,v) { setBloques(b=>b.map((bl,idx)=>idx===i?{...bl,[k]:v}:bl)) }
+  function removeBloque(i) { setBloques(b=>b.filter((_,idx)=>idx!==i)) }
 
   async function submit() {
     if (!f.fecha) return
     setLoading(true); setSaveError('')
     try {
-      await onSave({ ...f, rpe_objetivo:f.rpe_objetivo?Number(f.rpe_objetivo):null, ejercicios })
+      await onSave({ ...f, rpe_objetivo:f.rpe_objetivo?Number(f.rpe_objetivo):null, ejercicios: bloques })
     } catch(e) {
       setSaveError('Error al guardar. Intentá de nuevo.')
     }
@@ -1217,57 +1387,47 @@ function SesionEditor({ sesion, defaultFecha, onSave, onDelete, onCancel }) {
           <label style={{ display:'block', fontSize:10, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:5 }}>Hora fin</label>
           <input type="time" className="wp-input" value={f.hora_fin} onChange={e=>set('hora_fin',e.target.value)} style={{ padding:'8px 12px', fontSize:13 }} />
         </div>
-        {/* Título */}
+        {/* Título de la sesión - dropdown MD */}
         <div style={{ gridColumn:'span 2' }}>
           <label style={{ display:'block', fontSize:10, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:5 }}>Título de la sesión</label>
-          <input className="wp-input" value={f.titulo} onChange={e=>set('titulo',e.target.value)} placeholder="ej: Fuerza + Táctica ofensiva" style={{ padding:'8px 12px', fontSize:13 }} />
+          <select className="wp-input" value={f.titulo} onChange={e=>set('titulo',e.target.value)} style={{ padding:'8px 12px', fontSize:13, appearance:'none' }}>
+            <option value="">— Seleccionar —</option>
+            {TITULOS_SESION.map(t=><option key={t} value={t} style={{ background:'var(--ink2)' }}>{t}</option>)}
+          </select>
         </div>
-        {/* Objetivo */}
+        {/* Objetivo Físico Principal */}
         <div>
-          <label style={{ display:'block', fontSize:10, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:5 }}>Objetivo principal</label>
+          <label style={{ display:'block', fontSize:10, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:5 }}>Objetivo Físico Principal</label>
           <select className="wp-input" value={f.objetivo} onChange={e=>set('objetivo',e.target.value)} style={{ padding:'8px 12px', fontSize:13, appearance:'none' }}>
             <option value="" style={{ background:'var(--ink2)' }}>— Seleccionar —</option>
-            {OBJETIVOS.map(o=><option key={o} value={o} style={{ background:'var(--ink2)' }}>{o}</option>)}
+            {OBJETIVOS_FISICOS.map(o=><option key={o} value={o} style={{ background:'var(--ink2)' }}>{o}</option>)}
+          </select>
+        </div>
+        {/* Objetivo Secundario */}
+        <div>
+          <label style={{ display:'block', fontSize:10, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:5 }}>Objetivo Secundario</label>
+          <select className="wp-input" value={f.objetivo_secundario} onChange={e=>set('objetivo_secundario',e.target.value)} style={{ padding:'8px 12px', fontSize:13, appearance:'none' }}>
+            <option value="" style={{ background:'var(--ink2)' }}>— Seleccionar —</option>
+            {OBJETIVOS_SECUNDARIOS.map(o=><option key={o} value={o} style={{ background:'var(--ink2)' }}>{o}</option>)}
           </select>
         </div>
         {/* RPE objetivo */}
-        <div>
+        <div style={{ gridColumn:'span 2' }}>
           <label style={{ display:'block', fontSize:10, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:5 }}>RPE objetivo (1–10)</label>
           <input type="number" min="1" max="10" className="wp-input" value={f.rpe_objetivo} onChange={e=>set('rpe_objetivo',e.target.value)} placeholder="ej: 7" style={{ padding:'8px 12px', fontSize:13 }} />
         </div>
-        {/* Descripción */}
-        <div style={{ gridColumn:'span 2' }}>
-          <label style={{ display:'block', fontSize:10, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:5 }}>Descripción / Metodología</label>
-          <textarea className="wp-input" value={f.descripcion} onChange={e=>set('descripcion',e.target.value)} placeholder="Descripción de la sesión, metodología, estructura..." rows={3} style={{ padding:'8px 12px', fontSize:13, resize:'vertical', fontFamily:'inherit' }} />
-        </div>
-        {/* Materiales */}
-        <div style={{ gridColumn:'span 2' }}>
-          <label style={{ display:'block', fontSize:10, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:5 }}>🎒 Materiales necesarios</label>
-          <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
-            {MATERIALES_LIST.map(m=>(
-              <button key={m} type="button" onClick={()=>{ const cur=f.materiales.split(',').map(s=>s.trim()).filter(Boolean); set('materiales', cur.includes(m)?cur.filter(x=>x!==m).join(', '):[...cur,m].join(', ')) }} style={{ fontSize:11, padding:'4px 10px', borderRadius:8, cursor:'pointer', border: f.materiales.includes(m)?'2px solid var(--lime)':'1px solid var(--fog)', background: f.materiales.includes(m)?'rgba(200,241,53,.1)':'var(--ink3)', color: f.materiales.includes(m)?'var(--lime)':'var(--silver)' }}>{m}</button>
-            ))}
-          </div>
-        </div>
       </div>
 
-      {/* Ejercicios */}
+      {/* Descripción / Metodología — Bloques de tareas */}
       <div style={{ marginBottom:16 }}>
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10 }}>
-          <label style={{ fontSize:10, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em' }}>Ejercicios ({ejercicios.length})</label>
-          <button type="button" onClick={addEjercicio} style={{ fontSize:11, padding:'4px 12px', borderRadius:8, background:'rgba(200,241,53,.1)', color:'var(--lime)', border:'1px solid rgba(200,241,53,.3)', cursor:'pointer' }}>+ Agregar</button>
+          <label style={{ fontSize:10, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em' }}>📋 Descripción / Metodología · Tareas ({bloques.length})</label>
+          <button type="button" onClick={addBloque} style={{ fontSize:11, padding:'4px 12px', borderRadius:8, background:'rgba(200,241,53,.1)', color:'var(--lime)', border:'1px solid rgba(200,241,53,.3)', cursor:'pointer' }}>+ Tarea</button>
         </div>
-        {ejercicios.map((ej,i)=>(
-          <div key={i} style={{ display:'grid', gridTemplateColumns:'2fr 1fr 1fr 1fr 1fr auto', gap:8, marginBottom:8, background:'var(--ink3)', borderRadius:10, padding:'10px 12px', alignItems:'center' }}>
-            <input className="wp-input" placeholder="Nombre del ejercicio" value={ej.nombre} onChange={e=>updateEj(i,'nombre',e.target.value)} style={{ padding:'6px 10px', fontSize:12 }} />
-            <input className="wp-input" placeholder="Series" value={ej.series} onChange={e=>updateEj(i,'series',e.target.value)} style={{ padding:'6px 10px', fontSize:12 }} />
-            <input className="wp-input" placeholder="Reps" value={ej.reps} onChange={e=>updateEj(i,'reps',e.target.value)} style={{ padding:'6px 10px', fontSize:12 }} />
-            <input className="wp-input" placeholder="Intens." value={ej.intensidad} onChange={e=>updateEj(i,'intensidad',e.target.value)} style={{ padding:'6px 10px', fontSize:12 }} />
-            <input className="wp-input" placeholder="RPE" type="number" min="1" max="10" value={ej.rpe} onChange={e=>updateEj(i,'rpe',e.target.value)} style={{ padding:'6px 10px', fontSize:12 }} />
-            <button onClick={()=>removeEj(i)} style={{ background:'rgba(239,68,68,.1)', border:'1px solid rgba(239,68,68,.25)', borderRadius:6, color:'#f87171', cursor:'pointer', padding:'4px 8px', fontSize:12 }}>✕</button>
-          </div>
+        {bloques.length === 0 && <p style={{ fontSize:12, color:'var(--fog)', padding:'8px 0' }}>Sin tareas. Clickeá "+ Tarea" para construir la sesión.</p>}
+        {bloques.map((bl,i)=>(
+          <BloqueMetodologia key={i} bloque={bl} index={i} onChange={(k,v)=>updateBloque(i,k,v)} onRemove={()=>removeBloque(i)} />
         ))}
-        {ejercicios.length===0 && <p style={{ fontSize:12, color:'var(--fog)', padding:'8px 0' }}>Sin ejercicios. Clickeá "+ Agregar" para construir la sesión.</p>}
       </div>
 
       {/* Notas */}

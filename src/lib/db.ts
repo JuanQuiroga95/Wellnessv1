@@ -50,6 +50,7 @@ export const SCHEMA_STATEMENTS = [
     tipo VARCHAR(20) NOT NULL DEFAULT 'entrenamiento',
     titulo VARCHAR(150),
     objetivo VARCHAR(50),
+    objetivo_secundario VARCHAR(50),
     descripcion TEXT,
     ejercicios JSONB DEFAULT '[]',
     rpe_objetivo SMALLINT,
@@ -58,4 +59,5 @@ export const SCHEMA_STATEMENTS = [
     created_at TIMESTAMPTZ DEFAULT NOW()
   )`,
   `CREATE INDEX IF NOT EXISTS idx_sesiones_plan_fecha ON sesiones_plan(admin_id, fecha)`,
+  `ALTER TABLE sesiones_plan ADD COLUMN IF NOT EXISTS objetivo_secundario VARCHAR(50)`,
 ]

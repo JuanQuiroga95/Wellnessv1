@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
     // Sesiones planificadas por este admin
     const sesiones = await sql`
       SELECT id, fecha::text, hora_inicio::text, hora_fin::text, tipo, titulo,
-             objetivo, descripcion, ejercicios, rpe_objetivo, materiales, notas
+             objetivo, objetivo_secundario, descripcion, ejercicios, rpe_objetivo, notas
       FROM sesiones_plan
       WHERE admin_id = ${s.userId}
         AND fecha BETWEEN ${desde} AND ${hasta}
@@ -71,18 +71,19 @@ export async function POST(req: NextRequest) {
     const s = await getSessionFromRequest(req)
     if (!s || !isAdmin(s)) return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
     const b = await req.json()
-    const { fecha, hora_inicio, hora_fin, tipo, titulo, objetivo, descripcion,
-            ejercicios, rpe_objetivo, materiales, notas } = b
+    const { fecha, hora_inicio, hora_fin, tipo, titulo, objetivo, objetivo_secundario,
+            descripcion, ejercicios, rpe_objetivo, notas } = b
     if (!fecha) return NextResponse.json({ error: 'Fecha requerida' }, { status: 400 })
     const sql = getDb()
     const [r] = await sql`
       INSERT INTO sesiones_plan(admin_id, club_id, fecha, hora_inicio, hora_fin, tipo, titulo,
-                                objetivo, descripcion, ejercicios, rpe_objetivo, materiales, notas)
+                                objetivo, objetivo_secundario, descripcion, ejercicios, rpe_objetivo, notas)
       VALUES(${s.userId}, ${s.clubId ?? null}, ${fecha},
              ${hora_inicio || null}, ${hora_fin || null},
              ${tipo || 'entrenamiento'}, ${titulo || null}, ${objetivo || null},
-             ${descripcion || null}, ${JSON.stringify(ejercicios || [])}::jsonb,
-             ${rpe_objetivo || null}, ${materiales || null}, ${notas || null})
+             ${objetivo_secundario || null}, ${descripcion || null},
+             ${JSON.stringify(ejercicios || [])}::jsonb,
+             ${rpe_objetivo || null}, ${notas || null})
       RETURNING id, fecha::text`
     return NextResponse.json(r)
   } catch (err) {
@@ -95,23 +96,23 @@ export async function PATCH(req: NextRequest) {
   try {
     const s = await getSessionFromRequest(req)
     if (!s || !isAdmin(s)) return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
-    const { id, fecha, hora_inicio, hora_fin, tipo, titulo, objetivo, descripcion,
-            ejercicios, rpe_objetivo, materiales, notas } = await req.json()
+    const { id, fecha, hora_inicio, hora_fin, tipo, titulo, objetivo, objetivo_secundario,
+            descripcion, ejercicios, rpe_objetivo, notas } = await req.json()
     if (!id) return NextResponse.json({ error: 'id requerido' }, { status: 400 })
     const sql = getDb()
     await sql`
       UPDATE sesiones_plan SET
-        fecha        = COALESCE(${fecha ?? null}, fecha),
-        hora_inicio  = COALESCE(${hora_inicio ?? null}, hora_inicio),
-        hora_fin     = COALESCE(${hora_fin ?? null}, hora_fin),
-        tipo         = COALESCE(${tipo ?? null}, tipo),
-        titulo       = COALESCE(${titulo ?? null}, titulo),
-        objetivo     = COALESCE(${objetivo ?? null}, objetivo),
-        descripcion  = COALESCE(${descripcion ?? null}, descripcion),
-        ejercicios   = COALESCE(${ejercicios ? JSON.stringify(ejercicios) : null}::jsonb, ejercicios),
-        rpe_objetivo = COALESCE(${rpe_objetivo ?? null}, rpe_objetivo),
-        materiales   = COALESCE(${materiales ?? null}, materiales),
-        notas        = COALESCE(${notas ?? null}, notas)
+        fecha              = COALESCE(${fecha ?? null}, fecha),
+        hora_inicio        = COALESCE(${hora_inicio ?? null}, hora_inicio),
+        hora_fin           = COALESCE(${hora_fin ?? null}, hora_fin),
+        tipo               = COALESCE(${tipo ?? null}, tipo),
+        titulo             = COALESCE(${titulo ?? null}, titulo),
+        objetivo           = COALESCE(${objetivo ?? null}, objetivo),
+        objetivo_secundario= COALESCE(${objetivo_secundario ?? null}, objetivo_secundario),
+        descripcion        = COALESCE(${descripcion ?? null}, descripcion),
+        ejercicios         = COALESCE(${ejercicios ? JSON.stringify(ejercicios) : null}::jsonb, ejercicios),
+        rpe_objetivo       = COALESCE(${rpe_objetivo ?? null}, rpe_objetivo),
+        notas              = COALESCE(${notas ?? null}, notas)
       WHERE id = ${id} AND admin_id = ${s.userId}`
     return NextResponse.json({ ok: true })
   } catch (err) {
