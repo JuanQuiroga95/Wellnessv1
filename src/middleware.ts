@@ -3,7 +3,7 @@ import { verifyToken } from '@/lib/auth'
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl
-  const pub = ['/login','/api/auth/login','/api/auth/logout','/api/seed']
+  const pub = ['/login','/api/auth/login','/api/auth/logout','/api/seed','/api/migrate']
   if (pub.some(p=>pathname===p)||pathname.startsWith('/_next')||pathname==='/favicon.ico') return NextResponse.next()
   const token = req.cookies.get('wp_token')?.value
   if (!token) return pathname.startsWith('/api') ? NextResponse.json({error:'No autorizado'},{status:401}) : NextResponse.redirect(new URL('/login',req.url))

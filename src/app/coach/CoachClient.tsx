@@ -1113,12 +1113,38 @@ function CalendarioPanel({ teamData }) {
         <SesionEditor
           sesion={editSesion}
           defaultFecha={selectedDay||today}
-          onSave={async(data)=>{ 
-            if (editSesion?.id) { await fetch('/api/calendario',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:editSesion.id,...data})}) }
-            else { await fetch('/api/calendario',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)}) }
-            setShowEditor(false); setEditSesion(null); load()
+          onSave={async(data)=>{
+            try {
+              let res
+              if (editSesion?.id) {
+                res = await fetch('/api/calendario', {
+                  method:'PATCH',
+                  headers:{'Content-Type':'application/json'},
+                  body:JSON.stringify({id:editSesion.id,...data})
+                })
+              } else {
+                res = await fetch('/api/calendario', {
+                  method:'POST',
+                  headers:{'Content-Type':'application/json'},
+                  body:JSON.stringify(data)
+                })
+              }
+              if (!res.ok) {
+                const err = await res.json()
+                alert('Error al guardar: ' + (err.error||res.status))
+                return
+              }
+              setShowEditor(false)
+              setEditSesion(null)
+              await load()
+            } catch(e) {
+              alert('Error de conexión: ' + String(e))
+            }
           }}
-          onDelete={editSesion?.id ? async()=>{ await fetch(`/api/calendario?id=${editSesion.id}`,{method:'DELETE'}); setShowEditor(false); setEditSesion(null); load() } : undefined}
+          onDelete={editSesion?.id ? async()=>{
+            await fetch(`/api/calendario?id=${editSesion.id}`,{method:'DELETE'})
+            setShowEditor(false); setEditSesion(null); await load()
+          } : undefined}
           onCancel={()=>{ setShowEditor(false); setEditSesion(null) }}
         />
       )}
@@ -1140,7 +1166,8 @@ function SesionEditor({ sesion, defaultFecha, onSave, onDelete, onCancel }) {
     notas: sesion?.notas || '',
   })
   const [ejercicios, setEjercicios] = useState<any[]>(sesion?.ejercicios || [])
-  const [loading, setSaving] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [saveError, setSaveError] = useState('')
   const set = (k,v) => setF(p=>({...p,[k]:v}))
 
   function addEjercicio() { setEjercicios(e=>[...e, { nombre:'', series:'', reps:'', intensidad:'', rpe:'' }]) }
@@ -1148,9 +1175,14 @@ function SesionEditor({ sesion, defaultFecha, onSave, onDelete, onCancel }) {
   function removeEj(i) { setEjercicios(e=>e.filter((_,idx)=>idx!==i)) }
 
   async function submit() {
-    setSaving(true)
-    await onSave({ ...f, rpe_objetivo:f.rpe_objetivo?Number(f.rpe_objetivo):null, ejercicios })
-    setSaving(false)
+    if (!f.fecha) return
+    setLoading(true); setSaveError('')
+    try {
+      await onSave({ ...f, rpe_objetivo:f.rpe_objetivo?Number(f.rpe_objetivo):null, ejercicios })
+    } catch(e) {
+      setSaveError('Error al guardar. Intentá de nuevo.')
+    }
+    setLoading(false)
   }
 
   return (
@@ -1159,7 +1191,7 @@ function SesionEditor({ sesion, defaultFecha, onSave, onDelete, onCancel }) {
         <p style={{ fontSize:14, fontWeight:700, color:'var(--lime)', textTransform:'uppercase', letterSpacing:'0.06em' }}>
           {sesion ? '✏️ Editar sesión' : '+ Nueva sesión'}
         </p>
-        <button onClick={onCancel} style={{ background:'transparent', border:'none', color:'var(--fog)', cursor:'pointer', fontSize:18 }}>✕</button>
+        <button type="button" onClick={onCancel} style={{ background:'transparent', border:'none', color:'var(--fog)', cursor:'pointer', fontSize:18 }}>✕</button>
       </div>
 
       <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:14 }}>
@@ -1246,13 +1278,14 @@ function SesionEditor({ sesion, defaultFecha, onSave, onDelete, onCancel }) {
 
       <div style={{ display:'flex', gap:10 }}>
         {onDelete && (
-          <button onClick={onDelete} className="btn-ghost" style={{ fontSize:12, color:'#f87171', borderColor:'rgba(239,68,68,.3)', padding:'10px 16px' }}>🗑 Eliminar</button>
+          <button type="button" onClick={onDelete} className="btn-ghost" style={{ fontSize:12, color:'#f87171', borderColor:'rgba(239,68,68,.3)', padding:'10px 16px' }}>🗑 Eliminar</button>
         )}
-        <button onClick={onCancel} className="btn-ghost" style={{ flex:1, fontSize:13 }}>Cancelar</button>
-        <button onClick={submit} disabled={loading||!f.fecha} className="btn-lime" style={{ flex:2, fontSize:13, padding:14 }}>
+        <button type="button" onClick={onCancel} className="btn-ghost" style={{ flex:1, fontSize:13 }}>Cancelar</button>
+        <button type="button" onClick={submit} disabled={loading||!f.fecha} className="btn-lime" style={{ flex:2, fontSize:13, padding:14 }}>
           {loading ? 'Guardando...' : sesion ? 'Guardar cambios →' : 'Crear sesión →'}
         </button>
       </div>
+      {saveError && <p style={{ fontSize:12, color:'#f87171', marginTop:10, textAlign:'center' }}>{saveError}</p>}
     </div>
   )
 }
