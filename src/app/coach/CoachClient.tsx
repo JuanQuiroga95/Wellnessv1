@@ -26,7 +26,7 @@ function compressImage(dataUrl: string, maxSize = 400, quality = 0.7): Promise<s
   })
 }
 
-const TABS = [{id:'team',label:'Equipo'},{id:'analytics',label:'Analytics'},{id:'minutos',label:'Minutaje'},{id:'media-equipo',label:'Media Equipo'},{id:'cambio-carga',label:'Cambio de Carga'},{id:'lesiones',label:'Lesiones'},{id:'players',label:'Jugadores'}]
+const TABS = [{id:'team',label:'Equipo'},{id:'calendario',label:'📅 Calendario'},{id:'analytics',label:'Analytics'},{id:'minutos',label:'Minutaje'},{id:'media-equipo',label:'Media Equipo'},{id:'cambio-carga',label:'Cambio de Carga'},{id:'lesiones',label:'Lesiones'},{id:'players',label:'Jugadores'}]
 const SC = {optimo:'#22c55e',precaucion:'#f59e0b',peligro:'#ef4444',sin_datos:'#555'}
 const SL = {optimo:'ÓPTIMO',precaucion:'PRECAUCIÓN',peligro:'RIESGO',sin_datos:'—'}
 const WK = ['fatiga','calidad_sueno','dolor_muscular','nivel_estres','estado_animo']
@@ -257,6 +257,7 @@ export default function CoachClient({ session, teamData, today }) {
         )}
 
         {tab==='analytics' && <AnalyticsPanel />}
+        {tab==='calendario' && <CalendarioPanel teamData={teamData} />}
         {tab==='minutos' && <MinutosPanel teamData={teamData} />}
         {tab==='media-equipo' && <MediaEquipoPanel />}
         {tab==='cambio-carga' && <CambioCargaPanel />}
@@ -726,6 +727,532 @@ function CambioCargaPanel() {
               </div>
             </>
       }
+    </div>
+  )
+}
+
+// ── CALENDARIO PANEL ──────────────────────────────────────────────────────────
+
+const OBJETIVOS = ['Fuerza','Resistencia','Velocidad','Táctica','Técnica','Físico','Recuperación','Libre']
+const MATERIALES_LIST = ['Balones','Conos','Petos','Portería','Elásticos','Sogas','Escaleras','Pesas','Ninguno']
+const TIPO_COLORES = { entrenamiento:'#c8f135', partido:'#3b82f6', recuperacion:'#f59e0b', descanso:'#555' }
+const TIPO_ICONOS = { entrenamiento:'⚽', partido:'🏆', recuperacion:'🔄', descanso:'😴' }
+
+function horasEntre(fechaA: string, horaA: string|null, fechaB: string, horaB: string|null): number|null {
+  if (!fechaA || !fechaB) return null
+  const dtA = new Date(`${fechaA}T${horaA||'20:00'}:00`)
+  const dtB = new Date(`${fechaB}T${horaB||'09:00'}:00`)
+  return Math.round((dtB.getTime() - dtA.getTime()) / 3600000)
+}
+
+function RecuperacionBadge({ horas }: { horas: number|null }) {
+  if (horas === null || horas <= 0) return null
+  const col = horas < 24 ? '#ef4444' : horas < 48 ? '#f59e0b' : '#22c55e'
+  const label = horas < 24 ? '⚠ RIESGO' : horas < 48 ? '⚡ AJUSTADO' : '✓ OK'
+  return (
+    <div style={{ display:'flex', alignItems:'center', gap:4, fontSize:10, color:col, background:`${col}18`, border:`1px solid ${col}44`, borderRadius:6, padding:'2px 7px', fontWeight:700, fontFamily:'DM Mono,monospace' }}>
+      {label} · {horas}h recup.
+    </div>
+  )
+}
+
+function CalendarioPanel({ teamData }) {
+  const now = new Date()
+  const [viewMode, setViewMode] = useState<'mes'|'semana'>('mes')
+  const [year, setYear] = useState(now.getFullYear())
+  const [month, setMonth] = useState(now.getMonth()) // 0-indexed
+  const [weekStart, setWeekStart] = useState(() => {
+    const d = new Date(); d.setDate(d.getDate() - d.getDay() + 1); return d
+  })
+  const [data, setData] = useState<any>(null)
+  const [loading, setLoading] = useState(false)
+  const [selectedDay, setSelectedDay] = useState<string|null>(null)
+  const [editSesion, setEditSesion] = useState<any|null>(null)
+  const [showEditor, setShowEditor] = useState(false)
+
+  const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
+  const DIAS = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom']
+
+  useEffect(() => { load() }, [year, month, weekStart, viewMode])
+
+  async function load() {
+    setLoading(true)
+    let desde: string, hasta: string
+    if (viewMode === 'mes') {
+      desde = `${year}-${String(month+1).padStart(2,'0')}-01`
+      const lastDay = new Date(year, month+1, 0).getDate()
+      hasta = `${year}-${String(month+1).padStart(2,'0')}-${lastDay}`
+    } else {
+      const ws = new Date(weekStart)
+      const we = new Date(weekStart); we.setDate(we.getDate() + 6)
+      desde = ws.toISOString().split('T')[0]
+      hasta = we.toISOString().split('T')[0]
+    }
+    try {
+      const r = await fetch(`/api/calendario?desde=${desde}&hasta=${hasta}`)
+      setData(await r.json())
+    } catch {}
+    setLoading(false)
+  }
+
+  function prevNav() {
+    if (viewMode === 'mes') {
+      if (month === 0) { setMonth(11); setYear(y => y-1) } else setMonth(m => m-1)
+    } else {
+      setWeekStart(d => { const n = new Date(d); n.setDate(n.getDate()-7); return n })
+    }
+  }
+  function nextNav() {
+    if (viewMode === 'mes') {
+      if (month === 11) { setMonth(0); setYear(y => y+1) } else setMonth(m => m+1)
+    } else {
+      setWeekStart(d => { const n = new Date(d); n.setDate(n.getDate()+7); return n })
+    }
+  }
+
+  const sesiones: any[] = data?.sesiones || []
+  const partidos: any[] = data?.partidos || []
+  const logs: any[] = data?.logs || []
+
+  function eventosDelDia(fecha: string) {
+    return {
+      sesiones: sesiones.filter(s => s.fecha === fecha),
+      partidos: partidos.filter(p => p.fecha === fecha),
+      log: logs.find(l => l.fecha === fecha) || null,
+    }
+  }
+
+  // Calcular recuperación entre días consecutivos con eventos
+  function calcRecuperacion(fechaA: string, fechaB: string) {
+    const sesA = sesiones.filter(s=>s.fecha===fechaA)
+    const sesB = sesiones.filter(s=>s.fecha===fechaB)
+    const partA = partidos.find(p=>p.fecha===fechaA)
+    const partB = partidos.find(p=>p.fecha===fechaB)
+    const lastA = partA ? { fecha:fechaA, hora: partA.hora_inicio || null } 
+                       : sesA.length ? { fecha:fechaA, hora: sesA[sesA.length-1].hora_fin || null } : null
+    const firstB = partB ? { fecha:fechaB, hora: partB.hora_inicio || null }
+                        : sesB.length ? { fecha:fechaB, hora: sesB[0].hora_inicio || null } : null
+    if (!lastA || !firstB) return null
+    return horasEntre(lastA.fecha, lastA.hora, firstB.fecha, firstB.hora)
+  }
+
+  // Generate days for month view
+  function getDiasMes() {
+    const firstDay = new Date(year, month, 1).getDay() // 0=Sun
+    const offset = firstDay === 0 ? 6 : firstDay - 1   // Mon-start offset
+    const daysInMonth = new Date(year, month+1, 0).getDate()
+    const days: (string|null)[] = Array(offset).fill(null)
+    for (let d = 1; d <= daysInMonth; d++) {
+      days.push(`${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`)
+    }
+    while (days.length % 7 !== 0) days.push(null)
+    return days
+  }
+
+  // Generate days for week view
+  function getDiasSemana() {
+    return Array.from({length:7}, (_,i) => {
+      const d = new Date(weekStart); d.setDate(d.getDate()+i)
+      return d.toISOString().split('T')[0]
+    })
+  }
+
+  const today = now.toISOString().split('T')[0]
+  const diasMes = viewMode === 'mes' ? getDiasMes() : []
+  const diasSemana = viewMode === 'semana' ? getDiasSemana() : []
+
+  // All event days sorted for recovery calculation
+  const allEventDays = [...new Set([
+    ...sesiones.map(s=>s.fecha),
+    ...partidos.map(p=>p.fecha),
+  ])].sort()
+
+  return (
+    <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
+      {/* Header */}
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', flexWrap:'wrap', gap:12 }}>
+        <div>
+          <h2 className="display" style={{ fontSize:48, color:'var(--snow)' }}>CALENDARIO</h2>
+          <p style={{ fontSize:12, color:'var(--silver)', marginTop:2 }}>Planificación de sesiones y recuperación</p>
+        </div>
+        <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+          <button onClick={()=>setShowEditor(true)} className="btn-lime" style={{ fontSize:12, padding:'10px 18px' }}>+ Nueva sesión</button>
+        </div>
+      </div>
+
+      {/* Legend */}
+      <div style={{ display:'flex', gap:14, flexWrap:'wrap' }}>
+        {Object.entries(TIPO_COLORES).map(([tipo,col])=>(
+          <div key={tipo} style={{ display:'flex', alignItems:'center', gap:5, fontSize:11, color:'var(--silver)' }}>
+            <div style={{ width:10, height:10, borderRadius:2, background:col }} />
+            {TIPO_ICONOS[tipo]} {tipo.charAt(0).toUpperCase()+tipo.slice(1)}
+          </div>
+        ))}
+        <div style={{ display:'flex', alignItems:'center', gap:5, fontSize:11, color:'var(--silver)' }}>
+          <div style={{ width:10, height:10, borderRadius:2, background:'#ef4444' }} />⚠ &lt;24h recuperación
+        </div>
+      </div>
+
+      {/* Navigation */}
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+        <div style={{ display:'flex', gap:4, background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:10, padding:3 }}>
+          {(['mes','semana'] as const).map(v=>(
+            <button key={v} onClick={()=>setViewMode(v)} style={{ padding:'6px 18px', borderRadius:7, cursor:'pointer', fontSize:12, fontWeight:600, border:'none', background:viewMode===v?'var(--lime)':'transparent', color:viewMode===v?'var(--ink)':'var(--silver)', transition:'all .12s', textTransform:'capitalize' }}>{v}</button>
+          ))}
+        </div>
+        <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+          <button onClick={prevNav} className="btn-ghost" style={{ padding:'6px 12px', fontSize:16 }}>‹</button>
+          <span style={{ fontSize:15, fontWeight:700, color:'var(--snow)', minWidth:180, textAlign:'center' }}>
+            {viewMode==='mes' ? `${MESES[month]} ${year}` : (() => {
+              const we = new Date(weekStart); we.setDate(we.getDate()+6)
+              return `${weekStart.toLocaleDateString('es',{day:'2-digit',month:'short'})} – ${we.toLocaleDateString('es',{day:'2-digit',month:'short',year:'numeric'})}`
+            })()}
+          </span>
+          <button onClick={nextNav} className="btn-ghost" style={{ padding:'6px 12px', fontSize:16 }}>›</button>
+        </div>
+        <button onClick={()=>{ const d=new Date(); setYear(d.getFullYear()); setMonth(d.getMonth()); setWeekStart(()=>{ const w=new Date(); w.setDate(w.getDate()-w.getDay()+1); return w }); }} className="btn-ghost" style={{ fontSize:11, padding:'6px 12px' }}>Hoy</button>
+      </div>
+
+      {loading ? (
+        <div style={{ padding:60, textAlign:'center', color:'var(--silver)' }}>Cargando...</div>
+      ) : viewMode === 'mes' ? (
+        /* ── VISTA MENSUAL ── */
+        <div style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:16, overflow:'hidden' }}>
+          {/* Day headers */}
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)', borderBottom:'1px solid var(--mist)' }}>
+            {DIAS.map(d=>(
+              <div key={d} style={{ padding:'8px 0', textAlign:'center', fontSize:10, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em' }}>{d}</div>
+            ))}
+          </div>
+          {/* Days grid */}
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(7,1fr)' }}>
+            {diasMes.map((fecha, idx) => {
+              if (!fecha) return <div key={idx} style={{ minHeight:100, borderRight:'1px solid var(--mist)', borderBottom:'1px solid var(--mist)', background:'var(--ink3)', opacity:.3 }} />
+              const { sesiones:ses, partidos:parts, log } = eventosDelDia(fecha)
+              const isToday = fecha === today
+              const dayNum = parseInt(fecha.split('-')[2])
+              const isWeekend = [5,6].includes(idx % 7) // Sáb, Dom
+
+              // Recovery alert from previous event day
+              const prevEventDay = allEventDays[allEventDays.indexOf(fecha)-1]
+              const recup = prevEventDay ? calcRecuperacion(prevEventDay, fecha) : null
+              const hasEvents = ses.length > 0 || parts.length > 0
+              const recupAlert = hasEvents && recup !== null && recup < 48
+
+              return (
+                <div key={fecha}
+                  onClick={() => { setSelectedDay(selectedDay===fecha?null:fecha) }}
+                  style={{
+                    minHeight:100, borderRight:'1px solid var(--mist)', borderBottom:'1px solid var(--mist)',
+                    padding:6, cursor:'pointer', transition:'background .12s',
+                    background: selectedDay===fecha ? 'rgba(200,241,53,.06)' : isWeekend ? 'rgba(255,255,255,.01)' : 'transparent',
+                    border: isToday ? '2px solid var(--lime)' : undefined,
+                    position:'relative',
+                  }}
+                  onMouseEnter={e=>(e.currentTarget as HTMLElement).style.background='rgba(255,255,255,.04)'}
+                  onMouseLeave={e=>(e.currentTarget as HTMLElement).style.background=selectedDay===fecha?'rgba(200,241,53,.06)':isWeekend?'rgba(255,255,255,.01)':'transparent'}
+                >
+                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:4 }}>
+                    <span style={{ fontSize:13, fontWeight:isToday?700:500, color:isToday?'var(--lime)':'var(--snow)', fontFamily:'DM Mono,monospace' }}>{dayNum}</span>
+                    {recupAlert && recup !== null && (
+                      <span title={`${recup}h de recuperación`} style={{ fontSize:9, background: recup<24?'rgba(239,68,68,.15)':'rgba(245,158,11,.15)', color:recup<24?'#f87171':'#fbbf24', border:`1px solid ${recup<24?'rgba(239,68,68,.4)':'rgba(245,158,11,.4)'}`, borderRadius:4, padding:'1px 4px', fontWeight:700 }}>
+                        ⚠{recup}h
+                      </span>
+                    )}
+                  </div>
+                  <div style={{ display:'flex', flexDirection:'column', gap:2 }}>
+                    {ses.map(s=>(
+                      <div key={s.id} onClick={e=>{e.stopPropagation();setEditSesion(s);setShowEditor(true)}} style={{ fontSize:10, padding:'2px 5px', borderRadius:4, background:`${TIPO_COLORES[s.tipo]||'#888'}22`, color:TIPO_COLORES[s.tipo]||'#888', border:`1px solid ${TIPO_COLORES[s.tipo]||'#888'}44`, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', cursor:'pointer' }}>
+                        {TIPO_ICONOS[s.tipo]} {s.titulo||s.tipo}
+                      </div>
+                    ))}
+                    {parts.map((p,i)=>(
+                      <div key={i} style={{ fontSize:10, padding:'2px 5px', borderRadius:4, background:'rgba(59,130,246,.2)', color:'#60a5fa', border:'1px solid rgba(59,130,246,.35)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                        🏆 {p.rival||'Partido'}
+                      </div>
+                    ))}
+                    {log && !ses.length && (
+                      <div style={{ fontSize:9, padding:'1px 4px', borderRadius:3, background:'rgba(200,241,53,.08)', color:'var(--lime)', border:'1px solid rgba(200,241,53,.2)' }}>
+                        ✓ Entreno RPE{log.max_rpe}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      ) : (
+        /* ── VISTA SEMANAL ── */
+        <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+          {diasSemana.map((fecha, idx) => {
+            const { sesiones:ses, partidos:parts, log } = eventosDelDia(fecha)
+            const isToday = fecha === today
+            const prevFecha = idx > 0 ? diasSemana[idx-1] : null
+            const recup = prevFecha && (ses.length>0||parts.length>0) ? calcRecuperacion(prevFecha, fecha) : null
+            const dayName = DIAS[idx]
+            const dayNum = parseInt(fecha.split('-')[2])
+            return (
+              <div key={fecha} style={{ background:'var(--ink2)', border:`1px solid ${isToday?'var(--lime)':'var(--mist)'}`, borderRadius:14, overflow:'hidden' }}>
+                <div style={{ display:'flex', alignItems:'center', gap:12, padding:'12px 16px', borderBottom:(ses.length>0||parts.length>0)?'1px solid var(--mist)':'none' }}>
+                  <div style={{ textAlign:'center', minWidth:44 }}>
+                    <div style={{ fontSize:11, color:'var(--silver)', textTransform:'uppercase', fontWeight:600 }}>{dayName}</div>
+                    <div style={{ fontSize:22, fontWeight:700, color:isToday?'var(--lime)':'var(--snow)', fontFamily:'DM Mono,monospace' }}>{dayNum}</div>
+                  </div>
+                  <div style={{ flex:1, display:'flex', flexWrap:'wrap', gap:6 }}>
+                    {ses.length===0 && parts.length===0 && (
+                      <span style={{ fontSize:12, color:'var(--fog)' }}>Sin eventos</span>
+                    )}
+                    {ses.map(s=>(
+                      <button key={s.id} onClick={()=>{setEditSesion(s);setShowEditor(true)}} style={{ fontSize:12, padding:'4px 10px', borderRadius:8, background:`${TIPO_COLORES[s.tipo]||'#888'}20`, color:TIPO_COLORES[s.tipo]||'#888', border:`1px solid ${TIPO_COLORES[s.tipo]||'#888'}44`, cursor:'pointer' }}>
+                        {TIPO_ICONOS[s.tipo]} {s.titulo||s.tipo} {s.hora_inicio?`· ${s.hora_inicio.slice(0,5)}`:''}
+                      </button>
+                    ))}
+                    {parts.map((p,i)=>(
+                      <span key={i} style={{ fontSize:12, padding:'4px 10px', borderRadius:8, background:'rgba(59,130,246,.15)', color:'#60a5fa', border:'1px solid rgba(59,130,246,.3)' }}>
+                        🏆 {p.rival||'Partido'} · {p.tipo_partido}
+                      </span>
+                    ))}
+                  </div>
+                  <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', gap:4 }}>
+                    {recup !== null && <RecuperacionBadge horas={recup} />}
+                    <button onClick={()=>{setSelectedDay(fecha);setEditSesion(null);setShowEditor(true)}} style={{ fontSize:11, padding:'4px 10px', borderRadius:6, background:'transparent', border:'1px solid var(--fog)', color:'var(--silver)', cursor:'pointer' }}>+ Sesión</button>
+                  </div>
+                </div>
+                {ses.length>0 && (
+                  <div style={{ padding:'10px 16px 12px', display:'flex', gap:12, flexWrap:'wrap' }}>
+                    {ses.map(s=>(
+                      <div key={s.id} style={{ flex:'1 1 260px', background:'var(--ink3)', borderRadius:10, padding:'10px 14px' }}>
+                        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:6 }}>
+                          <span style={{ fontSize:12, fontWeight:700, color:TIPO_COLORES[s.tipo]||'#888' }}>{TIPO_ICONOS[s.tipo]} {s.titulo||s.tipo}</span>
+                          {s.rpe_objetivo && <span style={{ fontSize:11, color:'var(--lime)', fontFamily:'DM Mono,monospace' }}>RPE obj. {s.rpe_objetivo}</span>}
+                        </div>
+                        {s.objetivo && <div style={{ fontSize:11, color:'var(--silver)', marginBottom:4 }}>🎯 {s.objetivo}</div>}
+                        {s.hora_inicio && <div style={{ fontSize:11, color:'var(--fog)' }}>🕐 {s.hora_inicio.slice(0,5)}{s.hora_fin?` – ${s.hora_fin.slice(0,5)}`:''}</div>}
+                        {s.descripcion && <div style={{ fontSize:11, color:'var(--silver)', marginTop:4, lineHeight:1.5 }}>{s.descripcion}</div>}
+                        {s.ejercicios?.length>0 && (
+                          <div style={{ marginTop:6 }}>
+                            {s.ejercicios.map((ej:any,i:number)=>(
+                              <div key={i} style={{ fontSize:10, color:'var(--silver)', padding:'2px 0', borderTop:'1px solid var(--mist)', display:'flex', gap:8 }}>
+                                <span style={{ fontWeight:600, color:'var(--snow)' }}>{ej.nombre}</span>
+                                {ej.series && <span>{ej.series}×{ej.reps}</span>}
+                                {ej.rpe && <span style={{ color:'var(--lime)' }}>RPE {ej.rpe}</span>}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        {s.materiales && <div style={{ fontSize:10, color:'var(--fog)', marginTop:6 }}>🎒 {s.materiales}</div>}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {/* Day detail panel (month view click) */}
+      {selectedDay && viewMode==='mes' && (() => {
+        const { sesiones:ses, partidos:parts } = eventosDelDia(selectedDay)
+        const prevDay = allEventDays[allEventDays.indexOf(selectedDay)-1]
+        const recup = prevDay ? calcRecuperacion(prevDay, selectedDay) : null
+        return (
+          <div className="anim-up" style={{ background:'var(--ink2)', border:'1px solid rgba(200,241,53,.2)', borderRadius:14, padding:20 }}>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14 }}>
+              <div>
+                <p style={{ fontSize:13, fontWeight:700, color:'var(--lime)' }}>{new Date(selectedDay+'T12:00:00').toLocaleDateString('es',{weekday:'long',day:'numeric',month:'long'})}</p>
+                {recup !== null && (ses.length>0||parts.length>0) && <RecuperacionBadge horas={recup} />}
+              </div>
+              <div style={{ display:'flex', gap:8 }}>
+                <button onClick={()=>{setEditSesion(null);setShowEditor(true)}} className="btn-lime" style={{ fontSize:11, padding:'6px 14px' }}>+ Sesión</button>
+                <button onClick={()=>setSelectedDay(null)} className="btn-ghost" style={{ fontSize:11, padding:'6px 10px' }}>✕</button>
+              </div>
+            </div>
+            {ses.length===0 && parts.length===0 && <p style={{ color:'var(--fog)', fontSize:13 }}>Sin eventos planificados. Creá una sesión.</p>}
+            {ses.map(s=>(
+              <div key={s.id} style={{ background:'var(--ink3)', borderRadius:10, padding:'12px 14px', marginBottom:8 }}>
+                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                  <span style={{ fontWeight:700, color:TIPO_COLORES[s.tipo]||'#888', fontSize:13 }}>{TIPO_ICONOS[s.tipo]} {s.titulo||s.tipo}</span>
+                  <div style={{ display:'flex', gap:6 }}>
+                    <button onClick={()=>{setEditSesion(s);setShowEditor(true)}} style={{ fontSize:11, padding:'3px 8px', borderRadius:6, background:'var(--ink2)', border:'1px solid var(--fog)', color:'var(--silver)', cursor:'pointer' }}>✏️ Editar</button>
+                    <button onClick={async()=>{ await fetch(`/api/calendario?id=${s.id}`,{method:'DELETE'}); load() }} style={{ fontSize:11, padding:'3px 8px', borderRadius:6, background:'rgba(239,68,68,.1)', border:'1px solid rgba(239,68,68,.25)', color:'#f87171', cursor:'pointer' }}>🗑</button>
+                  </div>
+                </div>
+                {s.objetivo && <p style={{ fontSize:12, color:'var(--silver)', marginTop:4 }}>🎯 {s.objetivo}</p>}
+                {s.hora_inicio && <p style={{ fontSize:12, color:'var(--fog)' }}>🕐 {s.hora_inicio.slice(0,5)}{s.hora_fin?` – ${s.hora_fin.slice(0,5)}`:''}</p>}
+                {s.descripcion && <p style={{ fontSize:12, color:'var(--silver)', marginTop:4, lineHeight:1.6 }}>{s.descripcion}</p>}
+                {s.ejercicios?.length>0 && (
+                  <div style={{ marginTop:8, background:'var(--ink2)', borderRadius:8, padding:'8px 12px' }}>
+                    <p style={{ fontSize:10, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:6 }}>Ejercicios</p>
+                    {s.ejercicios.map((ej:any,i:number)=>(
+                      <div key={i} style={{ display:'flex', gap:12, padding:'4px 0', borderTop:i>0?'1px solid var(--mist)':'none', fontSize:12 }}>
+                        <span style={{ fontWeight:600, color:'var(--snow)', flex:1 }}>{ej.nombre}</span>
+                        {ej.series&&<span style={{ color:'var(--silver)' }}>{ej.series}×{ej.reps}</span>}
+                        {ej.intensidad&&<span style={{ color:'var(--silver)' }}>{ej.intensidad}</span>}
+                        {ej.rpe&&<span style={{ color:'var(--lime)', fontFamily:'DM Mono,monospace' }}>RPE {ej.rpe}</span>}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {s.materiales && <p style={{ fontSize:11, color:'var(--fog)', marginTop:6 }}>🎒 {s.materiales}</p>}
+                {s.notas && <p style={{ fontSize:11, color:'var(--silver)', marginTop:4, fontStyle:'italic' }}>📝 {s.notas}</p>}
+              </div>
+            ))}
+            {parts.map((p,i)=>(
+              <div key={i} style={{ background:'rgba(59,130,246,.08)', border:'1px solid rgba(59,130,246,.25)', borderRadius:10, padding:'10px 14px' }}>
+                <span style={{ fontWeight:700, color:'#60a5fa', fontSize:13 }}>🏆 {p.rival||'Partido'} · {p.tipo_partido}</span>
+              </div>
+            ))}
+          </div>
+        )
+      })()}
+
+      {/* Session Editor Modal */}
+      {showEditor && (
+        <SesionEditor
+          sesion={editSesion}
+          defaultFecha={selectedDay||today}
+          onSave={async(data)=>{ 
+            if (editSesion?.id) { await fetch('/api/calendario',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:editSesion.id,...data})}) }
+            else { await fetch('/api/calendario',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)}) }
+            setShowEditor(false); setEditSesion(null); load()
+          }}
+          onDelete={editSesion?.id ? async()=>{ await fetch(`/api/calendario?id=${editSesion.id}`,{method:'DELETE'}); setShowEditor(false); setEditSesion(null); load() } : undefined}
+          onCancel={()=>{ setShowEditor(false); setEditSesion(null) }}
+        />
+      )}
+    </div>
+  )
+}
+
+function SesionEditor({ sesion, defaultFecha, onSave, onDelete, onCancel }) {
+  const [f, setF] = useState({
+    fecha: sesion?.fecha || defaultFecha,
+    hora_inicio: sesion?.hora_inicio?.slice(0,5) || '',
+    hora_fin: sesion?.hora_fin?.slice(0,5) || '',
+    tipo: sesion?.tipo || 'entrenamiento',
+    titulo: sesion?.titulo || '',
+    objetivo: sesion?.objetivo || '',
+    descripcion: sesion?.descripcion || '',
+    rpe_objetivo: sesion?.rpe_objetivo ? String(sesion.rpe_objetivo) : '',
+    materiales: sesion?.materiales || '',
+    notas: sesion?.notas || '',
+  })
+  const [ejercicios, setEjercicios] = useState<any[]>(sesion?.ejercicios || [])
+  const [loading, setSaving] = useState(false)
+  const set = (k,v) => setF(p=>({...p,[k]:v}))
+
+  function addEjercicio() { setEjercicios(e=>[...e, { nombre:'', series:'', reps:'', intensidad:'', rpe:'' }]) }
+  function updateEj(i,k,v) { setEjercicios(e=>e.map((ej,idx)=>idx===i?{...ej,[k]:v}:ej)) }
+  function removeEj(i) { setEjercicios(e=>e.filter((_,idx)=>idx!==i)) }
+
+  async function submit() {
+    setSaving(true)
+    await onSave({ ...f, rpe_objetivo:f.rpe_objetivo?Number(f.rpe_objetivo):null, ejercicios })
+    setSaving(false)
+  }
+
+  return (
+    <div className="anim-up" style={{ background:'var(--ink2)', border:'1px solid rgba(200,241,53,.2)', borderRadius:16, padding:24 }}>
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
+        <p style={{ fontSize:14, fontWeight:700, color:'var(--lime)', textTransform:'uppercase', letterSpacing:'0.06em' }}>
+          {sesion ? '✏️ Editar sesión' : '+ Nueva sesión'}
+        </p>
+        <button onClick={onCancel} style={{ background:'transparent', border:'none', color:'var(--fog)', cursor:'pointer', fontSize:18 }}>✕</button>
+      </div>
+
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:14 }}>
+        {/* Fecha */}
+        <div>
+          <label style={{ display:'block', fontSize:10, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:5 }}>Fecha</label>
+          <input type="date" className="wp-input" value={f.fecha} onChange={e=>set('fecha',e.target.value)} style={{ padding:'8px 12px', fontSize:13 }} />
+        </div>
+        {/* Tipo */}
+        <div>
+          <label style={{ display:'block', fontSize:10, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:5 }}>Tipo</label>
+          <select className="wp-input" value={f.tipo} onChange={e=>set('tipo',e.target.value)} style={{ padding:'8px 12px', fontSize:13, appearance:'none' }}>
+            {Object.keys(TIPO_COLORES).map(t=><option key={t} value={t} style={{ background:'var(--ink2)', textTransform:'capitalize' }}>{TIPO_ICONOS[t]} {t.charAt(0).toUpperCase()+t.slice(1)}</option>)}
+          </select>
+        </div>
+        {/* Hora inicio */}
+        <div>
+          <label style={{ display:'block', fontSize:10, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:5 }}>Hora inicio</label>
+          <input type="time" className="wp-input" value={f.hora_inicio} onChange={e=>set('hora_inicio',e.target.value)} style={{ padding:'8px 12px', fontSize:13 }} />
+        </div>
+        {/* Hora fin */}
+        <div>
+          <label style={{ display:'block', fontSize:10, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:5 }}>Hora fin</label>
+          <input type="time" className="wp-input" value={f.hora_fin} onChange={e=>set('hora_fin',e.target.value)} style={{ padding:'8px 12px', fontSize:13 }} />
+        </div>
+        {/* Título */}
+        <div style={{ gridColumn:'span 2' }}>
+          <label style={{ display:'block', fontSize:10, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:5 }}>Título de la sesión</label>
+          <input className="wp-input" value={f.titulo} onChange={e=>set('titulo',e.target.value)} placeholder="ej: Fuerza + Táctica ofensiva" style={{ padding:'8px 12px', fontSize:13 }} />
+        </div>
+        {/* Objetivo */}
+        <div>
+          <label style={{ display:'block', fontSize:10, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:5 }}>Objetivo principal</label>
+          <select className="wp-input" value={f.objetivo} onChange={e=>set('objetivo',e.target.value)} style={{ padding:'8px 12px', fontSize:13, appearance:'none' }}>
+            <option value="" style={{ background:'var(--ink2)' }}>— Seleccionar —</option>
+            {OBJETIVOS.map(o=><option key={o} value={o} style={{ background:'var(--ink2)' }}>{o}</option>)}
+          </select>
+        </div>
+        {/* RPE objetivo */}
+        <div>
+          <label style={{ display:'block', fontSize:10, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:5 }}>RPE objetivo (1–10)</label>
+          <input type="number" min="1" max="10" className="wp-input" value={f.rpe_objetivo} onChange={e=>set('rpe_objetivo',e.target.value)} placeholder="ej: 7" style={{ padding:'8px 12px', fontSize:13 }} />
+        </div>
+        {/* Descripción */}
+        <div style={{ gridColumn:'span 2' }}>
+          <label style={{ display:'block', fontSize:10, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:5 }}>Descripción / Metodología</label>
+          <textarea className="wp-input" value={f.descripcion} onChange={e=>set('descripcion',e.target.value)} placeholder="Descripción de la sesión, metodología, estructura..." rows={3} style={{ padding:'8px 12px', fontSize:13, resize:'vertical', fontFamily:'inherit' }} />
+        </div>
+        {/* Materiales */}
+        <div style={{ gridColumn:'span 2' }}>
+          <label style={{ display:'block', fontSize:10, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:5 }}>🎒 Materiales necesarios</label>
+          <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
+            {MATERIALES_LIST.map(m=>(
+              <button key={m} type="button" onClick={()=>{ const cur=f.materiales.split(',').map(s=>s.trim()).filter(Boolean); set('materiales', cur.includes(m)?cur.filter(x=>x!==m).join(', '):[...cur,m].join(', ')) }} style={{ fontSize:11, padding:'4px 10px', borderRadius:8, cursor:'pointer', border: f.materiales.includes(m)?'2px solid var(--lime)':'1px solid var(--fog)', background: f.materiales.includes(m)?'rgba(200,241,53,.1)':'var(--ink3)', color: f.materiales.includes(m)?'var(--lime)':'var(--silver)' }}>{m}</button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Ejercicios */}
+      <div style={{ marginBottom:16 }}>
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10 }}>
+          <label style={{ fontSize:10, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em' }}>Ejercicios ({ejercicios.length})</label>
+          <button type="button" onClick={addEjercicio} style={{ fontSize:11, padding:'4px 12px', borderRadius:8, background:'rgba(200,241,53,.1)', color:'var(--lime)', border:'1px solid rgba(200,241,53,.3)', cursor:'pointer' }}>+ Agregar</button>
+        </div>
+        {ejercicios.map((ej,i)=>(
+          <div key={i} style={{ display:'grid', gridTemplateColumns:'2fr 1fr 1fr 1fr 1fr auto', gap:8, marginBottom:8, background:'var(--ink3)', borderRadius:10, padding:'10px 12px', alignItems:'center' }}>
+            <input className="wp-input" placeholder="Nombre del ejercicio" value={ej.nombre} onChange={e=>updateEj(i,'nombre',e.target.value)} style={{ padding:'6px 10px', fontSize:12 }} />
+            <input className="wp-input" placeholder="Series" value={ej.series} onChange={e=>updateEj(i,'series',e.target.value)} style={{ padding:'6px 10px', fontSize:12 }} />
+            <input className="wp-input" placeholder="Reps" value={ej.reps} onChange={e=>updateEj(i,'reps',e.target.value)} style={{ padding:'6px 10px', fontSize:12 }} />
+            <input className="wp-input" placeholder="Intens." value={ej.intensidad} onChange={e=>updateEj(i,'intensidad',e.target.value)} style={{ padding:'6px 10px', fontSize:12 }} />
+            <input className="wp-input" placeholder="RPE" type="number" min="1" max="10" value={ej.rpe} onChange={e=>updateEj(i,'rpe',e.target.value)} style={{ padding:'6px 10px', fontSize:12 }} />
+            <button onClick={()=>removeEj(i)} style={{ background:'rgba(239,68,68,.1)', border:'1px solid rgba(239,68,68,.25)', borderRadius:6, color:'#f87171', cursor:'pointer', padding:'4px 8px', fontSize:12 }}>✕</button>
+          </div>
+        ))}
+        {ejercicios.length===0 && <p style={{ fontSize:12, color:'var(--fog)', padding:'8px 0' }}>Sin ejercicios. Clickeá "+ Agregar" para construir la sesión.</p>}
+      </div>
+
+      {/* Notas */}
+      <div style={{ marginBottom:20 }}>
+        <label style={{ display:'block', fontSize:10, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:5 }}>Notas adicionales</label>
+        <input className="wp-input" value={f.notas} onChange={e=>set('notas',e.target.value)} placeholder="Observaciones, condiciones especiales..." style={{ padding:'8px 12px', fontSize:13 }} />
+      </div>
+
+      <div style={{ display:'flex', gap:10 }}>
+        {onDelete && (
+          <button onClick={onDelete} className="btn-ghost" style={{ fontSize:12, color:'#f87171', borderColor:'rgba(239,68,68,.3)', padding:'10px 16px' }}>🗑 Eliminar</button>
+        )}
+        <button onClick={onCancel} className="btn-ghost" style={{ flex:1, fontSize:13 }}>Cancelar</button>
+        <button onClick={submit} disabled={loading||!f.fecha} className="btn-lime" style={{ flex:2, fontSize:13, padding:14 }}>
+          {loading ? 'Guardando...' : sesion ? 'Guardar cambios →' : 'Crear sesión →'}
+        </button>
+      </div>
     </div>
   )
 }

@@ -19,7 +19,8 @@ export async function POST() {
     [`ALTER TABLE partido_logs ADD COLUMN IF NOT EXISTS club_id INTEGER`, 'partido_logs.club_id'],
     [`ALTER TABLE lesiones ADD COLUMN IF NOT EXISTS club_id INTEGER`, 'lesiones.club_id'],
     [`ALTER TABLE wellness_logs ADD COLUMN IF NOT EXISTS dolor_eva SMALLINT`, 'dolor_eva column'],
-    [`ALTER TABLE jugadores ADD COLUMN IF NOT EXISTS posicion_orden INTEGER DEFAULT 99`, 'posicion_orden'],
+    [`CREATE TABLE IF NOT EXISTS sesiones_plan (id SERIAL PRIMARY KEY, club_id INTEGER, admin_id INTEGER REFERENCES usuarios(id), fecha DATE NOT NULL, hora_inicio TIME, hora_fin TIME, tipo VARCHAR(20) NOT NULL DEFAULT 'entrenamiento', titulo VARCHAR(150), objetivo VARCHAR(50), descripcion TEXT, ejercicios JSONB DEFAULT '[]', rpe_objetivo SMALLINT, materiales TEXT, notas TEXT, created_at TIMESTAMPTZ DEFAULT NOW())`, 'sesiones_plan table'],
+    [`CREATE INDEX IF NOT EXISTS idx_sesiones_plan_fecha ON sesiones_plan(admin_id, fecha)`, 'sesiones_plan index'],
     [`ALTER TABLE jugadores ADD COLUMN IF NOT EXISTS foto_url TEXT`, 'foto_url'],
   ]
 

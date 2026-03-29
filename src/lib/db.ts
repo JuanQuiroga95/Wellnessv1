@@ -39,6 +39,23 @@ export const SCHEMA_STATEMENTS = [
   `ALTER TABLE wellness_logs ADD COLUMN IF NOT EXISTS club_id INTEGER`,
   `ALTER TABLE partido_logs ADD COLUMN IF NOT EXISTS club_id INTEGER`,
   `ALTER TABLE lesiones ADD COLUMN IF NOT EXISTS club_id INTEGER`,
-  // Backfill: if clubs exist and rows have null club_id, assign first club
-  // (handled in seed/migration API separately)
+  // Calendario & Planificación de sesiones
+  `CREATE TABLE IF NOT EXISTS sesiones_plan (
+    id SERIAL PRIMARY KEY,
+    club_id INTEGER,
+    admin_id INTEGER REFERENCES usuarios(id),
+    fecha DATE NOT NULL,
+    hora_inicio TIME,
+    hora_fin TIME,
+    tipo VARCHAR(20) NOT NULL DEFAULT 'entrenamiento',
+    titulo VARCHAR(150),
+    objetivo VARCHAR(50),
+    descripcion TEXT,
+    ejercicios JSONB DEFAULT '[]',
+    rpe_objetivo SMALLINT,
+    materiales TEXT,
+    notas TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_sesiones_plan_fecha ON sesiones_plan(admin_id, fecha)`,
 ]
