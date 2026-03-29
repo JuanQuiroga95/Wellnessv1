@@ -167,12 +167,27 @@ export default function CoachClient({ session, teamData, today }) {
                     r.onload=async()=>{
                       setLogoSaving('saving')
                       try {
-                        const compressed = await compressImage(r.result as string, 300, 0.75)
+                        // Compress aggressively: max 150px, quality 0.65 → ~8-15KB base64
+                        const compressed = await compressImage(r.result as string, 150, 0.65)
                         setClubLogo(compressed)
-                        const res = await fetch('/api/admin/settings', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ club_foto: compressed }) })
-                        setLogoSaving(res.ok ? 'ok' : 'error')
+                        const res = await fetch('/api/admin/settings', {
+                          method:'POST',
+                          headers:{'Content-Type':'application/json'},
+                          body:JSON.stringify({ club_foto: compressed })
+                        })
+                        const data = await res.json()
+                        if (res.ok && data.ok) {
+                          setLogoSaving('ok')
+                        } else {
+                          console.error('[Logo save error]', data)
+                          setLogoSaving('error')
+                        }
                         setTimeout(() => setLogoSaving('idle'), 3000)
-                      } catch { setLogoSaving('error'); setTimeout(() => setLogoSaving('idle'), 3000) }
+                      } catch(err) {
+                        console.error('[Logo save exception]', err)
+                        setLogoSaving('error')
+                        setTimeout(() => setLogoSaving('idle'), 3000)
+                      }
                     }
                     r.readAsDataURL(f)
                   }} />
@@ -906,7 +921,7 @@ function AddMatchForm({ teamData, onSuccess, onCancel }) {
                 <div style={{ width:36, height:36, borderRadius:8, overflow:'hidden', background:'var(--ink3)', border:`1px solid ${rivalLogo?'var(--lime)':'var(--fog)'}`, display:'flex', alignItems:'center', justifyContent:'center' }}>
                   {rivalLogo ? <img src={rivalLogo} style={{ width:'100%', height:'100%', objectFit:'contain', padding:2 }} alt="rival"/> : <span style={{ fontSize:16 }}>🛡️</span>}
                 </div>
-                <input type="file" accept="image/*" style={{ display:'none' }} onChange={e=>{ const f=e.target.files?.[0]; if(!f) return; const r=new FileReader(); r.onload=async()=>{ const c=await compressImage(r.result as string,200,0.75); setRivalLogo(c) }; r.readAsDataURL(f) }} />
+                <input type="file" accept="image/*" style={{ display:'none' }} onChange={e=>{ const f=e.target.files?.[0]; if(!f) return; const r=new FileReader(); r.onload=async()=>{ const c=await compressImage(r.result as string,150,0.65); setRivalLogo(c) }; r.readAsDataURL(f) }} />
               </label>
             </div>
           </div>

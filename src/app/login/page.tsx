@@ -38,10 +38,11 @@ export default function LoginPage() {
 
   async function initDB() {
     try {
+      // Run migrations first (fixes constraints, adds columns)
+      await fetch('/api/migrate', { method: 'POST' })
       const res = await fetch('/api/seed', { method: 'POST' })
       if (res.ok) {
         setSeedDone(true)
-        // Hide the seed section after 4 seconds
         setTimeout(() => setShowSeed(false), 4000)
       }
     } catch {}

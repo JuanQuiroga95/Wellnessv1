@@ -15,7 +15,10 @@ export const SCHEMA_STATEMENTS = [
   // Migrations
   // Club settings & rival photo
   `ALTER TABLE partido_logs ADD COLUMN IF NOT EXISTS rival_foto TEXT`,
-  `CREATE TABLE IF NOT EXISTS club_settings (id SERIAL PRIMARY KEY, admin_id INTEGER, club_nombre VARCHAR(100) DEFAULT 'Mi Club', club_foto TEXT, updated_at TIMESTAMPTZ DEFAULT NOW())`,
+  `CREATE TABLE IF NOT EXISTS club_settings (id SERIAL PRIMARY KEY, admin_id INTEGER UNIQUE, club_nombre VARCHAR(100) DEFAULT 'Mi Club', club_foto TEXT, updated_at TIMESTAMPTZ DEFAULT NOW())`,
+  `ALTER TABLE club_settings ADD COLUMN IF NOT EXISTS rival_fotos JSONB DEFAULT '[]'`,
+  // Ensure unique constraint exists (migration safe)
+  `DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='club_settings_admin_id_key') THEN ALTER TABLE club_settings ADD CONSTRAINT club_settings_admin_id_key UNIQUE (admin_id); END IF; END $$`,
   `ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS email VARCHAR(200)`,
   `ALTER TABLE jugadores ADD COLUMN IF NOT EXISTS email VARCHAR(200)`,
   `ALTER TABLE jugadores ADD COLUMN IF NOT EXISTS fecha_nacimiento DATE`,

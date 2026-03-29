@@ -3,6 +3,9 @@ import { getDb } from '@/lib/db'
 import { getSessionFromRequest } from '@/lib/auth'
 function isAdmin(s: any) { return s?.rol === 'admin' || s?.rol === 'master_admin' }
 
+// Allow large bodies for rival_foto base64
+export const maxDuration = 30
+
 export async function GET(req: NextRequest) {
   const s = await getSessionFromRequest(req)
   if (!s || !isAdmin(s)) return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
