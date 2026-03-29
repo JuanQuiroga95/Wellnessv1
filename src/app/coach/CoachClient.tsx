@@ -736,8 +736,9 @@ function CambioCargaPanel() {
 const OBJETIVOS_FISICOS = ['Fuerza','Resistencia','Velocidad','Recuperación-Compensación','Recuperación','Competición']
 const OBJETIVOS_SECUNDARIOS = ['Táctico','Técnico','Técnico-Táctico']
 const TITULOS_SESION = ['MD+1','MD+2','MD+3','MD-4','MD-3','MD-2','MD-1','MD']
-const VENTANAS_METODOLOGIA = ['Activación Campo','Activación Gimnasio','Circuito Técnico','Pliometría','Movilidad','Aceleración Neuromuscular','Descripción Series/Rep/Paso','Grandes Espacios','Isométricos','Excéntricos','Movilidad','Estabilidad','Tracción','Empuje']
-const TIPOS_JUEGO = ['Atracantes','Defensores','Empuje','Atracantes vs Defensores','Comodines','Partidos','Entrenamientos','Partido Modificado','Partido Reducido','Juego de Posesión','Juego de Posición','Partido Oficial','Partido Amistoso','Partido Entrenamiento']
+const TAREAS_PRINCIPALES = ['Activación en campo','Activación en gimnasio','Gimnasio solo','Trabajo analítico','Juego de posesión','Juego de posición','Partido reducido','Partido modificado','Partido de entrenamiento','Partido amistoso','Partido oficial']
+const SUBTAREAS: Record<string, string[]> = { 'Activación en campo': ['Circuito técnico','Circuito neuromuscular','Pliometría','Movilidad'], 'Activación en gimnasio': ['Isométricos','Pliometría','Movilidad','Excéntricos','Estabilidad','Tracción y empuje'] }
+const TAREAS_CON_ESPACIO = ['Juego de posesión','Juego de posición','Partido reducido','Partido modificado','Partido de entrenamiento','Partido amistoso','Partido oficial']
 const TIPO_COLORES = { entrenamiento:'#c8f135', partido:'#3b82f6', recuperacion:'#f59e0b', descanso:'#555' }
 const TIPO_ICONOS = { entrenamiento:'⚽', partido:'🏆', recuperacion:'🔄', descanso:'😴' }
 
@@ -1036,7 +1037,7 @@ function CalendarioPanel({ teamData }) {
                           <div style={{ marginTop:6 }}>
                             {s.ejercicios.map((bl:any,i:number)=>(
                               <div key={i} style={{ fontSize:10, color:'var(--silver)', padding:'2px 0', borderTop:'1px solid var(--mist)', display:'flex', gap:8 }}>
-                                <span style={{ fontWeight:600, color:'var(--snow)' }}>{bl.ventana||`Tarea ${i+1}`}</span>
+                                <span style={{ fontWeight:600, color:'var(--snow)' }}>{bl.ventana||`Tarea ${i+1}`}{bl.subtarea ? ` · ${bl.subtarea}` : ''}</span>
                                 {bl.series && bl.minutos && <span>{bl.series}×{bl.minutos}min</span>}
                               </div>
                             ))}
@@ -1088,7 +1089,7 @@ function CalendarioPanel({ teamData }) {
                     {s.ejercicios.map((bl:any,i:number)=>(
                       <div key={i} style={{ background:'var(--ink2)', borderRadius:8, padding:'8px 10px', marginBottom:6 }}>
                         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:bl.descripcion||bl.imagen?4:0 }}>
-                          <span style={{ fontSize:12, fontWeight:700, color:'var(--lime)' }}>Tarea {i+1}{bl.ventana?` · ${bl.ventana}`:''}</span>
+                          <span style={{ fontSize:12, fontWeight:700, color:'var(--lime)' }}>Tarea {i+1}{bl.ventana?` · ${bl.ventana}`:''}{ bl.subtarea ? ` › ${bl.subtarea}` : ''}</span>
                           <span style={{ fontSize:11, color:'var(--silver)', fontFamily:'DM Mono,monospace' }}>
                             {[bl.series&&`${bl.series}×${bl.minutos}min`, bl.jugadores&&`${bl.jugadores}jug`, (bl.largo&&bl.ancho)&&`${bl.largo}×${bl.ancho}m`].filter(Boolean).join(' · ')}
                           </span>
@@ -1203,15 +1204,26 @@ function BloqueMetodologia({ bloque, index, onChange, onRemove }) {
         <span style={{ fontSize:11, fontWeight:700, color:'var(--lime)', textTransform:'uppercase', letterSpacing:'0.06em' }}>Tarea {index+1}</span>
         <button onClick={onRemove} style={{ background:'rgba(239,68,68,.1)', border:'1px solid rgba(239,68,68,.25)', borderRadius:6, color:'#f87171', cursor:'pointer', padding:'2px 8px', fontSize:11 }}>✕</button>
       </div>
-      {/* Ventana */}
+      {/* Tarea principal */}
       <div style={{ marginBottom:8 }}>
-        <label style={{ fontSize:9, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:3 }}>Ventana</label>
-        <select className="wp-input" value={bloque.ventana||''} onChange={e=>onChange('ventana',e.target.value)} style={{ padding:'5px 8px', fontSize:12, appearance:'none', width:'100%' }}>
+        <label style={{ fontSize:9, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:3 }}>Tarea</label>
+        <select className="wp-input" value={bloque.ventana||''} onChange={e=>{ onChange('ventana',e.target.value); onChange('subtarea','') }} style={{ padding:'5px 8px', fontSize:12, appearance:'none', width:'100%' }}>
           <option value="">— Seleccionar —</option>
-          {VENTANAS_METODOLOGIA.map(v=><option key={v} value={v} style={{ background:'var(--ink2)' }}>{v}</option>)}
+          {TAREAS_PRINCIPALES.map(t=><option key={t} value={t} style={{ background:'var(--ink2)' }}>{t}</option>)}
         </select>
       </div>
-      {/* Grid principal: espacio + imagen */}
+      {/* Sub-tarea condicional */}
+      {bloque.ventana && SUBTAREAS[bloque.ventana] && (
+        <div style={{ marginBottom:8 }}>
+          <label style={{ fontSize:9, fontWeight:700, color:'var(--lime)', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:3 }}>↳ Sub-tarea</label>
+          <select className="wp-input" value={bloque.subtarea||''} onChange={e=>onChange('subtarea',e.target.value)} style={{ padding:'5px 8px', fontSize:12, appearance:'none', width:'100%', border:'1px solid rgba(200,241,53,.3)' }}>
+            <option value="">— Seleccionar —</option>
+            {SUBTAREAS[bloque.ventana].map(s=><option key={s} value={s} style={{ background:'var(--ink2)' }}>{s}</option>)}
+          </select>
+        </div>
+      )}
+      {/* Grid principal: espacio + imagen — solo para tareas con espacio */}
+      {(!bloque.ventana || TAREAS_CON_ESPACIO.includes(bloque.ventana)) && (
       <div style={{ display:'grid', gridTemplateColumns:'1fr auto', gap:10, marginBottom:8 }}>
         <div>
           {/* Jugadores / Bloques / Min / Pausa */}
@@ -1246,13 +1258,14 @@ function BloqueMetodologia({ bloque, index, onChange, onRemove }) {
           {imgPreview && <button onClick={()=>{ setImgPreview(null); onChange('imagen','') }} style={{ fontSize:9, color:'#f87171', background:'none', border:'none', cursor:'pointer' }}>Quitar</button>}
         </div>
       </div>
+      )} {/* end TAREAS_CON_ESPACIO conditional */}
       {/* Descripción de la tarea */}
       <div style={{ marginBottom:8 }}>
         <label style={{ fontSize:9, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:2 }}>Descripción / Series / Rep / Paso</label>
         <textarea className="wp-input" value={bloque.descripcion||''} onChange={e=>onChange('descripcion',e.target.value)} rows={2} placeholder="Descripción de la tarea, series, repeticiones, pasaje..." style={{ padding:'6px 8px', fontSize:12, resize:'vertical', fontFamily:'inherit', width:'100%' }} />
       </div>
-      {/* Calculadora de distancias */}
-      {calc && (() => {
+      {/* Calculadora de distancias — solo para tareas con espacio */}
+      {TAREAS_CON_ESPACIO.includes(bloque.ventana) && calc && (() => {
         const cuad = getCuadrante(calc.densidad)
         return (
           <div style={{ background:'rgba(200,241,53,.04)', border:'1px solid rgba(200,241,53,.15)', borderRadius:8, padding:10 }}>
@@ -1340,7 +1353,7 @@ function SesionEditor({ sesion, defaultFecha, onSave, onDelete, onCancel }) {
   const [saveError, setSaveError] = useState('')
   const set = (k,v) => setF(p=>({...p,[k]:v}))
 
-  function addBloque() { setBloques(b=>[...b, { ventana:'', jugadores:'', series:'', minutos:'', pausa:'', largo:'', ancho:'', descripcion:'', imagen:'' }]) }
+  function addBloque() { setBloques(b=>[...b, { ventana:'', subtarea:'', jugadores:'', series:'', minutos:'', pausa:'', largo:'', ancho:'', descripcion:'', imagen:'' }]) }
   function updateBloque(i,k,v) { setBloques(b=>b.map((bl,idx)=>idx===i?{...bl,[k]:v}:bl)) }
   function removeBloque(i) { setBloques(b=>b.filter((_,idx)=>idx!==i)) }
 
