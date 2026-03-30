@@ -45,13 +45,22 @@ export async function middleware(req: NextRequest) {
     return addSecHeaders(NextResponse.next())
   }
 
-  // ── Setup-only endpoints: require master_admin ───────────────────────────────
+  // ── Setup-only endpoints ─────────────────────────────────────────────────────
   if (SETUP_ONLY_PATHS.some(p => pathname.startsWith(p))) {
     const token = req.cookies.get('wp_token')?.value
-    if (!token) return addSecHeaders(NextResponse.json({ error: 'No autorizado' }, { status: 401 }))
+
+    // GET /api/seed is always public (just checks if DB is initialized)
+    if (pathname === '/api/seed' && req.method === 'GET') {
+      return addSecHeaders(NextResponse.next())
+    }
+
+    // No token → let the route handler decide (it checks if DB is empty for bootstrap)
+    if (!token) {
+      return addSecHeaders(NextResponse.next())
+    }
+
+    // With token → must be master_admin
     const s = await verifyToken(token)
-    // Only master_admin can run migrations/seeds in production
-    // Allow if not yet initialized (no token) only for GET /api/seed (init check)
     if (!s || s.rol !== 'master_admin') {
       return addSecHeaders(NextResponse.json({ error: 'No autorizado — se requiere master_admin' }, { status: 403 }))
     }
