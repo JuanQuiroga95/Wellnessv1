@@ -24,6 +24,8 @@ export async function GET(req: NextRequest) {
     const hastaStr = hasta.toISOString().split('T')[0]
 
     const sql = getDb()
+    // Normalize clubId to null to avoid undefined being passed to Neon template literals
+    const clubId = s.clubId ?? null
 
     // Planned training sessions
     const sesiones = await sql`
@@ -35,21 +37,21 @@ export async function GET(req: NextRequest) {
     `
 
     // Also check for partido_logs on that date (these don't have a sesion_id)
-    const partidos = s.clubId ? await sql`
+    const partidos = clubId ? await sql`
       SELECT DISTINCT pl.fecha::text, pl.rival, pl.tipo_partido
       FROM partido_logs pl
       JOIN jugadores j ON j.id = pl.jugador_id
       JOIN usuarios u ON u.id = j.usuario_id
-      WHERE u.club_id = ${s.clubId}
+      WHERE u.club_id = ${clubId}
         AND pl.fecha BETWEEN ${desdeStr} AND ${hastaStr}
       ORDER BY pl.fecha DESC
     ` : []
 
     // Existing GPS imports for this date (to show if already imported)
-    const existing = s.clubId ? await sql`
+    const existing = clubId ? await sql`
       SELECT fecha::text, tipo_sesion, COUNT(*)::int as n_jugadores
       FROM gps_logs
-      WHERE club_id = ${s.clubId}
+      WHERE club_id = ${clubId}
         AND fecha = ${fecha}
       GROUP BY fecha, tipo_sesion
     ` : []

@@ -20,8 +20,8 @@ export async function GET(req: NextRequest) {
         u.nombre,
         COUNT(l.id)::int AS total_lesiones,
         COALESCE(SUM(
-          EXTRACT(DAY FROM (COALESCE(l.fecha_alta::date, CURRENT_DATE) - l.fecha_inicio::date))
-        )::int, 0) AS dias_totales,
+          (COALESCE(l.fecha_alta::date, CURRENT_DATE) - l.fecha_inicio::date)
+        ), 0)::int AS dias_totales,
         MAX(l.fecha_inicio)::text AS ultima_lesion
       FROM jugadores j
       JOIN usuarios u ON u.id = j.usuario_id

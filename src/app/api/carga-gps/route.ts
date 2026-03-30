@@ -68,6 +68,8 @@ export async function GET(req: NextRequest) {
     const hasta = searchParams.get('hasta') || new Date().toISOString().split('T')[0]
     const ciclo = searchParams.get('ciclo') || 'microciclo'
     const sql   = getDb()
+    // Normalize clubId to null — undefined breaks Neon template literals
+    const clubId = s.clubId ?? null
 
     // 1. All planned sessions in range with their task blocks
     const sesiones = await sql`
@@ -78,21 +80,21 @@ export async function GET(req: NextRequest) {
       ORDER BY fecha`
 
     // 2. All active players from this club
-    const todosJugadores = s.clubId ? await sql`
+    const todosJugadores = clubId ? await sql`
       SELECT j.id AS jugador_id, u.nombre, j.posicion
       FROM jugadores j
       JOIN usuarios u ON u.id = j.usuario_id
-      WHERE u.club_id = ${s.clubId} AND u.activo = true
+      WHERE u.club_id = ${clubId} AND u.activo = true
       ORDER BY u.nombre` : []
 
     // 3. RPE logs from players in range
-    const logs = s.clubId ? await sql`
+    const logs = clubId ? await sql`
       SELECT el.jugador_id, el.fecha::text, el.rpe::int, el.duracion_min::int, el.carga_ua::int
       FROM entrenamiento_logs el
       JOIN jugadores j ON j.id = el.jugador_id
       JOIN usuarios u ON u.id = j.usuario_id
       WHERE el.fecha BETWEEN ${desde} AND ${hasta}
-        AND u.activo = true AND u.club_id = ${s.clubId}
+        AND u.activo = true AND u.club_id = ${clubId}
       ORDER BY el.fecha` : []
 
     // 4. Compute GPS totals per date from planned sessions
@@ -194,7 +196,7 @@ export async function GET(req: NextRequest) {
 
     // 9. Real GPS data from imported files (gps_logs table)
     // Pull raw rows + metricas JSON, aggregate in JS to support any variable set
-    const gpsRawRows = s.clubId ? await sql`
+    const gpsRawRows = clubId ? await sql`
       SELECT
         g.jugador_id,
         u.nombre,
@@ -206,7 +208,7 @@ export async function GET(req: NextRequest) {
       FROM gps_logs g
       JOIN jugadores j ON j.id = g.jugador_id
       JOIN usuarios u ON u.id = j.usuario_id
-      WHERE g.club_id = ${s.clubId}
+      WHERE g.club_id = ${clubId}
         AND g.fecha BETWEEN ${desde} AND ${hasta}
         AND u.activo = true
       ORDER BY u.nombre
