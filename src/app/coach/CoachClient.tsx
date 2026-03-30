@@ -2082,8 +2082,11 @@ function MediaEquipoPanel() {
 
   async function load() {
     setLoading(true)
-    const hasta = now.toISOString().split('T')[0]
-    const desde = new Date(Date.now() - CICLO_DAYS[ciclo] * 86400000).toISOString().split('T')[0]
+    // Include future sessions: range goes from N days ago to N days ahead
+    // So the microciclo shows the full training week (past + planned future)
+    const dias = CICLO_DAYS[ciclo]
+    const desde = new Date(Date.now() - dias * 86400000).toISOString().split('T')[0]
+    const hasta = new Date(Date.now() + dias * 86400000).toISOString().split('T')[0]
     try {
       const r = await fetch(`/api/carga-gps?desde=${desde}&hasta=${hasta}&ciclo=${ciclo}`)
       if (r.ok) setData(await r.json())

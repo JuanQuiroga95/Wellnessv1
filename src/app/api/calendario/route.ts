@@ -110,7 +110,7 @@ export async function PATCH(req: NextRequest) {
         objetivo           = COALESCE(${objetivo ?? null}, objetivo),
         objetivo_secundario= COALESCE(${objetivo_secundario ?? null}, objetivo_secundario),
         descripcion        = COALESCE(${descripcion ?? null}, descripcion),
-        ejercicios         = COALESCE(${ejercicios ? JSON.stringify(ejercicios) : null}::jsonb, ejercicios),
+        ejercicios         = ${JSON.stringify(ejercicios ?? [])}::jsonb,
         rpe_objetivo       = COALESCE(${rpe_objetivo ?? null}, rpe_objetivo),
         notas              = COALESCE(${notas ?? null}, notas)
       WHERE id = ${id} AND admin_id = ${s.userId}`
