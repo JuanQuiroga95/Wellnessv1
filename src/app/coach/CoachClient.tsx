@@ -736,9 +736,11 @@ function CambioCargaPanel() {
 const OBJETIVOS_FISICOS = ['Fuerza','Resistencia','Velocidad','Recuperación-Compensación','Recuperación','Competición']
 const OBJETIVOS_SECUNDARIOS = ['Táctico','Técnico','Técnico-Táctico']
 const TITULOS_SESION = ['MD+1','MD+2','MD+3','MD-4','MD-3','MD-2','MD-1','MD']
-const TAREAS_PRINCIPALES = ['Activación en campo','Activación en gimnasio','Gimnasio solo','Trabajo analítico','Juego de posesión','Juego de posición','Partido reducido','Partido modificado','Partido de entrenamiento','Partido amistoso','Partido oficial']
+const TAREAS_PRINCIPALES = ['Activación en campo','Activación en gimnasio','Gimnasio + Tarea analítica','Juego de posesión','Juego de posición','Partido reducido','Partido modificado','Partido de entrenamiento','Partido amistoso','Partido oficial']
 const SUBTAREAS: Record<string, string[]> = { 'Activación en campo': ['Circuito técnico','Circuito neuromuscular','Pliometría','Movilidad'], 'Activación en gimnasio': ['Isométricos','Pliometría','Movilidad','Excéntricos','Estabilidad','Tracción y empuje'] }
 const TAREAS_CON_ESPACIO = ['Juego de posesión','Juego de posición','Partido reducido','Partido modificado','Partido de entrenamiento','Partido amistoso','Partido oficial']
+const TAREAS_CON_EQUIPO = ['Juego de posesión','Juego de posición','Partido reducido','Partido modificado','Partido de entrenamiento','Partido amistoso','Partido oficial']
+const TAREAS_MOSTRAR_FORM = [...TAREAS_CON_ESPACIO, 'Activación en campo','Activación en gimnasio','Gimnasio + Tarea analítica']
 const TIPO_COLORES = { entrenamiento:'#c8f135', partido:'#3b82f6', recuperacion:'#f59e0b', descanso:'#555' }
 const TIPO_ICONOS = { entrenamiento:'⚽', partido:'🏆', recuperacion:'🔄', descanso:'😴' }
 
@@ -975,11 +977,15 @@ function CalendarioPanel({ teamData }) {
                         🏆 {p.rival||'Partido'}
                       </div>
                     ))}
-                    {log && !ses.length && (
-                      <div style={{ fontSize:9, padding:'1px 4px', borderRadius:3, background:'rgba(200,241,53,.08)', color:'var(--lime)', border:'1px solid rgba(200,241,53,.2)' }}>
-                        ✓ Entreno RPE{log.max_rpe}
-                      </div>
-                    )}
+                    {log && (() => {
+                      const rpe = Number(log.avg_rpe || log.max_rpe) || 0
+                      const borgCol = rpe <= 2 ? '#22c55e' : rpe <= 4 ? '#a3e635' : rpe <= 6 ? '#eab308' : rpe <= 8 ? '#f97316' : '#ef4444'
+                      return rpe > 0 ? (
+                        <div style={{ display:'flex', alignItems:'center', gap:3, fontSize:9, padding:'1px 5px', borderRadius:3, background:`${borgCol}20`, color:borgCol, border:`1px solid ${borgCol}44`, fontWeight:700 }}>
+                          RPE <span style={{ fontSize:11 }}>{rpe % 1 === 0 ? rpe : rpe.toFixed(1)}</span>
+                        </div>
+                      ) : null
+                    })()}
                   </div>
                 </div>
               )
@@ -1150,19 +1156,69 @@ function CalendarioPanel({ teamData }) {
             setShowEditor(false); setEditSesion(null); await load()
           } : undefined}
           onCancel={()=>{ setShowEditor(false); setEditSesion(null) }}
+          teamPlayers={teamData}
         />
       )}
     </div>
   )
 }
 
-function getCuadrante(densidad: number) {
-  // Based on Casamichana & Castellano literature on SSG density zones
-  if (densidad < 50)  return { label: 'Espacio Muy Reducido', color: '#ef4444', bg: 'rgba(239,68,68,.1)', border: 'rgba(239,68,68,.3)', desc: 'Alta intensidad · Muchos contactos · Poco espacio individual' }
-  if (densidad < 100) return { label: 'Espacio Reducido',     color: '#f59e0b', bg: 'rgba(245,158,11,.1)', border: 'rgba(245,158,11,.3)', desc: 'Intensidad media-alta · Buen balance técnico-físico' }
-  if (densidad < 175) return { label: 'Espacio Medio',        color: '#22c55e', bg: 'rgba(34,197,94,.1)',  border: 'rgba(34,197,94,.3)',  desc: 'Intensidad media · Mayor demanda aeróbica · Más desplazamiento' }
-  if (densidad < 300) return { label: 'Espacio Amplio',       color: '#3b82f6', bg: 'rgba(59,130,246,.1)', border: 'rgba(59,130,246,.3)', desc: 'Baja-media intensidad · Alta distancia · Sprints frecuentes' }
-  return               { label: 'Espacio Muy Amplio',         color: '#a855f7', bg: 'rgba(168,85,247,.1)', border: 'rgba(168,85,247,.3)', desc: 'Baja intensidad · Alta distancia total · Domina carrera continua' }
+function getCuadrante(densidad: number, jugadores?: number) {
+  // Castellano y Casamichana (2016) — objetivos según m²/jugador y nº jugadores
+  // Tabla: filas = m²/jug (<50, 50-100, 100-200, >200) × cols = jugadores (1<2, 3<4, 5<7, 8<10)
+  // Objetivo dominante según zona:
+  // Fuerza: <100 m²/jug + pocos jug (1-4)
+  // Resistencia: 50-200 m²/jug + muchos jug (5+)
+  // Activación: <100 m²/jug + muchos jug (5+)
+  // Velocidad: >100 m²/jug + muchos jug (5+)
+  const jug = jugadores || 0
+  let objetivo = 'Resistencia'
+  let color = '#f59e0b'  // naranja
+  let bg = 'rgba(245,158,11,.1)'
+  let border = 'rgba(245,158,11,.3)'
+
+  if (densidad < 50) {
+    if (jug >= 5) {
+      objetivo = 'Activación'; color = '#22c55e'; bg = 'rgba(34,197,94,.1)'; border = 'rgba(34,197,94,.3)'
+    } else {
+      objetivo = 'Fuerza'; color = '#a855f7'; bg = 'rgba(168,85,247,.1)'; border = 'rgba(168,85,247,.3)'
+    }
+  } else if (densidad < 100) {
+    if (jug >= 5) {
+      objetivo = 'Activación'; color = '#22c55e'; bg = 'rgba(34,197,94,.1)'; border = 'rgba(34,197,94,.3)'
+    } else {
+      objetivo = 'Fuerza'; color = '#a855f7'; bg = 'rgba(168,85,247,.1)'; border = 'rgba(168,85,247,.3)'
+    }
+  } else if (densidad < 200) {
+    if (jug >= 5) {
+      objetivo = 'Resistencia'; color = '#f59e0b'; bg = 'rgba(245,158,11,.1)'; border = 'rgba(245,158,11,.3)'
+    } else {
+      objetivo = 'Fuerza'; color = '#a855f7'; bg = 'rgba(168,85,247,.1)'; border = 'rgba(168,85,247,.3)'
+    }
+  } else {
+    if (jug >= 5) {
+      objetivo = 'Velocidad'; color = '#3b82f6'; bg = 'rgba(59,130,246,.1)'; border = 'rgba(59,130,246,.3)'
+    } else {
+      objetivo = 'Resistencia'; color = '#f59e0b'; bg = 'rgba(245,158,11,.1)'; border = 'rgba(245,158,11,.3)'
+    }
+  }
+
+  // Espacio label
+  let espacioLabel = ''
+  if (densidad < 50) espacioLabel = 'Espacio Reducido'
+  else if (densidad < 100) espacioLabel = 'Espacio Reducido'
+  else if (densidad < 200) espacioLabel = 'Espacio Medio'
+  else espacioLabel = 'Espacio Grande'
+
+  // Description by objetivo
+  const descs: Record<string,string> = {
+    'Fuerza': 'Alta intensidad neuromuscular · Contactos frecuentes · Espacio muy limitado',
+    'Resistencia': 'Alta demanda aeróbica · Balance técnico-táctico · Densidad moderada',
+    'Activación': 'Activación neuromuscular · Reacciones rápidas · SSG de alta densidad',
+    'Velocidad': 'Sprints frecuentes · Distancias largas · Demanda aeróbica alta',
+  }
+
+  return { label: espacioLabel, objetivo, color, bg, border, desc: descs[objetivo] }
 }
 
 function calcularDistancias(jugadores: number, largo: number, ancho: number, series: number, minutos: number) {
@@ -1181,30 +1237,65 @@ function calcularDistancias(jugadores: number, largo: number, ancho: number, ser
   return { distTotal, distSprint, distMP, distAcel, distDecel, nSprints, nAcel, nDecel, densidad, tiempoTotal }
 }
 
-function BloqueMetodologia({ bloque, index, onChange, onRemove }) {
+function BloqueMetodologia({ bloque, index, onChange, onRemove, teamPlayers = [] }) {
   const [imgPreview, setImgPreview] = useState<string|null>(bloque.imagen || null)
-  const calc = calcularDistancias(
-    Number(bloque.jugadores), Number(bloque.largo), Number(bloque.ancho),
-    Number(bloque.series), Number(bloque.minutos)
-  )
+  const [equipos, setEquipos] = useState<Record<number, number[]>>(bloque.equipos || {})
+  const [manualMetrics, setManualMetrics] = useState<Record<string,string>>(bloque.manualMetrics || {})
+  const [editingMetrics, setEditingMetrics] = useState(false)
+
+  const esConEspacio = TAREAS_CON_ESPACIO.includes(bloque.ventana)
+  const esConEquipo = TAREAS_CON_EQUIPO.includes(bloque.ventana)
+  const mostrarForm = bloque.ventana && (TAREAS_MOSTRAR_FORM.includes(bloque.ventana) || esConEspacio)
+
+  const jugadoresEquipos = Object.values(equipos).flat() as number[]
+  const totalJugadoresEquipos = jugadoresEquipos.length
+
+  const calcJugadores = esConEquipo ? (totalJugadoresEquipos || Number(bloque.jugadores) || 0) : Number(bloque.jugadores)
+  const calc = esConEspacio ? calcularDistancias(calcJugadores, Number(bloque.largo), Number(bloque.ancho), Number(bloque.series), Number(bloque.minutos)) : null
+
   function handleImg(e: any) {
-    const file = e.target.files?.[0]
-    if (!file) return
+    const file = e.target.files?.[0]; if (!file) return
     const reader = new FileReader()
     reader.onload = ev => { const url = ev.target?.result as string; setImgPreview(url); onChange('imagen', url) }
     reader.readAsDataURL(file)
   }
+
+  function toggleJugadorEquipo(equipoNum: number, jugadorId: number) {
+    setEquipos(prev => {
+      const eq = { ...prev }
+      const cur = eq[equipoNum] || []
+      if (cur.includes(jugadorId)) {
+        eq[equipoNum] = cur.filter(id => id !== jugadorId)
+      } else {
+        Object.keys(eq).forEach(k => { eq[Number(k)] = (eq[Number(k)] || []).filter(id => id !== jugadorId) })
+        eq[equipoNum] = [...(eq[equipoNum] || []), jugadorId]
+      }
+      onChange('equipos', eq)
+      return eq
+    })
+  }
+
+  function updateManualMetric(key: string, val: string) {
+    const updated = { ...manualMetrics, [key]: val }
+    setManualMetrics(updated)
+    onChange('manualMetrics', updated)
+  }
+
   const inp = (field, placeholder, type='text') => (
     <input className="wp-input" type={type} placeholder={placeholder} value={bloque[field]||''} onChange={e=>onChange(field,e.target.value)}
       style={{ padding:'5px 8px', fontSize:11, width:'100%' }} />
   )
+
+  const EQUIPO_COLORS = ['#22c55e','#3b82f6','#f59e0b','#ef4444']
+  const EQUIPO_LABELS = ['Equipo 1','Equipo 2','Equipo 3','Equipo 4']
+
   return (
     <div style={{ background:'var(--ink3)', border:'1px solid rgba(200,241,53,.15)', borderRadius:12, padding:14, marginBottom:10 }}>
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10 }}>
         <span style={{ fontSize:11, fontWeight:700, color:'var(--lime)', textTransform:'uppercase', letterSpacing:'0.06em' }}>Tarea {index+1}</span>
         <button onClick={onRemove} style={{ background:'rgba(239,68,68,.1)', border:'1px solid rgba(239,68,68,.25)', borderRadius:6, color:'#f87171', cursor:'pointer', padding:'2px 8px', fontSize:11 }}>✕</button>
       </div>
-      {/* Tarea principal */}
+
       <div style={{ marginBottom:8 }}>
         <label style={{ fontSize:9, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:3 }}>Tarea</label>
         <select className="wp-input" value={bloque.ventana||''} onChange={e=>{ onChange('ventana',e.target.value); onChange('subtarea','') }} style={{ padding:'5px 8px', fontSize:12, appearance:'none', width:'100%' }}>
@@ -1212,7 +1303,7 @@ function BloqueMetodologia({ bloque, index, onChange, onRemove }) {
           {TAREAS_PRINCIPALES.map(t=><option key={t} value={t} style={{ background:'var(--ink2)' }}>{t}</option>)}
         </select>
       </div>
-      {/* Sub-tarea condicional */}
+
       {bloque.ventana && SUBTAREAS[bloque.ventana] && (
         <div style={{ marginBottom:8 }}>
           <label style={{ fontSize:9, fontWeight:700, color:'var(--lime)', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:3 }}>↳ Sub-tarea</label>
@@ -1222,23 +1313,21 @@ function BloqueMetodologia({ bloque, index, onChange, onRemove }) {
           </select>
         </div>
       )}
-      {/* Grid principal: espacio + imagen — solo para tareas con espacio */}
-      {(!bloque.ventana || TAREAS_CON_ESPACIO.includes(bloque.ventana)) && (
-      <div style={{ display:'grid', gridTemplateColumns:'1fr auto', gap:10, marginBottom:8 }}>
-        <div>
-          {/* Jugadores / Bloques / Min / Pausa */}
+
+      {mostrarForm && (
+        <div style={{ marginBottom:8 }}>
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:6, marginBottom:6 }}>
-            <div><label style={{ fontSize:9, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:2 }}>Jugadores</label>{inp('jugadores','Nº jugadores','number')}</div>
+            {!esConEquipo && <div><label style={{ fontSize:9, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:2 }}>Jugadores</label>{inp('jugadores','Nº jugadores','number')}</div>}
             <div><label style={{ fontSize:9, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:2 }}>Bloques</label>{inp('series','Nº bloques','number')}</div>
             <div><label style={{ fontSize:9, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:2 }}>Min / bloque</label>{inp('minutos','Min','number')}</div>
             <div><label style={{ fontSize:9, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:2 }}>Pausa x bloque (min)</label>{inp('pausa','Min descanso','number')}</div>
           </div>
-          {/* Espacio: Largo / Ancho */}
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:6, marginBottom:4 }}>
-            <div><label style={{ fontSize:9, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:2 }}>Largo (m)</label>{inp('largo','m','number')}</div>
-            <div><label style={{ fontSize:9, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:2 }}>Ancho (m)</label>{inp('ancho','m','number')}</div>
-          </div>
-          {/* Tiempo total sesión */}
+          {esConEspacio && (
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:6, marginBottom:4 }}>
+              <div><label style={{ fontSize:9, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:2 }}>Largo (m)</label>{inp('largo','m','number')}</div>
+              <div><label style={{ fontSize:9, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:2 }}>Ancho (m)</label>{inp('ancho','m','number')}</div>
+            </div>
+          )}
           {(bloque.series && bloque.minutos) && (
             <div style={{ fontSize:10, color:'var(--lime)', fontFamily:'DM Mono,monospace', marginTop:4 }}>
               ⏱ Tiempo activo: {(Number(bloque.series)*Number(bloque.minutos))} min
@@ -1246,94 +1335,233 @@ function BloqueMetodologia({ bloque, index, onChange, onRemove }) {
             </div>
           )}
         </div>
-        {/* Imagen de la tarea */}
-        <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:4 }}>
-          <label style={{ fontSize:9, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em' }}>Imagen tarea</label>
-          <label style={{ cursor:'pointer', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', width:90, height:90, borderRadius:10, border: imgPreview ? 'none' : '2px dashed rgba(200,241,53,.3)', background:'var(--ink2)', overflow:'hidden' }}>
-            {imgPreview
-              ? <img src={imgPreview} style={{ width:'100%', height:'100%', objectFit:'cover' }} />
-              : <span style={{ fontSize:22 }}>📷</span>}
-            <input type="file" accept="image/*" onChange={handleImg} style={{ display:'none' }} />
+      )}
+
+      {esConEquipo && bloque.ventana && (
+        <div style={{ marginBottom:8 }}>
+          <label style={{ fontSize:9, fontWeight:700, color:'var(--lime)', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:6 }}>
+            Equipos (opcional) — {totalJugadoresEquipos > 0 ? `${totalJugadoresEquipos} jugadores` : 'seleccioná jugadores por equipo'}
           </label>
-          {imgPreview && <button onClick={()=>{ setImgPreview(null); onChange('imagen','') }} style={{ fontSize:9, color:'#f87171', background:'none', border:'none', cursor:'pointer' }}>Quitar</button>}
-        </div>
-      </div>
-      )} {/* end TAREAS_CON_ESPACIO conditional */}
-      {/* Descripción de la tarea */}
-      <div style={{ marginBottom:8 }}>
-        <label style={{ fontSize:9, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:2 }}>Descripción / Series / Rep / Paso</label>
-        <textarea className="wp-input" value={bloque.descripcion||''} onChange={e=>onChange('descripcion',e.target.value)} rows={2} placeholder="Descripción de la tarea, series, repeticiones, pasaje..." style={{ padding:'6px 8px', fontSize:12, resize:'vertical', fontFamily:'inherit', width:'100%' }} />
-      </div>
-      {/* Calculadora de distancias — solo para tareas con espacio */}
-      {TAREAS_CON_ESPACIO.includes(bloque.ventana) && calc && (() => {
-        const cuad = getCuadrante(calc.densidad)
-        return (
-          <div style={{ background:'rgba(200,241,53,.04)', border:'1px solid rgba(200,241,53,.15)', borderRadius:8, padding:10 }}>
-            {/* Cuadrante badge */}
-            <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:10 }}>
-              <div style={{ flex:1, background:cuad.bg, border:`1px solid ${cuad.border}`, borderRadius:8, padding:'7px 12px' }}>
-                <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
-                  <span style={{ fontSize:12, fontWeight:800, color:cuad.color, textTransform:'uppercase', letterSpacing:'0.05em' }}>
-                    ▣ {cuad.label}
-                  </span>
-                  <span style={{ fontSize:11, fontWeight:700, color:'var(--snow)', fontFamily:'DM Mono,monospace' }}>
-                    {calc.densidad.toFixed(1)} m²/jug
-                  </span>
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:8 }}>
+            {[1,2,3,4].map(eNum => {
+              const eColor = EQUIPO_COLORS[eNum-1]
+              const eJugs = equipos[eNum] || []
+              return (
+                <div key={eNum} style={{ background:'var(--ink2)', border:`1px solid ${eColor}33`, borderRadius:8, padding:8 }}>
+                  <div style={{ fontSize:10, fontWeight:700, color:eColor, marginBottom:6 }}>{EQUIPO_LABELS[eNum-1]} · {eJugs.length}</div>
+                  {teamPlayers.length > 0 ? (
+                    <div style={{ maxHeight:100, overflowY:'auto', display:'flex', flexWrap:'wrap', gap:4 }}>
+                      {teamPlayers.map(p => {
+                        const inThis = eJugs.includes(p.jugador_id)
+                        const inOther = !inThis && jugadoresEquipos.includes(p.jugador_id)
+                        return (
+                          <button key={p.jugador_id} type="button" onClick={() => toggleJugadorEquipo(eNum, p.jugador_id)} disabled={inOther}
+                            style={{ fontSize:9, padding:'2px 6px', borderRadius:4, cursor:inOther?'default':'pointer', border:`1px solid ${inThis?eColor:inOther?'var(--fog)':'var(--mist)'}`, background:inThis?`${eColor}25`:inOther?'rgba(0,0,0,.2)':'var(--ink3)', color:inThis?eColor:inOther?'var(--fog)':'var(--silver)', opacity:inOther?.5:1 }}>
+                            {p.nombre.split(' ')[0]}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  ) : <div style={{ fontSize:9, color:'var(--fog)', fontStyle:'italic' }}>Sin jugadores</div>}
                 </div>
-                <p style={{ fontSize:10, color:cuad.color, opacity:0.85, margin:'3px 0 0', fontStyle:'italic' }}>{cuad.desc}</p>
+              )
+            })}
+          </div>
+          {totalJugadoresEquipos > 0 && <div style={{ marginTop:6, fontSize:10, color:'var(--silver)', fontFamily:'DM Mono,monospace' }}>Total: {totalJugadoresEquipos} jugadores seleccionados</div>}
+        </div>
+      )}
+
+      <div style={{ marginBottom:8 }}>
+        <label style={{ fontSize:9, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:2 }}>Descripción</label>
+        <textarea className="wp-input" value={bloque.descripcion||''} onChange={e=>onChange('descripcion',e.target.value)} rows={2} placeholder="Descripción de la tarea..." style={{ padding:'6px 8px', fontSize:12, resize:'vertical', fontFamily:'inherit', width:'100%' }} />
+      </div>
+
+      {esConEspacio && calc && (() => {
+        const cuad = getCuadrante(calc.densidad, calcJugadores)
+        const OBJCOLORS: Record<string,string> = { 'Fuerza':'#a855f7', 'Resistencia':'#f59e0b', 'Activación':'#22c55e', 'Velocidad':'#3b82f6' }
+        const objColor = OBJCOLORS[cuad.objetivo] || '#888'
+        return (
+          <div style={{ background:`${objColor}10`, border:`1px solid ${objColor}33`, borderRadius:8, padding:10 }}>
+            <div style={{ background:`${objColor}20`, border:`1px solid ${objColor}44`, borderRadius:8, padding:'8px 12px', marginBottom:8 }}>
+              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:4 }}>
+                <span style={{ fontSize:12, fontWeight:800, color:objColor, textTransform:'uppercase', letterSpacing:'0.05em' }}>▣ {cuad.label}</span>
+                <span style={{ fontSize:11, fontWeight:700, color:'var(--snow)', fontFamily:'DM Mono,monospace' }}>{calc.densidad.toFixed(1)} m²/jug</span>
               </div>
+              <div style={{ display:'flex', alignItems:'center', gap:8, padding:'5px 8px', background:`${objColor}25`, borderRadius:6, marginBottom:4 }}>
+                <span style={{ fontSize:11, color:'var(--silver)' }}>Objetivo de la tarea:</span>
+                <span style={{ fontSize:13, fontWeight:800, color:objColor, textTransform:'uppercase', letterSpacing:'0.05em' }}>{cuad.objetivo}</span>
+              </div>
+              <p style={{ fontSize:10, color:objColor, opacity:.85, margin:0, fontStyle:'italic' }}>{cuad.desc}</p>
             </div>
-            {/* Escala visual de cuadrantes */}
-            <div style={{ marginBottom:10 }}>
-              <div style={{ display:'flex', borderRadius:6, overflow:'hidden', height:6 }}>
-                {[
-                  { label:'Muy Red.', max:50,  color:'#ef4444' },
-                  { label:'Reducido', max:100, color:'#f59e0b' },
-                  { label:'Medio',    max:175, color:'#22c55e' },
-                  { label:'Amplio',   max:300, color:'#3b82f6' },
-                  { label:'Muy Amp.', max:500, color:'#a855f7' },
-                ].map((z, i, arr) => {
-                  const prev = arr[i-1]?.max || 0
-                  const zWidth = Math.min(z.max, 500) - prev
-                  const isActive = calc.densidad >= prev && calc.densidad < z.max
-                  return (
-                    <div key={z.label} style={{ flex:zWidth, background:z.color, opacity: isActive ? 1 : 0.25, transition:'opacity .2s' }} />
-                  )
-                })}
-              </div>
-              <div style={{ display:'flex', justifyContent:'space-between', marginTop:2 }}>
-                {['<50','50','100','175','300+'].map(v=>(
-                  <span key={v} style={{ fontSize:8, color:'var(--fog)', fontFamily:'DM Mono,monospace' }}>{v}</span>
-                ))}
-              </div>
-            </div>
-            {/* Métricas */}
-            <p style={{ fontSize:9, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:6 }}>📐 Estimación de carga externa · {calc.tiempoTotal} min activos</p>
-            <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:5 }}>
-              {[
-                ['Dist. total',        'distTotal', 'm'],
-                ['Sprint >21km/h',     'distSprint','m'],
-                ['Alta pot. >20W/kg',  'distMP',    'm'],
-                ['Acel. >2m/s²',       'distAcel',  'm'],
-                ['Decel. >-2m/s²',     'distDecel', 'm'],
-                ['Nº sprints',         'nSprints',  ''],
-                ['Nº acel. >3m/s²',    'nAcel',     ''],
-                ['Nº decel. >-3m/s²',  'nDecel',    ''],
-              ].map(([label, key, unit])=>(
-                <div key={key} style={{ textAlign:'center', background:'var(--ink2)', borderRadius:6, padding:'5px 4px' }}>
-                  <div style={{ fontSize:8, color:'var(--silver)', marginBottom:2, lineHeight:1.3 }}>{label}</div>
-                  <div style={{ fontSize:13, fontWeight:700, color:'var(--snow)', fontFamily:'DM Mono,monospace' }}>{Math.round(calc[key])}<span style={{ fontSize:9, color:'var(--fog)' }}>{unit}</span></div>
+            <div style={{ display:'flex', gap:2, marginBottom:8 }}>
+              {[['Fuerza','#a855f7'],['Activación','#22c55e'],['Resistencia','#f59e0b'],['Velocidad','#3b82f6']].map(([lbl,col])=>(
+                <div key={lbl} style={{ flex:1, textAlign:'center' }}>
+                  <div style={{ height:5, background:col as string, borderRadius:3, opacity:cuad.objetivo===lbl?1:.25, marginBottom:2 }}/>
+                  <span style={{ fontSize:7, color:col as string, opacity:cuad.objetivo===lbl?1:.5 }}>{lbl}</span>
                 </div>
               ))}
+            </div>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:6 }}>
+              <p style={{ fontSize:9, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', margin:0 }}>📐 Estimación de carga · {calc.tiempoTotal} min activos</p>
+              <button type="button" onClick={()=>setEditingMetrics(e=>!e)} style={{ fontSize:9, padding:'2px 8px', borderRadius:4, background:'transparent', border:`1px solid ${editingMetrics?'var(--lime)':'var(--fog)'}`, color:editingMetrics?'var(--lime)':'var(--silver)', cursor:'pointer' }}>
+                {editingMetrics ? '✓ Listo' : '✏️ Editar GPS'}
+              </button>
+            </div>
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:5 }}>
+              {[['Dist. total','distTotal','m'],['Sprint >21km/h','distSprint','m'],['Alta pot. >20W/kg','distMP','m'],['Acel. >2m/s²','distAcel','m'],['Decel. >-2m/s²','distDecel','m'],['Nº sprints','nSprints',''],['Nº acel. >3m/s²','nAcel',''],['Nº decel. >-3m/s²','nDecel','']].map(([label,key,unit])=>{
+                const rawVal = Math.round(calc[key])
+                return (
+                  <div key={key} style={{ textAlign:'center', background:'var(--ink2)', borderRadius:6, padding:'5px 4px' }}>
+                    <div style={{ fontSize:8, color:'var(--silver)', marginBottom:2, lineHeight:1.3 }}>{label}</div>
+                    {editingMetrics ? (
+                      <input type="number" value={manualMetrics[key]!==undefined?manualMetrics[key]:rawVal} onChange={e=>updateManualMetric(key,e.target.value)}
+                        style={{ width:'100%', fontSize:11, fontWeight:700, color:'var(--lime)', fontFamily:'DM Mono,monospace', background:'var(--ink3)', border:'1px solid var(--lime)', borderRadius:4, padding:'2px 4px', textAlign:'center', outline:'none' }} />
+                    ) : (
+                      <div style={{ fontSize:13, fontWeight:700, color:manualMetrics[key]?'#60a5fa':'var(--snow)', fontFamily:'DM Mono,monospace' }}>
+                        {manualMetrics[key]!==undefined?manualMetrics[key]:rawVal}<span style={{ fontSize:9, color:'var(--fog)' }}>{unit}</span>
+                        {manualMetrics[key] && <span style={{ fontSize:7, color:'#60a5fa', display:'block' }}>GPS</span>}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
             </div>
           </div>
         )
       })()}
+
+      {bloque.ventana && (
+        <div style={{ marginTop:10 }}>
+          <label style={{ fontSize:9, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:4 }}>Imagen de la tarea</label>
+          <label style={{ cursor:'pointer', display:'block' }}>
+            <div style={{ width:'100%', borderRadius:10, border:imgPreview?'none':'2px dashed rgba(200,241,53,.3)', background:'var(--ink2)', overflow:'hidden', minHeight:60, display:'flex', alignItems:'center', justifyContent:'center' }}>
+              {imgPreview ? <img src={imgPreview} style={{ width:'100%', maxHeight:200, objectFit:'contain', display:'block' }} /> : <span style={{ fontSize:22, color:'var(--fog)', padding:16 }}>📷 Cargar imagen</span>}
+            </div>
+            <input type="file" accept="image/*" onChange={handleImg} style={{ display:'none' }} />
+          </label>
+          {imgPreview && <button type="button" onClick={()=>{ setImgPreview(null); onChange('imagen','') }} style={{ fontSize:9, color:'#f87171', background:'none', border:'none', cursor:'pointer', marginTop:2 }}>Quitar imagen</button>}
+        </div>
+      )}
     </div>
   )
 }
+function imprimirSesion(f: any, bloques: any[]) {
+  const metricKeys = ['distTotal','distSprint','distMP','distAcel','distDecel','nSprints','nAcel','nDecel']
+  const metricLabels = ['Dist. total','Sprint >21km/h','Alta pot. >20W/kg','Acel. >2m/s²','Decel. >-2m/s²','Nº sprints','Nº acel. >3m/s²','Nº decel. >-3m/s²']
+  const metricUnits = ['m','m','m','m','m','','','']
+  const totals: Record<string,number> = {}
+  metricKeys.forEach(k => { totals[k] = 0 })
+  let hasCarga = false
+  bloques.forEach(bl => {
+    if (!TAREAS_CON_ESPACIO.includes(bl.ventana)) return
+    const jugN = TAREAS_CON_EQUIPO.includes(bl.ventana)
+      ? (Object.values(bl.equipos||{}).flat().length || Number(bl.jugadores) || 0)
+      : Number(bl.jugadores)
+    const calc = calcularDistancias(jugN, Number(bl.largo), Number(bl.ancho), Number(bl.series), Number(bl.minutos))
+    if (!calc) return
+    hasCarga = true
+    metricKeys.forEach(k => {
+      const manual = bl.manualMetrics?.[k]
+      totals[k] += manual !== undefined && manual !== '' ? parseFloat(manual) : calc[k]
+    })
+  })
 
-function SesionEditor({ sesion, defaultFecha, onSave, onDelete, onCancel }) {
+  let tiempoTrabajo = 0, tiempoDescanso = 0
+  bloques.forEach(bl => {
+    tiempoTrabajo += (Number(bl.series)||0) * (Number(bl.minutos)||0)
+    tiempoDescanso += (Number(bl.series)||0) * (Number(bl.pausa)||0)
+  })
+
+  const OBJCOLORS: Record<string,string> = { 'Fuerza':'#7c3aed','Resistencia':'#d97706','Activación':'#16a34a','Velocidad':'#2563eb' }
+
+  const tareasHtml = bloques.map((bl, i) => {
+    const jugN = TAREAS_CON_EQUIPO.includes(bl.ventana)
+      ? (Object.values(bl.equipos||{}).flat().length || Number(bl.jugadores) || 0)
+      : Number(bl.jugadores)
+    const calc = TAREAS_CON_ESPACIO.includes(bl.ventana) ? calcularDistancias(jugN, Number(bl.largo), Number(bl.ancho), Number(bl.series), Number(bl.minutos)) : null
+    const cuad = calc ? getCuadrante(calc.densidad, jugN) : null
+    const objColor = cuad ? (OBJCOLORS[cuad.objetivo] || '#555') : '#555'
+
+    const equiposHtml = TAREAS_CON_EQUIPO.includes(bl.ventana) && bl.equipos
+      ? `<div style="margin-top:6px;display:flex;gap:8px;flex-wrap:wrap">${[1,2,3,4].map(n => {
+          const jugs = (bl.equipos[n]||[])
+          if (!jugs.length) return ''
+          const cols = ['#16a34a','#2563eb','#d97706','#dc2626']
+          return `<span style="font-size:11px;padding:2px 8px;border-radius:4px;background:${cols[n-1]}20;color:${cols[n-1]};border:1px solid ${cols[n-1]}44">Equipo ${n}: ${jugs.length} jug.</span>`
+        }).join('')}</div>` : ''
+
+    const imgHtml = bl.imagen ? `<img src="${bl.imagen}" style="width:100%;max-height:180px;object-fit:contain;border-radius:6px;margin-top:8px;border:1px solid #ddd" />` : ''
+
+    const calcHtml = calc ? `
+      <div style="margin-top:8px;background:${objColor}15;border:1px solid ${objColor}33;border-radius:6px;padding:8px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+          <strong style="color:${objColor};font-size:11px;text-transform:uppercase">${cuad!.label} · ${calc.densidad.toFixed(1)} m²/jug</strong>
+          <span style="font-size:12px;font-weight:800;color:${objColor};text-transform:uppercase">🎯 ${cuad!.objetivo}</span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-top:6px">
+          ${metricKeys.map((k,mi) => {
+            const val = bl.manualMetrics?.[k] !== undefined ? bl.manualMetrics[k] : Math.round(calc[k])
+            return `<div style="text-align:center;background:#f8f8f8;border-radius:4px;padding:4px 2px"><div style="font-size:8px;color:#666">${metricLabels[mi]}</div><div style="font-size:12px;font-weight:700">${val}${metricUnits[mi]}</div></div>`
+          }).join('')}
+        </div>
+      </div>` : ''
+
+    return `
+    <div style="border:1px solid #ddd;border-radius:8px;padding:12px;margin-bottom:10px;page-break-inside:avoid">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <strong style="font-size:13px;color:#111">Tarea ${i+1}${bl.ventana ? ` — ${bl.ventana}` : ''}${bl.subtarea ? ` › ${bl.subtarea}` : ''}</strong>
+        <span style="font-size:11px;color:#555">${[bl.series&&`${bl.series} bloques`,bl.minutos&&`${bl.minutos} min/bl`,bl.pausa&&`pausa ${bl.pausa} min`,bl.largo&&bl.ancho&&`${bl.largo}×${bl.ancho}m`,jugN&&`${jugN} jug.`].filter(Boolean).join(' · ')}</span>
+      </div>
+      ${equiposHtml}
+      ${bl.descripcion ? `<p style="font-size:11px;color:#333;margin:4px 0">${bl.descripcion}</p>` : ''}
+      ${calcHtml}
+      ${imgHtml}
+    </div>`
+  }).join('')
+
+  const totalResumenHtml = hasCarga ? `
+    <div style="background:#eff6ff;border:1px solid #93c5fd;border-radius:8px;padding:12px;margin-bottom:12px">
+      <strong style="font-size:12px;color:#1d4ed8">📊 Carga total de la sesión</strong>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:8px">
+        ${metricKeys.map((k,i) => `<div style="text-align:center;background:white;border-radius:4px;padding:6px"><div style="font-size:9px;color:#555">${metricLabels[i]}</div><div style="font-size:14px;font-weight:700;color:#1d4ed8">${Math.round(totals[k])}${metricUnits[i]}</div></div>`).join('')}
+      </div>
+    </div>` : ''
+
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Sesión ${f.fecha}</title>
+  <style>
+    body{font-family:Arial,sans-serif;max-width:800px;margin:0 auto;padding:20px;color:#111}
+    h1{font-size:24px;margin-bottom:4px}
+    .meta{font-size:12px;color:#666;margin-bottom:16px}
+    @media print{body{padding:10px}.no-print{display:none}}
+  </style></head><body>
+  <div class="no-print" style="margin-bottom:16px">
+    <button onclick="window.print()" style="padding:8px 20px;background:#1a1a1a;color:white;border:none;border-radius:6px;cursor:pointer;font-size:13px">🖨️ Imprimir / Guardar PDF</button>
+  </div>
+  <h1>${f.titulo || 'Sesión de entrenamiento'}</h1>
+  <div class="meta">
+    📅 ${f.fecha}
+    ${f.hora_inicio ? ` · 🕐 ${f.hora_inicio}${f.hora_fin?` – ${f.hora_fin}`:''}` : ''}
+    ${f.objetivo ? ` · 🎯 ${f.objetivo}` : ''}
+    ${f.objetivo_secundario ? ` / ${f.objetivo_secundario}` : ''}
+    ${f.rpe_objetivo ? ` · RPE objetivo: ${f.rpe_objetivo}` : ''}
+  </div>
+  ${(tiempoTrabajo+tiempoDescanso)>0 ? `
+  <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:10px;margin-bottom:12px;display:flex;gap:24px">
+    <div><strong style="font-size:18px;color:#16a34a">${tiempoTrabajo+tiempoDescanso} min</strong><br><small style="color:#555">Tiempo total</small></div>
+    <div><strong style="font-size:18px;color:#16a34a">${tiempoTrabajo} min</strong><br><small style="color:#555">Trabajo</small></div>
+    <div><strong style="font-size:18px;color:#d97706">${tiempoDescanso} min</strong><br><small style="color:#555">Descanso</small></div>
+  </div>` : ''}
+  ${totalResumenHtml}
+  <h3 style="font-size:13px;text-transform:uppercase;color:#555;letter-spacing:.05em;margin-bottom:8px">Tareas (${bloques.length})</h3>
+  ${tareasHtml}
+  ${f.notas ? `<div style="margin-top:12px;background:#fffbeb;border:1px solid #fde68a;border-radius:6px;padding:10px"><strong>Notas:</strong> ${f.notas}</div>` : ''}
+  </body></html>`
+
+  const win = window.open('', '_blank')
+  if (win) { win.document.write(html); win.document.close() }
+}
+
+function SesionEditor({ sesion, defaultFecha, onSave, onDelete, onCancel, teamPlayers = [] }) {
   const [f, setF] = useState({
     fecha: sesion?.fecha || defaultFecha,
     hora_inicio: sesion?.hora_inicio?.slice(0,5) || '',
@@ -1439,9 +1667,78 @@ function SesionEditor({ sesion, defaultFecha, onSave, onDelete, onCancel }) {
         </div>
         {bloques.length === 0 && <p style={{ fontSize:12, color:'var(--fog)', padding:'8px 0' }}>Sin tareas. Clickeá "+ Tarea" para construir la sesión.</p>}
         {bloques.map((bl,i)=>(
-          <BloqueMetodologia key={i} bloque={bl} index={i} onChange={(k,v)=>updateBloque(i,k,v)} onRemove={()=>removeBloque(i)} />
+          <BloqueMetodologia key={i} bloque={bl} index={i} onChange={(k,v)=>updateBloque(i,k,v)} onRemove={()=>removeBloque(i)} teamPlayers={teamPlayers} />
         ))}
       </div>
+
+      {/* Resumen de tiempo total de sesión */}
+      {bloques.length > 0 && (() => {
+        let tiempoTrabajo = 0, tiempoDescanso = 0
+        bloques.forEach(bl => {
+          const s = Number(bl.series)||0, m = Number(bl.minutos)||0, p = Number(bl.pausa)||0
+          tiempoTrabajo += s * m
+          tiempoDescanso += s * p
+        })
+        const tiempoTotal = tiempoTrabajo + tiempoDescanso
+        return tiempoTotal > 0 ? (
+          <div style={{ background:'rgba(200,241,53,.06)', border:'1px solid rgba(200,241,53,.2)', borderRadius:10, padding:'12px 16px', marginBottom:16 }}>
+            <p style={{ fontSize:10, fontWeight:700, color:'var(--lime)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:8 }}>⏱ Duración estimada de la sesión</p>
+            <div style={{ display:'flex', gap:16, flexWrap:'wrap' }}>
+              <div style={{ textAlign:'center' }}>
+                <div style={{ fontSize:24, fontWeight:700, color:'var(--lime)', fontFamily:'DM Mono,monospace' }}>{tiempoTotal} min</div>
+                <div style={{ fontSize:10, color:'var(--silver)' }}>Tiempo total</div>
+              </div>
+              <div style={{ textAlign:'center' }}>
+                <div style={{ fontSize:24, fontWeight:700, color:'#22c55e', fontFamily:'DM Mono,monospace' }}>{tiempoTrabajo} min</div>
+                <div style={{ fontSize:10, color:'var(--silver)' }}>Tiempo de trabajo</div>
+              </div>
+              <div style={{ textAlign:'center' }}>
+                <div style={{ fontSize:24, fontWeight:700, color:'#f59e0b', fontFamily:'DM Mono,monospace' }}>{tiempoDescanso} min</div>
+                <div style={{ fontSize:10, color:'var(--silver)' }}>Tiempo de descanso</div>
+              </div>
+            </div>
+          </div>
+        ) : null
+      })()}
+
+      {/* Resumen de carga total de la sesión */}
+      {bloques.length > 0 && (() => {
+        const metricKeys = ['distTotal','distSprint','distMP','distAcel','distDecel','nSprints','nAcel','nDecel']
+        const metricLabels = ['Dist. total','Sprint >21','Alta pot.','Acel.','Decel.','Nº sprints','Nº acel.','Nº decel.']
+        const metricUnits = ['m','m','m','m','m','','','']
+        const totals: Record<string,number> = {}
+        metricKeys.forEach(k => { totals[k] = 0 })
+        let hasCarga = false
+        bloques.forEach(bl => {
+          if (!TAREAS_CON_ESPACIO.includes(bl.ventana)) return
+          const jugN = TAREAS_CON_EQUIPO.includes(bl.ventana)
+            ? (Object.values(bl.equipos||{}).flat().length || Number(bl.jugadores) || 0)
+            : Number(bl.jugadores)
+          const calc = calcularDistancias(jugN, Number(bl.largo), Number(bl.ancho), Number(bl.series), Number(bl.minutos))
+          if (!calc) return
+          hasCarga = true
+          metricKeys.forEach(k => {
+            const manual = bl.manualMetrics?.[k]
+            totals[k] += manual !== undefined && manual !== '' ? parseFloat(manual) : calc[k]
+          })
+        })
+        if (!hasCarga) return null
+        return (
+          <div style={{ background:'rgba(96,165,250,.06)', border:'1px solid rgba(96,165,250,.2)', borderRadius:10, padding:'12px 16px', marginBottom:16 }}>
+            <p style={{ fontSize:10, fontWeight:700, color:'#60a5fa', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:8 }}>📊 Resumen de carga total (todas las tareas)</p>
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:6 }}>
+              {metricKeys.map((k,i) => (
+                <div key={k} style={{ textAlign:'center', background:'var(--ink2)', borderRadius:8, padding:'8px 6px' }}>
+                  <div style={{ fontSize:8, color:'var(--silver)', marginBottom:3, lineHeight:1.3 }}>{metricLabels[i]}</div>
+                  <div style={{ fontSize:15, fontWeight:700, color:'#60a5fa', fontFamily:'DM Mono,monospace' }}>
+                    {Math.round(totals[k])}<span style={{ fontSize:9, color:'var(--fog)' }}>{metricUnits[i]}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )
+      })()}
 
       {/* Notas */}
       <div style={{ marginBottom:20 }}>
@@ -1454,6 +1751,7 @@ function SesionEditor({ sesion, defaultFecha, onSave, onDelete, onCancel }) {
           <button type="button" onClick={onDelete} className="btn-ghost" style={{ fontSize:12, color:'#f87171', borderColor:'rgba(239,68,68,.3)', padding:'10px 16px' }}>🗑 Eliminar</button>
         )}
         <button type="button" onClick={onCancel} className="btn-ghost" style={{ flex:1, fontSize:13 }}>Cancelar</button>
+        <button type="button" onClick={() => imprimirSesion(f, bloques)} className="btn-ghost" style={{ fontSize:12, padding:'10px 14px' }} title="Imprimir machete">🖨️ Imprimir</button>
         <button type="button" onClick={submit} disabled={loading||!f.fecha} className="btn-lime" style={{ flex:2, fontSize:13, padding:14 }}>
           {loading ? 'Guardando...' : sesion ? 'Guardar cambios →' : 'Crear sesión →'}
         </button>
@@ -1754,10 +2052,12 @@ function MediaEquipoPanel() {
   const now = new Date()
   const [ciclo, setCiclo] = useState<'microciclo'|'mesociclo'|'macrociclo'>('microciclo')
   const [data, setData] = useState<any>(null)
+  const [playerData, setPlayerData] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
+  const [sortField, setSortField] = useState<string>('nombre')
+  const [sortDir, setSortDir] = useState<'asc'|'desc'>('asc')
 
   const CICLO_DAYS = { microciclo:7, mesociclo:28, macrociclo:365 }
-  const CICLO_LABEL = { microciclo:'Microciclo — 7 días', mesociclo:'Mesociclo — 28 días', macrociclo:'Macrociclo — Temporada' }
 
   useEffect(() => { load() }, [ciclo])
 
@@ -1766,15 +2066,27 @@ function MediaEquipoPanel() {
     const hasta = now.toISOString().split('T')[0]
     const desde = new Date(Date.now() - CICLO_DAYS[ciclo] * 86400000).toISOString().split('T')[0]
     try {
-      const r = await fetch(`/api/cambio-carga?desde=${desde}&hasta=${hasta}&minEntrenamiento=0&minPartido=0`)
-      setData(await r.json())
-    } catch { /* ignore */ }
+      const [cargaRes, logsRes] = await Promise.all([
+        fetch(`/api/cambio-carga?desde=${desde}&hasta=${hasta}&minEntrenamiento=0&minPartido=0`),
+        fetch(`/api/logs?days=${CICLO_DAYS[ciclo]}&allPlayers=true`).catch(()=>null)
+      ])
+      const cargaData = await cargaRes.json()
+      setData(cargaData)
+      // Try to get per-player aggregated data
+      const pRes = await fetch(`/api/analytics?desde=${desde}&hasta=${hasta}&perPlayer=true`).catch(()=>null)
+      if (pRes?.ok) {
+        const pd = await pRes.json()
+        setPlayerData(pd.players || [])
+      } else {
+        // fallback: use carga players
+        setPlayerData(cargaData.players || [])
+      }
+    } catch { }
     finally { setLoading(false) }
   }
 
   const daily = data?.daily || []
   const maxUA = Math.max(...daily.map((d:any) => d.avg_ua || 0), 1)
-
   const avgRpe = daily.length ? (daily.reduce((s:number,d:any)=>s+(d.avg_rpe||0),0)/daily.length).toFixed(1) : '—'
   const avgUa  = daily.length ? Math.round(daily.reduce((s:number,d:any)=>s+(d.avg_ua||0),0)/daily.length) : '—'
 
@@ -1786,11 +2098,62 @@ function MediaEquipoPanel() {
     return '#22c55e'
   }
 
+  // Columns for the player table
+  const COLS = [
+    { key:'nombre', label:'Jugador', unit:'' },
+    { key:'rpe', label:'RPE', unit:'' },
+    { key:'ua', label:'UA', unit:'' },
+    { key:'dist_total', label:'Dist.', unit:'m' },
+    { key:'dist_sprint', label:'Sprint', unit:'m' },
+    { key:'dist_mp', label:'Alta Pot.', unit:'m' },
+    { key:'n_sprints', label:'Nº Sprints', unit:'' },
+    { key:'n_acel', label:'Nº Acel.', unit:'' },
+    { key:'n_decel', label:'Nº Decel.', unit:'' },
+  ]
+
+  function toggleSort(field: string) {
+    if (sortField === field) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
+    else { setSortField(field); setSortDir(field === 'nombre' ? 'asc' : 'desc') }
+  }
+
+  // Build sorted player rows from daily data (per player if available)
+  const playerRows = (() => {
+    if (playerData.length > 0) return playerData
+    // Aggregate from daily per player if available in data
+    if (!data?.byPlayer) return []
+    return Object.values(data.byPlayer)
+  })()
+
+  const sortedRows = [...playerRows].sort((a: any, b: any) => {
+    const va = a[sortField] ?? (sortField==='nombre' ? '' : -1)
+    const vb = b[sortField] ?? (sortField==='nombre' ? '' : -1)
+    if (typeof va === 'string') return sortDir==='asc' ? va.localeCompare(vb) : vb.localeCompare(va)
+    return sortDir==='asc' ? (va as number)-(vb as number) : (vb as number)-(va as number)
+  })
+
+  // Compute averages
+  const avgRow: Record<string,number|string> = { nombre: 'PROMEDIO' }
+  if (sortedRows.length > 0) {
+    COLS.filter(c=>c.key!=='nombre').forEach(c => {
+      const vals = sortedRows.map((r:any) => Number(r[c.key])||0).filter(v=>v>0)
+      avgRow[c.key] = vals.length ? Math.round(vals.reduce((s,v)=>s+v,0)/vals.length) : 0
+    })
+  }
+
+  const SortTh = ({ field, label, unit }: { field:string, label:string, unit:string }) => (
+    <th onClick={()=>toggleSort(field)} style={{ padding:'8px 10px', color: sortField===field?'var(--lime)':'var(--silver)', fontWeight:600, textTransform:'uppercase', fontSize:9, letterSpacing:'0.06em', textAlign:'center', whiteSpace:'nowrap', cursor:'pointer', userSelect:'none' }}>
+      {label}{unit && <span style={{ fontSize:8, color:'var(--fog)', marginLeft:2 }}>{unit}</span>}
+      {sortField===field && <span style={{ marginLeft:4, fontSize:9 }}>{sortDir==='asc'?'↑':'↓'}</span>}
+    </th>
+  )
+
+  const macroMode = ciclo === 'macrociclo'
+
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
       <div>
         <h2 className="display" style={{ fontSize:48, color:'var(--snow)' }}>MEDIA EQUIPO</h2>
-        <p style={{ fontSize:12, color:'var(--silver)', marginTop:2 }}>Promedios grupales de RPE y UA por ciclo</p>
+        <p style={{ fontSize:12, color:'var(--silver)', marginTop:2 }}>Carga individual y promedios por ciclo · Hacé click en columnas para ordenar</p>
       </div>
 
       {/* Ciclo selector */}
@@ -1805,9 +2168,9 @@ function MediaEquipoPanel() {
       {/* Summary KPIs */}
       <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(140px,1fr))', gap:10 }}>
         {[
-          ['RPE Medio',avgRpe,'var(--lime)','promedio del período'],
-          ['UA Media',avgUa,'#60a5fa','promedio diario'],
-          ['Días con datos',daily.filter((d:any)=>d.n>0).length,'var(--snow)',`de ${daily.length} días`],
+          ['RPE Medio', avgRpe, 'var(--lime)', 'promedio del período'],
+          ['UA Media', avgUa, '#60a5fa', 'promedio diario'],
+          ['Días con datos', daily.filter((d:any)=>d.n>0).length, 'var(--snow)', `de ${daily.length} días`],
         ].map(([l,v,c,sub])=>(
           <div key={l as string} style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:14, padding:16, textAlign:'center' }}>
             <div className="mono" style={{ fontSize:28, fontWeight:600, color:c as string }}>{v}</div>
@@ -1822,48 +2185,40 @@ function MediaEquipoPanel() {
         : daily.length === 0
           ? <div style={{ padding:40, textAlign:'center', color:'var(--silver)' }}>Sin datos para este ciclo.</div>
           : <>
+              {/* Nota macrociclo */}
+              {macroMode && (
+                <div style={{ background:'rgba(200,241,53,.06)', border:'1px solid rgba(200,241,53,.2)', borderRadius:10, padding:'10px 14px', fontSize:12, color:'var(--lime)' }}>
+                  💡 En macrociclo se muestra la media de todos los días del período (temporada).
+                </div>
+              )}
+
               {/* Bar chart UA media diaria */}
               <div style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:16, padding:20 }}>
                 <p style={{ fontSize:11, fontWeight:600, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:16 }}>UA Media Diaria del Equipo</p>
                 <div style={{ display:'flex', alignItems:'flex-end', gap:4, height:100, overflowX:'auto' }}>
                   {daily.map((d:any,i:number)=>{
                     const pct = (d.avg_ua/maxUA)*100
-                    const pctChange = d.pct_change
-                    const col = pctColor(pctChange)
+                    const col = pctColor(d.pct_change)
                     return (
                       <div key={i} style={{ flex:'0 0 auto', minWidth:40, display:'flex', flexDirection:'column', alignItems:'center', gap:2 }}>
-                        <div className="mono" style={{ fontSize:9, color:col, fontWeight:700, whiteSpace:'nowrap', lineHeight:1.2, textAlign:'center' }}>
-                          {d.avg_ua > 0 ? `${d.avg_ua}` : ''}
+                        <div className="mono" style={{ fontSize:9, color:col, fontWeight:700, whiteSpace:'nowrap' }}>{d.avg_ua > 0 ? d.avg_ua : ''}</div>
+                        <div title={`${d.label}: ${d.avg_ua} UA`} style={{ width:28, height:70, background:'var(--mist)', borderRadius:4, overflow:'hidden', display:'flex', alignItems:'flex-end' }}>
+                          <div style={{ width:'100%', height:`${pct}%`, background:col, borderRadius:4, minHeight:d.avg_ua>0?4:0 }} />
                         </div>
-                        <div className="mono" style={{ fontSize:8, color: pctChange!==null ? col : 'transparent', fontWeight:600, whiteSpace:'nowrap', lineHeight:1, textAlign:'center' }}>
-                          {pctChange!==null ? `${pctChange>0?'+':''}${pctChange}%` : '·'}
-                        </div>
-                        <div title={`${d.label}: ${d.avg_ua} UA`} style={{ width:28, height:70, background:'var(--mist)', borderRadius:4, overflow:'hidden', display:'flex', alignItems:'flex-end', cursor:'default' }}>
-                          <div style={{ width:'100%', height:`${pct}%`, background:col, borderRadius:4, transition:'height .3s', minHeight: d.avg_ua>0?4:0 }} />
-                        </div>
-                        <div style={{ fontSize:8, color:'var(--fog)', textAlign:'center', lineHeight:1.2, maxWidth:40, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-                          {d.label?.slice(5)||d.label}
-                        </div>
+                        <div style={{ fontSize:8, color:'var(--fog)', maxWidth:40, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{d.label?.slice(5)||d.label}</div>
                       </div>
                     )
                   })}
                 </div>
-                <div style={{ marginTop:12, display:'flex', gap:12, flexWrap:'wrap' }}>
-                  {[['#22c55e','Carga estable/baja'],['#f59e0b','Aumento moderado'],['#ef4444','Aumento alto (>15%)'],['#60a5fa','Reducción notable (>15%)']].map(([c,l])=>(
-                    <div key={l} style={{ display:'flex', alignItems:'center', gap:5, fontSize:10, color:'var(--silver)' }}>
-                      <div style={{ width:8, height:8, borderRadius:2, background:c }} />{l}
-                    </div>
-                  ))}
-                </div>
               </div>
 
-              {/* Table */}
+              {/* Tabla diaria por ciclo */}
               <div style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:16, overflow:'hidden' }}>
                 <div style={{ overflowX:'auto' }}>
                   <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12 }}>
                     <thead>
                       <tr style={{ background:'rgba(255,255,255,.03)' }}>
-                        {['Fecha','Jugadores','RPE Medio','UA Media','% vs día anterior'].map(h=>(
+                        {['Fecha','Jugadores','RPE Medio','UA Media','% vs anterior'].map(h=>(
                           <th key={h} style={{ padding:'8px 14px', color:'var(--silver)', fontWeight:600, textTransform:'uppercase', fontSize:9, letterSpacing:'0.06em', textAlign:'center', whiteSpace:'nowrap' }}>{h}</th>
                         ))}
                       </tr>
@@ -1879,11 +2234,8 @@ function MediaEquipoPanel() {
                             <td style={{ padding:'8px 14px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, color:d.avg_ua?'#60a5fa':'var(--fog)' }}>{d.avg_ua||'—'}</td>
                             <td style={{ padding:'8px 14px', textAlign:'center' }}>
                               {d.pct_change !== null
-                                ? <span style={{ fontSize:11, padding:'2px 8px', borderRadius:20, background:`${col}20`, color:col, border:`1px solid ${col}44`, fontWeight:600 }}>
-                                    {d.pct_change > 0 ? '+' : ''}{d.pct_change}%
-                                  </span>
-                                : <span style={{ color:'var(--fog)' }}>—</span>
-                              }
+                                ? <span style={{ fontSize:11, padding:'2px 8px', borderRadius:20, background:`${col}20`, color:col, border:`1px solid ${col}44`, fontWeight:600 }}>{d.pct_change > 0 ? '+' : ''}{d.pct_change}%</span>
+                                : <span style={{ color:'var(--fog)' }}>—</span>}
                             </td>
                           </tr>
                         )
@@ -1891,6 +2243,69 @@ function MediaEquipoPanel() {
                     </tbody>
                   </table>
                 </div>
+              </div>
+
+              {/* Tabla por jugador — con métricas GPS y RPE + UA */}
+              <div style={{ background:'var(--ink2)', border:'1px solid rgba(200,241,53,.2)', borderRadius:16, overflow:'hidden' }}>
+                <div style={{ padding:'12px 18px', borderBottom:'1px solid var(--mist)', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                  <p style={{ fontSize:11, fontWeight:700, color:'var(--lime)', textTransform:'uppercase', letterSpacing:'0.08em' }}>
+                    Carga individual por jugador · {ciclo}
+                  </p>
+                  <p style={{ fontSize:10, color:'var(--fog)' }}>Click en columna para ordenar</p>
+                </div>
+                <div style={{ overflowX:'auto' }}>
+                  <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12 }}>
+                    <thead>
+                      <tr style={{ background:'rgba(255,255,255,.03)' }}>
+                        <SortTh field="nombre" label="Jugador" unit="" />
+                        <SortTh field="rpe" label="RPE" unit="" />
+                        <SortTh field="ua" label="UA" unit="" />
+                        <SortTh field="dist_total" label="Dist." unit="m" />
+                        <SortTh field="dist_sprint" label="Sprint" unit="m" />
+                        <SortTh field="dist_mp" label="Alta Pot." unit="m" />
+                        <SortTh field="n_sprints" label="Sprints" unit="nº" />
+                        <SortTh field="n_acel" label="Acel." unit="nº" />
+                        <SortTh field="n_decel" label="Decel." unit="nº" />
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {sortedRows.length === 0 ? (
+                        <tr><td colSpan={9} style={{ padding:'24px', textAlign:'center', color:'var(--fog)', fontSize:12 }}>
+                          Sin datos GPS individuales. Los datos por jugador estarán disponibles cuando registres sesiones con GPS.
+                        </td></tr>
+                      ) : sortedRows.map((p:any, i:number) => {
+                        const borgCol = (rpe: number) => rpe <= 2 ? '#22c55e' : rpe <= 4 ? '#a3e635' : rpe <= 6 ? '#eab308' : rpe <= 8 ? '#f97316' : '#ef4444'
+                        const rpe = Number(p.rpe) || 0
+                        return (
+                          <tr key={i} style={{ borderTop:'1px solid var(--mist)', background:i%2===0?'transparent':'rgba(255,255,255,.015)' }}>
+                            <td style={{ padding:'9px 14px', fontWeight:500, color:'var(--snow)', whiteSpace:'nowrap' }}>{p.nombre || '—'}</td>
+                            <td style={{ padding:'9px 10px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, color: rpe ? borgCol(rpe) : 'var(--fog)' }}>{rpe || '—'}</td>
+                            <td style={{ padding:'9px 10px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, color:p.ua?'#60a5fa':'var(--fog)' }}>{p.ua ? Math.round(p.ua) : '—'}</td>
+                            {['dist_total','dist_sprint','dist_mp','n_sprints','n_acel','n_decel'].map(k=>(
+                              <td key={k} style={{ padding:'9px 10px', textAlign:'center', fontFamily:'DM Mono,monospace', color:p[k]?'var(--snow)':'var(--fog)' }}>{p[k] ? Math.round(p[k]) : '—'}</td>
+                            ))}
+                          </tr>
+                        )
+                      })}
+                      {/* Fila de promedio */}
+                      {sortedRows.length > 0 && (
+                        <tr style={{ borderTop:'2px solid rgba(200,241,53,.3)', background:'rgba(200,241,53,.06)' }}>
+                          <td style={{ padding:'9px 14px', fontWeight:800, color:'var(--lime)', fontSize:10, textTransform:'uppercase', letterSpacing:'0.06em' }}>Promedio</td>
+                          {['rpe','ua','dist_total','dist_sprint','dist_mp','n_sprints','n_acel','n_decel'].map(k=>(
+                            <td key={k} style={{ padding:'9px 10px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, color:'var(--lime)', fontSize:13 }}>
+                              {avgRow[k] ? Number(avgRow[k]) > 0 ? Math.round(Number(avgRow[k])) : '—' : '—'}
+                            </td>
+                          ))}
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+                {sortedRows.length === 0 && (
+                  <div style={{ padding:'12px 18px', background:'rgba(96,165,250,.06)', borderTop:'1px solid rgba(96,165,250,.2)', fontSize:11, color:'#60a5fa' }}>
+                    💡 Los datos individuales de GPS (distancia, sprints, etc.) se cargan cuando tenés sensores GPS en los jugadores. Por ahora podés ver RPE y UA desde las sesiones registradas.
+                  </div>
+                )}
               </div>
             </>
       }
