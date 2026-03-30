@@ -2103,10 +2103,17 @@ function MediaEquipoPanel() {
   }
   const [sortField, setSortField] = useState('nombre')
   const [sortDir,   setSortDir]   = useState<'asc'|'desc'>('asc')
+  const [vistaMode, setVistaMode] = useState<'ciclo'|'dia'>('ciclo')
+  const [diaSelec,  setDiaSelec]  = useState(new Date().toISOString().split('T')[0])
+  const [diaData,   setDiaData]   = useState<any>(null)
+  const [diaLoading, setDiaLoading] = useState(false)
 
   const CICLO_DAYS = { microciclo:7, mesociclo:28, macrociclo:365 }
 
-  useEffect(() => { load() }, [ciclo])
+  useEffect(() => {
+    if (vistaMode === 'ciclo') load()
+    else loadDia()
+  }, [ciclo, vistaMode, diaSelec])
 
   async function load() {
     setLoading(true)
@@ -2120,6 +2127,15 @@ function MediaEquipoPanel() {
       if (r.ok) setData(await r.json())
     } catch {}
     finally { setLoading(false) }
+  }
+
+  async function loadDia() {
+    setDiaLoading(true)
+    try {
+      const r = await fetch(`/api/carga-gps?desde=${diaSelec}&hasta=${diaSelec}&ciclo=dia`)
+      if (r.ok) setDiaData(await r.json())
+    } catch {}
+    finally { setDiaLoading(false) }
   }
 
   const players: any[]  = data?.players   || []
@@ -2189,18 +2205,163 @@ function MediaEquipoPanel() {
         </div>
       </div>
 
-      {/* Ciclo selector */}
-      <div style={{ display: 'flex', gap: 4, background: 'var(--ink2)', border: '1px solid var(--mist)', borderRadius: 10, padding: 3, alignSelf: 'flex-start' }}>
-        {(['microciclo', 'mesociclo', 'macrociclo'] as const).map(c => (
-          <button key={c} onClick={() => setCiclo(c)} style={{
-            padding: '7px 16px', borderRadius: 7, cursor: 'pointer', fontSize: 11, fontWeight: 600,
-            border: 'none', background: ciclo === c ? 'var(--lime)' : 'transparent',
-            color: ciclo === c ? 'var(--ink)' : 'var(--silver)', transition: 'all .12s', textTransform: 'capitalize',
-          }}>
-            {c}
-          </button>
-        ))}
+      {/* Mode + period selector */}
+      <div style={{ display:'flex', gap:10, flexWrap:'wrap', alignItems:'center' }}>
+        {/* Vista mode toggle */}
+        <div style={{ display:'flex', gap:2, background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:10, padding:3 }}>
+          {([['ciclo','📅 Por ciclo'],['dia','📆 Por día']] as const).map(([m, lbl]) => (
+            <button key={m} onClick={() => setVistaMode(m)} style={{
+              padding:'7px 16px', borderRadius:7, cursor:'pointer', fontSize:11, fontWeight:600,
+              border:'none', background: vistaMode===m ? 'var(--lime)' : 'transparent',
+              color: vistaMode===m ? 'var(--ink)' : 'var(--silver)', transition:'all .12s',
+            }}>{lbl}</button>
+          ))}
+        </div>
+
+        {/* Ciclo selector — only in ciclo mode */}
+        {vistaMode === 'ciclo' && (
+          <div style={{ display:'flex', gap:2, background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:10, padding:3 }}>
+            {(['microciclo','mesociclo','macrociclo'] as const).map(c => (
+              <button key={c} onClick={() => setCiclo(c)} style={{
+                padding:'7px 16px', borderRadius:7, cursor:'pointer', fontSize:11, fontWeight:600,
+                border:'none', background: ciclo===c ? 'rgba(200,241,53,.2)' : 'transparent',
+                color: ciclo===c ? 'var(--lime)' : 'var(--silver)', transition:'all .12s', textTransform:'capitalize',
+              }}>{c}</button>
+            ))}
+          </div>
+        )}
+
+        {/* Day picker — only in dia mode */}
+        {vistaMode === 'dia' && (
+          <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+            <button onClick={() => { const d=new Date(diaSelec); d.setDate(d.getDate()-1); setDiaSelec(d.toISOString().split('T')[0]) }}
+              style={{ padding:'6px 12px', borderRadius:8, background:'var(--ink2)', border:'1px solid var(--mist)', color:'var(--silver)', cursor:'pointer', fontSize:14 }}>‹</button>
+            <input type="date" value={diaSelec} onChange={e=>setDiaSelec(e.target.value)}
+              className="wp-input" style={{ padding:'6px 12px', fontSize:13, width:155 }} />
+            <button onClick={() => { const d=new Date(diaSelec); d.setDate(d.getDate()+1); setDiaSelec(d.toISOString().split('T')[0]) }}
+              style={{ padding:'6px 12px', borderRadius:8, background:'var(--ink2)', border:'1px solid var(--mist)', color:'var(--silver)', cursor:'pointer', fontSize:14 }}>›</button>
+          </div>
+        )}
       </div>
+
+      {/* ====== DIA VIEW ====== */}
+      {vistaMode === 'dia' && (() => {
+        const dp: any[] = diaData?.players || []
+        const da: any   = diaData?.teamAvg || {}
+        const bc = (rpe: number) => rpe <= 2 ? '#22c55e' : rpe <= 4 ? '#a3e635' : rpe <= 6 ? '#eab308' : rpe <= 8 ? '#f97316' : '#ef4444'
+        const GPS_COLS = [
+          { field:'distTotal',  label:'Dist.',    unit:'m'  },
+          { field:'distSprint', label:'Sprint',   unit:'m'  },
+          { field:'distMP',     label:'Alta pot', unit:'m'  },
+          { field:'distAcel',   label:'Acel.',    unit:'m'  },
+          { field:'distDecel',  label:'Decel.',   unit:'m'  },
+          { field:'nSprints',   label:'Sprints',  unit:'nº' },
+          { field:'nAcel',      label:'Acel.',    unit:'nº' },
+          { field:'nDecel',     label:'Decel.',   unit:'nº' },
+        ]
+        const sorted = [...dp].sort((a,b) => {
+          const va = a[sortField] ?? (sortField==='nombre' ? '' : -1)
+          const vb = b[sortField] ?? (sortField==='nombre' ? '' : -1)
+          if (typeof va === 'string') return sortDir==='asc' ? va.localeCompare(vb) : vb.localeCompare(va)
+          return sortDir==='asc' ? va - vb : vb - va
+        })
+        return (
+          <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+            {diaLoading ? (
+              <div style={{ padding:40, textAlign:'center', color:'var(--silver)' }}>Cargando...</div>
+            ) : dp.length === 0 ? (
+              <div style={{ padding:40, textAlign:'center', color:'var(--silver)', background:'var(--ink2)', borderRadius:14 }}>
+                Sin sesiones ni registros para este día.
+              </div>
+            ) : (
+              <>
+                {/* Day KPIs */}
+                <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(110px,1fr))', gap:8 }}>
+                  {[
+                    ['RPE Medio', da.rpe || '—', 'var(--lime)'],
+                    ['Dist. media', da.distTotal ? da.distTotal+'m' : '—', '#60a5fa'],
+                    ['Sprints',  da.nSprints || '—', '#f59e0b'],
+                    ['Jugadores', dp.length, 'var(--snow)'],
+                  ].map(([l,v,c])=>(
+                    <div key={l as string} style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:10, padding:'10px 12px', textAlign:'center' }}>
+                      <div style={{ fontSize:22, fontWeight:800, color:c as string, fontFamily:'DM Mono,monospace' }}>{v}</div>
+                      <div style={{ fontSize:10, color:'var(--silver)', marginTop:2 }}>{l as string}</div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Day table */}
+                <div style={{ background:'var(--ink2)', border:'1px solid rgba(200,241,53,.2)', borderRadius:14, overflow:'hidden' }}>
+                  <div style={{ padding:'10px 16px', borderBottom:'1px solid var(--mist)', display:'flex', justifyContent:'space-between' }}>
+                    <p style={{ fontSize:11, fontWeight:700, color:'var(--lime)', textTransform:'uppercase', letterSpacing:'0.08em' }}>
+                      {new Date(diaSelec+'T12:00:00').toLocaleDateString('es',{weekday:'long',day:'numeric',month:'long'})}
+                    </p>
+                    <p style={{ fontSize:10, color:'var(--fog)' }}>Click en columna para ordenar</p>
+                  </div>
+                  <div style={{ overflowX:'auto' }}>
+                    <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12 }}>
+                      <thead>
+                        <tr style={{ background:'rgba(255,255,255,.03)' }}>
+                          <SortTh field="nombre"   label="Jugador" />
+                          <SortTh field="rpe"      label="RPE" />
+                          <SortTh field="ua"       label="UA" unit="media" />
+                          <SortTh field="sesiones" label="Ses." />
+                          {GPS_COLS.map(c=><SortTh key={c.field} field={c.field} label={c.label} unit={c.unit} />)}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {sorted.map((p:any, i:number) => {
+                          const rpe = Number(p.rpe)||0
+                          const col = rpe > 0 ? bc(rpe) : 'var(--fog)'
+                          return (
+                            <tr key={i} style={{ borderTop:'1px solid var(--mist)', background: i%2===0?'transparent':'rgba(255,255,255,.015)' }}>
+                              <td style={{ padding:'8px 14px', fontWeight:500, color:'var(--snow)', whiteSpace:'nowrap' }}>
+                                {p.nombre}
+                                {p.posicion && <span style={{ fontSize:10, color:'var(--fog)', marginLeft:6 }}>{p.posicion}</span>}
+                              </td>
+                              <td style={{ padding:'8px 10px', textAlign:'center' }}>
+                                {rpe > 0
+                                  ? <span style={{ fontFamily:'DM Mono,monospace', fontWeight:700, fontSize:13, color:col, background:`${col}18`, padding:'2px 8px', borderRadius:6, border:`1px solid ${col}33` }}>{rpe}</span>
+                                  : <span style={{ color:'var(--fog)' }}>—</span>}
+                              </td>
+                              <td style={{ padding:'8px 10px', textAlign:'center', fontFamily:'DM Mono,monospace', color:p.ua?'#60a5fa':'var(--fog)' }}>{p.ua||'—'}</td>
+                              <td style={{ padding:'8px 10px', textAlign:'center', fontFamily:'DM Mono,monospace', color:'var(--silver)' }}>{p.sesiones||'—'}</td>
+                              {GPS_COLS.map(c=>(
+                                <td key={c.field} style={{ padding:'8px 10px', textAlign:'center', fontFamily:'DM Mono,monospace', color:p[c.field]>0?'var(--snow)':'var(--fog)' }}>
+                                  {p[c.field]>0 ? p[c.field] : '—'}
+                                </td>
+                              ))}
+                            </tr>
+                          )
+                        })}
+                        {/* Promedio row */}
+                        <tr style={{ borderTop:'2px solid rgba(200,241,53,.3)', background:'rgba(200,241,53,.06)' }}>
+                          <td style={{ padding:'10px 14px', fontWeight:800, color:'var(--lime)', fontSize:10, textTransform:'uppercase', letterSpacing:'0.06em' }}>Promedio equipo</td>
+                          <td style={{ padding:'10px 10px', textAlign:'center' }}>
+                            {da.rpe > 0
+                              ? <span style={{ fontFamily:'DM Mono,monospace', fontWeight:800, fontSize:13, color:bc(da.rpe), background:`${bc(da.rpe)}18`, padding:'2px 8px', borderRadius:6 }}>{da.rpe}</span>
+                              : <span style={{ color:'var(--fog)' }}>—</span>}
+                          </td>
+                          <td style={{ padding:'10px 10px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, color:da.ua?'#60a5fa':'var(--fog)' }}>{da.ua||'—'}</td>
+                          <td style={{ padding:'10px 10px', textAlign:'center', fontFamily:'DM Mono,monospace', color:'var(--silver)' }}>{da.sesiones||'—'}</td>
+                          {GPS_COLS.map(c=>(
+                            <td key={c.field} style={{ padding:'10px 10px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, color:da[c.field]>0?'var(--lime)':'var(--fog)' }}>
+                              {da[c.field]>0 ? da[c.field] : '—'}
+                            </td>
+                          ))}
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        )
+      })()}
+
+      {/* ====== CICLO VIEW ====== */}
+      {vistaMode === 'ciclo' && (<>
 
       {/* KPIs del equipo */}
       {players.length > 0 && (
@@ -2318,15 +2479,10 @@ function MediaEquipoPanel() {
           )}
         </>
       )}
+      </>)}{/* end ciclo view */}
     </div>
   )
 }
-
-
-
-
-
-
 
 function LesionesPanel({ teamData, onRefresh }) {
   const [lesiones, setLesiones] = useState([])
