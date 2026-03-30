@@ -12,7 +12,14 @@ function sumarMetricasBloques(ejercicios: any[]): Record<string, number> {
     const series  = Number(bl.series)  || 0
     const minutos = Number(bl.minutos) || 0
     const pausa   = Number(bl.pausa)   || 0
-    const jug     = Number(bl.jugadores) || 0
+    // Count players: support both old (bl.jugadores) and new (bl.equipo1..4 arrays)
+    let jug = Number(bl.jugadores) || 0
+    if (!jug) {
+      for (let t = 1; t <= 4; t++) {
+        const eq = bl[`equipo${t}`]
+        if (Array.isArray(eq)) jug += eq.length
+      }
+    }
     const largo   = Number(bl.largo)   || 0
     const ancho   = Number(bl.ancho)   || 0
     const overrides = bl.overrides || {}
@@ -61,8 +68,16 @@ export async function GET(req: NextRequest) {
         AND fecha BETWEEN ${desde} AND ${hasta}
       ORDER BY fecha`
 
-    // 2. Todos los jugadores del club con sus logs de entrenamiento en el rango
-    const logs = await sql`
+    // 2a. Todos los jugadores activos del club (para que aparezcan aunque no hayan registrado RPE)
+    const todosJugadores = s.clubId ? await sql`
+      SELECT j.id AS jugador_id, u.nombre, j.posicion
+      FROM jugadores j
+      JOIN usuarios u ON u.id = j.usuario_id
+      WHERE u.club_id = ${s.clubId} AND u.activo = true
+      ORDER BY u.nombre` : []
+
+    // 2b. Logs de entrenamiento en el rango (jugadores que SÍ registraron RPE)
+    const logs = s.clubId ? await sql`
       SELECT el.jugador_id, u.nombre, j.posicion,
              el.fecha::text, el.rpe::int, el.duracion_min::int, el.carga_ua::int
       FROM entrenamiento_logs el
@@ -70,18 +85,33 @@ export async function GET(req: NextRequest) {
       JOIN usuarios u ON u.id = j.usuario_id
       WHERE el.fecha BETWEEN ${desde} AND ${hasta}
         AND u.activo = true
-        AND u.club_id = ${s.clubId ?? null}
-      ORDER BY el.fecha`
+        AND u.club_id = ${s.clubId}
+      ORDER BY el.fecha` : []
 
     // 3. Para cada sesión planificada, sumar métricas GPS de sus bloques
     // Mapear por fecha → métricas GPS totales de la sesión del día
-    const gpsPorFecha: Record<string, Record<string, number> & { rpe_objetivo: number }> = {}
+    // Accumulate GPS metrics for ALL sesiones on each date (there can be >1 per day)
+    const gpsPorFecha: Record<string, any> = {}
     for (const ses of sesiones as any[]) {
       const metricas = sumarMetricasBloques(ses.ejercicios || [])
-      gpsPorFecha[ses.fecha] = { ...metricas, rpe_objetivo: Number(ses.rpe_objetivo) || 0 }
+      if (!gpsPorFecha[ses.fecha]) {
+        gpsPorFecha[ses.fecha] = { distTotal:0, distSprint:0, distMP:0, distAcel:0, distDecel:0, nSprints:0, nAcel:0, nDecel:0, minActivo:0, minPausa:0, rpe_objetivo:0 }
+      }
+      const g = gpsPorFecha[ses.fecha]
+      g.distTotal  += metricas.distTotal
+      g.distSprint += metricas.distSprint
+      g.distMP     += metricas.distMP
+      g.distAcel   += metricas.distAcel
+      g.distDecel  += metricas.distDecel
+      g.nSprints   += metricas.nSprints
+      g.nAcel      += metricas.nAcel
+      g.nDecel     += metricas.nDecel
+      g.minActivo  += metricas.minActivo
+      g.minPausa   += metricas.minPausa
+      if (Number(ses.rpe_objetivo) > 0) g.rpe_objetivo = Number(ses.rpe_objetivo)
     }
 
-    // 4. Agrupar logs por jugador, cruzar con GPS por fecha
+    // 4. Pre-populate byPlayer with ALL club players (so they show even without RPE logs)
     const byPlayer: Record<number, {
       jugador_id: number; nombre: string; posicion: string
       sesiones: number; total_rpe: number; total_ua: number
@@ -89,6 +119,38 @@ export async function GET(req: NextRequest) {
       distAcel: number; distDecel: number; nSprints: number; nAcel: number; nDecel: number
       minActivo: number
     }> = {}
+
+    // Pre-populate all players so they appear even with 0 GPS / no RPE
+    for (const p of todosJugadores as any[]) {
+      byPlayer[p.jugador_id] = { jugador_id: p.jugador_id, nombre: p.nombre, posicion: p.posicion || '—',
+        sesiones:0, total_rpe:0, total_ua:0,
+        distTotal:0, distSprint:0, distMP:0, distAcel:0, distDecel:0,
+        nSprints:0, nAcel:0, nDecel:0, minActivo:0 }
+    }
+
+    // For each date that has planned sessions, assign GPS to all players
+    // (even those who didn't log RPE individually)
+    const fechasConSesion = Object.keys(gpsPorFecha)
+    for (const fecha of fechasConSesion) {
+      const gps = gpsPorFecha[fecha]
+      // Find which players registered RPE on this date
+      const logsEseDia = (logs as any[]).filter(l => l.fecha === fecha)
+      const jidsConRpe = new Set(logsEseDia.map((l:any) => l.jugador_id))
+      // Assign GPS to players who trained (have RPE) on that day
+      // Players without RPE won't get GPS for that day (we don't know if they were there)
+      for (const jid of jidsConRpe) {
+        if (byPlayer[jid]) {
+          byPlayer[jid].distTotal  += gps.distTotal  || 0
+          byPlayer[jid].distSprint += gps.distSprint || 0
+          byPlayer[jid].distMP     += gps.distMP     || 0
+          byPlayer[jid].distAcel   += gps.distAcel   || 0
+          byPlayer[jid].distDecel  += gps.distDecel  || 0
+          byPlayer[jid].nSprints   += gps.nSprints   || 0
+          byPlayer[jid].nAcel      += gps.nAcel      || 0
+          byPlayer[jid].nDecel     += gps.nDecel     || 0
+        }
+      }
+    }
 
     for (const log of logs as any[]) {
       const jid = log.jugador_id
@@ -104,18 +166,7 @@ export async function GET(req: NextRequest) {
       p.total_ua  += Number(log.carga_ua) || 0
       p.minActivo += Number(log.duracion_min) || 0
 
-      // Cruzar con GPS del día si existe sesión planificada
-      const gps = gpsPorFecha[log.fecha]
-      if (gps) {
-        p.distTotal  += gps.distTotal  || 0
-        p.distSprint += gps.distSprint || 0
-        p.distMP     += gps.distMP     || 0
-        p.distAcel   += gps.distAcel   || 0
-        p.distDecel  += gps.distDecel  || 0
-        p.nSprints   += gps.nSprints   || 0
-        p.nAcel      += gps.nAcel      || 0
-        p.nDecel     += gps.nDecel     || 0
-      }
+      // GPS already assigned above per-date loop
     }
 
     const players = Object.values(byPlayer).map(p => ({
