@@ -192,33 +192,89 @@ export async function GET(req: NextRequest) {
       hasGps:      p.distTotal > 0,
     })).sort((a: any, b: any) => a.nombre.localeCompare(b.nombre))
 
-    // 9. Real GPS data from imported Excel (gps_logs table)
-    const gpsReal = s.clubId ? await sql`
+    // 9. Real GPS data from imported files (gps_logs table)
+    // Pull raw rows + metricas JSON, aggregate in JS to support any variable set
+    const gpsRawRows = s.clubId ? await sql`
       SELECT
         g.jugador_id,
         u.nombre,
         j.posicion,
-        SUM(g.dist_total)::int      AS dist_total,
-        SUM(g.dist_hir)::int        AS dist_hir,
-        SUM(g.dist_v4)::int         AS dist_v4,
-        SUM(g.dist_v5)::int         AS dist_v5,
-        ROUND(SUM(g.player_load)::numeric, 1) AS player_load,
-        MAX(g.max_velocity)::numeric(5,2)     AS max_velocity,
-        SUM(g.acc2)::int            AS acc2,
-        SUM(g.dec2)::int            AS dec2,
-        SUM(g.acc3)::int            AS acc3,
-        SUM(g.dec3)::int            AS dec3,
-        ROUND(AVG(g.dist_per_min)::numeric, 1) AS dist_per_min,
-        COUNT(g.id)::int            AS sesiones_gps
+        g.dist_total, g.dist_hir, g.dist_v4, g.dist_v5,
+        g.player_load, g.max_velocity,
+        g.acc2, g.dec2, g.acc3, g.dec3, g.dist_per_min,
+        g.metricas
       FROM gps_logs g
       JOIN jugadores j ON j.id = g.jugador_id
       JOIN usuarios u ON u.id = j.usuario_id
       WHERE g.club_id = ${s.clubId}
         AND g.fecha BETWEEN ${desde} AND ${hasta}
         AND u.activo = true
-      GROUP BY g.jugador_id, u.nombre, j.posicion
       ORDER BY u.nombre
     ` : []
+
+    // Aggregate rows per player, merging fixed cols + metricas JSON
+    const gpsPlayerMap: Record<number, any> = {}
+    for (const row of gpsRawRows as any[]) {
+      const jid = row.jugador_id
+      if (!gpsPlayerMap[jid]) {
+        gpsPlayerMap[jid] = { jugador_id: jid, nombre: row.nombre, posicion: row.posicion, sesiones_gps: 0, _sums: {}, _counts: {}, _maxes: {} }
+      }
+      const p = gpsPlayerMap[jid]
+      p.sesiones_gps++
+
+      // Merge fixed columns
+      const fixedNum = (v: any) => (v !== null && v !== undefined) ? Number(v) : null
+      const fixedRow: Record<string, number | null> = {
+        dist_total: fixedNum(row.dist_total), dist_hir: fixedNum(row.dist_hir),
+        dist_v4: fixedNum(row.dist_v4), dist_v5: fixedNum(row.dist_v5),
+        player_load: fixedNum(row.player_load), max_velocity: fixedNum(row.max_velocity),
+        acc2: fixedNum(row.acc2), dec2: fixedNum(row.dec2),
+        acc3: fixedNum(row.acc3), dec3: fixedNum(row.dec3),
+        dist_per_min: fixedNum(row.dist_per_min),
+      }
+
+      // Merge JSON metricas (newer imports) — these take priority / supplement fixed cols
+      const met: Record<string, number> = (typeof row.metricas === 'object' && row.metricas) ? row.metricas : {}
+      const allFields = { ...fixedRow, ...met }
+
+      // Max-velocity fields use MAX aggregation; everything else is SUM
+      const MAX_FIELDS = new Set(['max_velocity'])
+
+      for (const [k, v] of Object.entries(allFields)) {
+        if (v === null || v === undefined) continue
+        const num = Number(v)
+        if (isNaN(num)) continue
+        if (MAX_FIELDS.has(k)) {
+          p._maxes[k] = Math.max(p._maxes[k] ?? 0, num)
+        } else {
+          p._sums[k] = (p._sums[k] ?? 0) + num
+          p._counts[k] = (p._counts[k] ?? 0) + 1
+        }
+      }
+    }
+
+    // Shape final gpsReal array
+    const gpsReal = Object.values(gpsPlayerMap).map((p: any) => {
+      const result: Record<string, any> = {
+        jugador_id: p.jugador_id, nombre: p.nombre, posicion: p.posicion, sesiones_gps: p.sesiones_gps
+      }
+      // AVG fields (dist_per_min, hr_avg, etc.) vs SUM fields
+      const AVG_FIELDS = new Set(['dist_per_min', 'hr_avg', 'hr_max', 'max_velocity', 'avg_metabolic_power'])
+      for (const [k, sum] of Object.entries(p._sums as Record<string,number>)) {
+        result[k] = AVG_FIELDS.has(k)
+          ? Math.round((sum / (p._counts[k] || 1)) * 10) / 10
+          : Math.round(sum)
+      }
+      for (const [k, max] of Object.entries(p._maxes as Record<string,number>)) {
+        result[k] = Math.round(max * 100) / 100
+      }
+      return result
+    }).sort((a: any, b: any) => a.nombre.localeCompare(b.nombre))
+
+    // Detect all metric columns present across all players (for dynamic table)
+    const allMetricCols = Array.from(
+      new Set((gpsReal as any[]).flatMap(p => Object.keys(p).filter(k => !['jugador_id','nombre','posicion','sesiones_gps'].includes(k))))
+    )
 
     const n = players.length || 1
     const avg = (field: string) => Math.round(players.reduce((s: number, p: any) => s + (p[field] || 0), 0) / n)
@@ -251,6 +307,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       players, teamAvg,
       gpsReal, teamAvgGps,
+      allMetricCols,
       hasGpsData:    players.some((p: any) => p.hasGps),
       hasRealGps:    (gpsReal as any[]).length > 0,
       sesionesCount: sesiones.length,

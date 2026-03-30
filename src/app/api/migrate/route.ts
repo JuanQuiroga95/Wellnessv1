@@ -52,6 +52,7 @@ export async function POST(req: NextRequest) {
     [`CREATE INDEX IF NOT EXISTS idx_lesiones_jugador_fecha ON lesiones(jugador_id, fecha_inicio DESC)`, 'lesiones index jugador_fecha'],
     [`CREATE INDEX IF NOT EXISTS idx_lesiones_club_activa ON lesiones(club_id, activa)`, 'lesiones index club_activa'],
     [`ALTER TABLE lesiones ADD COLUMN IF NOT EXISTS causa VARCHAR(150)`, 'lesiones.causa'],
+    [`ALTER TABLE gps_logs ADD COLUMN IF NOT EXISTS metricas JSONB DEFAULT '{}'`, 'gps_logs.metricas jsonb'],
   ]
 
   for (const [sql_stmt, label] of migrations) {

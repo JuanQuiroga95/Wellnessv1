@@ -2247,6 +2247,24 @@ function CargaExternaPanel() {
   const gpsReal: any[]  = data?.gpsReal   || []
   const teamAvgGps: any = data?.teamAvgGps || {}
   const hasRealGps: boolean = data?.hasRealGps || false
+  const allMetricCols: string[] = data?.allMetricCols || []
+  // Build dynamic GPS columns from what's actually in the data
+  const dynamicGpsCols: string[] = allMetricCols.length > 0 ? allMetricCols : (
+    gpsReal.length > 0
+      ? Object.keys(gpsReal[0]).filter(k => !['jugador_id','nombre','posicion','sesiones_gps'].includes(k))
+      : ['dist_total','dist_hir','dist_v4','dist_v5','player_load','max_velocity','acc2','dec2','acc3','dec3','dist_per_min']
+  )
+  // Human-readable labels for known fields, fallback to the key itself
+  const GPS_FIELD_LABELS: Record<string,string> = {
+    dist_total:'Tot Dist', dist_hir:'High Speed Dist', dist_v4:'Vel B4', dist_v5:'Vel B6',
+    player_load:'Player Load', max_velocity:'Vel. Máx', acc2:'Acc B2-3', dec2:'Dec B2-3',
+    acc3:'Acc B3', dec3:'Dec B3', dist_per_min:'Dist/min', n_sprints:'Nº Sprints',
+    dist_v1:'Vel B1', dist_v2:'Vel B2', dist_v3:'Vel B3', acc1:'Acc B1', acc4:'Acc B4',
+    dec1:'Dec B1', dec4:'Dec B4', acc_total:'Acc Total', dec_total:'Dec Total',
+    metabolic_power:'Pot. Metab.', avg_metabolic_power:'Pot. Med.', equiv_distance:'Dist. Equiv.',
+    hr_avg:'FC Media', hr_max:'FC Máx', hr_z1:'FC Z1', hr_z2:'FC Z2', hr_z3:'FC Z3',
+    hr_z4:'FC Z4', hr_z5:'FC Z5', duracion_min:'Duración',
+  }
 
   const borgColor = (rpe: number) =>
     rpe <= 2 ? '#22c55e' : rpe <= 4 ? '#a3e635' : rpe <= 6 ? '#eab308' : rpe <= 8 ? '#f97316' : '#ef4444'
@@ -2588,24 +2606,11 @@ function CargaExternaPanel() {
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
                   <thead>
                     <tr style={{ background: 'rgba(96,165,250,.05)' }}>
-                      {[
-                        { label: 'Jugador',       field: 'nombre' },
-                        { label: 'Ses.',          field: 'sesiones_gps', unit: 'nº' },
-                        { label: 'Dist. total',   field: 'dist_total',   unit: 'm' },
-                        { label: 'Alta int.',     field: 'dist_hir',     unit: 'm' },
-                        { label: 'V4',            field: 'dist_v4',      unit: 'm' },
-                        { label: 'Sprint V5',     field: 'dist_v5',      unit: 'm' },
-                        { label: 'Player Load',   field: 'player_load',  unit: '' },
-                        { label: 'Vel. máx',      field: 'max_velocity', unit: 'km/h' },
-                        { label: 'Acc >2',        field: 'acc2',         unit: 'nº' },
-                        { label: 'Dec >2',        field: 'dec2',         unit: 'nº' },
-                        { label: 'Acc >3',        field: 'acc3',         unit: 'nº' },
-                        { label: 'Dec >3',        field: 'dec3',         unit: 'nº' },
-                        { label: 'Dist/min',      field: 'dist_per_min', unit: 'm' },
-                      ].map(c => (
-                        <th key={c.field} style={{ padding: '8px 10px', fontWeight: 600, textTransform: 'uppercase', fontSize: 9, letterSpacing: '0.06em', color: '#93c5fd', textAlign: 'center', whiteSpace: 'nowrap' }}>
-                          {c.label}
-                          {c.unit && <span style={{ fontSize: 8, color: 'var(--fog)', marginLeft: 2 }}>{c.unit}</span>}
+                      <th style={{ padding: '8px 14px', fontWeight: 600, textTransform: 'uppercase', fontSize: 9, letterSpacing: '0.06em', color: '#93c5fd', textAlign: 'left', whiteSpace: 'nowrap' }}>Jugador</th>
+                      <th style={{ padding: '8px 10px', fontWeight: 600, textTransform: 'uppercase', fontSize: 9, letterSpacing: '0.06em', color: '#93c5fd', textAlign: 'center', whiteSpace: 'nowrap' }}>Ses.</th>
+                      {dynamicGpsCols.map(col => (
+                        <th key={col} style={{ padding: '8px 10px', fontWeight: 600, textTransform: 'uppercase', fontSize: 9, letterSpacing: '0.06em', color: '#93c5fd', textAlign: 'center', whiteSpace: 'nowrap' }}>
+                          {GPS_FIELD_LABELS[col] || col}
                         </th>
                       ))}
                     </tr>
@@ -2618,41 +2623,48 @@ function CargaExternaPanel() {
                           {p.posicion && <span style={{ fontSize: 10, color: 'var(--fog)', marginLeft: 6 }}>{p.posicion}</span>}
                         </td>
                         <td style={{ padding: '9px 10px', textAlign: 'center', fontFamily: 'DM Mono,monospace', color: 'var(--silver)' }}>{p.sesiones_gps || '—'}</td>
-                        <td style={{ padding: '9px 10px', textAlign: 'center', fontFamily: 'DM Mono,monospace', color: p.dist_total > 0 ? 'var(--snow)' : 'var(--fog)' }}>{p.dist_total > 0 ? p.dist_total : '—'}</td>
-                        <td style={{ padding: '9px 10px', textAlign: 'center', fontFamily: 'DM Mono,monospace', color: p.dist_hir > 0 ? '#f59e0b' : 'var(--fog)' }}>{p.dist_hir > 0 ? p.dist_hir : '—'}</td>
-                        <td style={{ padding: '9px 10px', textAlign: 'center', fontFamily: 'DM Mono,monospace', color: 'var(--silver)' }}>{p.dist_v4 > 0 ? p.dist_v4 : '—'}</td>
-                        <td style={{ padding: '9px 10px', textAlign: 'center', fontFamily: 'DM Mono,monospace', color: p.dist_v5 > 0 ? '#f97316' : 'var(--fog)' }}>{p.dist_v5 > 0 ? p.dist_v5 : '—'}</td>
-                        <td style={{ padding: '9px 10px', textAlign: 'center', fontFamily: 'DM Mono,monospace', color: p.player_load > 0 ? '#a78bfa' : 'var(--fog)' }}>{p.player_load > 0 ? p.player_load : '—'}</td>
-                        <td style={{ padding: '9px 10px', textAlign: 'center', fontFamily: 'DM Mono,monospace', color: p.max_velocity > 0 ? '#34d399' : 'var(--fog)' }}>{p.max_velocity > 0 ? p.max_velocity : '—'}</td>
-                        <td style={{ padding: '9px 10px', textAlign: 'center', fontFamily: 'DM Mono,monospace', color: 'var(--silver)' }}>{p.acc2 || '—'}</td>
-                        <td style={{ padding: '9px 10px', textAlign: 'center', fontFamily: 'DM Mono,monospace', color: 'var(--silver)' }}>{p.dec2 || '—'}</td>
-                        <td style={{ padding: '9px 10px', textAlign: 'center', fontFamily: 'DM Mono,monospace', color: 'var(--silver)' }}>{p.acc3 || '—'}</td>
-                        <td style={{ padding: '9px 10px', textAlign: 'center', fontFamily: 'DM Mono,monospace', color: 'var(--silver)' }}>{p.dec3 || '—'}</td>
-                        <td style={{ padding: '9px 10px', textAlign: 'center', fontFamily: 'DM Mono,monospace', color: p.dist_per_min > 0 ? '#60a5fa' : 'var(--fog)' }}>{p.dist_per_min > 0 ? p.dist_per_min : '—'}</td>
+                        {dynamicGpsCols.map(col => {
+                          const val = p[col]
+                          const hasVal = val !== null && val !== undefined && val !== 0
+                          return (
+                            <td key={col} style={{ padding: '9px 10px', textAlign: 'center', fontFamily: 'DM Mono,monospace', color: hasVal ? 'var(--snow)' : 'var(--fog)' }}>
+                              {hasVal ? val : '—'}
+                            </td>
+                          )
+                        })}
                       </tr>
                     ))}
-                    {/* Promedio GPS real */}
-                    <tr style={{ borderTop: '2px solid rgba(96,165,250,.3)', background: 'rgba(96,165,250,.06)' }}>
-                      <td style={{ padding: '10px 14px', fontWeight: 800, color: '#60a5fa', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Promedio equipo</td>
-                      <td style={{ padding: '10px 10px', textAlign: 'center', fontFamily: 'DM Mono,monospace', color: 'var(--silver)' }}>{teamAvgGps.sesiones_gps || '—'}</td>
-                      <td style={{ padding: '10px 10px', textAlign: 'center', fontFamily: 'DM Mono,monospace', fontWeight: 700, color: '#60a5fa' }}>{teamAvgGps.dist_total || '—'}</td>
-                      <td style={{ padding: '10px 10px', textAlign: 'center', fontFamily: 'DM Mono,monospace', fontWeight: 700, color: '#f59e0b' }}>{teamAvgGps.dist_hir || '—'}</td>
-                      <td style={{ padding: '10px 10px', textAlign: 'center', fontFamily: 'DM Mono,monospace', color: 'var(--silver)' }}>{teamAvgGps.dist_v4 || '—'}</td>
-                      <td style={{ padding: '10px 10px', textAlign: 'center', fontFamily: 'DM Mono,monospace', fontWeight: 700, color: '#f97316' }}>{teamAvgGps.dist_v5 || '—'}</td>
-                      <td style={{ padding: '10px 10px', textAlign: 'center', fontFamily: 'DM Mono,monospace', fontWeight: 700, color: '#a78bfa' }}>{teamAvgGps.player_load || '—'}</td>
-                      <td style={{ padding: '10px 10px', textAlign: 'center', fontFamily: 'DM Mono,monospace', fontWeight: 700, color: '#34d399' }}>{teamAvgGps.max_velocity || '—'}</td>
-                      <td style={{ padding: '10px 10px', textAlign: 'center', fontFamily: 'DM Mono,monospace', color: 'var(--silver)' }}>{teamAvgGps.acc2 || '—'}</td>
-                      <td style={{ padding: '10px 10px', textAlign: 'center', fontFamily: 'DM Mono,monospace', color: 'var(--silver)' }}>{teamAvgGps.dec2 || '—'}</td>
-                      <td style={{ padding: '10px 10px', textAlign: 'center', fontFamily: 'DM Mono,monospace', color: 'var(--silver)' }}>{teamAvgGps.acc3 || '—'}</td>
-                      <td style={{ padding: '10px 10px', textAlign: 'center', fontFamily: 'DM Mono,monospace', color: 'var(--silver)' }}>{teamAvgGps.dec3 || '—'}</td>
-                      <td style={{ padding: '10px 10px', textAlign: 'center', fontFamily: 'DM Mono,monospace', fontWeight: 700, color: '#60a5fa' }}>{teamAvgGps.dist_per_min || '—'}</td>
-                    </tr>
+                    {/* Promedio equipo */}
+                    {(() => {
+                      const n = gpsReal.length || 1
+                      const teamAvgDyn: Record<string,number> = {}
+                      const MAX_FIELDS = new Set(['max_velocity','hr_max'])
+                      for (const col of dynamicGpsCols) {
+                        const vals = (gpsReal as any[]).map(p => Number(p[col]) || 0)
+                        teamAvgDyn[col] = MAX_FIELDS.has(col)
+                          ? Math.max(...vals)
+                          : Math.round(vals.reduce((a,b) => a+b, 0) / n * 10) / 10
+                      }
+                      return (
+                        <tr style={{ borderTop: '2px solid rgba(96,165,250,.3)', background: 'rgba(96,165,250,.06)' }}>
+                          <td style={{ padding: '10px 14px', fontWeight: 800, color: '#60a5fa', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Promedio equipo</td>
+                          <td style={{ padding: '10px 10px', textAlign: 'center', fontFamily: 'DM Mono,monospace', color: 'var(--silver)' }}>
+                            {Math.round((gpsReal as any[]).reduce((s,p) => s + (p.sesiones_gps||0), 0) / n)}
+                          </td>
+                          {dynamicGpsCols.map(col => (
+                            <td key={col} style={{ padding: '10px 10px', textAlign: 'center', fontFamily: 'DM Mono,monospace', fontWeight: 700, color: teamAvgDyn[col] > 0 ? '#60a5fa' : 'var(--fog)' }}>
+                              {teamAvgDyn[col] > 0 ? teamAvgDyn[col] : '—'}
+                            </td>
+                          ))}
+                        </tr>
+                      )
+                    })()}
                   </tbody>
                 </table>
               </div>
             ) : (
               <div style={{ padding: '28px 20px', textAlign: 'center', fontSize: 12, color: 'var(--fog)' }}>
-                Importá un Excel desde la pestaña <strong style={{ color: 'var(--silver)' }}>📡 GPS</strong> para ver los datos reales acá.
+                Importá un Excel o PDF desde la pestaña <strong style={{ color: 'var(--silver)' }}>📡 GPS</strong> para ver los datos reales acá.
               </div>
             )}
           </div>
@@ -3673,7 +3685,7 @@ function GpsPanel({ teamData }: { teamData: any }) {
   }, [result])
 
   async function handlePreview() {
-    if (!file) { setError('Seleccioná un archivo Excel'); return }
+    if (!file) { setError('Seleccioná un archivo Excel o PDF'); return }
     setLoading(true); setError(''); setPreview(null); setResult(null)
     try {
       const fd = new FormData()
@@ -3784,7 +3796,7 @@ function GpsPanel({ teamData }: { teamData: any }) {
         {/* File upload */}
         <div style={{ marginBottom: 20 }}>
           <label style={{ display: 'block', fontSize: 11, color: 'var(--fog)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-            Archivo Excel Catapult (.xlsx / .csv)
+            Archivo Catapult (.xlsx / .csv / .pdf)
           </label>
           <div
             style={{ border: '2px dashed var(--mist)', borderRadius: 12, padding: '28px 20px', textAlign: 'center', cursor: 'pointer', background: file ? 'rgba(200,241,53,.04)' : 'transparent', borderColor: file ? 'var(--lime)' : 'var(--mist)', transition: 'all .2s' }}
@@ -3792,18 +3804,20 @@ function GpsPanel({ teamData }: { teamData: any }) {
             onDragOver={e => e.preventDefault()}
             onDrop={e => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) { setFile(f); setPreview(null); setResult(null) } }}
           >
-            <input id="gps-file-input" type="file" accept=".xlsx,.csv,.xls" style={{ display: 'none' }} onChange={e => { const f = e.target.files?.[0]; if (f) { setFile(f); setPreview(null); setResult(null) } }} />
+            <input id="gps-file-input" type="file" accept=".xlsx,.csv,.xls,.pdf" style={{ display: 'none' }} onChange={e => { const f = e.target.files?.[0]; if (f) { setFile(f); setPreview(null); setResult(null) } }} />
             {file ? (
               <div>
-                <div style={{ fontSize: 28, marginBottom: 6 }}>📊</div>
+                <div style={{ fontSize: 28, marginBottom: 6 }}>{file.name.toLowerCase().endsWith('.pdf') ? '📄' : '📊'}</div>
                 <div style={{ fontSize: 13, color: 'var(--lime)', fontWeight: 600 }}>{file.name}</div>
-                <div style={{ fontSize: 11, color: 'var(--fog)', marginTop: 4 }}>{(file.size / 1024).toFixed(1)} KB · Click para cambiar</div>
+                <div style={{ fontSize: 11, color: 'var(--fog)', marginTop: 4 }}>
+                  {(file.size / 1024).toFixed(1)} KB · {file.name.toLowerCase().endsWith('.pdf') ? 'PDF — nombres del reporte' : 'Excel'} · Click para cambiar
+                </div>
               </div>
             ) : (
               <div>
                 <div style={{ fontSize: 32, marginBottom: 8 }}>📁</div>
-                <div style={{ fontSize: 13, color: 'var(--silver)' }}>Arrastrá el Excel acá o hacé click para seleccionar</div>
-                <div style={{ fontSize: 11, color: 'var(--fog)', marginTop: 4 }}>Exportá desde Catapult OpenField o Catapult Connect</div>
+                <div style={{ fontSize: 13, color: 'var(--silver)' }}>Arrastrá el archivo acá o hacé click para seleccionar</div>
+                <div style={{ fontSize: 11, color: 'var(--fog)', marginTop: 4 }}>Excel (.xlsx / .csv) o PDF — ambos formatos de Catapult OpenField</div>
               </div>
             )}
           </div>
