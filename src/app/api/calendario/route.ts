@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getDb } from '@/lib/db'
 import { getSessionFromRequest } from '@/lib/auth'
+import { rateLimit, sanitizeString, sanitizeInt } from '@/lib/security'
 
 function isAdmin(s: any) { return s?.rol === 'admin' || s?.rol === 'master_admin' }
 
@@ -67,6 +68,8 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const rl = rateLimit(req, { limit: 100, windowMs: 60 * 1000, key: 'calendario' })
+  if (!rl.allowed) return rl.response!
   try {
     const s = await getSessionFromRequest(req)
     if (!s || !isAdmin(s)) return NextResponse.json({ error: 'No autorizado' }, { status: 403 })

@@ -1,16 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getDb } from '@/lib/db'
 import { createToken } from '@/lib/auth'
+import { rateLimit, sanitizeString } from '@/lib/security'
 import bcrypt from 'bcryptjs'
 import { cookies } from 'next/headers'
 
 export async function POST(req: NextRequest) {
-  try {
-    const { usuario, password } = await req.json()
-    if (!usuario || !password) return NextResponse.json({ error: 'Campos requeridos' }, { status: 400 })
-    const sql = getDb()
+  // Rate limit: max 10 login attempts per IP per 15 minutes
+  const rl = rateLimit(req, { limit: 10, windowMs: 15 * 60 * 1000, key: 'login' })
+  if (!rl.allowed) return rl.response!
 
-    // Use simple query without clubs JOIN to avoid failure if table doesn't exist yet
+  try {
+    const body = await req.json()
+    const usuario = sanitizeString(body.usuario, 50)
+    const password = sanitizeString(body.password, 200)
+
+    if (!usuario || !password) {
+      return NextResponse.json({ error: 'Campos requeridos' }, { status: 400 })
+    }
+
+    const sql = getDb()
     const rows = await sql`
       SELECT u.id, u.nombre, u.usuario, u.password_hash, u.rol, u.activo, u.club_id,
              j.id AS jugador_id
@@ -18,12 +27,22 @@ export async function POST(req: NextRequest) {
       LEFT JOIN jugadores j ON j.usuario_id = u.id
       WHERE u.usuario = ${usuario} LIMIT 1`
 
-    if (!rows.length) return NextResponse.json({ error: 'Usuario o contraseña incorrectos' }, { status: 401 })
-    const u = rows[0] as any
-    if (!u.activo) return NextResponse.json({ error: 'Usuario desactivado' }, { status: 403 })
-    if (!await bcrypt.compare(password, u.password_hash)) return NextResponse.json({ error: 'Usuario o contraseña incorrectos' }, { status: 401 })
+    // Always run bcrypt compare to prevent timing attacks (even if user not found)
+    const dummyHash = '$2a$12$dummy.hash.to.prevent.timing.attacks.xxxxxxxxxxxxxxxxxx'
+    const foundUser = rows[0] as any
+    const hashToCompare = foundUser?.password_hash || dummyHash
+    const passwordMatch = await bcrypt.compare(password, hashToCompare)
 
-    // Try to get club name separately — won't crash if clubs table missing
+    if (!rows.length || !passwordMatch) {
+      return NextResponse.json({ error: 'Usuario o contraseña incorrectos' }, { status: 401 })
+    }
+
+    const u = foundUser
+    if (!u.activo) {
+      return NextResponse.json({ error: 'Usuario desactivado' }, { status: 403 })
+    }
+
+    // Get club name
     let clubNombre: string | undefined
     if (u.club_id) {
       try {
@@ -39,14 +58,14 @@ export async function POST(req: NextRequest) {
       rol: u.rol,
       jugadorId: u.jugador_id ?? undefined,
       clubId: u.club_id ?? undefined,
-      clubNombre: clubNombre,
+      clubNombre,
     })
 
     cookies().set('wp_token', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 604800,
+      httpOnly: true,           // Not accessible via JS
+      secure: true,             // HTTPS only
+      sameSite: 'strict',       // Stronger than 'lax' - prevents CSRF
+      maxAge: 604800,           // 7 days
       path: '/',
     })
 

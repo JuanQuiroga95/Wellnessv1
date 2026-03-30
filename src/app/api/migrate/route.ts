@@ -1,8 +1,14 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { getDb } from '@/lib/db'
+import { getSessionFromRequest } from '@/lib/auth'
 
-// Public endpoint to run pending migrations — safe because all are idempotent
-export async function POST() {
+// Protected by middleware (requires master_admin) + double-check here
+export async function POST(req: NextRequest) {
+  const s = await getSessionFromRequest(req)
+  if (!s || s.rol !== 'master_admin') {
+    return NextResponse.json({ error: 'No autorizado — se requiere master_admin' }, { status: 403 })
+  }
+
   const sql = getDb()
   const done: string[] = []
   const errs: string[] = []
@@ -18,40 +24,33 @@ export async function POST() {
     [`ALTER TABLE wellness_logs ADD COLUMN IF NOT EXISTS club_id INTEGER`, 'wellness_logs.club_id'],
     [`ALTER TABLE partido_logs ADD COLUMN IF NOT EXISTS club_id INTEGER`, 'partido_logs.club_id'],
     [`ALTER TABLE lesiones ADD COLUMN IF NOT EXISTS club_id INTEGER`, 'lesiones.club_id'],
-    [`ALTER TABLE wellness_logs ADD COLUMN IF NOT EXISTS dolor_eva SMALLINT`, 'dolor_eva column'],
-    [`CREATE TABLE IF NOT EXISTS sesiones_plan (id SERIAL PRIMARY KEY, club_id INTEGER, admin_id INTEGER REFERENCES usuarios(id), fecha DATE NOT NULL, hora_inicio TIME, hora_fin TIME, tipo VARCHAR(20) NOT NULL DEFAULT 'entrenamiento', titulo VARCHAR(150), objetivo VARCHAR(50), descripcion TEXT, ejercicios JSONB DEFAULT '[]', rpe_objetivo SMALLINT, materiales TEXT, notas TEXT, created_at TIMESTAMPTZ DEFAULT NOW())`, 'sesiones_plan table'],
-    [`CREATE INDEX IF NOT EXISTS idx_sesiones_plan_fecha ON sesiones_plan(admin_id, fecha)`, 'sesiones_plan index'],
-    [`ALTER TABLE jugadores ADD COLUMN IF NOT EXISTS foto_url TEXT`, 'foto_url'],
-    // New migrations for missing columns
-    [`ALTER TABLE sesiones_plan ADD COLUMN IF NOT EXISTS objetivo_secundario VARCHAR(100)`, 'sesiones_plan.objetivo_secundario'],
-    [`ALTER TABLE sesiones_plan ADD COLUMN IF NOT EXISTS objetivo_fisico VARCHAR(100)`, 'sesiones_plan.objetivo_fisico'],
-    [`ALTER TABLE jugadores ADD COLUMN IF NOT EXISTS fecha_nacimiento DATE`, 'jugadores.fecha_nacimiento'],
-    [`ALTER TABLE jugadores ADD COLUMN IF NOT EXISTS hora_recordatorio TIME DEFAULT '08:00'`, 'jugadores.hora_recordatorio'],
-    [`ALTER TABLE jugadores ADD COLUMN IF NOT EXISTS email VARCHAR(200)`, 'jugadores.email'],
-    [`ALTER TABLE club_settings ADD COLUMN IF NOT EXISTS email VARCHAR(200)`, 'club_settings.email'],
+    [`ALTER TABLE sesiones_plan ADD COLUMN IF NOT EXISTS objetivo_secundario VARCHAR(50)`, 'sesiones_plan.objetivo_secundario'],
   ]
 
-  for (const [stmt, label] of migrations) {
+  for (const [sql_stmt, label] of migrations) {
     try {
-      await sql(stmt as string)
+      await sql(sql_stmt as string)
       done.push(label as string)
-    } catch(e) {
+    } catch (e: any) {
       const msg = String(e)
       if (msg.includes('already exists') || msg.includes('duplicate')) {
-        done.push(`${label} (ya existía)`)
+        done.push(`${label} (ya existe)`)
       } else {
-        errs.push(`${label}: ${msg.slice(0,100)}`)
+        errs.push(`${label}: ${msg.slice(0, 100)}`)
       }
     }
   }
 
-  // Fix UNIQUE constraint on club_settings.admin_id
-  try {
-    await sql`ALTER TABLE club_settings ADD CONSTRAINT club_settings_admin_id_key UNIQUE (admin_id)`
-    done.push('club_settings UNIQUE constraint')
-  } catch {
-    done.push('club_settings UNIQUE constraint (ya existía)')
-  }
+  return NextResponse.json({ ok: true, done, errs })
+}
 
-  return NextResponse.json({ ok: errs.length === 0, done, errs })
+// GET is kept for initial setup check but returns minimal info
+export async function GET() {
+  try {
+    const sql = getDb()
+    const existing = await sql`SELECT COUNT(*)::int AS n FROM usuarios WHERE rol = 'admin' LIMIT 1`
+    return NextResponse.json({ initialized: (existing[0] as any).n > 0 })
+  } catch {
+    return NextResponse.json({ initialized: false })
+  }
 }
