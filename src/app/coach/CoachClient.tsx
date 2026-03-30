@@ -3726,7 +3726,7 @@ function GpsPanel({ teamData }: { teamData: any }) {
         <div style={{ background:'rgba(200,241,53,.06)', border:'1px solid rgba(200,241,53,.15)', borderRadius:10, padding:'10px 14px', marginTop:10, fontSize:12, color:'var(--silver)', lineHeight:1.6 }}>
           <strong style={{ color:'var(--lime)' }}>ℹ️ ¿Dónde aparecen los datos?</strong><br/>
           Los datos que importás acá (distancia, player load, sprints) se guardan en la base de datos por jugador y fecha. Para verlos en <strong style={{ color:'var(--snow)' }}>Analytics → Carga Individual</strong>, los datos GPS se combinan con las sesiones planificadas en el <strong style={{ color:'var(--snow)' }}>Calendario</strong>. Si no ves datos en Analytics, asegurate de tener sesiones cargadas en el Calendario para las mismas fechas del Excel.
-        </p>
+        </div>
       </div>
 
       {/* Existing imports for this date */}
