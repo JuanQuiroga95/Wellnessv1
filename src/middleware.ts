@@ -9,10 +9,16 @@ const PUBLIC_PATHS = [
 ]
 
 // Routes that are public ONLY during first-time setup (before any admin exists)
-// In production, protect /api/migrate and /api/seed with master_admin role
+// In production, protect /api/migrate and /api/seed (root) with master_admin role
+// NOTE: /api/seed/calendario and /api/seed/demo are used by regular admins (coach demo load)
 const SETUP_ONLY_PATHS = [
-  '/api/seed',
   '/api/migrate',
+]
+
+// Seed sub-routes that are accessible by regular admins (used for demo data loading)
+const ADMIN_SEED_PATHS = [
+  '/api/seed/calendario',
+  '/api/seed/demo',
 ]
 
 // Completely blocked from outside — only accessible via Vercel Cron header
@@ -45,14 +51,22 @@ export async function middleware(req: NextRequest) {
     return addSecHeaders(NextResponse.next())
   }
 
+  // ── Admin seed endpoints (demo load) — require admin or master_admin ──────────
+  if (ADMIN_SEED_PATHS.some(p => pathname.startsWith(p))) {
+    const token = req.cookies.get('wp_token')?.value
+    if (!token) {
+      return addSecHeaders(NextResponse.json({ error: 'No autorizado' }, { status: 401 }))
+    }
+    const s = await verifyToken(token)
+    if (!s || (s.rol !== 'admin' && s.rol !== 'master_admin')) {
+      return addSecHeaders(NextResponse.json({ error: 'No autorizado' }, { status: 403 }))
+    }
+    return addSecHeaders(NextResponse.next())
+  }
+
   // ── Setup-only endpoints ─────────────────────────────────────────────────────
   if (SETUP_ONLY_PATHS.some(p => pathname.startsWith(p))) {
     const token = req.cookies.get('wp_token')?.value
-
-    // GET /api/seed is always public (just checks if DB is initialized)
-    if (pathname === '/api/seed' && req.method === 'GET') {
-      return addSecHeaders(NextResponse.next())
-    }
 
     // No token → let the route handler decide (it checks if DB is empty for bootstrap)
     if (!token) {
@@ -60,6 +74,18 @@ export async function middleware(req: NextRequest) {
     }
 
     // With token → must be master_admin
+    const s = await verifyToken(token)
+    if (!s || s.rol !== 'master_admin') {
+      return addSecHeaders(NextResponse.json({ error: 'No autorizado — se requiere master_admin' }, { status: 403 }))
+    }
+    return addSecHeaders(NextResponse.next())
+  }
+
+  // ── /api/seed root — public for GET (setup check), master_admin for POST ─────
+  if (pathname === '/api/seed') {
+    if (req.method === 'GET') return addSecHeaders(NextResponse.next())
+    const token = req.cookies.get('wp_token')?.value
+    if (!token) return addSecHeaders(NextResponse.next()) // route handler decides
     const s = await verifyToken(token)
     if (!s || s.rol !== 'master_admin') {
       return addSecHeaders(NextResponse.json({ error: 'No autorizado — se requiere master_admin' }, { status: 403 }))

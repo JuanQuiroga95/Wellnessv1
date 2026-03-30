@@ -196,23 +196,32 @@ export async function GET(req: NextRequest) {
 
     // 9. Real GPS data from imported files (gps_logs table)
     // Pull raw rows + metricas JSON, aggregate in JS to support any variable set
-    const gpsRawRows = clubId ? await sql`
-      SELECT
-        g.jugador_id,
-        u.nombre,
-        j.posicion,
-        g.dist_total, g.dist_hir, g.dist_v4, g.dist_v5,
-        g.player_load, g.max_velocity,
-        g.acc2, g.dec2, g.acc3, g.dec3, g.dist_per_min,
-        g.metricas
-      FROM gps_logs g
-      JOIN jugadores j ON j.id = g.jugador_id
-      JOIN usuarios u ON u.id = j.usuario_id
-      WHERE g.club_id = ${clubId}
-        AND g.fecha BETWEEN ${desde} AND ${hasta}
-        AND u.activo = true
-      ORDER BY u.nombre
-    ` : []
+    // Wrapped in try/catch: gps_logs table may not exist yet if migrations haven't run
+    let gpsRawRows: any[] = []
+    if (clubId) {
+      try {
+        gpsRawRows = await sql`
+          SELECT
+            g.jugador_id,
+            u.nombre,
+            j.posicion,
+            g.dist_total, g.dist_hir, g.dist_v4, g.dist_v5,
+            g.player_load, g.max_velocity,
+            g.acc2, g.dec2, g.acc3, g.dec3, g.dist_per_min,
+            g.metricas
+          FROM gps_logs g
+          JOIN jugadores j ON j.id = g.jugador_id
+          JOIN usuarios u ON u.id = j.usuario_id
+          WHERE g.club_id = ${clubId}
+            AND g.fecha BETWEEN ${desde} AND ${hasta}
+            AND u.activo = true
+          ORDER BY u.nombre
+        ` as any[]
+      } catch (gpsErr: any) {
+        // Table doesn't exist yet — silently return empty (run /api/migrate to create it)
+        console.warn('[carga-gps] gps_logs table not found, skipping real GPS data:', gpsErr?.message)
+      }
+    }
 
     // Aggregate rows per player, merging fixed cols + metricas JSON
     const gpsPlayerMap: Record<number, any> = {}
