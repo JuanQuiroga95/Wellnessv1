@@ -66,10 +66,32 @@ export async function POST(req: NextRequest) {
   return NextResponse.json(r)
 }
 export async function PATCH(req: NextRequest) {
-  const s = await getSessionFromRequest(req); if(!s||!isAdmin(s)) return NextResponse.json({error:'No autorizado'},{status:403})
-  const {id,estado,activa,fecha_alta,eta_dias} = await req.json(); const sql = getDb()
-  if (estado!==undefined) await sql`UPDATE lesiones SET estado=${estado} WHERE id=${id}`
-  if (activa!==undefined) await sql`UPDATE lesiones SET activa=${activa}${activa===false?sql`,fecha_alta=${fecha_alta||new Date().toISOString().split('T')[0]}`:sql``} WHERE id=${id}`
-  if (eta_dias!==undefined) await sql`UPDATE lesiones SET eta_dias=${eta_dias} WHERE id=${id}`
-  return NextResponse.json({ok:true})
+  const s = await getSessionFromRequest(req)
+  if (!s || !isAdmin(s)) return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
+  const { id, estado, activa, fecha_alta, eta_dias } = await req.json()
+  const sql = getDb()
+
+  try {
+    if (estado !== undefined) {
+      await sql`UPDATE lesiones SET estado = ${estado} WHERE id = ${id}`
+    }
+
+    if (activa !== undefined) {
+      if (activa === false) {
+        const alta = fecha_alta || new Date().toISOString().split('T')[0]
+        await sql`UPDATE lesiones SET activa = false, fecha_alta = ${alta}, estado = 'Alta' WHERE id = ${id}`
+      } else {
+        await sql`UPDATE lesiones SET activa = true, fecha_alta = null, estado = 'Tratamiento' WHERE id = ${id}`
+      }
+    }
+
+    if (eta_dias !== undefined) {
+      await sql`UPDATE lesiones SET eta_dias = ${eta_dias} WHERE id = ${id}`
+    }
+
+    return NextResponse.json({ ok: true })
+  } catch (e: any) {
+    console.error('PATCH lesiones error:', e)
+    return NextResponse.json({ error: String(e) }, { status: 500 })
+  }
 }
