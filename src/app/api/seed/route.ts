@@ -15,12 +15,28 @@ export async function GET() {
 }
 
 // POST → creates tables and runs all migrations
-// Protected by middleware (requires master_admin) + verified here
+// Allowed without auth ONLY if DB is empty (first-time setup).
+// If users already exist, requires master_admin.
 export async function POST(req: NextRequest) {
-  const s = await getSessionFromRequest(req)
-  if (!s || s.rol !== 'master_admin') {
-    return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
+  const sql = getDb()
+
+  // Check if DB already has users
+  let alreadyInitialized = false
+  try {
+    const existing = await sql`SELECT id FROM usuarios LIMIT 1`
+    alreadyInitialized = existing.length > 0
+  } catch {
+    // Tables don't exist yet — definitely not initialized
   }
+
+  if (alreadyInitialized) {
+    // DB already has data → require master_admin
+    const s = await getSessionFromRequest(req)
+    if (!s || s.rol !== 'master_admin') {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
+    }
+  }
+  // If not initialized, allow through (bootstrap case)
 
   try {
     const sql = getDb()
