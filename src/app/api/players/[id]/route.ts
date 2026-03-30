@@ -32,6 +32,13 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     await sql`UPDATE usuarios SET activo = ${!!b.activo} WHERE id = ${userId}`
   }
 
+  if (b.nombre) {
+    const nombre = sanitizeString(b.nombre, 100)
+    if (nombre && nombre.length >= 2) {
+      await sql`UPDATE usuarios SET nombre = ${nombre} WHERE id = ${userId}`
+    }
+  }
+
   if (b.password) {
     const pwd = sanitizeString(b.password, 200)
     if (!pwd || pwd.length < 6) return NextResponse.json({ error: 'Contraseña muy corta' }, { status: 400 })

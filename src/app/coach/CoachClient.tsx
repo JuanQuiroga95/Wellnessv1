@@ -26,7 +26,7 @@ function compressImage(dataUrl: string, maxSize = 400, quality = 0.7): Promise<s
   })
 }
 
-const TABS = [{id:'team',label:'Equipo'},{id:'calendario',label:'📅 Calendario'},{id:'analytics',label:'Analytics'},{id:'minutos',label:'Minutaje'},{id:'media-equipo',label:'Media Equipo'},{id:'cambio-carga',label:'Cambio de Carga'},{id:'lesiones',label:'Lesiones'},{id:'gps',label:'📡 GPS'},{id:'players',label:'Jugadores'}]
+const TABS = [{id:'team',label:'Equipo'},{id:'calendario',label:'📅 Calendario'},{id:'analytics',label:'Analytics'},{id:'minutos',label:'Minutaje'},{id:'carga-externa',label:'Carga Externa'},{id:'cambio-carga',label:'Cambio de Carga'},{id:'lesiones',label:'Lesiones'},{id:'gps',label:'📡 GPS'},{id:'players',label:'Jugadores'}]
 const SC = {optimo:'#22c55e',precaucion:'#f59e0b',peligro:'#ef4444',sin_datos:'#555'}
 const SL = {optimo:'ÓPTIMO',precaucion:'PRECAUCIÓN',peligro:'RIESGO',sin_datos:'—'}
 const WK = ['fatiga','calidad_sueno','dolor_muscular','nivel_estres','estado_animo']
@@ -259,7 +259,7 @@ export default function CoachClient({ session, teamData, today }) {
         {tab==='analytics' && <AnalyticsPanel />}
         {tab==='calendario' && <CalendarioPanel teamData={teamData} />}
         {tab==='minutos' && <MinutosPanel teamData={teamData} />}
-        {tab==='media-equipo' && <MediaEquipoPanel />}
+        {tab==='carga-externa' && <CargaExternaPanel />}
         {tab==='cambio-carga' && <CambioCargaPanel />}
         {tab==='lesiones' && <LesionesPanel teamData={teamData} onRefresh={()=>router.refresh()} />}
         {tab==='gps' && <GpsPanel teamData={teamData} />}
@@ -2171,7 +2171,7 @@ function CoachSessionRow({ log }) {
   )
 }
 
-function MediaEquipoPanel() {
+function CargaExternaPanel() {
   const now = new Date()
   const [ciclo, setCiclo] = useState<'microciclo'|'mesociclo'|'macrociclo'>('microciclo')
   const [data, setData]     = useState<any>(null)
@@ -2244,6 +2244,9 @@ function MediaEquipoPanel() {
   const players: any[]  = data?.players   || []
   const teamAvg: any    = data?.teamAvg   || {}
   const hasGps: boolean = data?.hasGpsData || false
+  const gpsReal: any[]  = data?.gpsReal   || []
+  const teamAvgGps: any = data?.teamAvgGps || {}
+  const hasRealGps: boolean = data?.hasRealGps || false
 
   const borgColor = (rpe: number) =>
     rpe <= 2 ? '#22c55e' : rpe <= 4 ? '#a3e635' : rpe <= 6 ? '#eab308' : rpe <= 8 ? '#f97316' : '#ef4444'
@@ -2492,21 +2495,22 @@ function MediaEquipoPanel() {
         </div>
       ) : (
         <>
-          {/* Info GPS */}
+          {/* Info GPS calculado */}
           {!hasGps && (
             <div style={{ background: 'rgba(96,165,250,.06)', border: '1px solid rgba(96,165,250,.2)', borderRadius: 10, padding: '10px 16px', fontSize: 12, color: '#93c5fd' }}>
-              📐 Los datos GPS (distancia, sprints, etc.) se calculan a partir de las sesiones planificadas en el Calendario.
-              Cuando agregás tareas con espacio y jugadores, los datos aparecen automáticamente aquí.
-              También podés editarlos manualmente con el botón "Editar GPS" en cada tarea.
+              📐 Los datos GPS de la tabla de sesiones se calculan a partir de las tareas planificadas en el Calendario con espacio y jugadores definidos.
             </div>
           )}
 
-          {/* TABLA INDIVIDUAL POR JUGADOR */}
+          {/* ── TABLA 1: SESIONES (calculada desde el Calendario) ── */}
           <div style={{ background: 'var(--ink2)', border: '1px solid rgba(200,241,53,.2)', borderRadius: 16, overflow: 'hidden' }}>
             <div style={{ padding: '12px 18px', borderBottom: '1px solid var(--mist)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--lime)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                CARGA INDIVIDUAL POR JUGADOR · {ciclo.toUpperCase()}
-              </p>
+              <div>
+                <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--lime)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                  📅 CARGA DE SESIONES · {ciclo.toUpperCase()}
+                </p>
+                <p style={{ fontSize: 10, color: 'var(--fog)', marginTop: 2 }}>RPE, UA y GPS estimado desde las tareas del Calendario</p>
+              </div>
               <p style={{ fontSize: 10, color: 'var(--fog)' }}>Click en columna para ordenar</p>
             </div>
             <div style={{ overflowX: 'auto' }}>
@@ -2547,12 +2551,8 @@ function MediaEquipoPanel() {
                       </tr>
                     )
                   })}
-
-                  {/* Fila promedio equipo */}
                   <tr style={{ borderTop: '2px solid rgba(200,241,53,.3)', background: 'rgba(200,241,53,.06)' }}>
-                    <td style={{ padding: '10px 14px', fontWeight: 800, color: 'var(--lime)', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                      Promedio equipo
-                    </td>
+                    <td style={{ padding: '10px 14px', fontWeight: 800, color: 'var(--lime)', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Promedio equipo</td>
                     <td style={{ padding: '10px 10px', textAlign: 'center' }}>
                       {teamAvg.rpe > 0
                         ? <span style={{ fontFamily: 'DM Mono,monospace', fontWeight: 800, fontSize: 13, color: borgColor(teamAvg.rpe), background: `${borgColor(teamAvg.rpe)}18`, padding: '2px 8px', borderRadius: 6 }}>{teamAvg.rpe}</span>
@@ -2572,12 +2572,97 @@ function MediaEquipoPanel() {
             </div>
           </div>
 
+          {/* ── TABLA 2: GPS REAL (datos importados desde Catapult) ── */}
+          <div style={{ background: 'var(--ink2)', border: '1px solid rgba(96,165,250,.25)', borderRadius: 16, overflow: 'hidden' }}>
+            <div style={{ padding: '12px 18px', borderBottom: '1px solid var(--mist)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <p style={{ fontSize: 11, fontWeight: 700, color: '#60a5fa', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                  📡 GPS REAL · {ciclo.toUpperCase()}
+                </p>
+                <p style={{ fontSize: 10, color: 'var(--fog)', marginTop: 2 }}>Datos importados desde Catapult para el período</p>
+              </div>
+              {!hasRealGps && <p style={{ fontSize: 11, color: 'var(--fog)' }}>Sin datos GPS importados para este período</p>}
+            </div>
+            {hasRealGps ? (
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                  <thead>
+                    <tr style={{ background: 'rgba(96,165,250,.05)' }}>
+                      {[
+                        { label: 'Jugador',       field: 'nombre' },
+                        { label: 'Ses.',          field: 'sesiones_gps', unit: 'nº' },
+                        { label: 'Dist. total',   field: 'dist_total',   unit: 'm' },
+                        { label: 'Alta int.',     field: 'dist_hir',     unit: 'm' },
+                        { label: 'V4',            field: 'dist_v4',      unit: 'm' },
+                        { label: 'Sprint V5',     field: 'dist_v5',      unit: 'm' },
+                        { label: 'Player Load',   field: 'player_load',  unit: '' },
+                        { label: 'Vel. máx',      field: 'max_velocity', unit: 'km/h' },
+                        { label: 'Acc >2',        field: 'acc2',         unit: 'nº' },
+                        { label: 'Dec >2',        field: 'dec2',         unit: 'nº' },
+                        { label: 'Acc >3',        field: 'acc3',         unit: 'nº' },
+                        { label: 'Dec >3',        field: 'dec3',         unit: 'nº' },
+                        { label: 'Dist/min',      field: 'dist_per_min', unit: 'm' },
+                      ].map(c => (
+                        <th key={c.field} style={{ padding: '8px 10px', fontWeight: 600, textTransform: 'uppercase', fontSize: 9, letterSpacing: '0.06em', color: '#93c5fd', textAlign: 'center', whiteSpace: 'nowrap' }}>
+                          {c.label}
+                          {c.unit && <span style={{ fontSize: 8, color: 'var(--fog)', marginLeft: 2 }}>{c.unit}</span>}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {gpsReal.map((p: any, i: number) => (
+                      <tr key={i} style={{ borderTop: '1px solid var(--mist)', background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,.015)' }}>
+                        <td style={{ padding: '9px 14px', fontWeight: 500, color: 'var(--snow)', whiteSpace: 'nowrap' }}>
+                          {p.nombre}
+                          {p.posicion && <span style={{ fontSize: 10, color: 'var(--fog)', marginLeft: 6 }}>{p.posicion}</span>}
+                        </td>
+                        <td style={{ padding: '9px 10px', textAlign: 'center', fontFamily: 'DM Mono,monospace', color: 'var(--silver)' }}>{p.sesiones_gps || '—'}</td>
+                        <td style={{ padding: '9px 10px', textAlign: 'center', fontFamily: 'DM Mono,monospace', color: p.dist_total > 0 ? 'var(--snow)' : 'var(--fog)' }}>{p.dist_total > 0 ? p.dist_total : '—'}</td>
+                        <td style={{ padding: '9px 10px', textAlign: 'center', fontFamily: 'DM Mono,monospace', color: p.dist_hir > 0 ? '#f59e0b' : 'var(--fog)' }}>{p.dist_hir > 0 ? p.dist_hir : '—'}</td>
+                        <td style={{ padding: '9px 10px', textAlign: 'center', fontFamily: 'DM Mono,monospace', color: 'var(--silver)' }}>{p.dist_v4 > 0 ? p.dist_v4 : '—'}</td>
+                        <td style={{ padding: '9px 10px', textAlign: 'center', fontFamily: 'DM Mono,monospace', color: p.dist_v5 > 0 ? '#f97316' : 'var(--fog)' }}>{p.dist_v5 > 0 ? p.dist_v5 : '—'}</td>
+                        <td style={{ padding: '9px 10px', textAlign: 'center', fontFamily: 'DM Mono,monospace', color: p.player_load > 0 ? '#a78bfa' : 'var(--fog)' }}>{p.player_load > 0 ? p.player_load : '—'}</td>
+                        <td style={{ padding: '9px 10px', textAlign: 'center', fontFamily: 'DM Mono,monospace', color: p.max_velocity > 0 ? '#34d399' : 'var(--fog)' }}>{p.max_velocity > 0 ? p.max_velocity : '—'}</td>
+                        <td style={{ padding: '9px 10px', textAlign: 'center', fontFamily: 'DM Mono,monospace', color: 'var(--silver)' }}>{p.acc2 || '—'}</td>
+                        <td style={{ padding: '9px 10px', textAlign: 'center', fontFamily: 'DM Mono,monospace', color: 'var(--silver)' }}>{p.dec2 || '—'}</td>
+                        <td style={{ padding: '9px 10px', textAlign: 'center', fontFamily: 'DM Mono,monospace', color: 'var(--silver)' }}>{p.acc3 || '—'}</td>
+                        <td style={{ padding: '9px 10px', textAlign: 'center', fontFamily: 'DM Mono,monospace', color: 'var(--silver)' }}>{p.dec3 || '—'}</td>
+                        <td style={{ padding: '9px 10px', textAlign: 'center', fontFamily: 'DM Mono,monospace', color: p.dist_per_min > 0 ? '#60a5fa' : 'var(--fog)' }}>{p.dist_per_min > 0 ? p.dist_per_min : '—'}</td>
+                      </tr>
+                    ))}
+                    {/* Promedio GPS real */}
+                    <tr style={{ borderTop: '2px solid rgba(96,165,250,.3)', background: 'rgba(96,165,250,.06)' }}>
+                      <td style={{ padding: '10px 14px', fontWeight: 800, color: '#60a5fa', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Promedio equipo</td>
+                      <td style={{ padding: '10px 10px', textAlign: 'center', fontFamily: 'DM Mono,monospace', color: 'var(--silver)' }}>{teamAvgGps.sesiones_gps || '—'}</td>
+                      <td style={{ padding: '10px 10px', textAlign: 'center', fontFamily: 'DM Mono,monospace', fontWeight: 700, color: '#60a5fa' }}>{teamAvgGps.dist_total || '—'}</td>
+                      <td style={{ padding: '10px 10px', textAlign: 'center', fontFamily: 'DM Mono,monospace', fontWeight: 700, color: '#f59e0b' }}>{teamAvgGps.dist_hir || '—'}</td>
+                      <td style={{ padding: '10px 10px', textAlign: 'center', fontFamily: 'DM Mono,monospace', color: 'var(--silver)' }}>{teamAvgGps.dist_v4 || '—'}</td>
+                      <td style={{ padding: '10px 10px', textAlign: 'center', fontFamily: 'DM Mono,monospace', fontWeight: 700, color: '#f97316' }}>{teamAvgGps.dist_v5 || '—'}</td>
+                      <td style={{ padding: '10px 10px', textAlign: 'center', fontFamily: 'DM Mono,monospace', fontWeight: 700, color: '#a78bfa' }}>{teamAvgGps.player_load || '—'}</td>
+                      <td style={{ padding: '10px 10px', textAlign: 'center', fontFamily: 'DM Mono,monospace', fontWeight: 700, color: '#34d399' }}>{teamAvgGps.max_velocity || '—'}</td>
+                      <td style={{ padding: '10px 10px', textAlign: 'center', fontFamily: 'DM Mono,monospace', color: 'var(--silver)' }}>{teamAvgGps.acc2 || '—'}</td>
+                      <td style={{ padding: '10px 10px', textAlign: 'center', fontFamily: 'DM Mono,monospace', color: 'var(--silver)' }}>{teamAvgGps.dec2 || '—'}</td>
+                      <td style={{ padding: '10px 10px', textAlign: 'center', fontFamily: 'DM Mono,monospace', color: 'var(--silver)' }}>{teamAvgGps.acc3 || '—'}</td>
+                      <td style={{ padding: '10px 10px', textAlign: 'center', fontFamily: 'DM Mono,monospace', color: 'var(--silver)' }}>{teamAvgGps.dec3 || '—'}</td>
+                      <td style={{ padding: '10px 10px', textAlign: 'center', fontFamily: 'DM Mono,monospace', fontWeight: 700, color: '#60a5fa' }}>{teamAvgGps.dist_per_min || '—'}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div style={{ padding: '28px 20px', textAlign: 'center', fontSize: 12, color: 'var(--fog)' }}>
+                Importá un Excel desde la pestaña <strong style={{ color: 'var(--silver)' }}>📡 GPS</strong> para ver los datos reales acá.
+              </div>
+            )}
+          </div>
+
           {/* Nota mesociclo/macrociclo */}
           {ciclo !== 'microciclo' && (
             <div style={{ background: 'rgba(200,241,53,.05)', border: '1px solid rgba(200,241,53,.15)', borderRadius: 10, padding: '10px 16px', fontSize: 11, color: 'var(--silver)' }}>
               💡 <strong style={{ color: 'var(--lime)' }}>{ciclo === 'mesociclo' ? 'Mesociclo (28 días)' : 'Macrociclo (365 días)'}</strong>:
               Los valores muestran la media por sesión de cada jugador en el período.
-              La distancia y sprints son la suma acumulada de todas las sesiones planificadas en el Calendario.
+              La distancia y sprints de la tabla de sesiones son la suma acumulada de todas las sesiones planificadas en el Calendario.
             </div>
           )}
         </>
@@ -2973,18 +3058,59 @@ function ManageRow({ player, last, onRefresh }) {
   const [loading, setLoading] = useState(false)
   const [photoUrl, setPhotoUrl] = useState(player.foto_url||null)
   const [photoSaving, setPhotoSaving] = useState(false)
+  const [editing, setEditing] = useState(false)
+  const [editSaving, setEditSaving] = useState(false)
+  const [editError, setEditError] = useState('')
+  const [editOk, setEditOk] = useState(false)
+  const [ef, setEf] = useState({
+    nombre: player.nombre||'',
+    posicion: player.posicion||'',
+    edad: String(player.edad||''),
+    peso_kg: String(player.peso_kg||''),
+    estatura_cm: String(player.estatura_cm||''),
+    pie_habil: player.pie_habil||'Derecho',
+    email: player.email||'',
+    fecha_nacimiento: player.fecha_nacimiento||'',
+    hora_recordatorio: player.hora_recordatorio||'08:00',
+    nueva_password: '',
+  })
+  const setE = (k,v) => setEf(p=>({...p,[k]:v}))
+
   async function toggle() {
     setLoading(true)
     await fetch(`/api/players/${player.id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({activo:!player.activo})})
     onRefresh(); setLoading(false)
   }
+
+  async function saveEdit() {
+    setEditSaving(true); setEditError(''); setEditOk(false)
+    try {
+      const body: any = {
+        nombre: ef.nombre.trim(),
+        posicion: ef.posicion||null,
+        edad: ef.edad ? Number(ef.edad) : null,
+        peso_kg: ef.peso_kg ? Number(ef.peso_kg) : null,
+        estatura_cm: ef.estatura_cm ? Number(ef.estatura_cm) : null,
+        pie_habil: ef.pie_habil||null,
+        email: ef.email||null,
+        fecha_nacimiento: ef.fecha_nacimiento||null,
+        hora_recordatorio: ef.hora_recordatorio||null,
+      }
+      if (ef.nueva_password.trim()) body.password = ef.nueva_password.trim()
+      const r = await fetch(`/api/players/${player.id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
+      const d = await r.json()
+      if (!r.ok) { setEditError(d.error||'Error al guardar'); return }
+      setEditOk(true); setEditing(false); onRefresh()
+    } catch { setEditError('Error de conexión') }
+    finally { setEditSaving(false) }
+  }
+
   return (
     <div style={{ borderBottom:last?'none':'1px solid var(--mist)' }}>
       <button onClick={()=>setOpen(!open)} style={{ width:'100%', display:'flex', alignItems:'center', gap:12, padding:'12px 20px', background:'transparent', border:'none', cursor:'pointer', textAlign:'left', transition:'background .12s' }}
         onMouseEnter={e=>e.currentTarget.style.background='var(--ink3)'}
         onMouseLeave={e=>e.currentTarget.style.background='transparent'}
       >
-        {/* Avatar */}
         <div style={{ width:40, height:40, borderRadius:'50%', overflow:'hidden', background:'var(--mist)', flexShrink:0, display:'flex', alignItems:'center', justifyContent:'center', fontSize:13, fontWeight:700, color:'var(--silver)', border:'1px solid var(--fog)' }}>
           {photoUrl
             ? <img src={photoUrl} style={{ width:'100%', height:'100%', objectFit:'cover' }} alt=""/>
@@ -3000,46 +3126,111 @@ function ManageRow({ player, last, onRefresh }) {
       </button>
       {open && (
         <div style={{ padding:'14px 20px 18px', background:'var(--ink3)', borderTop:'1px solid var(--mist)' }}>
-          <div style={{ display:'flex', gap:16, alignItems:'flex-start', flexWrap:'wrap' }}>
-            {/* Photo upload inline */}
-            <label style={{ cursor:'pointer', flexShrink:0 }}>
-              <div style={{ width:64, height:64, borderRadius:'50%', overflow:'hidden', background:'var(--mist)', border:`2px solid ${photoUrl?'var(--lime)':'var(--fog)'}`, display:'flex', alignItems:'center', justifyContent:'center', position:'relative', transition:'border-color .15s' }}>
-                {photoUrl
-                  ? <img src={photoUrl} style={{ width:'100%', height:'100%', objectFit:'cover' }} alt=""/>
-                  : <span style={{ fontSize:22 }}>📷</span>
-                }
-                {photoSaving && <div style={{ position:'absolute', inset:0, background:'rgba(0,0,0,.6)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, color:'white' }}>...</div>}
+          {!editing ? (
+            <div style={{ display:'flex', gap:16, alignItems:'flex-start', flexWrap:'wrap' }}>
+              {/* Photo */}
+              <label style={{ cursor:'pointer', flexShrink:0 }}>
+                <div style={{ width:64, height:64, borderRadius:'50%', overflow:'hidden', background:'var(--mist)', border:`2px solid ${photoUrl?'var(--lime)':'var(--fog)'}`, display:'flex', alignItems:'center', justifyContent:'center', position:'relative', transition:'border-color .15s' }}>
+                  {photoUrl ? <img src={photoUrl} style={{ width:'100%', height:'100%', objectFit:'cover' }} alt=""/> : <span style={{ fontSize:22 }}>📷</span>}
+                  {photoSaving && <div style={{ position:'absolute', inset:0, background:'rgba(0,0,0,.6)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:11, color:'white' }}>...</div>}
+                </div>
+                <p style={{ fontSize:9, color:photoUrl?'var(--lime)':'var(--silver)', textAlign:'center', marginTop:4 }}>{photoUrl?'Cambiar':'Cargar foto'}</p>
+                <input type="file" accept="image/*" capture="environment" style={{ display:'none' }} onChange={async e=>{
+                  const file=e.target.files?.[0]; if(!file) return
+                  setPhotoSaving(true)
+                  const reader=new FileReader()
+                  reader.onload=async()=>{
+                    const dataUrl=reader.result as string
+                    await fetch('/api/players/photo',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({jugador_id:player.jugador_id,foto_url:dataUrl})})
+                    setPhotoUrl(dataUrl); setPhotoSaving(false)
+                  }
+                  reader.readAsDataURL(file)
+                }}/>
+              </label>
+              {/* Info + actions */}
+              <div style={{ flex:1, minWidth:180 }}>
+                <div style={{ fontSize:12, color:'var(--silver)', display:'flex', flexWrap:'wrap', gap:10, marginBottom:12 }}>
+                  {player.edad&&<span>🎂 {player.edad} años</span>}
+                  {player.peso_kg&&<span>⚖️ {player.peso_kg} kg</span>}
+                  {player.estatura_cm&&<span>📏 {player.estatura_cm} cm</span>}
+                  {player.pie_habil&&<span>⚽ Pie {player.pie_habil}</span>}
+                  {player.fecha_nacimiento&&<span>📅 Nac: {player.fecha_nacimiento}</span>}
+                  {player.email&&<span>📧 {player.email}</span>}
+                  {player.hora_recordatorio&&<span>⏰ {player.hora_recordatorio}</span>}
+                </div>
+                <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+                  <button onClick={()=>{ setEditing(true); setEditOk(false); setEditError('') }} className="btn-ghost" style={{ fontSize:12, padding:'7px 14px' }}>
+                    ✏️ Editar datos
+                  </button>
+                  <button onClick={toggle} disabled={loading} className="btn-ghost" style={{ fontSize:12, padding:'7px 14px', color:player.activo?'#f87171':'#4ade80', borderColor:player.activo?'rgba(239,68,68,.3)':'rgba(34,197,94,.3)' }}>
+                    {loading?'...':player.activo?'Desactivar acceso':'Activar acceso'}
+                  </button>
+                </div>
+                {editOk && <p style={{ fontSize:11, color:'#4ade80', marginTop:8 }}>✓ Datos actualizados</p>}
               </div>
-              <p style={{ fontSize:9, color:photoUrl?'var(--lime)':'var(--silver)', textAlign:'center', marginTop:4 }}>{photoUrl?'Cambiar foto':'Cargar foto'}</p>
-              <input type="file" accept="image/*" capture="environment" style={{ display:'none' }} onChange={async e=>{
-                const file=e.target.files?.[0]; if(!file) return
-                setPhotoSaving(true)
-                const reader=new FileReader()
-                reader.onload=async()=>{
-                  const dataUrl=reader.result as string
-                  await fetch('/api/players/photo',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({jugador_id:player.jugador_id,foto_url:dataUrl})})
-                  setPhotoUrl(dataUrl)
-                  setPhotoSaving(false)
-                }
-                reader.readAsDataURL(file)
-              }}/>
-            </label>
-            {/* Info + actions */}
-            <div style={{ flex:1, minWidth:180 }}>
-              <div style={{ fontSize:12, color:'var(--silver)', display:'flex', flexWrap:'wrap', gap:10, marginBottom:12 }}>
-                {player.edad&&<span>🎂 {player.edad} años</span>}
-                {player.peso_kg&&<span>⚖️ {player.peso_kg} kg</span>}
-                {player.estatura_cm&&<span>📏 {player.estatura_cm} cm</span>}
-                {player.pie_habil&&<span>⚽ Pie {player.pie_habil}</span>}
-                {player.fecha_nacimiento&&<span>📅 Nac: {player.fecha_nacimiento}</span>}
-                {player.email&&<span>📧 {player.email}</span>}
-                {player.hora_recordatorio&&<span>⏰ Recordatorio: {player.hora_recordatorio}</span>}
-              </div>
-              <button onClick={toggle} disabled={loading} className="btn-ghost" style={{ fontSize:12, padding:'7px 14px', color:player.activo?'#f87171':'#4ade80', borderColor:player.activo?'rgba(239,68,68,.3)':'rgba(34,197,94,.3)' }}>
-                {loading?'...':player.activo?'Desactivar acceso':'Activar acceso'}
-              </button>
             </div>
-          </div>
+          ) : (
+            /* ── EDIT FORM ── */
+            <div>
+              <p style={{ fontSize:11, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:14 }}>Editar jugador</p>
+              <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(180px, 1fr))', gap:12, marginBottom:14 }}>
+                <div style={{ gridColumn:'1/-1' }}>
+                  <label style={{ display:'block', fontSize:10, fontWeight:600, color:'var(--lime)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:4 }}>Nombre completo</label>
+                  <input className="wp-input" value={ef.nombre} onChange={e=>setE('nombre',e.target.value)} placeholder="Nombre Apellido" style={{ fontSize:14, fontWeight:600 }} />
+                </div>
+                <div>
+                  <label style={{ display:'block', fontSize:10, fontWeight:600, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:4 }}>Posición</label>
+                  <select className="wp-input" value={ef.posicion} onChange={e=>setE('posicion',e.target.value)} style={{ appearance:'none' }}>
+                    <option value="" style={{ background:'var(--ink2)' }}>— Seleccionar —</option>
+                    {POSICIONES.map(v=><option key={v} value={v} style={{ background:'var(--ink2)' }}>{v}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label style={{ display:'block', fontSize:10, fontWeight:600, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:4 }}>Pie hábil</label>
+                  <select className="wp-input" value={ef.pie_habil} onChange={e=>setE('pie_habil',e.target.value)} style={{ appearance:'none' }}>
+                    {['Derecho','Izquierdo','Ambidiestro'].map(v=><option key={v} value={v} style={{ background:'var(--ink2)' }}>{v}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label style={{ display:'block', fontSize:10, fontWeight:600, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:4 }}>Edad</label>
+                  <input className="wp-input" type="number" value={ef.edad} onChange={e=>setE('edad',e.target.value)} placeholder="ej: 22" />
+                </div>
+                <div>
+                  <label style={{ display:'block', fontSize:10, fontWeight:600, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:4 }}>Peso (kg)</label>
+                  <input className="wp-input" type="number" value={ef.peso_kg} onChange={e=>setE('peso_kg',e.target.value)} placeholder="ej: 75" />
+                </div>
+                <div>
+                  <label style={{ display:'block', fontSize:10, fontWeight:600, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:4 }}>Estatura (cm)</label>
+                  <input className="wp-input" type="number" value={ef.estatura_cm} onChange={e=>setE('estatura_cm',e.target.value)} placeholder="ej: 178" />
+                </div>
+                <div>
+                  <label style={{ display:'block', fontSize:10, fontWeight:600, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:4 }}>Fecha de nacimiento</label>
+                  <input className="wp-input" type="date" value={ef.fecha_nacimiento} onChange={e=>setE('fecha_nacimiento',e.target.value)} />
+                </div>
+                <div>
+                  <label style={{ display:'block', fontSize:10, fontWeight:600, color:'var(--lime)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:4 }}>📧 Email</label>
+                  <input className="wp-input" type="email" value={ef.email} onChange={e=>setE('email',e.target.value)} placeholder="jugador@email.com" />
+                </div>
+                <div>
+                  <label style={{ display:'block', fontSize:10, fontWeight:600, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:4 }}>⏰ Horario recordatorio</label>
+                  <select className="wp-input" value={ef.hora_recordatorio} onChange={e=>setE('hora_recordatorio',e.target.value)} style={{ appearance:'none' }}>
+                    {['06:00','06:30','07:00','07:30','08:00','08:30','09:00','09:30','10:00','10:30','11:00','11:30','12:00'].map(h=><option key={h} value={h} style={{ background:'var(--ink2)' }}>{h}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label style={{ display:'block', fontSize:10, fontWeight:600, color:'#f59e0b', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:4 }}>🔑 Nueva contraseña (opcional)</label>
+                  <input className="wp-input" type="password" value={ef.nueva_password} onChange={e=>setE('nueva_password',e.target.value)} placeholder="Dejar vacío para no cambiar" />
+                </div>
+              </div>
+              {editError && <p style={{ fontSize:12, color:'#f87171', marginBottom:10 }}>{editError}</p>}
+              <div style={{ display:'flex', gap:10 }}>
+                <button onClick={()=>setEditing(false)} className="btn-ghost" style={{ flex:1, fontSize:12 }}>Cancelar</button>
+                <button onClick={saveEdit} disabled={editSaving||!ef.nombre.trim()} className="btn-lime" style={{ flex:1, fontSize:12 }}>
+                  {editSaving ? 'Guardando...' : '✓ Guardar cambios'}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -3531,6 +3722,10 @@ function GpsPanel({ teamData }: { teamData: any }) {
         </h2>
         <p style={{ fontSize: 13, color: 'var(--silver)' }}>
           Importá el Excel de Catapult para cargar los datos GPS del equipo. Si tu club no usa GPS, podés ignorar esta sección — todo lo demás sigue funcionando igual.
+        </p>
+        <div style={{ background:'rgba(200,241,53,.06)', border:'1px solid rgba(200,241,53,.15)', borderRadius:10, padding:'10px 14px', marginTop:10, fontSize:12, color:'var(--silver)', lineHeight:1.6 }}>
+          <strong style={{ color:'var(--lime)' }}>ℹ️ ¿Dónde aparecen los datos?</strong><br/>
+          Los datos que importás acá (distancia, player load, sprints) se guardan en la base de datos por jugador y fecha. Para verlos en <strong style={{ color:'var(--snow)' }}>Analytics → Carga Individual</strong>, los datos GPS se combinan con las sesiones planificadas en el <strong style={{ color:'var(--snow)' }}>Calendario</strong>. Si no ves datos en Analytics, asegurate de tener sesiones cargadas en el Calendario para las mismas fechas del Excel.
         </p>
       </div>
 

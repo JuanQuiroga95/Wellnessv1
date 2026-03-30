@@ -192,6 +192,34 @@ export async function GET(req: NextRequest) {
       hasGps:      p.distTotal > 0,
     })).sort((a: any, b: any) => a.nombre.localeCompare(b.nombre))
 
+    // 9. Real GPS data from imported Excel (gps_logs table)
+    const gpsReal = s.clubId ? await sql`
+      SELECT
+        g.jugador_id,
+        u.nombre,
+        j.posicion,
+        SUM(g.dist_total)::int      AS dist_total,
+        SUM(g.dist_hir)::int        AS dist_hir,
+        SUM(g.dist_v4)::int         AS dist_v4,
+        SUM(g.dist_v5)::int         AS dist_v5,
+        ROUND(SUM(g.player_load)::numeric, 1) AS player_load,
+        MAX(g.max_velocity)::numeric(5,2)     AS max_velocity,
+        SUM(g.acc2)::int            AS acc2,
+        SUM(g.dec2)::int            AS dec2,
+        SUM(g.acc3)::int            AS acc3,
+        SUM(g.dec3)::int            AS dec3,
+        ROUND(AVG(g.dist_per_min)::numeric, 1) AS dist_per_min,
+        COUNT(g.id)::int            AS sesiones_gps
+      FROM gps_logs g
+      JOIN jugadores j ON j.id = g.jugador_id
+      JOIN usuarios u ON u.id = j.usuario_id
+      WHERE g.club_id = ${s.clubId}
+        AND g.fecha BETWEEN ${desde} AND ${hasta}
+        AND u.activo = true
+      GROUP BY g.jugador_id, u.nombre, j.posicion
+      ORDER BY u.nombre
+    ` : []
+
     const n = players.length || 1
     const avg = (field: string) => Math.round(players.reduce((s: number, p: any) => s + (p[field] || 0), 0) / n)
     const teamAvg = {
@@ -203,9 +231,28 @@ export async function GET(req: NextRequest) {
       sesiones:   avg('sesiones'),
     }
 
+    const nGps = (gpsReal as any[]).length || 1
+    const avgGps = (field: string) => Math.round((gpsReal as any[]).reduce((s: number, p: any) => s + (Number(p[field]) || 0), 0) / nGps)
+    const teamAvgGps = {
+      dist_total:   avgGps('dist_total'),
+      dist_hir:     avgGps('dist_hir'),
+      dist_v4:      avgGps('dist_v4'),
+      dist_v5:      avgGps('dist_v5'),
+      player_load:  Math.round((gpsReal as any[]).reduce((s: number, p: any) => s + (Number(p.player_load) || 0), 0) / nGps * 10) / 10,
+      max_velocity: Math.round((gpsReal as any[]).reduce((s: number, p: any) => s + (Number(p.max_velocity) || 0), 0) / nGps * 100) / 100,
+      acc2:         avgGps('acc2'),
+      dec2:         avgGps('dec2'),
+      acc3:         avgGps('acc3'),
+      dec3:         avgGps('dec3'),
+      dist_per_min: Math.round((gpsReal as any[]).reduce((s: number, p: any) => s + (Number(p.dist_per_min) || 0), 0) / nGps * 10) / 10,
+      sesiones_gps: avgGps('sesiones_gps'),
+    }
+
     return NextResponse.json({
       players, teamAvg,
+      gpsReal, teamAvgGps,
       hasGpsData:    players.some((p: any) => p.hasGps),
+      hasRealGps:    (gpsReal as any[]).length > 0,
       sesionesCount: sesiones.length,
       ciclo,
     })
