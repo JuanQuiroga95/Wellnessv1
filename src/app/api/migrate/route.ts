@@ -25,6 +25,33 @@ export async function POST(req: NextRequest) {
     [`ALTER TABLE partido_logs ADD COLUMN IF NOT EXISTS club_id INTEGER`, 'partido_logs.club_id'],
     [`ALTER TABLE lesiones ADD COLUMN IF NOT EXISTS club_id INTEGER`, 'lesiones.club_id'],
     [`ALTER TABLE sesiones_plan ADD COLUMN IF NOT EXISTS objetivo_secundario VARCHAR(50)`, 'sesiones_plan.objetivo_secundario'],
+    [`CREATE TABLE IF NOT EXISTS gps_logs (
+      id SERIAL PRIMARY KEY,
+      jugador_id INTEGER REFERENCES jugadores(id) ON DELETE CASCADE,
+      club_id INTEGER,
+      fecha DATE NOT NULL,
+      sesion_id INTEGER REFERENCES sesiones_plan(id) ON DELETE SET NULL,
+      tipo_sesion VARCHAR(20) NOT NULL DEFAULT 'entrenamiento',
+      dist_total NUMERIC(8,1),
+      dist_hir NUMERIC(8,1),
+      dist_v4 NUMERIC(8,1),
+      dist_v5 NUMERIC(8,1),
+      player_load NUMERIC(7,2),
+      max_velocity NUMERIC(5,2),
+      acc2 INTEGER,
+      dec2 INTEGER,
+      acc3 INTEGER,
+      dec3 INTEGER,
+      dist_per_min NUMERIC(6,2),
+      fuente VARCHAR(20) DEFAULT 'excel',
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )`, 'gps_logs table'],
+    [`CREATE INDEX IF NOT EXISTS idx_gps_logs_jugador_fecha ON gps_logs(jugador_id, fecha)`, 'gps_logs index jugador_fecha'],
+    [`CREATE INDEX IF NOT EXISTS idx_gps_logs_club_fecha ON gps_logs(club_id, fecha)`, 'gps_logs index club_fecha'],
+    // Historial lesivo — índices y columnas para el módulo de Enfermería
+    [`CREATE INDEX IF NOT EXISTS idx_lesiones_jugador_fecha ON lesiones(jugador_id, fecha_inicio DESC)`, 'lesiones index jugador_fecha'],
+    [`CREATE INDEX IF NOT EXISTS idx_lesiones_club_activa ON lesiones(club_id, activa)`, 'lesiones index club_activa'],
+    [`ALTER TABLE lesiones ADD COLUMN IF NOT EXISTS causa VARCHAR(150)`, 'lesiones.causa'],
   ]
 
   for (const [sql_stmt, label] of migrations) {

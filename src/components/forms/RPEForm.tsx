@@ -6,16 +6,16 @@ const TIPOS = [{value:'EQUIPO',label:'Equipo — Sesión completa'},{value:'PARC
 export default function RPEForm({ jugadorId, onSuccess }) {
   const [rpe, setRpe] = useState(null)
   const [tipo, setTipo] = useState('EQUIPO')
+  const [duracion, setDuracion] = useState('90')
   const [loading, setLoading] = useState(false)
   const [done, setDone] = useState(false)
   const [error, setError] = useState('')
-  const canSubmit = rpe !== null
+  const canSubmit = rpe !== null && duracion !== '' && Number(duracion) > 0
   async function submit(e) {
     e.preventDefault(); if (!canSubmit) return
     setLoading(true); setError('')
     try {
-      // Send duration as 0 — coach fills it in from their side if needed
-      const res = await fetch('/api/logs', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ jugador_id:jugadorId, rpe, duracion_min:0, tipo_sesion:tipo }) })
+      const res = await fetch('/api/logs', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ jugador_id:jugadorId, rpe, duracion_min:Number(duracion), tipo_sesion:tipo }) })
       if (!res.ok) { const d=await res.json(); setError(d.error||'Error'); return }
       setDone(true); setTimeout(()=>{ setDone(false); onSuccess() }, 1600)
     } catch { setError('Error de conexión') }
@@ -37,6 +37,21 @@ export default function RPEForm({ jugadorId, onSuccess }) {
       </div>
       <div>
         <label style={{ display:'block', fontSize:11, fontWeight:600, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:8 }}>
+          Duración <span style={{ color:'var(--fog)', fontWeight:400, textTransform:'none', letterSpacing:'normal' }}>(minutos)</span>
+        </label>
+        <div style={{ display:'flex', alignItems:'center', gap:12 }}>
+          <input
+            type="number" min="1" max="300"
+            className="wp-input"
+            value={duracion}
+            onChange={e=>setDuracion(e.target.value)}
+            style={{ width:100, textAlign:'center', fontSize:22, fontWeight:700, fontFamily:'DM Mono,monospace', color:'var(--lime)' }}
+          />
+          <span style={{ fontSize:12, color:'var(--fog)' }}>min · default 90 · editá si fue distinto</span>
+        </div>
+      </div>
+      <div>
+        <label style={{ display:'block', fontSize:11, fontWeight:600, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:8 }}>
           RPE — Escala de Borg (0–10) {rpe!==null && <span style={{ color:'var(--lime)', fontWeight:400, textTransform:'none', letterSpacing:'normal', marginLeft:8 }}>{DESC[rpe]}</span>}
         </label>
         <ScaleInput id="rpe" value={rpe} onChange={setRpe} min={0} max={10} lowLabel="Reposo total" highLabel="Máximo absoluto" isRpe={true} />
@@ -46,6 +61,12 @@ export default function RPEForm({ jugadorId, onSuccess }) {
           <div className="display" style={{ fontSize:56, color:'var(--lime)', lineHeight:1 }}>{rpe}</div>
           <div style={{ fontFamily:'DM Mono,monospace', fontSize:11, color:'var(--silver)', marginTop:6, textTransform:'uppercase', letterSpacing:'0.08em' }}>RPE registrado</div>
           <div style={{ fontSize:12, color:'var(--fog)', marginTop:4 }}>{DESC[rpe]}</div>
+          {duracion && Number(duracion) > 0 && (
+            <div style={{ fontSize:13, color:'var(--silver)', marginTop:8, background:'rgba(255,255,255,.04)', borderRadius:8, padding:'6px 12px', display:'inline-block' }}>
+              <span style={{ color:'var(--lime)', fontWeight:700, fontSize:16 }}>{Number(duracion) * Number(rpe)} UA</span>
+              <span style={{ color:'var(--fog)', marginLeft:8 }}>{duracion} min × RPE {rpe}</span>
+            </div>
+          )}
         </div>
       )}
       {error && <p style={{ fontSize:12, color:'#f87171' }}>{error}</p>}

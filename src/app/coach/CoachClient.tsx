@@ -26,7 +26,7 @@ function compressImage(dataUrl: string, maxSize = 400, quality = 0.7): Promise<s
   })
 }
 
-const TABS = [{id:'team',label:'Equipo'},{id:'calendario',label:'📅 Calendario'},{id:'analytics',label:'Analytics'},{id:'minutos',label:'Minutaje'},{id:'media-equipo',label:'Media Equipo'},{id:'cambio-carga',label:'Cambio de Carga'},{id:'lesiones',label:'Lesiones'},{id:'players',label:'Jugadores'}]
+const TABS = [{id:'team',label:'Equipo'},{id:'calendario',label:'📅 Calendario'},{id:'analytics',label:'Analytics'},{id:'minutos',label:'Minutaje'},{id:'media-equipo',label:'Media Equipo'},{id:'cambio-carga',label:'Cambio de Carga'},{id:'lesiones',label:'Lesiones'},{id:'gps',label:'📡 GPS'},{id:'players',label:'Jugadores'}]
 const SC = {optimo:'#22c55e',precaucion:'#f59e0b',peligro:'#ef4444',sin_datos:'#555'}
 const SL = {optimo:'ÓPTIMO',precaucion:'PRECAUCIÓN',peligro:'RIESGO',sin_datos:'—'}
 const WK = ['fatiga','calidad_sueno','dolor_muscular','nivel_estres','estado_animo']
@@ -262,6 +262,7 @@ export default function CoachClient({ session, teamData, today }) {
         {tab==='media-equipo' && <MediaEquipoPanel />}
         {tab==='cambio-carga' && <CambioCargaPanel />}
         {tab==='lesiones' && <LesionesPanel teamData={teamData} onRefresh={()=>router.refresh()} />}
+        {tab==='gps' && <GpsPanel teamData={teamData} />}
 
         {tab==='players' && (
           <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
@@ -523,6 +524,108 @@ function PlayerDetail({ player:p, logs, wellness, loading, onBack, ciclo, onCicl
           {[...logs].reverse().slice(0,8).map((l,i)=>(<CoachSessionRow key={i} log={l} />))}
         </div>
       )}
+      <HistorialLesivo jugadorId={p.jugador_id || p.id} />
+    </div>
+  )
+}
+
+// ─── HISTORIAL LESIVO POR JUGADOR ─────────────────────────────────────────────
+function HistorialLesivo({ jugadorId }: { jugadorId: number }) {
+  const [lesiones, setLesiones] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    if (!jugadorId) return
+    fetch(`/api/lesiones?jugador_id=${jugadorId}&activas=false`)
+      .then(r => r.json())
+      .then(d => { setLesiones(Array.isArray(d) ? d : []); setLoading(false) })
+      .catch(() => setLoading(false))
+  }, [jugadorId])
+
+  if (loading) return null
+  if (lesiones.length === 0) return (
+    <div style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:16, padding:20 }}>
+      <p style={{ fontSize:11, fontWeight:600, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:6 }}>🏥 Historial Lesivo</p>
+      <p style={{ fontSize:12, color:'var(--fog)' }}>Sin lesiones registradas. ✓</p>
+    </div>
+  )
+
+  // Calculate days for each injury
+  const lesionesConDias = lesiones.map(l => {
+    const inicio = new Date(l.fecha_inicio)
+    const fin = l.fecha_alta ? new Date(l.fecha_alta) : new Date()
+    const dias = Math.max(0, Math.floor((fin.getTime() - inicio.getTime()) / 86400000))
+    return { ...l, dias_baja: dias }
+  })
+
+  const totalDias = lesionesConDias.reduce((acc, l) => acc + l.dias_baja, 0)
+  const alerta = totalDias >= 45
+
+  return (
+    <div style={{ background:'var(--ink2)', border:`1px solid ${alerta ? 'rgba(239,68,68,.3)' : 'var(--mist)'}`, borderRadius:16, padding:20 }}>
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', flexWrap:'wrap', gap:12, marginBottom:16 }}>
+        <div>
+          <p style={{ fontSize:11, fontWeight:600, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em' }}>🏥 Historial Lesivo</p>
+          <p style={{ fontSize:11, color:'var(--fog)', marginTop:2 }}>{lesionesConDias.length} lesión{lesionesConDias.length !== 1 ? 'es' : ''} registrada{lesionesConDias.length !== 1 ? 's' : ''}</p>
+        </div>
+        <div style={{ textAlign:'center', background: alerta ? 'rgba(239,68,68,.08)' : 'rgba(255,255,255,.04)', border:`1px solid ${alerta ? 'rgba(239,68,68,.3)' : 'var(--mist)'}`, borderRadius:12, padding:'10px 20px' }}>
+          <div style={{ fontSize:28, fontWeight:700, fontFamily:'DM Mono,monospace', color: alerta ? '#f87171' : 'var(--snow)', lineHeight:1 }}>{totalDias}</div>
+          <div style={{ fontSize:9, color: alerta ? '#f87171' : 'var(--fog)', textTransform:'uppercase', letterSpacing:'0.06em', marginTop:3 }}>días de baja acumulados</div>
+        </div>
+      </div>
+
+      {alerta && (
+        <div style={{ background:'rgba(239,68,68,.08)', border:'1px solid rgba(239,68,68,.25)', borderRadius:10, padding:'10px 14px', marginBottom:16, display:'flex', gap:10, alignItems:'flex-start' }}>
+          <span style={{ fontSize:16 }}>⚠️</span>
+          <div>
+            <p style={{ fontSize:12, fontWeight:600, color:'#f87171', marginBottom:2 }}>Atención: historial de carga lesiva elevado</p>
+            <p style={{ fontSize:11, color:'var(--silver)' }}>{totalDias} días de baja acumulados. Manejá la progresión de carga con precaución y priorizá la recuperación preventiva.</p>
+          </div>
+        </div>
+      )}
+
+      <div style={{ overflowX:'auto' }}>
+        <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12 }}>
+          <thead>
+            <tr style={{ borderBottom:'1px solid var(--mist)' }}>
+              {['Fecha inicio','Diagnóstico','Zona','Estado','Días de baja','Alta'].map(h => (
+                <th key={h} style={{ padding:'7px 10px', textAlign:'left', fontSize:10, color:'var(--fog)', textTransform:'uppercase', letterSpacing:'0.06em', fontWeight:600, whiteSpace:'nowrap' }}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {lesionesConDias.map((l, i) => (
+              <tr key={l.id} style={{ borderBottom:'1px solid rgba(255,255,255,.04)', background: i%2===0 ? 'transparent' : 'rgba(255,255,255,.015)' }}>
+                <td style={{ padding:'9px 10px', color:'var(--silver)', fontFamily:'DM Mono,monospace', fontSize:11 }}>{l.fecha_inicio}</td>
+                <td style={{ padding:'9px 10px', color:'var(--snow)', fontWeight:500 }}>{l.tipo_lesion || '—'}</td>
+                <td style={{ padding:'9px 10px', color:'var(--silver)' }}>{l.zona || '—'}</td>
+                <td style={{ padding:'9px 10px' }}>
+                  <span style={{ fontSize:10, padding:'2px 8px', borderRadius:20, background:`${LCOL[l.estado]||'#888'}20`, color:LCOL[l.estado]||'#888', border:`1px solid ${LCOL[l.estado]||'#888'}44`, fontWeight:600 }}>
+                    {l.estado}
+                  </span>
+                </td>
+                <td style={{ padding:'9px 10px', textAlign:'center' }}>
+                  <span style={{ fontSize:13, fontWeight:700, fontFamily:'DM Mono,monospace', color: l.dias_baja >= 21 ? '#f87171' : l.dias_baja >= 7 ? '#f59e0b' : 'var(--silver)' }}>
+                    {l.dias_baja}d
+                  </span>
+                </td>
+                <td style={{ padding:'9px 10px', fontFamily:'DM Mono,monospace', fontSize:11, color: l.fecha_alta ? '#4ade80' : '#f59e0b' }}>
+                  {l.fecha_alta || (l.activa ? '⏳ activa' : '—')}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+          <tfoot>
+            <tr style={{ borderTop:'2px solid var(--mist)' }}>
+              <td colSpan={4} style={{ padding:'10px 10px', fontSize:11, color:'var(--fog)', fontWeight:600, textTransform:'uppercase', letterSpacing:'0.06em' }}>Total acumulado</td>
+              <td style={{ padding:'10px 10px', textAlign:'center' }}>
+                <span style={{ fontSize:14, fontWeight:700, fontFamily:'DM Mono,monospace', color: alerta ? '#f87171' : 'var(--lime)' }}>{totalDias}d</span>
+              </td>
+              <td />
+            </tr>
+          </tfoot>
+        </table>
+      </div>
     </div>
   )
 }
@@ -2005,8 +2108,8 @@ function AddMatchForm({ teamData, onSuccess, onCancel }) {
 
 function CoachSessionRow({ log }) {
   const [editing, setEditing] = useState(false)
-  const [mins, setMins] = useState(String(log.duracion_min || ''))
-  const [displayMins, setDisplayMins] = useState(Number(log.duracion_min) || 0)
+  const [mins, setMins] = useState(String(log.duracion_min || '90'))
+  const [displayMins, setDisplayMins] = useState(Number(log.duracion_min) || 90)
   const [ua, setUa] = useState(Number(log.carga_ua) || 0)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -2489,8 +2592,9 @@ function LesionesPanel({ teamData, onRefresh }) {
   const [loading, setLoading] = useState(true)
   const [showNew, setShowNew] = useState(false)
   const [historial, setHistorial] = useState(false)
+  const [vistaJugador, setVistaJugador] = useState<number|null>(null)
 
-  useEffect(()=>{ loadL() }, [historial])
+  useEffect(()=>{ if(vistaJugador===null) loadL() }, [historial, vistaJugador])
 
   async function loadL() {
     setLoading(true)
@@ -2506,31 +2610,219 @@ function LesionesPanel({ teamData, onRefresh }) {
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', flexWrap:'wrap', gap:12 }}>
-        <div><h2 className="display" style={{ fontSize:48, color:'var(--snow)' }}>ENFERMERÍA</h2><p style={{ fontSize:12, color:'var(--silver)', marginTop:2 }}>Registro de lesiones del plantel</p></div>
-        <div style={{ display:'flex', gap:8 }}>
-          <button onClick={()=>setHistorial(h=>!h)} className="btn-ghost" style={{ fontSize:12, padding:'10px 14px' }}>{historial?'Ver activas':'Ver historial'}</button>
+        <div>
+          <h2 className="display" style={{ fontSize:48, color:'var(--snow)' }}>ENFERMERÍA</h2>
+          <p style={{ fontSize:12, color:'var(--silver)', marginTop:2 }}>Registro y historial de lesiones del plantel</p>
+        </div>
+        <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+          {vistaJugador !== null
+            ? <button onClick={()=>setVistaJugador(null)} className="btn-ghost" style={{ fontSize:12, padding:'10px 14px' }}>← Volver</button>
+            : <button onClick={()=>setHistorial(h=>!h)} className="btn-ghost" style={{ fontSize:12, padding:'10px 14px' }}>{historial?'Ver activas':'Ver historial'}</button>
+          }
           <button onClick={()=>setShowNew(true)} className="btn-lime" style={{ fontSize:12, padding:'10px 18px' }}>+ Nueva lesión</button>
         </div>
       </div>
+
       {showNew && <NewLesionForm teamData={teamData} onSuccess={()=>{ setShowNew(false); loadL(); onRefresh() }} onCancel={()=>setShowNew(false)} />}
-      {loading
-        ? <div style={{ padding:40, textAlign:'center', color:'var(--silver)' }}>Cargando...</div>
-        : lesiones.length===0
-          ? <div style={{ padding:40, textAlign:'center', color:'var(--silver)' }}>{historial?'Sin historial de lesiones.':'✓ Sin jugadores en enfermería.'}</div>
-          : <div style={{ display:'flex', flexDirection:'column', gap:10 }}>{lesiones.map(l=><LesionCard key={l.id} lesion={l} onUpdate={p=>updateL(l.id,p)} />)}</div>
+
+      {/* Historial acumulativo por jugador — solo en vista activas */}
+      {vistaJugador === null && !historial && <HistorialResumen onSelectJugador={setVistaJugador} />}
+
+      {/* Vista historial de un jugador específico */}
+      {vistaJugador !== null && (
+        <HistorialJugador
+          jugadorId={vistaJugador}
+          jugadorNombre={teamData?.find((p:any)=>p.jugador_id===vistaJugador)?.nombre || ''}
+        />
+      )}
+
+      {/* Lista principal */}
+      {vistaJugador === null && (
+        loading
+          ? <div style={{ padding:40, textAlign:'center', color:'var(--silver)' }}>Cargando...</div>
+          : lesiones.length===0
+            ? <div style={{ padding:40, textAlign:'center', color:'var(--silver)' }}>{historial?'Sin historial de lesiones.':'✓ Sin jugadores en enfermería.'}</div>
+            : <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+                {(lesiones as any[]).map(l=>(
+                  <LesionCard key={l.id} lesion={l} onUpdate={p=>updateL(l.id,p)} onVerHistorial={()=>setVistaJugador(l.jugador_id)} />
+                ))}
+              </div>
+      )}
+    </div>
+  )
+}
+
+function HistorialResumen({ onSelectJugador }: { onSelectJugador:(id:number)=>void }) {
+  const [data, setData] = useState<any[]>([])
+
+  useEffect(()=>{
+    fetch('/api/lesiones?historial_resumen=true')
+      .then(r=>r.json())
+      .then(d=>setData(Array.isArray(d)?d:[]))
+      .catch(()=>{})
+  },[])
+
+  if (!data.length) return null
+
+  return (
+    <div style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:14, padding:18 }}>
+      <p style={{ fontSize:11, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:14 }}>
+        📊 Historial lesivo del plantel
+      </p>
+      <div style={{ overflowX:'auto' }}>
+        <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12 }}>
+          <thead>
+            <tr style={{ borderBottom:'1px solid var(--mist)' }}>
+              {['Jugador','Lesiones','Días totales','Última',''].map(h=>(
+                <th key={h} style={{ padding:'6px 10px', textAlign:'left', fontSize:10, color:'var(--fog)', textTransform:'uppercase', letterSpacing:'0.06em', fontWeight:600 }}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {data.map((row:any)=>{
+              const alerta = row.dias_totales >= 30
+              return (
+                <tr key={row.jugador_id} style={{ borderBottom:'1px solid rgba(255,255,255,.04)' }}>
+                  <td style={{ padding:'9px 10px', color:'var(--snow)', fontWeight:500 }}>{row.nombre}</td>
+                  <td style={{ padding:'9px 10px', color:'var(--silver)', fontFamily:'DM Mono,monospace' }}>{row.total_lesiones}</td>
+                  <td style={{ padding:'9px 10px' }}>
+                    <span style={{ fontFamily:'DM Mono,monospace', fontWeight:700, color: alerta ? '#ef4444' : row.dias_totales > 14 ? '#f59e0b' : 'var(--silver)' }}>
+                      {row.dias_totales}d
+                    </span>
+                    {alerta && <span style={{ fontSize:10, color:'#ef4444', marginLeft:6 }}>⚠</span>}
+                  </td>
+                  <td style={{ padding:'9px 10px', color:'var(--fog)', fontSize:11, fontFamily:'DM Mono,monospace' }}>{row.ultima_lesion||'—'}</td>
+                  <td style={{ padding:'9px 10px' }}>
+                    <button onClick={()=>onSelectJugador(row.jugador_id)} style={{ fontSize:11, padding:'4px 10px', borderRadius:6, background:'transparent', border:'1px solid var(--fog)', color:'var(--silver)', cursor:'pointer' }}>
+                      Ver →
+                    </button>
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
+}
+
+function HistorialJugador({ jugadorId, jugadorNombre }: { jugadorId:number, jugadorNombre:string }) {
+  const [lesiones, setLesiones] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(()=>{
+    fetch(`/api/lesiones?jugador_id=${jugadorId}`)
+      .then(r=>r.json())
+      .then(d=>{ setLesiones(Array.isArray(d)?d:[]); setLoading(false) })
+      .catch(()=>setLoading(false))
+  },[jugadorId])
+
+  const diasTotales = lesiones.reduce((acc:number, l:any)=>{
+    if (!l.fecha_inicio) return acc
+    const inicio = new Date(l.fecha_inicio)
+    const fin = l.fecha_alta ? new Date(l.fecha_alta) : new Date()
+    return acc + Math.max(0, Math.floor((fin.getTime()-inicio.getTime())/86400000))
+  }, 0)
+
+  const alerta = diasTotales >= 30
+
+  if (loading) return <div style={{ padding:40, textAlign:'center', color:'var(--silver)' }}>Cargando...</div>
+
+  return (
+    <div style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:14, padding:20 }}>
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', flexWrap:'wrap', gap:12, marginBottom:18 }}>
+        <div>
+          <p style={{ fontSize:15, fontWeight:700, color:'var(--snow)', marginBottom:4 }}>{jugadorNombre}</p>
+          <p style={{ fontSize:12, color:'var(--silver)' }}>{lesiones.length} lesión{lesiones.length!==1?'es':''} registrada{lesiones.length!==1?'s':''}</p>
+        </div>
+        <div style={{ textAlign:'right' }}>
+          <div style={{ fontSize:28, fontWeight:700, fontFamily:'DM Mono,monospace', color: alerta ? '#ef4444' : diasTotales > 14 ? '#f59e0b' : 'var(--lime)' }}>{diasTotales}d</div>
+          <div style={{ fontSize:10, color:'var(--fog)', textTransform:'uppercase', letterSpacing:'0.06em' }}>días totales de baja</div>
+        </div>
+      </div>
+      {alerta && (
+        <div style={{ background:'rgba(239,68,68,.08)', border:'1px solid rgba(239,68,68,.25)', borderRadius:10, padding:'10px 14px', marginBottom:16, fontSize:12, color:'#fca5a5' }}>
+          ⚠ {diasTotales} días de baja acumulados — manejar carga con precaución
+        </div>
+      )}
+      {lesiones.length === 0
+        ? <p style={{ fontSize:12, color:'var(--fog)', textAlign:'center', padding:'20px 0' }}>Sin lesiones registradas.</p>
+        : (
+          <div style={{ overflowX:'auto' }}>
+            <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12 }}>
+              <thead>
+                <tr style={{ borderBottom:'1px solid var(--mist)' }}>
+                  {['Fecha','Diagnóstico','Zona','Días de baja','Estado','Alta'].map(h=>(
+                    <th key={h} style={{ padding:'6px 10px', textAlign:'left', fontSize:10, color:'var(--fog)', textTransform:'uppercase', letterSpacing:'0.06em', fontWeight:600 }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {(lesiones as any[]).map((l:any)=>{
+                  const inicio = new Date(l.fecha_inicio)
+                  const fin = l.fecha_alta ? new Date(l.fecha_alta) : new Date()
+                  const dias = Math.max(0, Math.floor((fin.getTime()-inicio.getTime())/86400000))
+                  const col = LCOL[l.estado]||'#888'
+                  return (
+                    <tr key={l.id} style={{ borderBottom:'1px solid rgba(255,255,255,.04)' }}>
+                      <td style={{ padding:'9px 10px', color:'var(--fog)', fontFamily:'DM Mono,monospace', fontSize:11 }}>{l.fecha_inicio}</td>
+                      <td style={{ padding:'9px 10px', color:'var(--snow)' }}>{l.tipo_lesion||'—'}</td>
+                      <td style={{ padding:'9px 10px', color:'var(--silver)' }}>{l.zona||'—'}</td>
+                      <td style={{ padding:'9px 10px', fontFamily:'DM Mono,monospace', fontWeight:700, color: dias > 20 ? '#f59e0b' : 'var(--silver)' }}>
+                        {dias}d {!l.fecha_alta && <span style={{ fontSize:10, color:'#ef4444' }}>en curso</span>}
+                      </td>
+                      <td style={{ padding:'9px 10px' }}>
+                        <span style={{ fontSize:11, padding:'2px 8px', borderRadius:10, background:`${col}20`, color:col, border:`1px solid ${col}33` }}>{l.estado}</span>
+                      </td>
+                      <td style={{ padding:'9px 10px', color:'var(--fog)', fontFamily:'DM Mono,monospace', fontSize:11 }}>{l.fecha_alta||'—'}</td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+              <tfoot>
+                <tr style={{ borderTop:'2px solid var(--mist)' }}>
+                  <td colSpan={3} style={{ padding:'10px 10px', fontSize:12, fontWeight:700, color:'var(--silver)' }}>TOTAL ACUMULADO</td>
+                  <td style={{ padding:'10px 10px', fontFamily:'DM Mono,monospace', fontWeight:700, fontSize:14, color: alerta ? '#ef4444' : 'var(--lime)' }}>{diasTotales}d</td>
+                  <td colSpan={2}/>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        )
       }
     </div>
   )
 }
 
-function LesionCard({ lesion:l, onUpdate }) {
+function LesionCard({ lesion:l, onUpdate, onVerHistorial }: { lesion:any, onUpdate:(p:any)=>void, onVerHistorial:()=>void }) {
   const [open, setOpen] = useState(false)
   const [estado, setEstado] = useState(l.estado)
+  const [activa, setActiva] = useState(l.activa)
+  const [fechaAlta, setFechaAlta] = useState<string|null>(l.fecha_alta||null)
   const [eta, setEta] = useState(String(l.eta_dias||''))
   const col = LCOL[estado]||'#888'
-  const dias = Math.floor((Date.now()-new Date(l.fecha_inicio).getTime())/86400000)
+  const inicio = new Date(l.fecha_inicio)
+  const fin = fechaAlta ? new Date(fechaAlta) : new Date()
+  const dias = Math.max(0, Math.floor((fin.getTime()-inicio.getTime())/86400000))
+
+  function darAlta() {
+    const hoy = new Date().toISOString().split('T')[0]
+    setEstado('Alta')
+    setActiva(false)
+    setFechaAlta(hoy)
+    onUpdate({ activa:false, fecha_alta:hoy, estado:'Alta' })
+  }
+
+  function reactivar() {
+    setEstado('Tratamiento')
+    setActiva(true)
+    setFechaAlta(null)
+    onUpdate({ activa:true, fecha_alta:null, estado:'Tratamiento' })
+  }
+
   return (
-    <div style={{ background:'var(--ink2)', border:`1px solid ${l.activa?'rgba(239,68,68,.25)':'var(--mist)'}`, borderRadius:14, overflow:'hidden' }}>
+    <div style={{ background:'var(--ink2)', border:`1px solid ${activa?'rgba(239,68,68,.25)':'var(--mist)'}`, borderRadius:14, overflow:'hidden' }}>
       <button onClick={()=>setOpen(!open)} style={{ width:'100%', display:'flex', alignItems:'center', gap:14, padding:'14px 18px', background:'transparent', border:'none', cursor:'pointer', textAlign:'left' }}
         onMouseEnter={e=>e.currentTarget.style.background='var(--ink3)'}
         onMouseLeave={e=>e.currentTarget.style.background='transparent'}
@@ -2540,9 +2832,12 @@ function LesionCard({ lesion:l, onUpdate }) {
           <div style={{ fontWeight:500, fontSize:14, color:'var(--snow)' }}>{l.jugador_nombre}</div>
           <div style={{ fontSize:11, color:'var(--silver)', marginTop:1 }}>{l.posicion||'—'} · {l.tipo_lesion||'Sin tipo'} · {l.zona||'—'}</div>
         </div>
-        <div style={{ textAlign:'center', minWidth:60 }}><div className="mono" style={{ fontSize:16, fontWeight:600, color:'var(--silver)' }}>{dias}d</div><div style={{ fontSize:9, color:'var(--fog)', fontFamily:'DM Mono,monospace' }}>EN LISTA</div></div>
+        <div style={{ textAlign:'center', minWidth:60 }}>
+          <div className="mono" style={{ fontSize:16, fontWeight:600, color: activa ? '#ef4444' : '#4ade80' }}>{dias}d</div>
+          <div style={{ fontSize:9, color:'var(--fog)', fontFamily:'DM Mono,monospace' }}>{activa ? 'EN LISTA' : 'BAJA TOTAL'}</div>
+        </div>
         <span style={{ fontSize:12, padding:'4px 10px', borderRadius:20, background:`${col}20`, color:col, border:`1px solid ${col}44`, fontWeight:600, flexShrink:0 }}>{estado}</span>
-        {l.eta_dias && <div style={{ textAlign:'right', minWidth:60 }}><div className="mono" style={{ fontSize:16, fontWeight:600, color:'#f87171' }}>{l.eta_dias}d</div><div style={{ fontSize:9, color:'#f87171', fontFamily:'DM Mono,monospace' }}>ETA</div></div>}
+        {l.eta_dias && activa && <div style={{ textAlign:'right', minWidth:60 }}><div className="mono" style={{ fontSize:16, fontWeight:600, color:'#f87171' }}>{l.eta_dias}d</div><div style={{ fontSize:9, color:'#f87171', fontFamily:'DM Mono,monospace' }}>ETA</div></div>}
         <span style={{ color:'var(--fog)', fontSize:14, transition:'transform .2s', display:'inline-block', transform:open?'rotate(90deg)':'none' }}>›</span>
       </button>
       {open && (
@@ -2550,22 +2845,27 @@ function LesionCard({ lesion:l, onUpdate }) {
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:10, marginBottom:12 }}>
             <div>
               <label style={{ display:'block', fontSize:10, fontWeight:600, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:4 }}>Estado</label>
-              <select className="wp-input" style={{ padding:'8px 12px', fontSize:13, appearance:'none' }} value={estado} onChange={e=>{ setEstado(e.target.value); onUpdate({estado:e.target.value}) }}>{LEST.map(s=><option key={s} value={s} style={{ background:'var(--ink2)' }}>{s}</option>)}</select>
+              <select className="wp-input" style={{ padding:'8px 12px', fontSize:13, appearance:'none' }} value={estado} onChange={e=>{ setEstado(e.target.value); onUpdate({estado:e.target.value}) }}>
+                {LEST.map(s=><option key={s} value={s} style={{ background:'var(--ink2)' }}>{s}</option>)}
+              </select>
             </div>
             <div>
               <label style={{ display:'block', fontSize:10, fontWeight:600, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:4 }}>ETA (días)</label>
               <input type="number" className="wp-input" style={{ padding:'8px 12px', fontSize:13 }} value={eta} placeholder="ej: 21" onChange={e=>setEta(e.target.value)} onBlur={()=>eta&&onUpdate({eta_dias:Number(eta)})} />
             </div>
-            <div style={{ display:'flex', flexDirection:'column', justifyContent:'flex-end' }}>
-              {l.activa
-                ? <button className="btn-ghost" style={{ fontSize:12, padding:8, color:'#4ade80', borderColor:'rgba(34,197,94,.3)', width:'100%' }} onClick={()=>onUpdate({activa:false,fecha_alta:new Date().toISOString().split('T')[0],estado:'Alta'})}>✓ Dar de alta</button>
-                : <button className="btn-ghost" style={{ fontSize:12, padding:8, color:'#f87171', borderColor:'rgba(239,68,68,.3)', width:'100%' }} onClick={()=>onUpdate({activa:true,fecha_alta:null})}>↩ Reactivar</button>
+            <div style={{ display:'flex', flexDirection:'column', justifyContent:'flex-end', gap:6 }}>
+              {activa
+                ? <button className="btn-ghost" style={{ fontSize:12, padding:8, color:'#4ade80', borderColor:'rgba(34,197,94,.3)', width:'100%' }} onClick={darAlta}>✓ Dar de alta</button>
+                : <button className="btn-ghost" style={{ fontSize:12, padding:8, color:'#f87171', borderColor:'rgba(239,68,68,.3)', width:'100%' }} onClick={reactivar}>↩ Reactivar</button>
               }
+              <button className="btn-ghost" style={{ fontSize:11, padding:'6px 8px', width:'100%', color:'var(--fog)' }} onClick={e=>{ e.stopPropagation(); onVerHistorial() }}>
+                📊 Historial completo
+              </button>
             </div>
           </div>
           <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
             {l.fecha_inicio && <span style={{ fontSize:11, color:'var(--silver)', background:'var(--ink2)', borderRadius:6, padding:'3px 8px', border:'1px solid var(--mist)' }}>📅 Inicio: {l.fecha_inicio}</span>}
-            {l.fecha_alta && <span style={{ fontSize:11, color:'#4ade80', background:'rgba(34,197,94,.08)', borderRadius:6, padding:'3px 8px', border:'1px solid rgba(34,197,94,.2)' }}>✓ Alta: {l.fecha_alta}</span>}
+            {fechaAlta && <span style={{ fontSize:11, color:'#4ade80', background:'rgba(34,197,94,.08)', borderRadius:6, padding:'3px 8px', border:'1px solid rgba(34,197,94,.2)' }}>✓ Alta: {fechaAlta}</span>}
             {l.descripcion && <span style={{ fontSize:11, color:'var(--silver)' }}>📝 {l.descripcion}</span>}
           </div>
         </div>
@@ -3132,6 +3432,300 @@ function CoachEmailSettings() {
         <p style={{ fontSize:11, color:'var(--fog)', marginTop:8 }}>
           Si falla, revisá que GMAIL_USER y GMAIL_PASS estén configuradas en Vercel → Settings → Environment Variables.
         </p>
+      </div>
+    </div>
+  )
+}
+
+// ─── GPS PANEL ────────────────────────────────────────────────────────────────
+
+function GpsPanel({ teamData }: { teamData: any }) {
+  const today = new Date().toISOString().split('T')[0]
+  const [fecha, setFecha] = useState(today)
+  const [tipoSesion, setTipoSesion] = useState<'entrenamiento' | 'partido'>('entrenamiento')
+  const [sesionId, setSesionId] = useState<number | null>(null)
+  const [file, setFile] = useState<File | null>(null)
+  const [sesiones, setSesiones] = useState<any[]>([])
+  const [partidos, setPartidos] = useState<any[]>([])
+  const [existing, setExisting] = useState<any[]>([])
+  const [preview, setPreview] = useState<any | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [importing, setImporting] = useState(false)
+  const [result, setResult] = useState<any | null>(null)
+  const [error, setError] = useState('')
+  const [historial, setHistorial] = useState<any[]>([])
+  const [loadingHistorial, setLoadingHistorial] = useState(false)
+
+  // Load sessions for the selected date
+  useEffect(() => {
+    setPreview(null); setResult(null); setError('')
+    fetch(`/api/gps/sesiones?fecha=${fecha}`)
+      .then(r => r.json())
+      .then(d => {
+        setSesiones(d.sesiones || [])
+        setPartidos(d.partidos || [])
+        setExisting(d.existing || [])
+        setSesionId(null)
+      })
+      .catch(() => {})
+  }, [fecha])
+
+  // Load GPS history
+  useEffect(() => {
+    setLoadingHistorial(true)
+    const desde = new Date(); desde.setDate(desde.getDate() - 30)
+    const desdeStr = desde.toISOString().split('T')[0]
+    fetch(`/api/gps/sesiones?fecha=${today}`)
+      .then(r => r.json())
+      .then(() => setLoadingHistorial(false))
+      .catch(() => setLoadingHistorial(false))
+  }, [result])
+
+  async function handlePreview() {
+    if (!file) { setError('Seleccioná un archivo Excel'); return }
+    setLoading(true); setError(''); setPreview(null); setResult(null)
+    try {
+      const fd = new FormData()
+      fd.append('file', file)
+      fd.append('fecha', fecha)
+      fd.append('tipo_sesion', tipoSesion)
+      if (sesionId) fd.append('sesion_id', String(sesionId))
+      fd.append('confirm', 'false')
+      const r = await fetch('/api/gps/import', { method: 'POST', body: fd })
+      const d = await r.json()
+      if (!r.ok) { setError(d.error || 'Error al procesar el archivo'); return }
+      setPreview(d)
+    } catch (e) { setError('Error de conexión') }
+    finally { setLoading(false) }
+  }
+
+  async function handleConfirm() {
+    if (!file || !preview) return
+    setImporting(true); setError('')
+    try {
+      const fd = new FormData()
+      fd.append('file', file)
+      fd.append('fecha', fecha)
+      fd.append('tipo_sesion', tipoSesion)
+      if (sesionId) fd.append('sesion_id', String(sesionId))
+      fd.append('confirm', 'true')
+      const r = await fetch('/api/gps/import', { method: 'POST', body: fd })
+      const d = await r.json()
+      if (!r.ok) { setError(d.error || 'Error al importar'); return }
+      setResult(d); setPreview(null); setFile(null)
+      // Refresh existing
+      fetch(`/api/gps/sesiones?fecha=${fecha}`).then(r => r.json()).then(d => setExisting(d.existing || []))
+    } catch (e) { setError('Error de conexión') }
+    finally { setImporting(false) }
+  }
+
+  const matchColor = (m: string) => m === 'nombre' ? '#22c55e' : m === 'primer_nombre' ? '#c8f135' : '#f59e0b'
+  const matchLabel = (m: string) => m === 'nombre' ? 'nombre exacto' : m === 'primer_nombre' ? 'primer nombre' : 'parcial'
+
+  return (
+    <div style={{ padding: '24px 20px', maxWidth: 900, margin: '0 auto' }}>
+      {/* Header */}
+      <div style={{ marginBottom: 28 }}>
+        <h2 style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: 36, color: 'var(--snow)', letterSpacing: '0.04em', marginBottom: 6 }}>
+          📡 DATOS GPS
+        </h2>
+        <p style={{ fontSize: 13, color: 'var(--silver)' }}>
+          Importá el Excel de Catapult para cargar los datos GPS del equipo. Si tu club no usa GPS, podés ignorar esta sección — todo lo demás sigue funcionando igual.
+        </p>
+      </div>
+
+      {/* Existing imports for this date */}
+      {existing.length > 0 && (
+        <div style={{ background: 'rgba(200,241,53,.06)', border: '1px solid rgba(200,241,53,.2)', borderRadius: 12, padding: '12px 16px', marginBottom: 20, display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+          <span style={{ fontSize: 12, color: 'var(--lime)', fontWeight: 700 }}>✓ GPS ya cargado para esta fecha:</span>
+          {existing.map((e: any, i: number) => (
+            <span key={i} style={{ fontSize: 11, background: 'rgba(200,241,53,.12)', borderRadius: 6, padding: '4px 10px', color: 'var(--lime)', fontFamily: 'DM Mono, monospace' }}>
+              {e.tipo_sesion} · {e.n_jugadores} jugadores
+            </span>
+          ))}
+          <span style={{ fontSize: 11, color: 'var(--fog)' }}>Podés sobreescribir subiendo uno nuevo.</span>
+        </div>
+      )}
+
+      {/* Import form */}
+      <div style={{ background: 'var(--ink2)', border: '1px solid var(--mist)', borderRadius: 16, padding: 24, marginBottom: 24 }}>
+        <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--silver)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 18 }}>
+          Nueva importación
+        </p>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 16, marginBottom: 20 }}>
+          {/* Date */}
+          <div>
+            <label style={{ display: 'block', fontSize: 11, color: 'var(--fog)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Fecha del GPS</label>
+            <input className="wp-input" type="date" value={fecha} onChange={e => setFecha(e.target.value)} />
+          </div>
+
+          {/* Tipo sesion */}
+          <div>
+            <label style={{ display: 'block', fontSize: 11, color: 'var(--fog)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Tipo</label>
+            <select className="wp-input" value={tipoSesion} onChange={e => { setTipoSesion(e.target.value as any); setSesionId(null) }} style={{ width: '100%' }}>
+              <option value="entrenamiento">⚽ Entrenamiento</option>
+              <option value="partido">🏆 Partido</option>
+            </select>
+          </div>
+
+          {/* Session selector */}
+          <div>
+            <label style={{ display: 'block', fontSize: 11, color: 'var(--fog)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+              Sesión {tipoSesion === 'entrenamiento' ? 'planificada' : 'jugada'} (opcional)
+            </label>
+            <select className="wp-input" value={sesionId ?? ''} onChange={e => setSesionId(e.target.value ? Number(e.target.value) : null)} style={{ width: '100%' }}>
+              <option value="">Sin vincular</option>
+              {tipoSesion === 'entrenamiento' && sesiones.filter(s => s.tipo === 'entrenamiento').map((s: any) => (
+                <option key={s.id} value={s.id}>{s.fecha} · {s.titulo || s.objetivo || 'Entrenamiento'}</option>
+              ))}
+              {tipoSesion === 'partido' && partidos.map((p: any, i: number) => (
+                <option key={i} value="">{p.fecha} · vs {p.rival} ({p.tipo_partido})</option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {/* File upload */}
+        <div style={{ marginBottom: 20 }}>
+          <label style={{ display: 'block', fontSize: 11, color: 'var(--fog)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+            Archivo Excel Catapult (.xlsx / .csv)
+          </label>
+          <div
+            style={{ border: '2px dashed var(--mist)', borderRadius: 12, padding: '28px 20px', textAlign: 'center', cursor: 'pointer', background: file ? 'rgba(200,241,53,.04)' : 'transparent', borderColor: file ? 'var(--lime)' : 'var(--mist)', transition: 'all .2s' }}
+            onClick={() => document.getElementById('gps-file-input')?.click()}
+            onDragOver={e => e.preventDefault()}
+            onDrop={e => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) { setFile(f); setPreview(null); setResult(null) } }}
+          >
+            <input id="gps-file-input" type="file" accept=".xlsx,.csv,.xls" style={{ display: 'none' }} onChange={e => { const f = e.target.files?.[0]; if (f) { setFile(f); setPreview(null); setResult(null) } }} />
+            {file ? (
+              <div>
+                <div style={{ fontSize: 28, marginBottom: 6 }}>📊</div>
+                <div style={{ fontSize: 13, color: 'var(--lime)', fontWeight: 600 }}>{file.name}</div>
+                <div style={{ fontSize: 11, color: 'var(--fog)', marginTop: 4 }}>{(file.size / 1024).toFixed(1)} KB · Click para cambiar</div>
+              </div>
+            ) : (
+              <div>
+                <div style={{ fontSize: 32, marginBottom: 8 }}>📁</div>
+                <div style={{ fontSize: 13, color: 'var(--silver)' }}>Arrastrá el Excel acá o hacé click para seleccionar</div>
+                <div style={{ fontSize: 11, color: 'var(--fog)', marginTop: 4 }}>Exportá desde Catapult OpenField o Catapult Connect</div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {error && (
+          <div style={{ background: 'rgba(239,68,68,.1)', border: '1px solid rgba(239,68,68,.3)', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#fca5a5', marginBottom: 16 }}>{error}</div>
+        )}
+
+        <button
+          onClick={handlePreview}
+          disabled={!file || loading}
+          className="btn-lime"
+          style={{ padding: '12px 28px', fontSize: 14 }}
+        >
+          {loading ? 'Procesando...' : '🔍 Verificar y previsualizar'}
+        </button>
+      </div>
+
+      {/* Preview */}
+      {preview && (
+        <div style={{ background: 'var(--ink2)', border: '1px solid var(--mist)', borderRadius: 16, padding: 24, marginBottom: 24 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 18, flexWrap: 'wrap', gap: 12 }}>
+            <div>
+              <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--snow)', marginBottom: 4 }}>
+                Preview · {preview.fecha} · {preview.tipo_sesion}
+              </p>
+              <p style={{ fontSize: 12, color: 'var(--silver)' }}>
+                {preview.matched.length} de {preview.total_filas} jugadores encontrados en el plantel
+                {preview.unmatched.length > 0 && ` · ${preview.unmatched.length} sin match`}
+              </p>
+            </div>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button onClick={() => setPreview(null)} className="btn-ghost" style={{ fontSize: 12, padding: '8px 16px' }}>Cancelar</button>
+              <button onClick={handleConfirm} disabled={importing || preview.matched.filter((m: any) => !m.sin_datos).length === 0} className="btn-lime" style={{ fontSize: 13, padding: '10px 22px' }}>
+                {importing ? 'Importando...' : `✓ Confirmar importación (${preview.matched.filter((m: any) => !m.sin_datos).length} jugadores)`}
+              </button>
+            </div>
+          </div>
+
+          {/* Matched players */}
+          <div style={{ overflowX: 'auto', marginBottom: preview.unmatched.length > 0 ? 16 : 0 }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+              <thead>
+                <tr style={{ borderBottom: '1px solid var(--mist)' }}>
+                  {['Catapult', 'Jugador W&P', 'Match', 'Dist.Total', 'HIR', 'PlayerLoad', 'Vel.Máx', 'Estado'].map(h => (
+                    <th key={h} style={{ padding: '8px 10px', textAlign: 'left', fontSize: 10, color: 'var(--fog)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {preview.matched.map((m: any, i: number) => (
+                  <tr key={i} style={{ borderBottom: '1px solid rgba(255,255,255,.04)', opacity: m.sin_datos ? 0.4 : 1 }}>
+                    <td style={{ padding: '9px 10px', color: 'var(--silver)', fontFamily: 'DM Mono, monospace', fontSize: 11 }}>{m.nombre_catapult}</td>
+                    <td style={{ padding: '9px 10px', color: 'var(--snow)', fontWeight: 600 }}>{m.jugador_nombre}</td>
+                    <td style={{ padding: '9px 10px' }}>
+                      <span style={{ fontSize: 10, background: `${matchColor(m.match_method)}22`, color: matchColor(m.match_method), borderRadius: 4, padding: '2px 7px', fontFamily: 'DM Mono, monospace' }}>
+                        {matchLabel(m.match_method)}
+                      </span>
+                    </td>
+                    <td style={{ padding: '9px 10px', color: 'var(--silver)', fontFamily: 'DM Mono, monospace' }}>{m.dist_total ? `${(m.dist_total/1000).toFixed(1)}km` : '—'}</td>
+                    <td style={{ padding: '9px 10px', color: 'var(--silver)', fontFamily: 'DM Mono, monospace' }}>{m.dist_hir ? `${Math.round(m.dist_hir)}m` : '—'}</td>
+                    <td style={{ padding: '9px 10px', color: 'var(--silver)', fontFamily: 'DM Mono, monospace' }}>{m.player_load ?? '—'}</td>
+                    <td style={{ padding: '9px 10px', color: 'var(--silver)', fontFamily: 'DM Mono, monospace' }}>{m.max_velocity ? `${m.max_velocity}km/h` : '—'}</td>
+                    <td style={{ padding: '9px 10px' }}>
+                      {m.sin_datos
+                        ? <span style={{ fontSize: 10, color: '#f59e0b', fontFamily: 'DM Mono, monospace' }}>⚠ sin vest</span>
+                        : <span style={{ fontSize: 10, color: '#22c55e' }}>✓ ok</span>
+                      }
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Unmatched */}
+          {preview.unmatched.length > 0 && (
+            <div style={{ background: 'rgba(245,158,11,.08)', border: '1px solid rgba(245,158,11,.2)', borderRadius: 10, padding: '12px 16px' }}>
+              <p style={{ fontSize: 11, fontWeight: 700, color: '#f59e0b', marginBottom: 6 }}>
+                ⚠ {preview.unmatched.length} jugador{preview.unmatched.length > 1 ? 'es' : ''} del GPS no encontrado{preview.unmatched.length > 1 ? 's' : ''} en el plantel:
+              </p>
+              <p style={{ fontSize: 12, color: 'var(--silver)', fontFamily: 'DM Mono, monospace' }}>
+                {preview.unmatched.join(' · ')}
+              </p>
+              <p style={{ fontSize: 11, color: 'var(--fog)', marginTop: 6 }}>
+                Verificá que el nombre en Catapult coincida con el nombre del jugador en W&amp;P.
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Success result */}
+      {result && (
+        <div style={{ background: 'rgba(34,197,94,.08)', border: '1px solid rgba(34,197,94,.25)', borderRadius: 16, padding: 24, marginBottom: 24 }}>
+          <p style={{ fontSize: 16, fontWeight: 700, color: '#22c55e', marginBottom: 8 }}>✓ Importación completada</p>
+          <p style={{ fontSize: 13, color: 'var(--silver)' }}>{result.message}</p>
+          {result.unmatched?.length > 0 && (
+            <p style={{ fontSize: 12, color: '#f59e0b', marginTop: 8 }}>⚠ Sin match: {result.unmatched.join(', ')}</p>
+          )}
+          {result.errors?.length > 0 && (
+            <p style={{ fontSize: 12, color: '#ef4444', marginTop: 6 }}>Errores: {result.errors.join(' · ')}</p>
+          )}
+        </div>
+      )}
+
+      {/* Info box */}
+      <div style={{ background: 'rgba(96,165,250,.06)', border: '1px solid rgba(96,165,250,.15)', borderRadius: 12, padding: '16px 20px' }}>
+        <p style={{ fontSize: 12, fontWeight: 700, color: '#60a5fa', marginBottom: 8 }}>ℹ Cómo funciona</p>
+        <ul style={{ fontSize: 12, color: 'var(--fog)', lineHeight: 1.8, paddingLeft: 16, margin: 0 }}>
+          <li>Exportá el resumen de sesión desde <strong style={{ color: 'var(--silver)' }}>Catapult OpenField → Reports → Session Summary</strong></li>
+          <li>El sistema intenta enlazar cada jugador por nombre, usando fallback automático</li>
+          <li>Los jugadores marcados como "sin vest" (distancia = 0) se omiten automáticamente</li>
+          <li>Si ya hay GPS cargado para esa fecha y tipo, se sobreescribe al confirmar</li>
+          <li><strong style={{ color: 'var(--silver)' }}>No usás GPS?</strong> No pasa nada — las otras secciones funcionan igual sin estos datos</li>
+        </ul>
       </div>
     </div>
   )

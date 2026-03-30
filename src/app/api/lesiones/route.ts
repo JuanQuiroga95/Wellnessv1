@@ -6,9 +6,45 @@ export async function GET(req: NextRequest) {
   const s = await getSessionFromRequest(req); if(!s||!isAdmin(s)) return NextResponse.json({error:'No autorizado'},{status:403})
   const {searchParams} = new URL(req.url)
   const activas = searchParams.get('activas')!=='false'
+  const jugadorId = searchParams.get('jugador_id') ? Number(searchParams.get('jugador_id')) : null
+  const historialResumen = searchParams.get('historial_resumen') === 'true'
   const clubId = s.clubId ?? null
   const isMaster = s.rol === 'master_admin'
   const sql = getDb()
+
+  // Resumen acumulativo por jugador (para tabla de historial en enfermería)
+  if (historialResumen) {
+    const rows = await sql`
+      SELECT
+        j.id AS jugador_id,
+        u.nombre,
+        COUNT(l.id)::int AS total_lesiones,
+        COALESCE(SUM(
+          EXTRACT(DAY FROM (COALESCE(l.fecha_alta::date, CURRENT_DATE) - l.fecha_inicio::date))
+        )::int, 0) AS dias_totales,
+        MAX(l.fecha_inicio)::text AS ultima_lesion
+      FROM jugadores j
+      JOIN usuarios u ON u.id = j.usuario_id
+      LEFT JOIN lesiones l ON l.jugador_id = j.id
+      WHERE (${isMaster}::boolean OR u.club_id = ${clubId})
+        AND u.activo = true
+      GROUP BY j.id, u.nombre
+      HAVING COUNT(l.id) > 0
+      ORDER BY dias_totales DESC
+    `
+    return NextResponse.json(rows)
+  }
+
+  // Historial de un jugador específico (todos sus registros, activos o no)
+  if (jugadorId) {
+    const r = await sql`SELECT l.id,l.jugador_id::int,l.fecha_inicio::text,l.fecha_alta::text,l.tipo_lesion,l.zona,
+                               l.descripcion,l.eta_dias::int,l.estado,l.activa,u.nombre AS jugador_nombre,j.posicion
+                        FROM lesiones l JOIN jugadores j ON j.id=l.jugador_id JOIN usuarios u ON u.id=j.usuario_id
+                        WHERE l.jugador_id=${jugadorId} AND (${isMaster}::boolean OR u.club_id=${clubId})
+                        ORDER BY l.fecha_inicio DESC`
+    return NextResponse.json(r)
+  }
+
   const r = activas
     ? await sql`SELECT l.id,l.jugador_id::int,l.fecha_inicio::text,l.fecha_alta::text,l.tipo_lesion,l.zona,
                        l.descripcion,l.eta_dias::int,l.estado,l.activa,u.nombre AS jugador_nombre,j.posicion
