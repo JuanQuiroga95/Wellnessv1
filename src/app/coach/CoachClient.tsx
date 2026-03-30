@@ -2073,6 +2073,34 @@ function MediaEquipoPanel() {
   const [ciclo, setCiclo] = useState<'microciclo'|'mesociclo'|'macrociclo'>('microciclo')
   const [data, setData]     = useState<any>(null)
   const [loading, setLoading] = useState(false)
+  const [demoLoading, setDemoLoading] = useState(false)
+  const [demoMsg, setDemoMsg]     = useState('')
+
+  async function cargarDemo() {
+    setDemoLoading(true); setDemoMsg('')
+    try {
+      const r = await fetch('/api/seed/calendario', { method: 'POST' })
+      const d = await r.json()
+      if (d.ok) {
+        setDemoMsg(`✓ ${d.sesionesCreadas} sesiones y ${d.logsCreados} registros de RPE cargados`)
+        await load()
+      } else {
+        setDemoMsg('Error: ' + d.error)
+      }
+    } catch(e) { setDemoMsg('Error de conexión') }
+    finally { setDemoLoading(false) }
+  }
+
+  async function borrarDemo() {
+    if (!confirm('¿Borrar todas las sesiones y logs demo de esta semana?')) return
+    setDemoLoading(true); setDemoMsg('')
+    try {
+      const r = await fetch('/api/seed/calendario', { method: 'DELETE' })
+      const d = await r.json()
+      if (d.ok) { setDemoMsg('Demo borrado'); await load() }
+    } catch(e) { setDemoMsg('Error') }
+    finally { setDemoLoading(false) }
+  }
   const [sortField, setSortField] = useState('nombre')
   const [sortDir,   setSortDir]   = useState<'asc'|'desc'>('asc')
 
@@ -2141,11 +2169,24 @@ function MediaEquipoPanel() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <div>
-        <h2 className="display" style={{ fontSize: 48, color: 'var(--snow)' }}>MEDIA EQUIPO</h2>
-        <p style={{ fontSize: 12, color: 'var(--silver)', marginTop: 2 }}>
-          Carga individual por jugador · RPE, UA y datos GPS de las sesiones
-        </p>
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', flexWrap:'wrap', gap:12 }}>
+        <div>
+          <h2 className="display" style={{ fontSize: 48, color: 'var(--snow)' }}>MEDIA EQUIPO</h2>
+          <p style={{ fontSize: 12, color: 'var(--silver)', marginTop: 2 }}>
+            Carga individual por jugador · RPE, UA y datos GPS de las sesiones
+          </p>
+        </div>
+        <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', gap:6 }}>
+          <div style={{ display:'flex', gap:8 }}>
+            <button onClick={cargarDemo} disabled={demoLoading} style={{ fontSize:11, padding:'8px 14px', borderRadius:8, background:'rgba(200,241,53,.12)', color:'var(--lime)', border:'1px solid rgba(200,241,53,.3)', cursor:'pointer', fontWeight:600 }}>
+              {demoLoading ? 'Cargando...' : '🏋️ Cargar semana demo'}
+            </button>
+            <button onClick={borrarDemo} disabled={demoLoading} style={{ fontSize:11, padding:'8px 14px', borderRadius:8, background:'rgba(239,68,68,.08)', color:'#f87171', border:'1px solid rgba(239,68,68,.25)', cursor:'pointer' }}>
+              🗑 Borrar demo
+            </button>
+          </div>
+          {demoMsg && <p style={{ fontSize:11, color: demoMsg.startsWith('✓') ? 'var(--lime)' : '#f87171' }}>{demoMsg}</p>}
+        </div>
       </div>
 
       {/* Ciclo selector */}
