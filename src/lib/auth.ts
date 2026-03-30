@@ -2,16 +2,13 @@ import { SignJWT, jwtVerify } from 'jose'
 import { cookies } from 'next/headers'
 import { NextRequest } from 'next/server'
 
-// IMPORTANT: JWT_SECRET must be set in Vercel environment variables.
-// Generate a strong secret: openssl rand -base64 32
-// Never use the fallback in production.
-const jwtSecret = process.env.JWT_SECRET
-if (!jwtSecret && process.env.NODE_ENV === 'production') {
-  console.error('[SECURITY] JWT_SECRET env var is not set! Set it in Vercel dashboard.')
+// SECRET is evaluated lazily at runtime, not at module load time.
+// This prevents build-time errors when JWT_SECRET isn't available yet.
+function getSecret(): Uint8Array {
+  const s = process.env.JWT_SECRET
+  if (!s) throw new Error('JWT_SECRET environment variable is required. Set it in Vercel → Settings → Environment Variables.')
+  return new TextEncoder().encode(s)
 }
-const SECRET = new TextEncoder().encode(
-  jwtSecret || (() => { throw new Error('JWT_SECRET environment variable is required') })()
-)
 
 export interface Session {
   userId: number
@@ -30,14 +27,12 @@ export async function createToken(p: Session) {
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
     .setExpirationTime('7d')
-    .sign(SECRET)
+    .sign(getSecret())
 }
 
 export async function verifyToken(token: string): Promise<Session | null> {
   try {
-    const { payload } = await jwtVerify(token, SECRET, {
-      algorithms: ['HS256'],
-    })
+    const { payload } = await jwtVerify(token, getSecret(), { algorithms: ['HS256'] })
     return payload as any
   } catch {
     return null
