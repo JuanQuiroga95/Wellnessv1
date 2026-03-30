@@ -1026,6 +1026,16 @@ function CalendarioPanel({ teamData }) {
                   </div>
                   <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', gap:4 }}>
                     {recup !== null && <RecuperacionBadge horas={recup} />}
+                    {log && (() => {
+                      const rpe = Number(log.avg_rpe || log.max_rpe) || 0
+                      const borgCol = rpe <= 2 ? '#22c55e' : rpe <= 4 ? '#a3e635' : rpe <= 6 ? '#eab308' : rpe <= 8 ? '#f97316' : '#ef4444'
+                      return rpe > 0 ? (
+                        <div style={{ display:'flex', alignItems:'center', gap:4, fontSize:10, padding:'2px 8px', borderRadius:6, background:`${borgCol}20`, color:borgCol, border:`1px solid ${borgCol}44`, fontWeight:700 }}>
+                          RPE <span style={{ fontSize:13 }}>{rpe % 1 === 0 ? rpe : rpe.toFixed(1)}</span>
+                          <span style={{ fontSize:8, color:borgCol, opacity:.7 }}>media</span>
+                        </div>
+                      ) : null
+                    })()}
                     <button onClick={()=>{setSelectedDay(fecha);setEditSesion(null);setShowEditor(true)}} style={{ fontSize:11, padding:'4px 10px', borderRadius:6, background:'transparent', border:'1px solid var(--fog)', color:'var(--silver)', cursor:'pointer' }}>+ Sesión</button>
                   </div>
                 </div>
@@ -1061,15 +1071,25 @@ function CalendarioPanel({ teamData }) {
 
       {/* Day detail panel (month view click) */}
       {selectedDay && viewMode==='mes' && (() => {
-        const { sesiones:ses, partidos:parts } = eventosDelDia(selectedDay)
+        const { sesiones:ses, partidos:parts, log } = eventosDelDia(selectedDay)
         const prevDay = allEventDays[allEventDays.indexOf(selectedDay)-1]
         const recup = prevDay ? calcRecuperacion(prevDay, selectedDay) : null
+        const rpeLog = log ? Number(log.avg_rpe || log.max_rpe) || 0 : 0
+        const borgColLog = rpeLog <= 2 ? '#22c55e' : rpeLog <= 4 ? '#a3e635' : rpeLog <= 6 ? '#eab308' : rpeLog <= 8 ? '#f97316' : '#ef4444'
         return (
           <div className="anim-up" style={{ background:'var(--ink2)', border:'1px solid rgba(200,241,53,.2)', borderRadius:14, padding:20 }}>
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14 }}>
               <div>
                 <p style={{ fontSize:13, fontWeight:700, color:'var(--lime)' }}>{new Date(selectedDay+'T12:00:00').toLocaleDateString('es',{weekday:'long',day:'numeric',month:'long'})}</p>
-                {recup !== null && (ses.length>0||parts.length>0) && <RecuperacionBadge horas={recup} />}
+                <div style={{ display:'flex', gap:8, alignItems:'center', marginTop:4, flexWrap:'wrap' }}>
+                  {recup !== null && (ses.length>0||parts.length>0) && <RecuperacionBadge horas={recup} />}
+                  {rpeLog > 0 && (
+                    <div style={{ display:'flex', alignItems:'center', gap:4, fontSize:11, padding:'2px 10px', borderRadius:6, background:`${borgColLog}20`, color:borgColLog, border:`1px solid ${borgColLog}44`, fontWeight:700 }}>
+                      RPE medio: <span style={{ fontSize:14 }}>{rpeLog % 1 === 0 ? rpeLog : rpeLog.toFixed(1)}</span>
+                      <span style={{ fontSize:8, opacity:.7 }}>({log.n || ''} resp.)</span>
+                    </div>
+                  )}
+                </div>
               </div>
               <div style={{ display:'flex', gap:8 }}>
                 <button onClick={()=>{setEditSesion(null);setShowEditor(true)}} className="btn-lime" style={{ fontSize:11, padding:'6px 14px' }}>+ Sesión</button>
@@ -2051,11 +2071,10 @@ function CoachSessionRow({ log }) {
 function MediaEquipoPanel() {
   const now = new Date()
   const [ciclo, setCiclo] = useState<'microciclo'|'mesociclo'|'macrociclo'>('microciclo')
-  const [data, setData] = useState<any>(null)
-  const [playerData, setPlayerData] = useState<any[]>([])
+  const [data, setData]     = useState<any>(null)
   const [loading, setLoading] = useState(false)
-  const [sortField, setSortField] = useState<string>('nombre')
-  const [sortDir, setSortDir] = useState<'asc'|'desc'>('asc')
+  const [sortField, setSortField] = useState('nombre')
+  const [sortDir,   setSortDir]   = useState<'asc'|'desc'>('asc')
 
   const CICLO_DAYS = { microciclo:7, mesociclo:28, macrociclo:365 }
 
@@ -2066,252 +2085,204 @@ function MediaEquipoPanel() {
     const hasta = now.toISOString().split('T')[0]
     const desde = new Date(Date.now() - CICLO_DAYS[ciclo] * 86400000).toISOString().split('T')[0]
     try {
-      const [cargaRes, logsRes] = await Promise.all([
-        fetch(`/api/cambio-carga?desde=${desde}&hasta=${hasta}&minEntrenamiento=0&minPartido=0`),
-        fetch(`/api/logs?days=${CICLO_DAYS[ciclo]}&allPlayers=true`).catch(()=>null)
-      ])
-      const cargaData = await cargaRes.json()
-      setData(cargaData)
-      // Try to get per-player aggregated data
-      const pRes = await fetch(`/api/analytics?desde=${desde}&hasta=${hasta}&perPlayer=true`).catch(()=>null)
-      if (pRes?.ok) {
-        const pd = await pRes.json()
-        setPlayerData(pd.players || [])
-      } else {
-        // fallback: use carga players
-        setPlayerData(cargaData.players || [])
-      }
-    } catch { }
+      const r = await fetch(`/api/carga-gps?desde=${desde}&hasta=${hasta}&ciclo=${ciclo}`)
+      if (r.ok) setData(await r.json())
+    } catch {}
     finally { setLoading(false) }
   }
 
-  const daily = data?.daily || []
-  const maxUA = Math.max(...daily.map((d:any) => d.avg_ua || 0), 1)
-  const avgRpe = daily.length ? (daily.reduce((s:number,d:any)=>s+(d.avg_rpe||0),0)/daily.length).toFixed(1) : '—'
-  const avgUa  = daily.length ? Math.round(daily.reduce((s:number,d:any)=>s+(d.avg_ua||0),0)/daily.length) : '—'
+  const players: any[]  = data?.players   || []
+  const teamAvg: any    = data?.teamAvg   || {}
+  const hasGps: boolean = data?.hasGpsData || false
 
-  const pctColor = (pct:number|null) => {
-    if (pct === null) return 'var(--silver)'
-    if (pct > 15) return '#ef4444'
-    if (pct > 0) return '#f59e0b'
-    if (pct < -15) return '#60a5fa'
-    return '#22c55e'
-  }
-
-  // Columns for the player table
-  const COLS = [
-    { key:'nombre', label:'Jugador', unit:'' },
-    { key:'rpe', label:'RPE', unit:'' },
-    { key:'ua', label:'UA', unit:'' },
-    { key:'dist_total', label:'Dist.', unit:'m' },
-    { key:'dist_sprint', label:'Sprint', unit:'m' },
-    { key:'dist_mp', label:'Alta Pot.', unit:'m' },
-    { key:'n_sprints', label:'Nº Sprints', unit:'' },
-    { key:'n_acel', label:'Nº Acel.', unit:'' },
-    { key:'n_decel', label:'Nº Decel.', unit:'' },
-  ]
+  const borgColor = (rpe: number) =>
+    rpe <= 2 ? '#22c55e' : rpe <= 4 ? '#a3e635' : rpe <= 6 ? '#eab308' : rpe <= 8 ? '#f97316' : '#ef4444'
 
   function toggleSort(field: string) {
     if (sortField === field) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
     else { setSortField(field); setSortDir(field === 'nombre' ? 'asc' : 'desc') }
   }
 
-  // Build sorted player rows from daily data (per player if available)
-  const playerRows = (() => {
-    if (playerData.length > 0) return playerData
-    // Aggregate from daily per player if available in data
-    if (!data?.byPlayer) return []
-    return Object.values(data.byPlayer)
-  })()
-
-  const sortedRows = [...playerRows].sort((a: any, b: any) => {
-    const va = a[sortField] ?? (sortField==='nombre' ? '' : -1)
-    const vb = b[sortField] ?? (sortField==='nombre' ? '' : -1)
-    if (typeof va === 'string') return sortDir==='asc' ? va.localeCompare(vb) : vb.localeCompare(va)
-    return sortDir==='asc' ? (va as number)-(vb as number) : (vb as number)-(va as number)
+  const sorted = [...players].sort((a: any, b: any) => {
+    const va = a[sortField] ?? (sortField === 'nombre' ? '' : -1)
+    const vb = b[sortField] ?? (sortField === 'nombre' ? '' : -1)
+    if (typeof va === 'string') return sortDir === 'asc' ? va.localeCompare(vb) : vb.localeCompare(va)
+    return sortDir === 'asc' ? (va as number) - (vb as number) : (vb as number) - (va as number)
   })
 
-  // Compute averages
-  const avgRow: Record<string,number|string> = { nombre: 'PROMEDIO' }
-  if (sortedRows.length > 0) {
-    COLS.filter(c=>c.key!=='nombre').forEach(c => {
-      const vals = sortedRows.map((r:any) => Number(r[c.key])||0).filter(v=>v>0)
-      avgRow[c.key] = vals.length ? Math.round(vals.reduce((s,v)=>s+v,0)/vals.length) : 0
-    })
-  }
-
-  const SortTh = ({ field, label, unit }: { field:string, label:string, unit:string }) => (
-    <th onClick={()=>toggleSort(field)} style={{ padding:'8px 10px', color: sortField===field?'var(--lime)':'var(--silver)', fontWeight:600, textTransform:'uppercase', fontSize:9, letterSpacing:'0.06em', textAlign:'center', whiteSpace:'nowrap', cursor:'pointer', userSelect:'none' }}>
-      {label}{unit && <span style={{ fontSize:8, color:'var(--fog)', marginLeft:2 }}>{unit}</span>}
-      {sortField===field && <span style={{ marginLeft:4, fontSize:9 }}>{sortDir==='asc'?'↑':'↓'}</span>}
+  const SortTh = ({ field, label, unit = '' }: { field: string; label: string; unit?: string }) => (
+    <th
+      onClick={() => toggleSort(field)}
+      style={{
+        padding: '8px 10px', cursor: 'pointer', userSelect: 'none' as any, whiteSpace: 'nowrap',
+        color: sortField === field ? 'var(--lime)' : 'var(--silver)',
+        fontWeight: 600, textTransform: 'uppercase' as any, fontSize: 9, letterSpacing: '0.06em', textAlign: 'center',
+      }}
+    >
+      {label}
+      {unit && <span style={{ fontSize: 8, color: 'var(--fog)', marginLeft: 2 }}>{unit}</span>}
+      {sortField === field && <span style={{ marginLeft: 3 }}>{sortDir === 'asc' ? '↑' : '↓'}</span>}
     </th>
   )
 
-  const macroMode = ciclo === 'macrociclo'
+  const GPS_COLS = [
+    { field: 'distTotal',  label: 'Dist.',   unit: 'm'  },
+    { field: 'distSprint', label: 'Sprint',  unit: 'm'  },
+    { field: 'distMP',     label: 'Alta pot',unit: 'm'  },
+    { field: 'distAcel',   label: 'Acel.',   unit: 'm'  },
+    { field: 'distDecel',  label: 'Decel.',  unit: 'm'  },
+    { field: 'nSprints',   label: 'Sprints', unit: 'nº' },
+    { field: 'nAcel',      label: 'Acel.',   unit: 'nº' },
+    { field: 'nDecel',     label: 'Decel.',  unit: 'nº' },
+  ]
 
   return (
-    <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <div>
-        <h2 className="display" style={{ fontSize:48, color:'var(--snow)' }}>MEDIA EQUIPO</h2>
-        <p style={{ fontSize:12, color:'var(--silver)', marginTop:2 }}>Carga individual y promedios por ciclo · Hacé click en columnas para ordenar</p>
+        <h2 className="display" style={{ fontSize: 48, color: 'var(--snow)' }}>MEDIA EQUIPO</h2>
+        <p style={{ fontSize: 12, color: 'var(--silver)', marginTop: 2 }}>
+          Carga individual por jugador · RPE, UA y datos GPS de las sesiones
+        </p>
       </div>
 
       {/* Ciclo selector */}
-      <div style={{ display:'flex', gap:4, background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:10, padding:3, alignSelf:'flex-start' }}>
-        {(['microciclo','mesociclo','macrociclo'] as const).map(c=>(
-          <button key={c} onClick={()=>setCiclo(c)} style={{ padding:'7px 16px', borderRadius:7, cursor:'pointer', fontSize:11, fontWeight:600, border:'none', background:ciclo===c?'var(--lime)':'transparent', color:ciclo===c?'var(--ink)':'var(--silver)', transition:'all .12s', textTransform:'capitalize' }}>
+      <div style={{ display: 'flex', gap: 4, background: 'var(--ink2)', border: '1px solid var(--mist)', borderRadius: 10, padding: 3, alignSelf: 'flex-start' }}>
+        {(['microciclo', 'mesociclo', 'macrociclo'] as const).map(c => (
+          <button key={c} onClick={() => setCiclo(c)} style={{
+            padding: '7px 16px', borderRadius: 7, cursor: 'pointer', fontSize: 11, fontWeight: 600,
+            border: 'none', background: ciclo === c ? 'var(--lime)' : 'transparent',
+            color: ciclo === c ? 'var(--ink)' : 'var(--silver)', transition: 'all .12s', textTransform: 'capitalize',
+          }}>
             {c}
           </button>
         ))}
       </div>
 
-      {/* Summary KPIs */}
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(140px,1fr))', gap:10 }}>
-        {[
-          ['RPE Medio', avgRpe, 'var(--lime)', 'promedio del período'],
-          ['UA Media', avgUa, '#60a5fa', 'promedio diario'],
-          ['Días con datos', daily.filter((d:any)=>d.n>0).length, 'var(--snow)', `de ${daily.length} días`],
-        ].map(([l,v,c,sub])=>(
-          <div key={l as string} style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:14, padding:16, textAlign:'center' }}>
-            <div className="mono" style={{ fontSize:28, fontWeight:600, color:c as string }}>{v}</div>
-            <div style={{ fontSize:10, color:'var(--silver)', marginTop:4 }}>{l as string}</div>
-            <div style={{ fontSize:9, color:'var(--fog)', marginTop:2 }}>{sub as string}</div>
-          </div>
-        ))}
-      </div>
+      {/* KPIs del equipo */}
+      {players.length > 0 && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(120px,1fr))', gap: 10 }}>
+          {[
+            ['RPE Medio',    teamAvg.rpe,        'var(--lime)', 'escala Borg'],
+            ['UA Media',     teamAvg.ua,          '#60a5fa',    'por sesión'],
+            ['UA Total',     teamAvg.ua_total,    '#a78bfa',    'acumulado'],
+            ['Jugadores',    players.length,      'var(--snow)', 'con datos'],
+          ].map(([l, v, c, sub]) => (
+            <div key={l as string} style={{ background: 'var(--ink2)', border: '1px solid var(--mist)', borderRadius: 12, padding: 14, textAlign: 'center' }}>
+              <div className="mono" style={{ fontSize: 26, fontWeight: 600, color: c as string }}>{v || '—'}</div>
+              <div style={{ fontSize: 10, color: 'var(--silver)', marginTop: 3 }}>{l as string}</div>
+              <div style={{ fontSize: 9, color: 'var(--fog)', marginTop: 1 }}>{sub as string}</div>
+            </div>
+          ))}
+        </div>
+      )}
 
-      {loading
-        ? <div style={{ padding:40, textAlign:'center', color:'var(--silver)' }}>Cargando...</div>
-        : daily.length === 0
-          ? <div style={{ padding:40, textAlign:'center', color:'var(--silver)' }}>Sin datos para este ciclo.</div>
-          : <>
-              {/* Nota macrociclo */}
-              {macroMode && (
-                <div style={{ background:'rgba(200,241,53,.06)', border:'1px solid rgba(200,241,53,.2)', borderRadius:10, padding:'10px 14px', fontSize:12, color:'var(--lime)' }}>
-                  💡 En macrociclo se muestra la media de todos los días del período (temporada).
-                </div>
-              )}
+      {loading ? (
+        <div style={{ padding: 48, textAlign: 'center', color: 'var(--silver)' }}>Cargando...</div>
+      ) : players.length === 0 ? (
+        <div style={{ padding: 48, textAlign: 'center', color: 'var(--silver)' }}>
+          Sin datos para este ciclo. Registrá sesiones de entrenamiento con RPE en el Calendario.
+        </div>
+      ) : (
+        <>
+          {/* Info GPS */}
+          {!hasGps && (
+            <div style={{ background: 'rgba(96,165,250,.06)', border: '1px solid rgba(96,165,250,.2)', borderRadius: 10, padding: '10px 16px', fontSize: 12, color: '#93c5fd' }}>
+              📐 Los datos GPS (distancia, sprints, etc.) se calculan a partir de las sesiones planificadas en el Calendario.
+              Cuando agregás tareas con espacio y jugadores, los datos aparecen automáticamente aquí.
+              También podés editarlos manualmente con el botón "Editar GPS" en cada tarea.
+            </div>
+          )}
 
-              {/* Bar chart UA media diaria */}
-              <div style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:16, padding:20 }}>
-                <p style={{ fontSize:11, fontWeight:600, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:16 }}>UA Media Diaria del Equipo</p>
-                <div style={{ display:'flex', alignItems:'flex-end', gap:4, height:100, overflowX:'auto' }}>
-                  {daily.map((d:any,i:number)=>{
-                    const pct = (d.avg_ua/maxUA)*100
-                    const col = pctColor(d.pct_change)
+          {/* TABLA INDIVIDUAL POR JUGADOR */}
+          <div style={{ background: 'var(--ink2)', border: '1px solid rgba(200,241,53,.2)', borderRadius: 16, overflow: 'hidden' }}>
+            <div style={{ padding: '12px 18px', borderBottom: '1px solid var(--mist)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--lime)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                CARGA INDIVIDUAL POR JUGADOR · {ciclo.toUpperCase()}
+              </p>
+              <p style={{ fontSize: 10, color: 'var(--fog)' }}>Click en columna para ordenar</p>
+            </div>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                <thead>
+                  <tr style={{ background: 'rgba(255,255,255,.03)' }}>
+                    <SortTh field="nombre"   label="Jugador" />
+                    <SortTh field="rpe"      label="RPE" />
+                    <SortTh field="ua"       label="UA" unit="media" />
+                    <SortTh field="ua_total" label="UA" unit="total" />
+                    <SortTh field="sesiones" label="Ses." />
+                    {GPS_COLS.map(c => <SortTh key={c.field} field={c.field} label={c.label} unit={c.unit} />)}
+                  </tr>
+                </thead>
+                <tbody>
+                  {sorted.map((p: any, i: number) => {
+                    const rpe = Number(p.rpe) || 0
+                    const bc  = rpe > 0 ? borgColor(rpe) : 'var(--fog)'
                     return (
-                      <div key={i} style={{ flex:'0 0 auto', minWidth:40, display:'flex', flexDirection:'column', alignItems:'center', gap:2 }}>
-                        <div className="mono" style={{ fontSize:9, color:col, fontWeight:700, whiteSpace:'nowrap' }}>{d.avg_ua > 0 ? d.avg_ua : ''}</div>
-                        <div title={`${d.label}: ${d.avg_ua} UA`} style={{ width:28, height:70, background:'var(--mist)', borderRadius:4, overflow:'hidden', display:'flex', alignItems:'flex-end' }}>
-                          <div style={{ width:'100%', height:`${pct}%`, background:col, borderRadius:4, minHeight:d.avg_ua>0?4:0 }} />
-                        </div>
-                        <div style={{ fontSize:8, color:'var(--fog)', maxWidth:40, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{d.label?.slice(5)||d.label}</div>
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>
-
-              {/* Tabla diaria por ciclo */}
-              <div style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:16, overflow:'hidden' }}>
-                <div style={{ overflowX:'auto' }}>
-                  <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12 }}>
-                    <thead>
-                      <tr style={{ background:'rgba(255,255,255,.03)' }}>
-                        {['Fecha','Jugadores','RPE Medio','UA Media','% vs anterior'].map(h=>(
-                          <th key={h} style={{ padding:'8px 14px', color:'var(--silver)', fontWeight:600, textTransform:'uppercase', fontSize:9, letterSpacing:'0.06em', textAlign:'center', whiteSpace:'nowrap' }}>{h}</th>
+                      <tr key={i} style={{ borderTop: '1px solid var(--mist)', background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,.015)' }}>
+                        <td style={{ padding: '9px 14px', fontWeight: 500, color: 'var(--snow)', whiteSpace: 'nowrap' }}>
+                          {p.nombre}
+                          {p.posicion && <span style={{ fontSize: 10, color: 'var(--fog)', marginLeft: 6 }}>{p.posicion}</span>}
+                        </td>
+                        <td style={{ padding: '9px 10px', textAlign: 'center' }}>
+                          {rpe > 0
+                            ? <span style={{ fontFamily: 'DM Mono,monospace', fontWeight: 700, fontSize: 13, color: bc, background: `${bc}18`, padding: '2px 8px', borderRadius: 6, border: `1px solid ${bc}33` }}>{rpe}</span>
+                            : <span style={{ color: 'var(--fog)' }}>—</span>}
+                        </td>
+                        <td style={{ padding: '9px 10px', textAlign: 'center', fontFamily: 'DM Mono,monospace', fontWeight: 600, color: p.ua ? '#60a5fa' : 'var(--fog)' }}>{p.ua || '—'}</td>
+                        <td style={{ padding: '9px 10px', textAlign: 'center', fontFamily: 'DM Mono,monospace', color: p.ua_total ? 'var(--snow)' : 'var(--fog)' }}>{p.ua_total || '—'}</td>
+                        <td style={{ padding: '9px 10px', textAlign: 'center', fontFamily: 'DM Mono,monospace', color: 'var(--silver)' }}>{p.sesiones || '—'}</td>
+                        {GPS_COLS.map(c => (
+                          <td key={c.field} style={{ padding: '9px 10px', textAlign: 'center', fontFamily: 'DM Mono,monospace', color: p[c.field] > 0 ? 'var(--snow)' : 'var(--fog)' }}>
+                            {p[c.field] > 0 ? p[c.field] : '—'}
+                          </td>
                         ))}
                       </tr>
-                    </thead>
-                    <tbody>
-                      {daily.map((d:any,i:number)=>{
-                        const col = pctColor(d.pct_change)
-                        return (
-                          <tr key={i} style={{ borderTop:'1px solid var(--mist)', background:d.n>0?'transparent':'rgba(0,0,0,.2)' }}>
-                            <td style={{ padding:'8px 14px', textAlign:'center', fontFamily:'DM Mono,monospace', fontSize:11, color:'var(--fog)' }}>{d.label}</td>
-                            <td style={{ padding:'8px 14px', textAlign:'center', fontFamily:'DM Mono,monospace', color:'var(--silver)' }}>{d.n||'—'}</td>
-                            <td style={{ padding:'8px 14px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, color:d.avg_rpe?'var(--lime)':'var(--fog)' }}>{d.avg_rpe?.toFixed(1)||'—'}</td>
-                            <td style={{ padding:'8px 14px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, color:d.avg_ua?'#60a5fa':'var(--fog)' }}>{d.avg_ua||'—'}</td>
-                            <td style={{ padding:'8px 14px', textAlign:'center' }}>
-                              {d.pct_change !== null
-                                ? <span style={{ fontSize:11, padding:'2px 8px', borderRadius:20, background:`${col}20`, color:col, border:`1px solid ${col}44`, fontWeight:600 }}>{d.pct_change > 0 ? '+' : ''}{d.pct_change}%</span>
-                                : <span style={{ color:'var(--fog)' }}>—</span>}
-                            </td>
-                          </tr>
-                        )
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
+                    )
+                  })}
 
-              {/* Tabla por jugador — con métricas GPS y RPE + UA */}
-              <div style={{ background:'var(--ink2)', border:'1px solid rgba(200,241,53,.2)', borderRadius:16, overflow:'hidden' }}>
-                <div style={{ padding:'12px 18px', borderBottom:'1px solid var(--mist)', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-                  <p style={{ fontSize:11, fontWeight:700, color:'var(--lime)', textTransform:'uppercase', letterSpacing:'0.08em' }}>
-                    Carga individual por jugador · {ciclo}
-                  </p>
-                  <p style={{ fontSize:10, color:'var(--fog)' }}>Click en columna para ordenar</p>
-                </div>
-                <div style={{ overflowX:'auto' }}>
-                  <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12 }}>
-                    <thead>
-                      <tr style={{ background:'rgba(255,255,255,.03)' }}>
-                        <SortTh field="nombre" label="Jugador" unit="" />
-                        <SortTh field="rpe" label="RPE" unit="" />
-                        <SortTh field="ua" label="UA" unit="" />
-                        <SortTh field="dist_total" label="Dist." unit="m" />
-                        <SortTh field="dist_sprint" label="Sprint" unit="m" />
-                        <SortTh field="dist_mp" label="Alta Pot." unit="m" />
-                        <SortTh field="n_sprints" label="Sprints" unit="nº" />
-                        <SortTh field="n_acel" label="Acel." unit="nº" />
-                        <SortTh field="n_decel" label="Decel." unit="nº" />
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {sortedRows.length === 0 ? (
-                        <tr><td colSpan={9} style={{ padding:'24px', textAlign:'center', color:'var(--fog)', fontSize:12 }}>
-                          Sin datos GPS individuales. Los datos por jugador estarán disponibles cuando registres sesiones con GPS.
-                        </td></tr>
-                      ) : sortedRows.map((p:any, i:number) => {
-                        const borgCol = (rpe: number) => rpe <= 2 ? '#22c55e' : rpe <= 4 ? '#a3e635' : rpe <= 6 ? '#eab308' : rpe <= 8 ? '#f97316' : '#ef4444'
-                        const rpe = Number(p.rpe) || 0
-                        return (
-                          <tr key={i} style={{ borderTop:'1px solid var(--mist)', background:i%2===0?'transparent':'rgba(255,255,255,.015)' }}>
-                            <td style={{ padding:'9px 14px', fontWeight:500, color:'var(--snow)', whiteSpace:'nowrap' }}>{p.nombre || '—'}</td>
-                            <td style={{ padding:'9px 10px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, color: rpe ? borgCol(rpe) : 'var(--fog)' }}>{rpe || '—'}</td>
-                            <td style={{ padding:'9px 10px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, color:p.ua?'#60a5fa':'var(--fog)' }}>{p.ua ? Math.round(p.ua) : '—'}</td>
-                            {['dist_total','dist_sprint','dist_mp','n_sprints','n_acel','n_decel'].map(k=>(
-                              <td key={k} style={{ padding:'9px 10px', textAlign:'center', fontFamily:'DM Mono,monospace', color:p[k]?'var(--snow)':'var(--fog)' }}>{p[k] ? Math.round(p[k]) : '—'}</td>
-                            ))}
-                          </tr>
-                        )
-                      })}
-                      {/* Fila de promedio */}
-                      {sortedRows.length > 0 && (
-                        <tr style={{ borderTop:'2px solid rgba(200,241,53,.3)', background:'rgba(200,241,53,.06)' }}>
-                          <td style={{ padding:'9px 14px', fontWeight:800, color:'var(--lime)', fontSize:10, textTransform:'uppercase', letterSpacing:'0.06em' }}>Promedio</td>
-                          {['rpe','ua','dist_total','dist_sprint','dist_mp','n_sprints','n_acel','n_decel'].map(k=>(
-                            <td key={k} style={{ padding:'9px 10px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, color:'var(--lime)', fontSize:13 }}>
-                              {avgRow[k] ? Number(avgRow[k]) > 0 ? Math.round(Number(avgRow[k])) : '—' : '—'}
-                            </td>
-                          ))}
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-                {sortedRows.length === 0 && (
-                  <div style={{ padding:'12px 18px', background:'rgba(96,165,250,.06)', borderTop:'1px solid rgba(96,165,250,.2)', fontSize:11, color:'#60a5fa' }}>
-                    💡 Los datos individuales de GPS (distancia, sprints, etc.) se cargan cuando tenés sensores GPS en los jugadores. Por ahora podés ver RPE y UA desde las sesiones registradas.
-                  </div>
-                )}
-              </div>
-            </>
-      }
+                  {/* Fila promedio equipo */}
+                  <tr style={{ borderTop: '2px solid rgba(200,241,53,.3)', background: 'rgba(200,241,53,.06)' }}>
+                    <td style={{ padding: '10px 14px', fontWeight: 800, color: 'var(--lime)', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                      Promedio equipo
+                    </td>
+                    <td style={{ padding: '10px 10px', textAlign: 'center' }}>
+                      {teamAvg.rpe > 0
+                        ? <span style={{ fontFamily: 'DM Mono,monospace', fontWeight: 800, fontSize: 13, color: borgColor(teamAvg.rpe), background: `${borgColor(teamAvg.rpe)}18`, padding: '2px 8px', borderRadius: 6 }}>{teamAvg.rpe}</span>
+                        : '—'}
+                    </td>
+                    <td style={{ padding: '10px 10px', textAlign: 'center', fontFamily: 'DM Mono,monospace', fontWeight: 800, color: '#60a5fa' }}>{teamAvg.ua || '—'}</td>
+                    <td style={{ padding: '10px 10px', textAlign: 'center', fontFamily: 'DM Mono,monospace', fontWeight: 800, color: 'var(--snow)' }}>{teamAvg.ua_total || '—'}</td>
+                    <td style={{ padding: '10px 10px', textAlign: 'center', fontFamily: 'DM Mono,monospace', color: 'var(--silver)' }}>{teamAvg.sesiones || '—'}</td>
+                    {GPS_COLS.map(c => (
+                      <td key={c.field} style={{ padding: '10px 10px', textAlign: 'center', fontFamily: 'DM Mono,monospace', fontWeight: 700, color: teamAvg[c.field] > 0 ? 'var(--lime)' : 'var(--fog)' }}>
+                        {teamAvg[c.field] > 0 ? teamAvg[c.field] : '—'}
+                      </td>
+                    ))}
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Nota mesociclo/macrociclo */}
+          {ciclo !== 'microciclo' && (
+            <div style={{ background: 'rgba(200,241,53,.05)', border: '1px solid rgba(200,241,53,.15)', borderRadius: 10, padding: '10px 16px', fontSize: 11, color: 'var(--silver)' }}>
+              💡 <strong style={{ color: 'var(--lime)' }}>{ciclo === 'mesociclo' ? 'Mesociclo (28 días)' : 'Macrociclo (365 días)'}</strong>:
+              Los valores muestran la media por sesión de cada jugador en el período.
+              La distancia y sprints son la suma acumulada de todas las sesiones planificadas en el Calendario.
+            </div>
+          )}
+        </>
+      )}
     </div>
   )
 }
+
+
+
+
+
+
 
 function LesionesPanel({ teamData, onRefresh }) {
   const [lesiones, setLesiones] = useState([])

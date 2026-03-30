@@ -67,7 +67,7 @@ export async function GET(req: NextRequest) {
   const byDate: Record<string, { total_ua: number; total_rpe: number; count: number; players: string[] }> = {}
   for (const log of trainLogs as any[]) {
     if (!qualifyingPlayers.has(log.jugador_id)) continue
-    if (log.duracion_min < minEntrenamiento) continue
+    if ((log.duracion_min || 0) < minEntrenamiento) continue
     if (!byDate[log.fecha]) byDate[log.fecha] = { total_ua: 0, total_rpe: 0, count: 0, players: [] }
     byDate[log.fecha].total_ua += log.carga_ua || 0
     byDate[log.fecha].total_rpe += log.rpe || 0
@@ -109,7 +109,7 @@ export async function GET(req: NextRequest) {
   const byWeek: Record<string, { total_ua: number; count: number; label: string }> = {}
   for (const log of trainLogs as any[]) {
     if (!qualifyingPlayers.has(log.jugador_id)) continue
-    if (log.duracion_min < minEntrenamiento) continue
+    if ((log.duracion_min || 0) < minEntrenamiento) continue
     const wk = getWeekKey(log.fecha)
     if (!byWeek[wk]) {
       const d = new Date(log.fecha + 'T12:00:00Z')
@@ -134,5 +134,26 @@ export async function GET(req: NextRequest) {
     }
   })
 
-  return NextResponse.json({ daily, weekly, qualifyingCount: qualifyingPlayers.size })
+  // Build per-player aggregates — usa carga_ua si existe, sino rpe como UA aproximada
+  const byPlayer: Record<number, { jugador_id: number; nombre: string; total_ua: number; total_rpe: number; count: number; count_ua: number }> = {}
+  for (const log of trainLogs as any[]) {
+    if (!byPlayer[log.jugador_id]) {
+      byPlayer[log.jugador_id] = { jugador_id: log.jugador_id, nombre: log.nombre, total_ua: 0, total_rpe: 0, count: 0, count_ua: 0 }
+    }
+    const ua = Number(log.carga_ua) || 0
+    byPlayer[log.jugador_id].total_ua += ua
+    byPlayer[log.jugador_id].total_rpe += Number(log.rpe) || 0
+    byPlayer[log.jugador_id].count += 1
+    if (ua > 0) byPlayer[log.jugador_id].count_ua += 1
+  }
+  const players = Object.values(byPlayer).map(p => ({
+    jugador_id: p.jugador_id,
+    nombre: p.nombre,
+    rpe: p.count > 0 ? Math.round((p.total_rpe / p.count) * 10) / 10 : 0,
+    ua: p.count_ua > 0 ? Math.round(p.total_ua / p.count_ua) : 0,
+    ua_total: Math.round(p.total_ua),
+    sesiones: p.count,
+  })).sort((a, b) => a.nombre.localeCompare(b.nombre))
+
+  return NextResponse.json({ daily, weekly, qualifyingCount: qualifyingPlayers.size, players })
 }

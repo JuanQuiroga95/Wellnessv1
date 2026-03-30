@@ -22,6 +22,13 @@ export async function POST() {
     [`CREATE TABLE IF NOT EXISTS sesiones_plan (id SERIAL PRIMARY KEY, club_id INTEGER, admin_id INTEGER REFERENCES usuarios(id), fecha DATE NOT NULL, hora_inicio TIME, hora_fin TIME, tipo VARCHAR(20) NOT NULL DEFAULT 'entrenamiento', titulo VARCHAR(150), objetivo VARCHAR(50), descripcion TEXT, ejercicios JSONB DEFAULT '[]', rpe_objetivo SMALLINT, materiales TEXT, notas TEXT, created_at TIMESTAMPTZ DEFAULT NOW())`, 'sesiones_plan table'],
     [`CREATE INDEX IF NOT EXISTS idx_sesiones_plan_fecha ON sesiones_plan(admin_id, fecha)`, 'sesiones_plan index'],
     [`ALTER TABLE jugadores ADD COLUMN IF NOT EXISTS foto_url TEXT`, 'foto_url'],
+    // New migrations for missing columns
+    [`ALTER TABLE sesiones_plan ADD COLUMN IF NOT EXISTS objetivo_secundario VARCHAR(100)`, 'sesiones_plan.objetivo_secundario'],
+    [`ALTER TABLE sesiones_plan ADD COLUMN IF NOT EXISTS objetivo_fisico VARCHAR(100)`, 'sesiones_plan.objetivo_fisico'],
+    [`ALTER TABLE jugadores ADD COLUMN IF NOT EXISTS fecha_nacimiento DATE`, 'jugadores.fecha_nacimiento'],
+    [`ALTER TABLE jugadores ADD COLUMN IF NOT EXISTS hora_recordatorio TIME DEFAULT '08:00'`, 'jugadores.hora_recordatorio'],
+    [`ALTER TABLE jugadores ADD COLUMN IF NOT EXISTS email VARCHAR(200)`, 'jugadores.email'],
+    [`ALTER TABLE club_settings ADD COLUMN IF NOT EXISTS email VARCHAR(200)`, 'club_settings.email'],
   ]
 
   for (const [stmt, label] of migrations) {
