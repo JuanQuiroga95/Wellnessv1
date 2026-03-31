@@ -642,7 +642,6 @@
     position: relative;
     height: 320px;
     overflow: hidden;
-    background: var(--dark4);
   }
 
   .team-photo-wrap img {
@@ -657,27 +656,6 @@
   .team-card:hover .team-photo-wrap img {
     filter: grayscale(0%);
     transform: scale(1.04);
-  }
-
-  .team-photo-fallback {
-    display: none;
-    width: 100%;
-    height: 100%;
-    align-items: center;
-    justify-content: center;
-    background: linear-gradient(135deg, var(--dark4) 0%, var(--dark2) 100%);
-  }
-
-  .team-photo-fallback-inner {
-    width: 120px; height: 120px;
-    background: rgba(200,241,53,0.1);
-    border: 2px solid rgba(200,241,53,0.3);
-    border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
-    font-family: 'Bebas Neue', sans-serif;
-    font-size: 48px;
-    color: var(--lime);
-    letter-spacing: 2px;
   }
 
   .team-photo-overlay {
@@ -824,7 +802,7 @@
     <li><a href="#contact">Contacto</a></li>
   </ul>
   <div class="nav-cta">
-    <a href="/login" class="btn-login">Iniciar sesión →</a>
+    <a href="/coach" class="btn-login">Iniciar sesión →</a>
   </div>
 </nav>
 
@@ -847,7 +825,7 @@
   </p>
 
   <div class="hero-actions">
-    <a href="/login" class="btn-primary">
+    <a href="/coach" class="btn-primary">
       Acceder al sistema
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8h10M8 3l5 5-5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </a>
@@ -987,11 +965,6 @@
           <span class="discipline-name">Tenis / Pádel</span>
           <span class="discipline-detail">RALLIES · DISTANCIA</span>
         </div>
-        <div class="discipline-item">
-          <span class="discipline-emoji">🚣</span>
-          <span class="discipline-name">Remo</span>
-          <span class="discipline-detail">POTENCIA · VATIOS · CADENCIA</span>
-        </div>
       </div>
     </div>
 
@@ -1095,34 +1068,26 @@
 
   <div class="team-grid reveal">
     <div class="team-card">
-      <div class="team-photo-wrap" id="wrap-juan">
-        <img src="/foto-juan.jpg" alt="Juan Quiroga"
-          onerror="this.style.display='none'; document.getElementById('fb-juan').style.display='flex';" />
-        <div class="team-photo-fallback" id="fb-juan">
-          <div class="team-photo-fallback-inner">JQ</div>
-        </div>
-        <div class="team-photo-overlay"></div>
-      </div>
-      <div class="team-info">
-        <div class="team-role">Desarrollador · Arquitectura del sistema</div>
-        <div class="team-name">Juan Quiroga</div>
-        <p class="team-bio">Desarrollador full-stack especializado en aplicaciones de datos deportivos. Diseñó y construyó toda la arquitectura técnica de W&P desde cero.</p>
-      </div>
-    </div>
-
-    <div class="team-card">
-      <div class="team-photo-wrap" id="wrap-franco">
-        <img src="/foto-franco.jpg" alt="Franco Tosoni"
-          onerror="this.style.display='none'; document.getElementById('fb-franco').style.display='flex';" />
-        <div class="team-photo-fallback" id="fb-franco">
-          <div class="team-photo-fallback-inner">FT</div>
-        </div>
+      <div class="team-photo-wrap">
+        <img src="Captura_de_pantalla_2026-03-30_204847.png" alt="Franco Tosoni" />
         <div class="team-photo-overlay"></div>
       </div>
       <div class="team-info">
         <div class="team-role">Preparador Físico · Dirección deportiva</div>
         <div class="team-name">Franco Tosoni</div>
         <p class="team-bio">Preparador físico profesional con experiencia en fútbol de alta competencia. Definió cada módulo, flujo y métrica del sistema desde la necesidad real del cuerpo técnico.</p>
+      </div>
+    </div>
+
+    <div class="team-card">
+      <div class="team-photo-wrap">
+        <img src="Captura_de_pantalla_2026-03-30_204933.png" alt="Juan Quiroga" />
+        <div class="team-photo-overlay"></div>
+      </div>
+      <div class="team-info">
+        <div class="team-role">Desarrollador · Arquitectura del sistema</div>
+        <div class="team-name">Juan Quiroga</div>
+        <p class="team-bio">Desarrollador full-stack especializado en aplicaciones de datos deportivos. Diseñó y construyó toda la arquitectura técnica de W&P desde cero.</p>
       </div>
     </div>
   </div>
@@ -1133,7 +1098,7 @@
   <div class="reveal">
     <h2 class="cta-title">LLEVÁ TU<br>EQUIPO AL<br><span style="color:var(--lime)">SIGUIENTE NIVEL</span></h2>
     <p class="cta-sub">Accedé al sistema hoy. Sin contratos complicados. Sin instalación. Solo resultados.</p>
-    <a href="/login" class="btn-primary" style="font-size:16px; padding:18px 48px; display:inline-flex;">
+    <a href="/coach" class="btn-primary" style="font-size:16px; padding:18px 48px; display:inline-flex;">
       Iniciar sesión en W&P
       <svg width="18" height="18" viewBox="0 0 16 16" fill="none" style="margin-left:8px"><path d="M3 8h10M8 3l5 5-5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </a>
