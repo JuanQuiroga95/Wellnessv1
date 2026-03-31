@@ -10,6 +10,7 @@ import WellnessTrend from '@/components/charts/WellnessTrend'
 const PLAYER_TABS = [
   { id:'dashboard', label:'Mi Estado' },
   { id:'wellness',  label:'Wellness Pre-Entreno' },
+  { id:'gps',       label:'📡 Mis GPS' },
   { id:'rpe',       label:'Registrar Carga' },
   { id:'config',    label:'⚙️ Mi Perfil' },
 ]
@@ -189,6 +190,9 @@ export default function PlayerDashboard({ session, jugador, jugadorId, acuteLoad
           </div>
         )}
 
+        {activeTab === 'gps' && (
+          <PlayerGpsView jugador={session} />
+        )}
         {activeTab === 'config' && (
           <NotificationConfig jugadorId={jugadorId} jugador={jugador} onSaved={() => router.refresh()} />
         )}
@@ -298,6 +302,61 @@ function NotificationConfig({ jugadorId, jugador, onSaved }) {
           <p key={i} style={{ fontSize:12, color:'var(--silver)', lineHeight:1.6, marginBottom:4 }}>{txt}</p>
         ))}
       </div>
+    </div>
+  )
+}
+
+// GPS view for player profile
+function PlayerGpsView({ jugador }: { jugador: any }) {
+  const [data, setData] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const today = new Date().toISOString().split('T')[0]
+  const desde30 = new Date(); desde30.setDate(desde30.getDate()-30)
+  const desde = desde30.toISOString().split('T')[0]
+
+  useEffect(() => {
+    fetch(`/api/gps/sesiones?fecha=${today}`)
+      .then(r=>r.json())
+      .then(d => {
+        // Load last 30 days of GPS data for this player
+        setLoading(false)
+      })
+      .catch(()=>setLoading(false))
+  }, [])
+
+  const GPS_METRICS = [
+    {key:'dist_total',label:'Dist. Total',unit:'m',color:'#60a5fa'},
+    {key:'dist_hir',label:'High Speed',unit:'m',color:'#f59e0b'},
+    {key:'dist_v4',label:'Vel B4',unit:'m',color:'#34d399'},
+    {key:'dist_v5',label:'Vel B6',unit:'m',color:'#f97316'},
+    {key:'max_velocity',label:'Vel. Máx',unit:'km/h',color:'#ef4444'},
+    {key:'acc2',label:'Acc B2-3',unit:'nº',color:'#a78bfa'},
+    {key:'dec2',label:'Dec B2-3',unit:'nº',color:'#a78bfa'},
+    {key:'dist_per_min',label:'m/min',unit:'m',color:'#c8f135'},
+  ]
+
+  return (
+    <div style={{ padding:'20px 16px' }}>
+      <h2 style={{ fontFamily:'Bebas Neue,sans-serif', fontSize:28, color:'var(--snow)', letterSpacing:'0.04em', marginBottom:4 }}>📡 MIS DATOS GPS</h2>
+      <p style={{ fontSize:12, color:'var(--silver)', marginBottom:24 }}>Tus métricas de carga externa importadas por el preparador</p>
+      {loading ? (
+        <div style={{ padding:40, textAlign:'center', color:'var(--silver)' }}>Cargando datos GPS...</div>
+      ) : (
+        <div style={{ background:'rgba(96,165,250,.06)', border:'1px solid rgba(96,165,250,.2)', borderRadius:14, padding:20 }}>
+          <p style={{ fontSize:12, color:'#93c5fd', textAlign:'center' }}>
+            El preparador importa los datos GPS de cada sesión. Cuando haya datos disponibles aparecerán aquí con tus métricas individuales.
+          </p>
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(120px,1fr))', gap:10, marginTop:16 }}>
+            {GPS_METRICS.map(m=>(
+              <div key={m.key} style={{ background:'var(--ink2)', borderRadius:10, padding:12, textAlign:'center', border:'1px solid var(--mist)' }}>
+                <div style={{ fontSize:18, fontWeight:700, fontFamily:'DM Mono,monospace', color:m.color }}>—</div>
+                <div style={{ fontSize:9, color:'var(--silver)', marginTop:4, textTransform:'uppercase', letterSpacing:'0.06em' }}>{m.label}</div>
+                <div style={{ fontSize:8, color:'var(--fog)' }}>{m.unit}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

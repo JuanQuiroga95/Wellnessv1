@@ -54,6 +54,33 @@ export async function POST(req: NextRequest) {
     [`CREATE INDEX IF NOT EXISTS idx_lesiones_club_activa ON lesiones(club_id, activa)`, 'lesiones index club_activa'],
     [`ALTER TABLE lesiones ADD COLUMN IF NOT EXISTS causa VARCHAR(150)`, 'lesiones.causa'],
     [`ALTER TABLE gps_logs ADD COLUMN IF NOT EXISTS metricas JSONB DEFAULT '{}'`, 'gps_logs.metricas jsonb'],
+    [`CREATE TABLE IF NOT EXISTS evaluaciones (
+      id SERIAL PRIMARY KEY,
+      jugador_id INTEGER REFERENCES jugadores(id) ON DELETE CASCADE,
+      club_id INTEGER,
+      fecha DATE NOT NULL,
+      pfv NUMERIC(5,2), dsi NUMERIC(5,2), cmj NUMERIC(5,2), rsi NUMERIC(5,2),
+      iq NUMERIC(5,2), aduc_iso NUMERIC(5,2), fms NUMERIC(5,2),
+      velocidad_lineal NUMERIC(5,2), velocidad_fuerza NUMERIC(5,2), yo_yo NUMERIC(7,1),
+      notas TEXT,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )`, 'evaluaciones table'],
+    [`CREATE TABLE IF NOT EXISTS biblioteca_tareas (
+      id SERIAL PRIMARY KEY,
+      admin_id INTEGER,
+      nombre VARCHAR(200) NOT NULL,
+      ventana VARCHAR(100),
+      subtarea VARCHAR(100),
+      jugadores INTEGER,
+      series INTEGER,
+      minutos INTEGER,
+      pausa INTEGER,
+      largo INTEGER,
+      ancho INTEGER,
+      descripcion TEXT,
+      veces_usada INTEGER DEFAULT 1,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )`, 'biblioteca_tareas table'],
   ]
 
   for (const [sql_stmt, label] of migrations) {

@@ -80,7 +80,7 @@ function compressImage(dataUrl: string, maxSize = 400, quality = 0.7): Promise<s
   })
 }
 
-const TABS = [{id:'team',label:'Equipo'},{id:'calendario',label:'📅 Calendario'},{id:'analytics',label:'Analytics'},{id:'minutos',label:'Minutaje'},{id:'carga-externa',label:'Carga Externa'},{id:'cambio-carga',label:'Cambio de Carga'},{id:'lesiones',label:'Lesiones'},{id:'gps',label:'📡 GPS'},{id:'players',label:'Jugadores'}]
+const TABS = [{id:'team',label:'Equipo'},{id:'calendario',label:'📅 Calendario'},{id:'analytics',label:'Analytics'},{id:'minutos',label:'Minutaje'},{id:'carga-externa',label:'Carga Externa'},{id:'control-carga-calc',label:'🏋️ Ctrl. Carga Calc'},{id:'control-carga-gps',label:'📡 Ctrl. Carga GPS'},{id:'acumulado',label:'📈 Acumulado Ind.'},{id:'cambio-carga',label:'Cambio de Carga'},{id:'expo-ai',label:'⚡ Expo. AI'},{id:'evaluaciones',label:'📋 Evaluaciones'},{id:'lesiones',label:'Lesiones'},{id:'gps',label:'📡 GPS'},{id:'players',label:'Jugadores'},{id:'biblioteca',label:'📚 Biblioteca'}]
 const SC = {optimo:'#22c55e',precaucion:'#f59e0b',peligro:'#ef4444',sin_datos:'#555'}
 const SL = {optimo:'ÓPTIMO',precaucion:'PRECAUCIÓN',peligro:'RIESGO',sin_datos:'—'}
 const WK = ['fatiga','calidad_sueno','dolor_muscular','nivel_estres','estado_animo']
@@ -314,6 +314,12 @@ export default function CoachClient({ session, teamData, today }) {
         {tab==='calendario' && <CalendarioPanel teamData={teamData} />}
         {tab==='minutos' && <MinutosPanel teamData={teamData} />}
         {tab==='carga-externa' && <CargaExternaPanel />}
+        {tab==='control-carga-calc' && <ControlCargaCalcPanel teamData={teamData} />}
+        {tab==='control-carga-gps' && <ControlCargaGpsPanel teamData={teamData} />}
+        {tab==='acumulado' && <AcumPanel teamData={teamData} />}
+        {tab==='expo-ai' && <ExpoAIPanel teamData={teamData} />}
+        {tab==='evaluaciones' && <EvaluacionesPanel teamData={teamData} />}
+        {tab==='biblioteca' && <BibliotecaPanel />}
         {tab==='cambio-carga' && <CambioCargaPanel />}
         {tab==='lesiones' && <LesionesPanel teamData={teamData} onRefresh={()=>router.refresh()} />}
         {tab==='gps' && <GpsPanel teamData={teamData} />}
@@ -893,11 +899,11 @@ function CambioCargaPanel() {
 const OBJETIVOS_FISICOS = ['Fuerza','Resistencia','Velocidad','Recuperación-Compensación','Recuperación','Competición']
 const OBJETIVOS_SECUNDARIOS = ['Táctico','Técnico','Técnico-Táctico']
 const TITULOS_SESION = ['MD+1','MD+2','MD+3','MD-4','MD-3','MD-2','MD-1','MD']
-const TAREAS_PRINCIPALES = ['Activación en campo','Activación en gimnasio','Gimnasio + Tarea analítica','Tarea analítica','Rondo','Juego de posesión','Juego de posición','Partido reducido','Partido modificado','Partido de entrenamiento','Partido amistoso','Partido oficial']
-const SUBTAREAS: Record<string, string[]> = { 'Activación en campo': ['Circuito técnico','Circuito neuromuscular','Pliometría','Movilidad','Trabajo Preventivo'], 'Activación en gimnasio': ['Isométricos','Pliometría','Movilidad','Excéntricos','Estabilidad','Tracción y empuje','Trabajo Preventivo'] }
-const TAREAS_CON_ESPACIO = ['Juego de posesión','Juego de posición','Partido reducido','Partido modificado','Partido de entrenamiento','Partido amistoso','Partido oficial']
-const TAREAS_CON_EQUIPO = ['Juego de posesión','Juego de posición','Partido reducido','Partido modificado','Partido de entrenamiento','Partido amistoso','Partido oficial']
-const TAREAS_MOSTRAR_FORM = [...TAREAS_CON_ESPACIO, 'Activación en campo','Activación en gimnasio','Gimnasio + Tarea analítica','Tarea analítica','Rondo']
+const TAREAS_PRINCIPALES = ['Activación en campo','Activación en gimnasio','Gimnasio + Tarea analítica','Rondo','Trabajo analítico','Juego de posesión','Juego de posición','Partido reducido','Partido modificado','Partido de entrenamiento','Partido amistoso','Partido oficial']
+const SUBTAREAS: Record<string, string[]> = { 'Activación en campo': ['Circuito técnico','Circuito neuromuscular','Pliometría','Movilidad'], 'Activación en gimnasio': ['Isométricos','Pliometría','Movilidad','Excéntricos','Estabilidad','Tracción y empuje'], 'Rondo': ['Rondo 4v2','Rondo 5v2','Rondo 6v2','Rondo 4v1+1','Rondo en movimiento','Rondo conservación','Rondo orientado','Rondo en espacio'] }
+const TAREAS_CON_ESPACIO = ['Rondo','Trabajo analítico','Juego de posesión','Juego de posición','Partido reducido','Partido modificado','Partido de entrenamiento','Partido amistoso','Partido oficial']
+const TAREAS_CON_EQUIPO = ['Rondo','Trabajo analítico','Juego de posesión','Juego de posición','Partido reducido','Partido modificado','Partido de entrenamiento','Partido amistoso','Partido oficial']
+const TAREAS_MOSTRAR_FORM = [...TAREAS_CON_ESPACIO, 'Activación en campo','Activación en gimnasio','Gimnasio + Tarea analítica']
 const TIPO_COLORES = { entrenamiento:'#c8f135', partido:'#3b82f6', recuperacion:'#f59e0b', descanso:'#555' }
 const TIPO_ICONOS = { entrenamiento:'⚽', partido:'🏆', recuperacion:'🔄', descanso:'😴' }
 
@@ -910,8 +916,8 @@ function horasEntre(fechaA: string, horaA: string|null, fechaB: string, horaB: s
 
 function RecuperacionBadge({ horas }: { horas: number|null }) {
   if (horas === null || horas <= 0) return null
-  const col = horas < 24 ? '#ef4444' : '#22c55e'
-  const label = horas < 24 ? '⚠ RIESGO' : '✓ OK'
+  const col = horas < 24 ? '#ef4444' : horas < 48 ? '#f59e0b' : '#22c55e'
+  const label = horas < 24 ? '⚠ RIESGO' : horas < 48 ? '⚡ AJUSTADO' : '✓ OK'
   return (
     <div style={{ display:'flex', alignItems:'center', gap:4, fontSize:10, color:col, background:`${col}18`, border:`1px solid ${col}44`, borderRadius:6, padding:'2px 7px', fontWeight:700, fontFamily:'DM Mono,monospace' }}>
       {label} · {horas}h recup.
@@ -1100,7 +1106,7 @@ function CalendarioPanel({ teamData }) {
               const prevEventDay = allEventDays[allEventDays.indexOf(fecha)-1]
               const recup = prevEventDay ? calcRecuperacion(prevEventDay, fecha) : null
               const hasEvents = ses.length > 0 || parts.length > 0
-              const recupAlert = hasEvents && recup !== null && recup > 0
+              const recupAlert = hasEvents && recup !== null && recup < 48
 
               return (
                 <div key={fecha}
@@ -1118,8 +1124,8 @@ function CalendarioPanel({ teamData }) {
                   <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:4 }}>
                     <span style={{ fontSize:13, fontWeight:isToday?700:500, color:isToday?'var(--lime)':'var(--snow)', fontFamily:'DM Mono,monospace' }}>{dayNum}</span>
                     {recupAlert && recup !== null && (
-                      <span title={`${recup}h de recuperación`} style={{ fontSize:9, background: recup<24?'rgba(239,68,68,.15)':'rgba(34,197,94,.15)', color:recup<24?'#f87171':'#22c55e', border:`1px solid ${recup<24?'rgba(239,68,68,.4)':'rgba(34,197,94,.4)'}`, borderRadius:4, padding:'1px 4px', fontWeight:700 }}>
-                        {recup<24?'⚠':'✓'}{recup}h
+                      <span title={`${recup}h de recuperación`} style={{ fontSize:9, background: recup<24?'rgba(239,68,68,.15)':'rgba(245,158,11,.15)', color:recup<24?'#f87171':'#fbbf24', border:`1px solid ${recup<24?'rgba(239,68,68,.4)':'rgba(245,158,11,.4)'}`, borderRadius:4, padding:'1px 4px', fontWeight:700 }}>
+                        ⚠{recup}h
                       </span>
                     )}
                   </div>
@@ -1427,10 +1433,7 @@ function BloqueMetodologia({ bloque, index, onChange, onRemove, teamPlayers = []
   const jugadoresEquipos = Object.values(equipos).flat() as number[]
   const totalJugadoresEquipos = jugadoresEquipos.length
 
-  const totalJugadoresManual = Number(bloque.total_jugadores) || 0
-  const calcJugadores = totalJugadoresManual > 0
-    ? totalJugadoresManual
-    : esConEquipo ? (totalJugadoresEquipos || Number(bloque.jugadores) || 0) : Number(bloque.jugadores)
+  const calcJugadores = esConEquipo ? (totalJugadoresEquipos || Number(bloque.jugadores) || 0) : Number(bloque.jugadores)
   const calc = esConEspacio ? calcularDistancias(calcJugadores, Number(bloque.largo), Number(bloque.ancho), Number(bloque.series), Number(bloque.minutos)) : null
 
   function handleImg(e: any) {
@@ -1497,7 +1500,14 @@ function BloqueMetodologia({ bloque, index, onChange, onRemove, teamPlayers = []
       {mostrarForm && (
         <div style={{ marginBottom:8 }}>
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:6, marginBottom:6 }}>
-            {!esConEquipo && <div><label style={{ fontSize:9, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:2 }}>Jugadores</label>{inp('jugadores','Nº jugadores','number')}</div>}
+            {!esConEquipo && <div><label style={{ fontSize:9, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:2 }}>
+                Jugadores
+                {teamPlayers.length > 0 && !bloque.jugadores && (
+                  <button type="button" onClick={()=>onChange('jugadores',String(teamPlayers.length))} style={{ marginLeft:6, fontSize:8, padding:'1px 5px', borderRadius:3, background:'rgba(200,241,53,.15)', color:'var(--lime)', border:'1px solid rgba(200,241,53,.3)', cursor:'pointer' }}>
+                    Auto ({teamPlayers.length})
+                  </button>
+                )}
+              </label>{inp('jugadores','Nº jugadores','number')}</div>}
             <div><label style={{ fontSize:9, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:2 }}>Bloques</label>{inp('series','Nº bloques','number')}</div>
             <div><label style={{ fontSize:9, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:2 }}>Min / bloque</label>{inp('minutos','Min','number')}</div>
             <div><label style={{ fontSize:9, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:2 }}>Pausa x bloque (min)</label>{inp('pausa','Min descanso','number')}</div>
@@ -1548,18 +1558,6 @@ function BloqueMetodologia({ bloque, index, onChange, onRemove, teamPlayers = []
             })}
           </div>
           {totalJugadoresEquipos > 0 && <div style={{ marginTop:6, fontSize:10, color:'var(--silver)', fontFamily:'DM Mono,monospace' }}>Total: {totalJugadoresEquipos} jugadores seleccionados</div>}
-          {/* Position count fields */}
-          <div style={{ marginTop:10, display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:6 }}>
-            {[['atacantes','N° Atacantes'],['defensores','N° Defensores'],['comodines','N° Comodines'],['total_jugadores','Total jugadores']].map(([field, label]) => (
-              <div key={field}>
-                <label style={{ fontSize:9, fontWeight:700, color: field==='total_jugadores'?'var(--lime)':'var(--silver)', textTransform:'uppercase', letterSpacing:'0.05em', display:'block', marginBottom:2 }}>{label}</label>
-                <input type="number" min="0" className="wp-input" value={bloque[field]||''} onChange={e=>onChange(field, e.target.value)} placeholder="—" style={{ padding:'4px 6px', fontSize:11, width:'100%', fontFamily:'DM Mono,monospace', background: field==='total_jugadores'?'rgba(200,241,53,.06)':'var(--ink2)', border: field==='total_jugadores'?'1px solid rgba(200,241,53,.3)':'1px solid var(--mist)' }} />
-              </div>
-            ))}
-          </div>
-          {Number(bloque.total_jugadores) > 0 && (
-            <div style={{ marginTop:4, fontSize:9, color:'var(--lime)', fontFamily:'DM Mono,monospace' }}>✓ Calculadora usará {bloque.total_jugadores} jugadores como base</div>
-          )}
         </div>
       )}
 
@@ -1773,7 +1771,7 @@ function SesionEditor({ sesion, defaultFecha, onSave, onDelete, onCancel, teamPl
   const [saveError, setSaveError] = useState('')
   const set = (k,v) => setF(p=>({...p,[k]:v}))
 
-  function addBloque() { setBloques(b=>[...b, { ventana:'', subtarea:'', jugadores:'', series:'', minutos:'', pausa:'', largo:'', ancho:'', descripcion:'', imagen:'', atacantes:'', defensores:'', comodines:'', total_jugadores:'' }]) }
+  function addBloque() { setBloques(b=>[...b, { ventana:'', subtarea:'', jugadores:'', series:'', minutos:'', pausa:'', largo:'', ancho:'', descripcion:'', imagen:'' }]) }
   function updateBloque(i,k,v) { setBloques(b=>b.map((bl,idx)=>idx===i?{...bl,[k]:v}:bl)) }
   function removeBloque(i) { setBloques(b=>b.filter((_,idx)=>idx!==i)) }
 
@@ -2319,6 +2317,8 @@ function CargaExternaPanel() {
   const teamAvgGps: any = data?.teamAvgGps || {}
   const hasRealGps: boolean = data?.hasRealGps || false
   const allMetricCols: string[] = data?.allMetricCols || []
+  const sesionesInfo: any[] = data?.sesionesInfo || []
+  const mdCols = sesionesInfo.map((s:any) => s.titulo)
   // All columns present in the data, sorted by canonical order (known first, then alphabetical)
   const availableCols: string[] = (() => {
     const raw = allMetricCols.length > 0 ? allMetricCols : (
@@ -4138,6 +4138,859 @@ function GpsPanel({ teamData }: { teamData: any }) {
           <li><strong style={{ color: 'var(--silver)' }}>No usás GPS?</strong> No pasa nada — las otras secciones funcionan igual sin estos datos</li>
         </ul>
       </div>
+    </div>
+  )
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// CONTROL DE CARGA PANEL
+// ═══════════════════════════════════════════════════════════════════
+
+// ═══════════════════════════════════════════════════════════════════
+// CONTROL DE CARGA — CALC (datos RPE + calculadora desde Calendario)
+// ═══════════════════════════════════════════════════════════════════
+const MD_ORDER = ['MD+1','MD+2','MD-4','MD-3','MD-2','MD-1','MD']
+
+function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
+  const today = new Date().toISOString().split('T')[0]
+  const weekStart = (() => { const d=new Date(); d.setDate(d.getDate()-d.getDay()+1); return d.toISOString().split('T')[0] })()
+  const [desde, setDesde] = useState(weekStart)
+  const [hasta, setHasta] = useState(today)
+  const [data, setData] = useState<any>(null)
+  const [loading, setLoading] = useState(false)
+  const [partidoRef, setPartidoRef] = useState<Record<string,number>>({})
+  const [showRefInput, setShowRefInput] = useState(false)
+
+  useEffect(() => { cargar() }, [desde, hasta])
+
+  async function cargar() {
+    setLoading(true)
+    try {
+      const r = await fetch(`/api/carga-gps?desde=${desde}&hasta=${hasta}&ciclo=microciclo`)
+      const d = await r.json()
+      setData(d)
+    } catch(e){} finally { setLoading(false) }
+  }
+
+  const VARS = [
+    {key:'rpe',label:'RPE',color:'#c8f135'},
+    {key:'ua_total',label:'UA',color:'#60a5fa'},
+    {key:'minActivo',label:'Min',color:'#34d399'},
+    {key:'distTotal',label:'DT (m)',color:'#f59e0b'},
+    {key:'distSprint',label:'Sprint (m)',color:'#f97316'},
+    {key:'nSprints',label:'Nº Sprint',color:'#a78bfa'},
+    {key:'nAcel',label:'Ace >2',color:'#ec4899'},
+    {key:'nDecel',label:'Dec >2',color:'#14b8a6'},
+  ]
+
+  const players: any[] = data?.players || []
+  const teamAvg = data?.teamAvg || {}
+  const perSession: Record<string,any> = data?.perSession || {}
+  const sesionesInfo: any[] = data?.sesionesInfo || []
+  const mdCols = sesionesInfo.map((s:any) => s.titulo)
+
+  const pct = (val: number, key: string) => {
+    const ref = partidoRef[key]; if (!ref||ref===0) return null
+    return Math.round((val/ref)*100)
+  }
+  const pctColor = (p: number|null) => p===null?'var(--fog)':p>=85?'#22c55e':p>=70?'#f59e0b':'#ef4444'
+
+  return (
+    <div style={{ padding:'24px 20px', maxWidth:1200, margin:'0 auto' }}>
+      <div style={{ marginBottom:24, display:'flex', justifyContent:'space-between', alignItems:'flex-end', flexWrap:'wrap', gap:12 }}>
+        <div>
+          <h2 style={{ fontFamily:'Bebas Neue,sans-serif', fontSize:36, color:'var(--snow)', letterSpacing:'0.04em', marginBottom:4 }}>CONTROL DE CARGA · CALC</h2>
+          <p style={{ fontSize:12, color:'var(--silver)' }}>Microciclo · RPE, UA y carga calculada desde sesiones planificadas</p>
+        </div>
+        <div style={{ display:'flex', gap:10, alignItems:'flex-end', flexWrap:'wrap' }}>
+          <div><label style={{ fontSize:10, color:'var(--fog)', display:'block', marginBottom:4, textTransform:'uppercase' }}>Desde</label><input className="wp-input" type="date" value={desde} onChange={e=>setDesde(e.target.value)} /></div>
+          <div><label style={{ fontSize:10, color:'var(--fog)', display:'block', marginBottom:4, textTransform:'uppercase' }}>Hasta</label><input className="wp-input" type="date" value={hasta} onChange={e=>setHasta(e.target.value)} /></div>
+          <button onClick={()=>window.print()} style={{ fontSize:11, padding:'8px 14px', borderRadius:8, background:'rgba(200,241,53,.1)', color:'var(--lime)', border:'1px solid rgba(200,241,53,.3)', cursor:'pointer' }}>Imprimir PDF</button>
+        </div>
+      </div>
+
+      {loading ? <div style={{ padding:48, textAlign:'center', color:'var(--silver)' }}>Cargando...</div> : !players.length ? (
+        <div style={{ padding:48, textAlign:'center', color:'var(--silver)', background:'var(--ink2)', borderRadius:16 }}>Sin datos para este período. Registrá sesiones con RPE en el Calendario.</div>
+      ) : (<>
+
+      {/* CUADRO 1+2+3: tabla jugadores con totales y promedios */}
+      <div style={{ background:'var(--ink2)', border:'1px solid rgba(200,241,53,.2)', borderRadius:16, overflow:'hidden', marginBottom:20 }}>
+        <div style={{ padding:'12px 18px', borderBottom:'1px solid var(--mist)' }}>
+          <p style={{ fontSize:11, fontWeight:700, color:'var(--lime)', textTransform:'uppercase', letterSpacing:'0.08em' }}>CUADRO 1 · MICROCICLO — VARIABLES POR JUGADOR</p>
+          <p style={{ fontSize:10, color:'var(--fog)', marginTop:2 }}>RPE · UA · Minutos · Distancia · Sprint · Sprints · Acel · Decel</p>
+        </div>
+        <div style={{ overflowX:'auto' }}>
+          <table style={{ width:'100%', borderCollapse:'collapse', fontSize:11 }}>
+            <thead>
+              <tr style={{ background:'rgba(255,255,255,.03)' }}>
+                <th style={{ padding:'8px 14px', textAlign:'left', color:'var(--silver)', fontSize:9, fontWeight:600, textTransform:'uppercase', whiteSpace:'nowrap' }}>Jugador</th>
+                <th style={{ padding:'8px 8px', textAlign:'left', color:'var(--silver)', fontSize:9, fontWeight:600, textTransform:'uppercase' }}>Pos</th>
+                {VARS.map(v=><th key={v.key} style={{ padding:'8px 10px', textAlign:'center', color:v.color, fontSize:9, fontWeight:600, textTransform:'uppercase', whiteSpace:'nowrap' }}>{v.label}</th>)}
+              </tr>
+            </thead>
+            <tbody>
+              {players.map((p:any,i:number)=>(
+                <tr key={i} style={{ borderTop:'1px solid var(--mist)', background:i%2===0?'transparent':'rgba(255,255,255,.015)' }}>
+                  <td style={{ padding:'8px 14px', color:'var(--snow)', fontWeight:500, whiteSpace:'nowrap' }}>{p.nombre}</td>
+                  <td style={{ padding:'8px 8px', color:'var(--fog)', fontSize:10 }}>{p.posicion||'—'}</td>
+                  {VARS.map(v=><td key={v.key} style={{ padding:'8px 10px', textAlign:'center', fontFamily:'DM Mono,monospace', color:p[v.key]?v.color:'var(--fog)' }}>{p[v.key]||'—'}</td>)}
+                </tr>
+              ))}
+              <tr style={{ borderTop:'2px solid rgba(200,241,53,.4)', background:'rgba(200,241,53,.05)' }}>
+                <td colSpan={2} style={{ padding:'9px 14px', fontWeight:800, color:'var(--lime)', fontSize:10, textTransform:'uppercase' }}>CUADRO 2 · TOTAL</td>
+                {VARS.map(v=>{ const t=players.reduce((s:number,p:any)=>s+(Number(p[v.key])||0),0); return <td key={v.key} style={{ padding:'9px 10px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, color:v.color }}>{Math.round(t)||'—'}</td> })}
+              </tr>
+              <tr style={{ borderTop:'1px solid rgba(96,165,250,.3)', background:'rgba(96,165,250,.04)' }}>
+                <td colSpan={2} style={{ padding:'9px 14px', fontWeight:800, color:'#60a5fa', fontSize:10, textTransform:'uppercase' }}>CUADRO 3 · PROMEDIO</td>
+                {VARS.map(v=><td key={v.key} style={{ padding:'9px 10px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, color:'#60a5fa' }}>{teamAvg[v.key]||'—'}</td>)}
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* PROMEDIO POR MD: columnas = MD+1, MD+2, MD-4... */}
+      {mdCols.length > 0 && (
+        <div style={{ background:'var(--ink2)', border:'1px solid rgba(168,85,247,.2)', borderRadius:16, overflow:'hidden', marginBottom:20 }}>
+          <div style={{ padding:'12px 18px', borderBottom:'1px solid var(--mist)' }}>
+            <p style={{ fontSize:11, fontWeight:700, color:'#a78bfa', textTransform:'uppercase', letterSpacing:'0.08em' }}>PROMEDIO EQUIPO POR SESIÓN (MD)</p>
+            <p style={{ fontSize:10, color:'var(--fog)', marginTop:2 }}>Valor promedio del equipo en cada jornada del microciclo</p>
+          </div>
+          <div style={{ overflowX:'auto' }}>
+            <table style={{ width:'100%', borderCollapse:'collapse', fontSize:11 }}>
+              <thead>
+                <tr style={{ background:'rgba(168,85,247,.04)' }}>
+                  <th style={{ padding:'8px 14px', textAlign:'left', color:'var(--silver)', fontSize:9, fontWeight:600, textTransform:'uppercase' }}>Métrica</th>
+                  {mdCols.map((md:string)=>(<th key={md} style={{ padding:'8px 10px', textAlign:'center', color:'#a78bfa', fontSize:10, fontWeight:700, whiteSpace:'nowrap' }}>{md}</th>))}
+                  <th style={{ padding:'8px 10px', textAlign:'center', color:'#34d399', fontSize:9, fontWeight:600, textTransform:'uppercase' }}>Total</th>
+                  <th style={{ padding:'8px 10px', textAlign:'center', color:'#60a5fa', fontSize:9, fontWeight:600, textTransform:'uppercase' }}>Prom.</th>
+                </tr>
+              </thead>
+              <tbody>
+                {VARS.filter(v=>v.key!=='rpe').map((v,i)=>{
+                  const vals = mdCols.map((md:string)=>Math.round(perSession[md]?.[v.key]||0))
+                  const total = vals.reduce((s:number,x:number)=>s+x,0)
+                  const prom = vals.filter((x:number)=>x>0).length > 0 ? Math.round(total/vals.filter((x:number)=>x>0).length) : 0
+                  return (
+                    <tr key={v.key} style={{ borderTop:'1px solid var(--mist)', background:i%2===0?'transparent':'rgba(255,255,255,.015)' }}>
+                      <td style={{ padding:'8px 14px', color:v.color, fontWeight:600, fontSize:10 }}>{v.label}</td>
+                      {vals.map((val:number,j:number)=>(
+                        <td key={j} style={{ padding:'8px 10px', textAlign:'center', fontFamily:'DM Mono,monospace', color:val>0?v.color:'var(--fog)' }}>{val||'—'}</td>
+                      ))}
+                      <td style={{ padding:'8px 10px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, color:'#34d399' }}>{total||'—'}</td>
+                      <td style={{ padding:'8px 10px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, color:'#60a5fa' }}>{prom||'—'}</td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* CUADRO 4: % sobre el partido */}
+      <div style={{ background:'var(--ink2)', border:'1px solid rgba(168,85,247,.2)', borderRadius:16, overflow:'hidden', marginBottom:20 }}>
+        <div style={{ padding:'12px 18px', borderBottom:'1px solid var(--mist)', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+          <div>
+            <p style={{ fontSize:11, fontWeight:700, color:'#a78bfa', textTransform:'uppercase', letterSpacing:'0.08em' }}>CUADRO 4 · % SOBRE EL PARTIDO (= 100%)</p>
+            <p style={{ fontSize:10, color:'var(--fog)', marginTop:2 }}>Ingresá los valores del partido de referencia para calcular porcentajes</p>
+          </div>
+          <button onClick={()=>setShowRefInput(!showRefInput)} style={{ fontSize:11, padding:'6px 14px', borderRadius:8, background:'rgba(168,85,247,.1)', color:'#a78bfa', border:'1px solid rgba(168,85,247,.3)', cursor:'pointer' }}>{showRefInput?'Ocultar':'Editar referencia'}</button>
+        </div>
+        {showRefInput && (
+          <div style={{ padding:16, borderBottom:'1px solid var(--mist)', display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(120px,1fr))', gap:8 }}>
+            {VARS.map(v=>(
+              <div key={v.key}>
+                <label style={{ fontSize:9, color:v.color, display:'block', marginBottom:3, textTransform:'uppercase', fontWeight:600 }}>{v.label} (partido)</label>
+                <input className="wp-input" type="number" placeholder="Valor ref." style={{ padding:'5px 8px', fontSize:11, width:'100%' }} value={partidoRef[v.key]||''} onChange={e=>setPartidoRef((r:any)=>({...r,[v.key]:Number(e.target.value)}))} />
+              </div>
+            ))}
+          </div>
+        )}
+        <div style={{ overflowX:'auto' }}>
+          <table style={{ width:'100%', borderCollapse:'collapse', fontSize:11 }}>
+            <thead>
+              <tr style={{ background:'rgba(168,85,247,.04)' }}>
+                <th style={{ padding:'8px 14px', textAlign:'left', color:'var(--silver)', fontSize:9, fontWeight:600, textTransform:'uppercase' }}>Jugador</th>
+                {VARS.map(v=><th key={v.key} style={{ padding:'8px 10px', textAlign:'center', color:v.color, fontSize:9, fontWeight:600, textTransform:'uppercase', whiteSpace:'nowrap' }}>{v.label}</th>)}
+              </tr>
+            </thead>
+            <tbody>
+              {players.map((p:any,i:number)=>(
+                <tr key={i} style={{ borderTop:'1px solid var(--mist)' }}>
+                  <td style={{ padding:'8px 14px', color:'var(--snow)', fontWeight:500 }}>{p.nombre}</td>
+                  {VARS.map(v=>{ const pv=pct(p[v.key]||0,v.key); return <td key={v.key} style={{ padding:'8px 10px', textAlign:'center', fontFamily:'DM Mono,monospace', color:pctColor(pv), fontWeight:pv?600:400 }}>{pv!==null?`${pv}%`:Object.keys(partidoRef).length?'—':<span style={{color:'var(--fog)',fontSize:9}}>sin ref.</span>}</td> })}
+                </tr>
+              ))}
+              <tr style={{ borderTop:'2px solid rgba(168,85,247,.3)', background:'rgba(168,85,247,.04)' }}>
+                <td style={{ padding:'9px 14px', fontWeight:800, color:'#a78bfa', fontSize:10, textTransform:'uppercase' }}>Promedio</td>
+                {VARS.map(v=>{ const av=pct(teamAvg[v.key]||0,v.key); return <td key={v.key} style={{ padding:'9px 10px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, color:pctColor(av) }}>{av!==null?`${av}%`:'—'}</td> })}
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Graficos por variable */}
+      <div>
+        <p style={{ fontSize:11, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:16 }}>GRAFICOS · COMPORTAMIENTO DE CARGA POR VARIABLE</p>
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))', gap:12 }}>
+          {VARS.map(v => {
+            const vals = players.map((p:any)=>({ nombre:p.nombre.split(' ')[0], val:Number(p[v.key])||0 }))
+            const maxVal = Math.max(...vals.map((x:any)=>x.val), 1)
+            return (
+              <div key={v.key} style={{ background:'var(--ink2)', borderRadius:12, padding:16, border:'1px solid var(--mist)' }}>
+                <div style={{ fontSize:11, fontWeight:700, color:v.color, textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:12 }}>{v.label}</div>
+                <div style={{ display:'flex', alignItems:'flex-end', gap:3, height:80 }}>
+                  {vals.map((item:any,i:number)=>(
+                    <div key={i} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', gap:2 }}>
+                      <div style={{ fontSize:8, color:'var(--fog)', fontFamily:'DM Mono,monospace' }}>{item.val>0?item.val:''}</div>
+                      <div style={{ width:'100%', borderRadius:'3px 3px 0 0', minHeight:2, height:`${Math.max((item.val/maxVal)*64,item.val>0?2:0)}px`, background:item.val>0?v.color:`${v.color}22` }} />
+                      <div style={{ fontSize:7, color:'var(--fog)', whiteSpace:'nowrap', overflow:'hidden', maxWidth:28, textOverflow:'ellipsis' }}>{item.nombre}</div>
+                    </div>
+                  ))}
+                </div>
+                <div style={{ fontSize:9, color:'var(--fog)', marginTop:8, textAlign:'right', borderTop:'1px solid var(--mist)', paddingTop:4 }}>Prom: <span style={{ color:v.color, fontFamily:'DM Mono,monospace' }}>{teamAvg[v.key]||'—'}</span></div>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+      </>)}
+    </div>
+  )
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// CONTROL DE CARGA — GPS (datos reales Catapult)
+// ═══════════════════════════════════════════════════════════════════
+function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
+  const today = new Date().toISOString().split('T')[0]
+  const weekStart = (() => { const d=new Date(); d.setDate(d.getDate()-d.getDay()+1); return d.toISOString().split('T')[0] })()
+  const [desde, setDesde] = useState(weekStart)
+  const [hasta, setHasta] = useState(today)
+  const [data, setData] = useState<any>(null)
+  const [loading, setLoading] = useState(false)
+  const [partidoRef, setPartidoRef] = useState<Record<string,number>>({})
+  const [showRefInput, setShowRefInput] = useState(false)
+
+  useEffect(() => { cargar() }, [desde, hasta])
+
+  async function cargar() {
+    setLoading(true)
+    try {
+      const r = await fetch(`/api/carga-gps?desde=${desde}&hasta=${hasta}&ciclo=microciclo`)
+      const d = await r.json()
+      setData(d)
+    } catch(e){} finally { setLoading(false) }
+  }
+
+  const GPS_VARS = [
+    {key:'dist_total',label:'Tot Dist (m)',color:'#60a5fa'},
+    {key:'dist_per_min',label:'Mts/min',color:'#34d399'},
+    {key:'dist_hir',label:'High Speed (m)',color:'#f59e0b'},
+    {key:'dist_v4',label:'Vel B4 (m)',color:'#a78bfa'},
+    {key:'dist_v5',label:'Vel B6 (m)',color:'#f97316'},
+    {key:'n_sprints',label:'N Sprints',color:'#ec4899'},
+    {key:'acc2',label:'Acc B2-3',color:'#22c55e'},
+    {key:'dec2',label:'Dec B2-3',color:'#14b8a6'},
+    {key:'max_velocity',label:'Vel Max',color:'#ef4444'},
+    {key:'player_load',label:'Player Load',color:'#8b5cf6'},
+  ]
+
+  const gpsReal: any[] = data?.gpsReal || []
+  const displayVars = GPS_VARS.filter(v => gpsReal.some((p:any) => p[v.key] && p[v.key] !== 0))
+  const activeVars = displayVars.length > 0 ? displayVars : GPS_VARS
+
+  const n = gpsReal.length || 1
+  const gpsAvg: Record<string,number> = {}
+  for (const v of activeVars) {
+    const vals = gpsReal.map((p:any)=>Number(p[v.key])||0)
+    gpsAvg[v.key] = v.key==='max_velocity' ? Math.round(Math.max(...vals,0)*10)/10 : Math.round(vals.reduce((a:number,b:number)=>a+b,0)/n*10)/10
+  }
+
+  const pct = (val: number, key: string) => {
+    const ref = partidoRef[key]; if (!ref||ref===0) return null
+    return Math.round((val/ref)*100)
+  }
+  const pctColor = (p: number|null) => p===null?'var(--fog)':p>=85?'#22c55e':p>=70?'#f59e0b':'#ef4444'
+
+  return (
+    <div style={{ padding:'24px 20px', maxWidth:1200, margin:'0 auto' }}>
+      <div style={{ marginBottom:24, display:'flex', justifyContent:'space-between', alignItems:'flex-end', flexWrap:'wrap', gap:12 }}>
+        <div>
+          <h2 style={{ fontFamily:'Bebas Neue,sans-serif', fontSize:36, color:'var(--snow)', letterSpacing:'0.04em', marginBottom:4 }}>CONTROL DE CARGA · GPS</h2>
+          <p style={{ fontSize:12, color:'var(--silver)' }}>Microciclo · Datos reales importados desde Catapult</p>
+        </div>
+        <div style={{ display:'flex', gap:10, alignItems:'flex-end', flexWrap:'wrap' }}>
+          <div><label style={{ fontSize:10, color:'var(--fog)', display:'block', marginBottom:4, textTransform:'uppercase' }}>Desde</label><input className="wp-input" type="date" value={desde} onChange={e=>setDesde(e.target.value)} /></div>
+          <div><label style={{ fontSize:10, color:'var(--fog)', display:'block', marginBottom:4, textTransform:'uppercase' }}>Hasta</label><input className="wp-input" type="date" value={hasta} onChange={e=>setHasta(e.target.value)} /></div>
+          <button onClick={()=>window.print()} style={{ fontSize:11, padding:'8px 14px', borderRadius:8, background:'rgba(96,165,250,.1)', color:'#60a5fa', border:'1px solid rgba(96,165,250,.3)', cursor:'pointer' }}>Imprimir PDF</button>
+        </div>
+      </div>
+
+      {loading ? <div style={{ padding:48, textAlign:'center', color:'var(--silver)' }}>Cargando GPS...</div> : !gpsReal.length ? (
+        <div style={{ padding:48, textAlign:'center', color:'var(--silver)', background:'var(--ink2)', borderRadius:16 }}>Sin datos GPS importados para este período. Importa archivos desde la pestana GPS.</div>
+      ) : (<>
+
+      {/* CUADROS 1+2+3 */}
+      <div style={{ background:'var(--ink2)', border:'1px solid rgba(96,165,250,.2)', borderRadius:16, overflow:'hidden', marginBottom:20 }}>
+        <div style={{ padding:'12px 18px', borderBottom:'1px solid var(--mist)' }}>
+          <p style={{ fontSize:11, fontWeight:700, color:'#60a5fa', textTransform:'uppercase', letterSpacing:'0.08em' }}>CUADRO 1 · DATOS GPS POR JUGADOR</p>
+          <p style={{ fontSize:10, color:'var(--fog)', marginTop:2 }}>Variables GPS reales del microciclo · {activeVars.length} variables detectadas</p>
+        </div>
+        <div style={{ overflowX:'auto' }}>
+          <table style={{ width:'100%', borderCollapse:'collapse', fontSize:11 }}>
+            <thead>
+              <tr style={{ background:'rgba(96,165,250,.04)' }}>
+                <th style={{ padding:'8px 14px', textAlign:'left', color:'var(--silver)', fontSize:9, fontWeight:600, textTransform:'uppercase', whiteSpace:'nowrap' }}>Jugador</th>
+                <th style={{ padding:'8px 8px', textAlign:'left', color:'var(--silver)', fontSize:9, fontWeight:600, textTransform:'uppercase' }}>Pos</th>
+                <th style={{ padding:'8px 10px', textAlign:'center', color:'var(--silver)', fontSize:9, fontWeight:600 }}>Ses.</th>
+                {activeVars.map(v=><th key={v.key} style={{ padding:'8px 10px', textAlign:'center', color:v.color, fontSize:9, fontWeight:600, textTransform:'uppercase', whiteSpace:'nowrap' }}>{v.label}</th>)}
+              </tr>
+            </thead>
+            <tbody>
+              {gpsReal.map((p:any,i:number)=>(
+                <tr key={i} style={{ borderTop:'1px solid var(--mist)', background:i%2===0?'transparent':'rgba(255,255,255,.015)' }}>
+                  <td style={{ padding:'8px 14px', color:'var(--snow)', fontWeight:500, whiteSpace:'nowrap' }}>{p.nombre}</td>
+                  <td style={{ padding:'8px 8px', color:'var(--fog)', fontSize:10 }}>{p.posicion||'—'}</td>
+                  <td style={{ padding:'8px 10px', textAlign:'center', fontFamily:'DM Mono,monospace', color:'var(--silver)' }}>{p.sesiones_gps||'—'}</td>
+                  {activeVars.map(v=><td key={v.key} style={{ padding:'8px 10px', textAlign:'center', fontFamily:'DM Mono,monospace', color:p[v.key]?v.color:'var(--fog)' }}>{p[v.key]||'—'}</td>)}
+                </tr>
+              ))}
+              <tr style={{ borderTop:'2px solid rgba(200,241,53,.4)', background:'rgba(200,241,53,.05)' }}>
+                <td colSpan={3} style={{ padding:'9px 14px', fontWeight:800, color:'var(--lime)', fontSize:10, textTransform:'uppercase' }}>CUADRO 2 · TOTAL</td>
+                {activeVars.map(v=>{ const t=gpsReal.reduce((s:number,p:any)=>s+(Number(p[v.key])||0),0); return <td key={v.key} style={{ padding:'9px 10px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, color:v.color }}>{v.key==='max_velocity'?'—':Math.round(t)||'—'}</td> })}
+              </tr>
+              <tr style={{ borderTop:'1px solid rgba(96,165,250,.3)', background:'rgba(96,165,250,.04)' }}>
+                <td colSpan={3} style={{ padding:'9px 14px', fontWeight:800, color:'#60a5fa', fontSize:10, textTransform:'uppercase' }}>CUADRO 3 · PROMEDIO</td>
+                {activeVars.map(v=><td key={v.key} style={{ padding:'9px 10px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, color:'#60a5fa' }}>{gpsAvg[v.key]||'—'}</td>)}
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* CUADRO 4: % sobre partido GPS */}
+      <div style={{ background:'var(--ink2)', border:'1px solid rgba(168,85,247,.2)', borderRadius:16, overflow:'hidden', marginBottom:20 }}>
+        <div style={{ padding:'12px 18px', borderBottom:'1px solid var(--mist)', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+          <div>
+            <p style={{ fontSize:11, fontWeight:700, color:'#a78bfa', textTransform:'uppercase', letterSpacing:'0.08em' }}>CUADRO 4 · % SOBRE EL PARTIDO GPS (= 100%)</p>
+            <p style={{ fontSize:10, color:'var(--fog)', marginTop:2 }}>Carga los valores del partido de referencia para calcular porcentajes</p>
+          </div>
+          <button onClick={()=>setShowRefInput(!showRefInput)} style={{ fontSize:11, padding:'6px 14px', borderRadius:8, background:'rgba(168,85,247,.1)', color:'#a78bfa', border:'1px solid rgba(168,85,247,.3)', cursor:'pointer' }}>{showRefInput?'Ocultar':'Editar referencia'}</button>
+        </div>
+        {showRefInput && (
+          <div style={{ padding:16, borderBottom:'1px solid var(--mist)', display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(130px,1fr))', gap:8 }}>
+            {activeVars.map(v=>(
+              <div key={v.key}>
+                <label style={{ fontSize:9, color:v.color, display:'block', marginBottom:3, textTransform:'uppercase', fontWeight:600 }}>{v.label} (partido)</label>
+                <input className="wp-input" type="number" placeholder="Valor ref." style={{ padding:'5px 8px', fontSize:11, width:'100%' }} value={partidoRef[v.key]||''} onChange={e=>setPartidoRef((r:any)=>({...r,[v.key]:Number(e.target.value)}))} />
+              </div>
+            ))}
+          </div>
+        )}
+        <div style={{ overflowX:'auto' }}>
+          <table style={{ width:'100%', borderCollapse:'collapse', fontSize:11 }}>
+            <thead>
+              <tr style={{ background:'rgba(168,85,247,.04)' }}>
+                <th style={{ padding:'8px 14px', textAlign:'left', color:'var(--silver)', fontSize:9, fontWeight:600, textTransform:'uppercase' }}>Jugador</th>
+                {activeVars.map(v=><th key={v.key} style={{ padding:'8px 10px', textAlign:'center', color:v.color, fontSize:9, fontWeight:600, textTransform:'uppercase', whiteSpace:'nowrap' }}>{v.label}</th>)}
+              </tr>
+            </thead>
+            <tbody>
+              {gpsReal.map((p:any,i:number)=>(
+                <tr key={i} style={{ borderTop:'1px solid var(--mist)' }}>
+                  <td style={{ padding:'8px 14px', color:'var(--snow)', fontWeight:500 }}>{p.nombre}</td>
+                  {activeVars.map(v=>{ const pv=pct(Number(p[v.key])||0,v.key); return <td key={v.key} style={{ padding:'8px 10px', textAlign:'center', fontFamily:'DM Mono,monospace', color:pctColor(pv), fontWeight:pv?600:400 }}>{pv!==null?`${pv}%`:Object.keys(partidoRef).length?'—':<span style={{color:'var(--fog)',fontSize:9}}>sin ref.</span>}</td> })}
+                </tr>
+              ))}
+              <tr style={{ borderTop:'2px solid rgba(168,85,247,.3)', background:'rgba(168,85,247,.04)' }}>
+                <td style={{ padding:'9px 14px', fontWeight:800, color:'#a78bfa', fontSize:10, textTransform:'uppercase' }}>Promedio</td>
+                {activeVars.map(v=>{ const av=pct(gpsAvg[v.key]||0,v.key); return <td key={v.key} style={{ padding:'9px 10px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, color:pctColor(av) }}>{av!==null?`${av}%`:'—'}</td> })}
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Graficos GPS */}
+      <div>
+        <p style={{ fontSize:11, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:16 }}>GRAFICOS · COMPORTAMIENTO GPS POR VARIABLE</p>
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))', gap:12 }}>
+          {activeVars.map(v => {
+            const vals = gpsReal.map((p:any)=>({ nombre:p.nombre.split(' ')[0], val:Number(p[v.key])||0 }))
+            const maxVal = Math.max(...vals.map((x:any)=>x.val), 1)
+            return (
+              <div key={v.key} style={{ background:'var(--ink2)', borderRadius:12, padding:16, border:'1px solid var(--mist)' }}>
+                <div style={{ fontSize:11, fontWeight:700, color:v.color, textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:12 }}>{v.label}</div>
+                <div style={{ display:'flex', alignItems:'flex-end', gap:3, height:80 }}>
+                  {vals.map((item:any,i:number)=>(
+                    <div key={i} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', gap:2 }}>
+                      <div style={{ fontSize:8, color:'var(--fog)', fontFamily:'DM Mono,monospace' }}>{item.val>0?item.val:''}</div>
+                      <div style={{ width:'100%', borderRadius:'3px 3px 0 0', minHeight:2, height:`${Math.max((item.val/maxVal)*64,item.val>0?2:0)}px`, background:item.val>0?v.color:`${v.color}22` }} />
+                      <div style={{ fontSize:7, color:'var(--fog)', whiteSpace:'nowrap', overflow:'hidden', maxWidth:28, textOverflow:'ellipsis' }}>{item.nombre}</div>
+                    </div>
+                  ))}
+                </div>
+                <div style={{ fontSize:9, color:'var(--fog)', marginTop:8, textAlign:'right', borderTop:'1px solid var(--mist)', paddingTop:4 }}>Prom: <span style={{ color:v.color, fontFamily:'DM Mono,monospace' }}>{gpsAvg[v.key]||'—'}</span></div>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+      </>)}
+    </div>
+  )
+}
+
+
+// ═══════════════════════════════════════════════════════════════════
+// EXPO AI PANEL — Exposiciones a Alta Intensidad
+// ═══════════════════════════════════════════════════════════════════
+function ExpoAIPanel({ teamData }: { teamData: any[] }) {
+  const [desde, setDesde] = useState(() => { const d=new Date(); d.setDate(d.getDate()-28); return d.toISOString().split('T')[0] })
+  const [hasta, setHasta] = useState(new Date().toISOString().split('T')[0])
+  const [data, setData] = useState<any>(null)
+  const [loading, setLoading] = useState(false)
+
+  useEffect(() => { cargar() }, [desde, hasta])
+
+  async function cargar() {
+    setLoading(true)
+    try {
+      const r = await fetch(`/api/carga-gps?desde=${desde}&hasta=${hasta}&ciclo=microciclo`)
+      const d = await r.json()
+      setData(d)
+    } catch(e){} finally { setLoading(false) }
+  }
+
+  const gpsReal: any[] = data?.gpsReal || []
+  const sesionesInfo: any[] = data?.sesionesInfo || []
+  const mdCols = sesionesInfo.map((s:any) => s.titulo)
+
+  // Build per-player per-MD GPS data from gps_logs (need raw date-level data)
+  // For now we use the aggregated gpsReal and note MD columns require future per-session GPS API  
+  const velBadge = (v: number) => {
+    if (!v) return { col:'var(--fog)', label:'Sin datos' }
+    if (v < 25) return { col:'#22c55e', label:'<25 km/h' }
+    if (v < 28) return { col:'#f59e0b', label:'25-28' }
+    return { col:'#ef4444', label:'>28 km/h' }
+  }
+
+  return (
+    <div style={{ padding:'24px 20px', maxWidth:1100, margin:'0 auto' }}>
+      <div style={{ marginBottom:24, display:'flex', justifyContent:'space-between', alignItems:'flex-end', flexWrap:'wrap', gap:12 }}>
+        <div>
+          <h2 style={{ fontFamily:'Bebas Neue,sans-serif', fontSize:36, color:'var(--snow)', letterSpacing:'0.04em', marginBottom:4 }}>⚡ EXPOSICIONES A ALTA INTENSIDAD</h2>
+          <p style={{ fontSize:12, color:'var(--silver)' }}>Análisis de exposición por jugador · Velocidad máxima y HSR</p>
+        </div>
+        <div style={{ display:'flex', gap:12 }}>
+          <div>
+            <label style={{ fontSize:10, color:'var(--fog)', display:'block', marginBottom:4, textTransform:'uppercase' }}>Desde</label>
+            <input className="wp-input" type="date" value={desde} onChange={e=>setDesde(e.target.value)} />
+          </div>
+          <div>
+            <label style={{ fontSize:10, color:'var(--fog)', display:'block', marginBottom:4, textTransform:'uppercase' }}>Hasta</label>
+            <input className="wp-input" type="date" value={hasta} onChange={e=>setHasta(e.target.value)} />
+          </div>
+        </div>
+      </div>
+
+      {loading ? <div style={{ padding:48, textAlign:'center', color:'var(--silver)' }}>Cargando datos GPS...</div> : !gpsReal.length ? (
+        <div style={{ padding:48, textAlign:'center', color:'var(--silver)', background:'var(--ink2)', borderRadius:16 }}>
+          Sin datos GPS importados para este período. Importá archivos desde la pestaña 📡 GPS.
+        </div>
+      ) : (<>
+
+      {/* Tabla 1: Máxima Velocidad */}
+      <div style={{ background:'var(--ink2)', border:'1px solid rgba(239,68,68,.2)', borderRadius:16, overflow:'hidden', marginBottom:20 }}>
+        <div style={{ padding:'12px 18px', borderBottom:'1px solid var(--mist)' }}>
+          <p style={{ fontSize:11, fontWeight:700, color:'#f87171', textTransform:'uppercase', letterSpacing:'0.08em' }}>🏃 MÁXIMA VELOCIDAD (km/h)</p>
+          <p style={{ fontSize:10, color:'var(--fog)', marginTop:2 }}>Exposición a alta velocidad por jugador · Objetivo: 3+ exposiciones semanales al 80% VM</p>
+        </div>
+        <div style={{ overflowX:'auto' }}>
+          <table style={{ width:'100%', borderCollapse:'collapse', fontSize:11 }}>
+            <thead>
+              <tr style={{ background:'rgba(239,68,68,.04)' }}>
+                {['Jugador','Pos.','Vel. Máx (km/h)','Ses. GPS','80% VM','Nivel'].map(h=>(
+                  <th key={h} style={{ padding:'8px 12px', textAlign: h==='Jugador'?'left':'center', color:'#f87171', fontSize:9, fontWeight:600, textTransform:'uppercase', whiteSpace:'nowrap' }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {gpsReal.map((p:any,i:number)=>{
+                const vm = Number(p.max_velocity)||0
+                const v80 = vm ? Math.round(vm*0.8*10)/10 : null
+                const badge = velBadge(vm)
+                return (
+                  <tr key={i} style={{ borderTop:'1px solid var(--mist)', background:i%2===0?'transparent':'rgba(255,255,255,.015)' }}>
+                    <td style={{ padding:'9px 12px', color:'var(--snow)', fontWeight:500, whiteSpace:'nowrap' }}>{p.nombre}</td>
+                    <td style={{ padding:'9px 12px', textAlign:'center', color:'var(--fog)', fontSize:10 }}>{p.posicion||'—'}</td>
+                    <td style={{ padding:'9px 12px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, color:'#f87171' }}>{vm||'—'}</td>
+                    <td style={{ padding:'9px 12px', textAlign:'center', fontFamily:'DM Mono,monospace', color:'var(--silver)' }}>{p.sesiones_gps||'—'}</td>
+                    <td style={{ padding:'9px 12px', textAlign:'center', fontFamily:'DM Mono,monospace', color:'#f59e0b' }}>{v80||'—'}</td>
+                    <td style={{ padding:'9px 12px', textAlign:'center' }}>
+                      <span style={{ fontSize:10, padding:'2px 8px', borderRadius:6, background:badge.col+'18', color:badge.col, fontWeight:600, border:`1px solid ${badge.col}33` }}>{badge.label}</span>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Tabla 2: HSR */}
+      <div style={{ background:'var(--ink2)', border:'1px solid rgba(245,158,11,.2)', borderRadius:16, overflow:'hidden', marginBottom:20 }}>
+        <div style={{ padding:'12px 18px', borderBottom:'1px solid var(--mist)' }}>
+          <p style={{ fontSize:11, fontWeight:700, color:'#fbbf24', textTransform:'uppercase', letterSpacing:'0.08em' }}>⚡ HIGH SPEED RUNNING (m)</p>
+          <p style={{ fontSize:10, color:'var(--fog)', marginTop:2 }}>Distancia recorrida a alta intensidad · Referencia: &lt;1 bajo | 1-1.5 medio | &gt;1.5 alto</p>
+        </div>
+        <div style={{ overflowX:'auto' }}>
+          <table style={{ width:'100%', borderCollapse:'collapse', fontSize:11 }}>
+            <thead>
+              <tr style={{ background:'rgba(245,158,11,.04)' }}>
+                {['Jugador','Pos.','HSR Total (m)','Vel B4 (m)','Vel B6 (m)','Ses. GPS','HSR/Ses'].map(h=>(
+                  <th key={h} style={{ padding:'8px 12px', textAlign:h==='Jugador'?'left':'center', color:'#fbbf24', fontSize:9, fontWeight:600, textTransform:'uppercase', whiteSpace:'nowrap' }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {gpsReal.map((p:any,i:number)=>{
+                const hsr = Number(p.dist_hir)||0
+                const ses = Number(p.sesiones_gps)||1
+                const ratio = hsr && ses ? Math.round(hsr/ses) : 0
+                const ratioCol = ratio > 150 ? '#22c55e' : ratio > 75 ? '#f59e0b' : ratio > 0 ? '#ef4444' : 'var(--fog)'
+                return (
+                  <tr key={i} style={{ borderTop:'1px solid var(--mist)', background:i%2===0?'transparent':'rgba(255,255,255,.015)' }}>
+                    <td style={{ padding:'9px 12px', color:'var(--snow)', fontWeight:500, whiteSpace:'nowrap' }}>{p.nombre}</td>
+                    <td style={{ padding:'9px 12px', textAlign:'center', color:'var(--fog)', fontSize:10 }}>{p.posicion||'—'}</td>
+                    <td style={{ padding:'9px 12px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, color:'#fbbf24' }}>{hsr||'—'}</td>
+                    <td style={{ padding:'9px 12px', textAlign:'center', fontFamily:'DM Mono,monospace', color:'var(--silver)' }}>{p.dist_v4||'—'}</td>
+                    <td style={{ padding:'9px 12px', textAlign:'center', fontFamily:'DM Mono,monospace', color:'var(--silver)' }}>{p.dist_v5||'—'}</td>
+                    <td style={{ padding:'9px 12px', textAlign:'center', fontFamily:'DM Mono,monospace', color:'var(--silver)' }}>{p.sesiones_gps||'—'}</td>
+                    <td style={{ padding:'9px 12px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, color:ratioCol }}>{ratio||'—'}</td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+        <div style={{ padding:'10px 18px', borderTop:'1px solid var(--mist)', display:'flex', gap:16, fontSize:10, color:'var(--fog)' }}>
+          <span>🟢 &gt;150m/ses = Alto</span>
+          <span>🟡 75-150m/ses = Medio</span>
+          <span>🔴 &lt;75m/ses = Bajo</span>
+        </div>
+      </div>
+
+      {/* Aceleración/Deceleración */}
+      <div style={{ background:'var(--ink2)', border:'1px solid rgba(168,85,247,.2)', borderRadius:16, overflow:'hidden' }}>
+        <div style={{ padding:'12px 18px', borderBottom:'1px solid var(--mist)' }}>
+          <p style={{ fontSize:11, fontWeight:700, color:'#a78bfa', textTransform:'uppercase', letterSpacing:'0.08em' }}>💥 ACELERACIONES Y DESACELERACIONES</p>
+        </div>
+        <div style={{ overflowX:'auto' }}>
+          <table style={{ width:'100%', borderCollapse:'collapse', fontSize:11 }}>
+            <thead>
+              <tr style={{ background:'rgba(168,85,247,.04)' }}>
+                {['Jugador','Pos.','Acc B2-3','Dec B2-3','Total Effs','Acc/Ses','Dec/Ses'].map(h=>(
+                  <th key={h} style={{ padding:'8px 12px', textAlign:h==='Jugador'?'left':'center', color:'#a78bfa', fontSize:9, fontWeight:600, textTransform:'uppercase', whiteSpace:'nowrap' }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {gpsReal.map((p:any,i:number)=>{
+                const ses = Number(p.sesiones_gps)||1
+                return (
+                  <tr key={i} style={{ borderTop:'1px solid var(--mist)', background:i%2===0?'transparent':'rgba(255,255,255,.015)' }}>
+                    <td style={{ padding:'9px 12px', color:'var(--snow)', fontWeight:500 }}>{p.nombre}</td>
+                    <td style={{ padding:'9px 12px', textAlign:'center', color:'var(--fog)', fontSize:10 }}>{p.posicion||'—'}</td>
+                    <td style={{ padding:'9px 12px', textAlign:'center', fontFamily:'DM Mono,monospace', color:'#a78bfa' }}>{p.acc2||'—'}</td>
+                    <td style={{ padding:'9px 12px', textAlign:'center', fontFamily:'DM Mono,monospace', color:'#a78bfa' }}>{p.dec2||'—'}</td>
+                    <td style={{ padding:'9px 12px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, color:'#a78bfa' }}>{((p.acc2||0)+(p.dec2||0))||'—'}</td>
+                    <td style={{ padding:'9px 12px', textAlign:'center', fontFamily:'DM Mono,monospace', color:'var(--silver)' }}>{p.acc2?Math.round(p.acc2/ses):'—'}</td>
+                    <td style={{ padding:'9px 12px', textAlign:'center', fontFamily:'DM Mono,monospace', color:'var(--silver)' }}>{p.dec2?Math.round(p.dec2/ses):'—'}</td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      </>)}
+    </div>
+  )
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// EVALUACIONES PANEL
+// ═══════════════════════════════════════════════════════════════════
+function EvaluacionesPanel({ teamData }: { teamData: any[] }) {
+  const [evals, setEvals] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [showForm, setShowForm] = useState(false)
+  const [form, setForm] = useState<any>({ jugador_id:'', fecha:new Date().toISOString().split('T')[0], pfv:'', dsi:'', cmj:'', rsi:'', iq:'', aduc_iso:'', fms:'', velocidad_lineal:'', velocidad_fuerza:'', yo_yo:'', notas:'' })
+  const [saving, setSaving] = useState(false)
+
+  const TEST_COLS = [
+    {key:'pfv',label:'PFV',unit:''},
+    {key:'dsi',label:'DSI',unit:''},
+    {key:'cmj',label:'CMJ',unit:'cm'},
+    {key:'rsi',label:'RSI',unit:''},
+    {key:'iq',label:'I/Q',unit:'%'},
+    {key:'aduc_iso',label:'Aduc. ISO',unit:'N'},
+    {key:'fms',label:'FMS',unit:'pts'},
+    {key:'velocidad_lineal',label:'Vel. Lineal',unit:'s'},
+    {key:'velocidad_fuerza',label:'Vel. Fuerza',unit:''},
+    {key:'yo_yo',label:'YO-YO',unit:'m'},
+  ]
+
+  useEffect(() => { cargar() }, [])
+
+  async function cargar() {
+    setLoading(true)
+    try {
+      const r = await fetch('/api/evaluaciones')
+      const d = await r.json()
+      setEvals(d.evaluaciones||[])
+    } catch(e){} finally { setLoading(false) }
+  }
+
+  async function guardar() {
+    if (!form.jugador_id||!form.fecha) return
+    setSaving(true)
+    try {
+      await fetch('/api/evaluaciones', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(form) })
+      setShowForm(false)
+      setForm({ jugador_id:'', fecha:new Date().toISOString().split('T')[0], pfv:'', dsi:'', cmj:'', rsi:'', iq:'', aduc_iso:'', fms:'', velocidad_lineal:'', velocidad_fuerza:'', yo_yo:'', notas:'' })
+      await cargar()
+    } catch(e){} finally { setSaving(false) }
+  }
+
+  async function eliminar(id: number) {
+    if (!confirm('¿Eliminar evaluación?')) return
+    await fetch(`/api/evaluaciones?id=${id}`, { method:'DELETE' })
+    await cargar()
+  }
+
+  return (
+    <div style={{ padding:'24px 20px', maxWidth:1100, margin:'0 auto' }}>
+      <div style={{ marginBottom:24, display:'flex', justifyContent:'space-between', alignItems:'flex-end' }}>
+        <div>
+          <h2 style={{ fontFamily:'Bebas Neue,sans-serif', fontSize:36, color:'var(--snow)', letterSpacing:'0.04em', marginBottom:4 }}>📋 EVALUACIONES</h2>
+          <p style={{ fontSize:12, color:'var(--silver)' }}>Tests físicos · PFV, DSI, CMJ, RSI, I/Q, FMS, Velocidad, YO-YO</p>
+        </div>
+        <button onClick={()=>setShowForm(!showForm)} className="btn-lime" style={{ padding:'10px 20px', fontSize:13 }}>
+          {showForm ? '✕ Cancelar' : '+ Nueva Evaluación'}
+        </button>
+      </div>
+
+      {showForm && (
+        <div style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:16, padding:24, marginBottom:20 }}>
+          <p style={{ fontSize:11, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:16 }}>Nueva Evaluación</p>
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(160px,1fr))', gap:12, marginBottom:16 }}>
+            <div>
+              <label style={{ fontSize:10, color:'var(--fog)', display:'block', marginBottom:4, textTransform:'uppercase' }}>Jugador</label>
+              <select className="wp-input" value={form.jugador_id} onChange={e=>setForm({...form,jugador_id:e.target.value})} style={{ width:'100%', appearance:'none' }}>
+                <option value="">— Seleccionar —</option>
+                {teamData.map(p=><option key={p.jugador_id} value={p.jugador_id} style={{ background:'var(--ink2)' }}>{p.nombre}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={{ fontSize:10, color:'var(--fog)', display:'block', marginBottom:4, textTransform:'uppercase' }}>Fecha</label>
+              <input className="wp-input" type="date" value={form.fecha} onChange={e=>setForm({...form,fecha:e.target.value})} />
+            </div>
+            {TEST_COLS.map(col=>(
+              <div key={col.key}>
+                <label style={{ fontSize:10, color:'var(--lime)', display:'block', marginBottom:4, textTransform:'uppercase' }}>{col.label}{col.unit&&<span style={{ color:'var(--fog)' }}> ({col.unit})</span>}</label>
+                <input className="wp-input" type="number" step="0.01" placeholder="—" value={form[col.key]} onChange={e=>setForm({...form,[col.key]:e.target.value})} style={{ width:'100%' }} />
+              </div>
+            ))}
+            <div style={{ gridColumn:'1/-1' }}>
+              <label style={{ fontSize:10, color:'var(--fog)', display:'block', marginBottom:4, textTransform:'uppercase' }}>Notas</label>
+              <input className="wp-input" type="text" placeholder="Observaciones..." value={form.notas} onChange={e=>setForm({...form,notas:e.target.value})} style={{ width:'100%' }} />
+            </div>
+          </div>
+          <button onClick={guardar} disabled={saving||!form.jugador_id} className="btn-lime" style={{ padding:'10px 24px', fontSize:13 }}>
+            {saving ? 'Guardando...' : '✓ Guardar Evaluación'}
+          </button>
+        </div>
+      )}
+
+      {loading ? <div style={{ padding:48, textAlign:'center', color:'var(--silver)' }}>Cargando...</div> : !evals.length ? (
+        <div style={{ padding:48, textAlign:'center', color:'var(--silver)', background:'var(--ink2)', borderRadius:16 }}>
+          Sin evaluaciones registradas. Añadí la primera con el botón de arriba.
+        </div>
+      ) : (
+        <div style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:16, overflow:'hidden' }}>
+          <div style={{ overflowX:'auto' }}>
+            <table style={{ width:'100%', borderCollapse:'collapse', fontSize:11 }}>
+              <thead>
+                <tr style={{ background:'rgba(255,255,255,.03)' }}>
+                  <th style={{ padding:'8px 14px', textAlign:'left', color:'var(--silver)', fontSize:9, fontWeight:600, textTransform:'uppercase', whiteSpace:'nowrap' }}>Jugador</th>
+                  <th style={{ padding:'8px 10px', textAlign:'center', color:'var(--silver)', fontSize:9, fontWeight:600, textTransform:'uppercase', whiteSpace:'nowrap' }}>Fecha</th>
+                  {TEST_COLS.map(c=><th key={c.key} style={{ padding:'8px 10px', textAlign:'center', color:'var(--lime)', fontSize:9, fontWeight:600, textTransform:'uppercase', whiteSpace:'nowrap' }}>{c.label}</th>)}
+                  <th style={{ padding:'8px 10px', textAlign:'center', color:'var(--silver)', fontSize:9, fontWeight:600, textTransform:'uppercase' }}>Notas</th>
+                  <th style={{ padding:'8px 10px' }} />
+                </tr>
+              </thead>
+              <tbody>
+                {evals.map((e:any,i:number)=>(
+                  <tr key={i} style={{ borderTop:'1px solid var(--mist)', background:i%2===0?'transparent':'rgba(255,255,255,.015)' }}>
+                    <td style={{ padding:'9px 14px', color:'var(--snow)', fontWeight:500, whiteSpace:'nowrap' }}>{e.nombre}</td>
+                    <td style={{ padding:'9px 10px', textAlign:'center', fontFamily:'DM Mono,monospace', color:'var(--silver)', fontSize:10 }}>{e.fecha?.slice(0,10)}</td>
+                    {TEST_COLS.map(c=>(
+                      <td key={c.key} style={{ padding:'9px 10px', textAlign:'center', fontFamily:'DM Mono,monospace', color:e[c.key]!=null?'var(--snow)':'var(--fog)' }}>
+                        {e[c.key]??'—'}
+                      </td>
+                    ))}
+                    <td style={{ padding:'9px 10px', textAlign:'center', color:'var(--fog)', fontSize:10, maxWidth:120, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{e.notas||'—'}</td>
+                    <td style={{ padding:'9px 10px', textAlign:'center' }}>
+                      <button onClick={()=>eliminar(e.id)} style={{ fontSize:10, padding:'2px 8px', borderRadius:6, background:'rgba(239,68,68,.1)', color:'#f87171', border:'1px solid rgba(239,68,68,.2)', cursor:'pointer' }}>✕</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// BIBLIOTECA DE TAREAS PANEL
+// ═══════════════════════════════════════════════════════════════════
+function BibliotecaPanel() {
+  const [tareas, setTareas] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [buscar, setBuscar] = useState('')
+  const [showForm, setShowForm] = useState(false)
+  const [form, setForm] = useState({ nombre:'', ventana:'', subtarea:'', jugadores:'', series:'', minutos:'', pausa:'', largo:'', ancho:'', descripcion:'' })
+  const [saving, setSaving] = useState(false)
+  const [copied, setCopied] = useState<number|null>(null)
+
+  useEffect(() => { cargar() }, [])
+
+  async function cargar() {
+    setLoading(true)
+    try {
+      const r = await fetch('/api/biblioteca')
+      const d = await r.json()
+      setTareas(d.tareas||[])
+    } catch(e){} finally { setLoading(false) }
+  }
+
+  async function guardar() {
+    if (!form.nombre) return
+    setSaving(true)
+    try {
+      await fetch('/api/biblioteca', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(form) })
+      setShowForm(false)
+      setForm({ nombre:'', ventana:'', subtarea:'', jugadores:'', series:'', minutos:'', pausa:'', largo:'', ancho:'', descripcion:'' })
+      await cargar()
+    } catch(e){} finally { setSaving(false) }
+  }
+
+  async function usar(id: number) {
+    await fetch('/api/biblioteca', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({action:'usar',id}) })
+    setCopied(id); setTimeout(()=>setCopied(null),2000)
+    await cargar()
+  }
+
+  async function eliminar(id: number) {
+    if (!confirm('¿Eliminar tarea de la biblioteca?')) return
+    await fetch(`/api/biblioteca?id=${id}`, { method:'DELETE' })
+    await cargar()
+  }
+
+  const filtradas = tareas.filter(t=>!buscar||t.nombre.toLowerCase().includes(buscar.toLowerCase())||(t.ventana||'').toLowerCase().includes(buscar.toLowerCase()))
+
+  return (
+    <div style={{ padding:'24px 20px', maxWidth:900, margin:'0 auto' }}>
+      <div style={{ marginBottom:24, display:'flex', justifyContent:'space-between', alignItems:'flex-end', flexWrap:'wrap', gap:12 }}>
+        <div>
+          <h2 style={{ fontFamily:'Bebas Neue,sans-serif', fontSize:36, color:'var(--snow)', letterSpacing:'0.04em', marginBottom:4 }}>📚 BIBLIOTECA DE TAREAS</h2>
+          <p style={{ fontSize:12, color:'var(--silver)' }}>Registro de tareas usadas · Reutilizalas en futuras sesiones</p>
+        </div>
+        <button onClick={()=>setShowForm(!showForm)} className="btn-lime" style={{ padding:'10px 20px', fontSize:13 }}>
+          {showForm ? '✕ Cancelar' : '+ Guardar Tarea'}
+        </button>
+      </div>
+
+      {showForm && (
+        <div style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:16, padding:24, marginBottom:20 }}>
+          <p style={{ fontSize:11, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', marginBottom:16 }}>Nueva tarea en biblioteca</p>
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(150px,1fr))', gap:12, marginBottom:16 }}>
+            <div style={{ gridColumn:'1/-1' }}>
+              <label style={{ fontSize:10, color:'var(--lime)', display:'block', marginBottom:4, textTransform:'uppercase' }}>Nombre de la tarea *</label>
+              <input className="wp-input" type="text" placeholder="Ej: Rondo 4v4+2 en espacio reducido..." value={form.nombre} onChange={e=>setForm({...form,nombre:e.target.value})} style={{ width:'100%' }} />
+            </div>
+            {[
+              {key:'ventana',label:'Tipo de tarea',placeholder:'Ej: Rondo'},
+              {key:'jugadores',label:'Jugadores',placeholder:'Nº',type:'number'},
+              {key:'series',label:'Series',placeholder:'Nº',type:'number'},
+              {key:'minutos',label:'Min/serie',placeholder:'min',type:'number'},
+              {key:'pausa',label:'Pausa (min)',placeholder:'min',type:'number'},
+              {key:'largo',label:'Largo (m)',placeholder:'m',type:'number'},
+              {key:'ancho',label:'Ancho (m)',placeholder:'m',type:'number'},
+            ].map(f=>(
+              <div key={f.key}>
+                <label style={{ fontSize:10, color:'var(--fog)', display:'block', marginBottom:4, textTransform:'uppercase' }}>{f.label}</label>
+                <input className="wp-input" type={f.type||'text'} placeholder={f.placeholder}
+                  value={(form as any)[f.key]} onChange={e=>setForm({...form,[f.key]:e.target.value})} style={{ width:'100%' }} />
+              </div>
+            ))}
+            <div style={{ gridColumn:'1/-1' }}>
+              <label style={{ fontSize:10, color:'var(--fog)', display:'block', marginBottom:4, textTransform:'uppercase' }}>Descripción / Notas</label>
+              <input className="wp-input" type="text" placeholder="Descripción de la tarea, objetivos, consignas..." value={form.descripcion} onChange={e=>setForm({...form,descripcion:e.target.value})} style={{ width:'100%' }} />
+            </div>
+          </div>
+          <button onClick={guardar} disabled={saving||!form.nombre} className="btn-lime" style={{ padding:'10px 24px', fontSize:13 }}>
+            {saving ? 'Guardando...' : '✓ Guardar en Biblioteca'}
+          </button>
+        </div>
+      )}
+
+      <div style={{ marginBottom:16 }}>
+        <input className="wp-input" type="text" placeholder="🔍 Buscar por nombre o tipo de tarea..." value={buscar} onChange={e=>setBuscar(e.target.value)} style={{ width:'100%' }} />
+      </div>
+
+      {loading ? <div style={{ padding:48, textAlign:'center', color:'var(--silver)' }}>Cargando...</div> : !filtradas.length ? (
+        <div style={{ padding:48, textAlign:'center', color:'var(--silver)', background:'var(--ink2)', borderRadius:16 }}>
+          {buscar ? 'Sin resultados para esa búsqueda.' : 'La biblioteca está vacía. Guardá tareas para reutilizarlas.'}
+        </div>
+      ) : (
+        <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+          {filtradas.map((t:any)=>(
+            <div key={t.id} style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:14, padding:16, display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:12 }}>
+              <div style={{ flex:1 }}>
+                <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:6, flexWrap:'wrap' }}>
+                  <span style={{ fontWeight:600, color:'var(--snow)', fontSize:14 }}>{t.nombre}</span>
+                  {t.ventana && <span style={{ fontSize:10, padding:'2px 8px', borderRadius:6, background:'rgba(200,241,53,.12)', color:'var(--lime)', fontWeight:600 }}>{t.ventana}</span>}
+                  <span style={{ fontSize:10, color:'var(--fog)' }}>Usada {t.veces_usada}x</span>
+                </div>
+                <div style={{ display:'flex', gap:14, flexWrap:'wrap', fontSize:11, color:'var(--silver)' }}>
+                  {t.jugadores && <span>👥 {t.jugadores} jug.</span>}
+                  {t.series && <span>🔄 {t.series} series</span>}
+                  {t.minutos && <span>⏱ {t.minutos} min</span>}
+                  {t.pausa && <span>⏸ {t.pausa} min pausa</span>}
+                  {t.largo && t.ancho && <span>📐 {t.largo}×{t.ancho}m</span>}
+                </div>
+                {t.descripcion && <p style={{ fontSize:11, color:'var(--fog)', marginTop:6 }}>{t.descripcion}</p>}
+              </div>
+              <div style={{ display:'flex', gap:8, flexShrink:0 }}>
+                <button onClick={()=>usar(t.id)}
+                  style={{ fontSize:11, padding:'6px 14px', borderRadius:8, background:copied===t.id?'rgba(34,197,94,.2)':'rgba(200,241,53,.12)', color:copied===t.id?'#22c55e':'var(--lime)', border:`1px solid ${copied===t.id?'rgba(34,197,94,.4)':'rgba(200,241,53,.3)'}`, cursor:'pointer', fontWeight:600, whiteSpace:'nowrap' }}>
+                  {copied===t.id?'✓ Marcada':'Usar'}
+                </button>
+                <button onClick={()=>eliminar(t.id)} style={{ fontSize:10, padding:'6px 10px', borderRadius:8, background:'rgba(239,68,68,.08)', color:'#f87171', border:'1px solid rgba(239,68,68,.2)', cursor:'pointer' }}>✕</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

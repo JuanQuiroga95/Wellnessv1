@@ -315,10 +315,34 @@ export async function GET(req: NextRequest) {
       sesiones_gps: avgGps('sesiones_gps'),
     }
 
+    // Build sesionesInfo: array of {id, fecha, titulo, rpe_objetivo} sorted by MD label order
+    const MD_ORDER = ['MD+1','MD+2','MD+3','MD-4','MD-3','MD-2','MD-1','MD']
+    const sesionesInfo = (sesiones as any[])
+      .map(s => ({ id: s.id, fecha: s.fecha, titulo: s.titulo || s.fecha, rpe_objetivo: s.rpe_objetivo }))
+      .sort((a,b) => {
+        const ai = MD_ORDER.indexOf(a.titulo)
+        const bi = MD_ORDER.indexOf(b.titulo)
+        if (ai !== -1 && bi !== -1) return ai - bi
+        return a.fecha.localeCompare(b.fecha)
+      })
+
+    // Build perSession data: for each session, get team avg values
+    const perSession: Record<string, any> = {}
+    for (const ses of sesiones as any[]) {
+      const m = sumarMetricasBloques(ses.ejercicios || [])
+      perSession[ses.titulo || ses.fecha] = {
+        fecha: ses.fecha,
+        rpe_objetivo: ses.rpe_objetivo,
+        ...m
+      }
+    }
+
     return NextResponse.json({
       players, teamAvg,
       gpsReal, teamAvgGps,
       allMetricCols,
+      sesionesInfo,
+      perSession,
       hasGpsData:    players.some((p: any) => p.hasGps),
       hasRealGps:    (gpsReal as any[]).length > 0,
       sesionesCount: sesiones.length,
