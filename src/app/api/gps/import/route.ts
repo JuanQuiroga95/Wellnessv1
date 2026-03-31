@@ -43,19 +43,51 @@ function matchExcelCol(h: string): string | null {
   return null
 }
 
+function buildColMap(headers: string[]): (string | null)[] {
+  return headers.map(h => {
+    const ln = normStr(h)
+    if (['first name','name','athlete','player','nombre','jugador','apellido'].some(k => ln.includes(k))) return '__name__'
+    if (['date','fecha','session','period','device','jersey','shirt'].some(k => ln.includes(k))) return null
+    return matchExcelCol(h)
+  })
+}
+
+function scoreHeaderRow(row: any[]): number {
+  // Score how likely this row is to be the real header row
+  let score = 0
+  for (const cell of row) {
+    const h = String(cell || '')
+    const ln = normStr(h)
+    if (['first name','name','athlete','player','nombre','jugador'].some(k => ln.includes(k))) score += 3
+    if (matchExcelCol(h) !== null) score += 1
+    if (['date','fecha','session','period'].some(k => ln.includes(k))) score += 1
+  }
+  return score
+}
+
+function isTextName(val: string): boolean {
+  // A valid player name must contain at least one letter
+  return /[a-zA-ZáéíóúüñÁÉÍÓÚÜÑ]/.test(val.trim())
+}
+
 function parseExcel(bytes: Uint8Array): Record<string, any>[] {
   const wb = XLSX.read(bytes, { type: 'array' })
   const sheet = wb.Sheets[wb.SheetNames[0]]
   const raw: any[][] = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: null })
   if (raw.length < 2) return []
-  const headers = (raw[0] as string[]).map(h => String(h || ''))
-  const colMap: (string | null)[] = headers.map(h => {
-    const ln = normStr(h)
-    if (['first name','name','athlete','player','nombre'].some(k => ln.includes(k))) return '__name__'
-    if (['date','fecha','session','period','device','jersey','shirt'].some(k => ln.includes(k))) return null
-    return matchExcelCol(h)
-  })
-  return raw.slice(1)
+
+  // Auto-detect the real header row (scan first 6 rows)
+  let headerRowIdx = 0
+  let maxScore = -1
+  for (let i = 0; i < Math.min(6, raw.length); i++) {
+    const s = scoreHeaderRow(raw[i] as any[])
+    if (s > maxScore) { maxScore = s; headerRowIdx = i }
+  }
+
+  const headers = (raw[headerRowIdx] as any[]).map(h => String(h || ''))
+  const colMap = buildColMap(headers)
+
+  return raw.slice(headerRowIdx + 1)
     .filter(row => row.some(c => c !== null && c !== ''))
     .map(row => {
       let name: string | null = null
@@ -63,7 +95,12 @@ function parseExcel(bytes: Uint8Array): Record<string, any>[] {
       row.forEach((cell, idx) => {
         const f = colMap[idx]
         if (!f || cell === null || cell === '') return
-        if (f === '__name__') { name = String(cell).trim(); return }
+        if (f === '__name__') {
+          const val = String(cell).trim()
+          // Only use as player name if it contains at least one letter (not a jersey number or metric)
+          if (isTextName(val)) name = val
+          return
+        }
         const n = parseFloat(String(cell).replace(',', '.'))
         if (!isNaN(n)) metricas[f] = n
       })

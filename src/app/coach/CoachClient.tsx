@@ -893,11 +893,11 @@ function CambioCargaPanel() {
 const OBJETIVOS_FISICOS = ['Fuerza','Resistencia','Velocidad','Recuperación-Compensación','Recuperación','Competición']
 const OBJETIVOS_SECUNDARIOS = ['Táctico','Técnico','Técnico-Táctico']
 const TITULOS_SESION = ['MD+1','MD+2','MD+3','MD-4','MD-3','MD-2','MD-1','MD']
-const TAREAS_PRINCIPALES = ['Activación en campo','Activación en gimnasio','Gimnasio + Tarea analítica','Juego de posesión','Juego de posición','Partido reducido','Partido modificado','Partido de entrenamiento','Partido amistoso','Partido oficial']
-const SUBTAREAS: Record<string, string[]> = { 'Activación en campo': ['Circuito técnico','Circuito neuromuscular','Pliometría','Movilidad'], 'Activación en gimnasio': ['Isométricos','Pliometría','Movilidad','Excéntricos','Estabilidad','Tracción y empuje'] }
+const TAREAS_PRINCIPALES = ['Activación en campo','Activación en gimnasio','Gimnasio + Tarea analítica','Tarea analítica','Rondo','Juego de posesión','Juego de posición','Partido reducido','Partido modificado','Partido de entrenamiento','Partido amistoso','Partido oficial']
+const SUBTAREAS: Record<string, string[]> = { 'Activación en campo': ['Circuito técnico','Circuito neuromuscular','Pliometría','Movilidad','Trabajo Preventivo'], 'Activación en gimnasio': ['Isométricos','Pliometría','Movilidad','Excéntricos','Estabilidad','Tracción y empuje','Trabajo Preventivo'] }
 const TAREAS_CON_ESPACIO = ['Juego de posesión','Juego de posición','Partido reducido','Partido modificado','Partido de entrenamiento','Partido amistoso','Partido oficial']
 const TAREAS_CON_EQUIPO = ['Juego de posesión','Juego de posición','Partido reducido','Partido modificado','Partido de entrenamiento','Partido amistoso','Partido oficial']
-const TAREAS_MOSTRAR_FORM = [...TAREAS_CON_ESPACIO, 'Activación en campo','Activación en gimnasio','Gimnasio + Tarea analítica']
+const TAREAS_MOSTRAR_FORM = [...TAREAS_CON_ESPACIO, 'Activación en campo','Activación en gimnasio','Gimnasio + Tarea analítica','Tarea analítica','Rondo']
 const TIPO_COLORES = { entrenamiento:'#c8f135', partido:'#3b82f6', recuperacion:'#f59e0b', descanso:'#555' }
 const TIPO_ICONOS = { entrenamiento:'⚽', partido:'🏆', recuperacion:'🔄', descanso:'😴' }
 
@@ -910,8 +910,8 @@ function horasEntre(fechaA: string, horaA: string|null, fechaB: string, horaB: s
 
 function RecuperacionBadge({ horas }: { horas: number|null }) {
   if (horas === null || horas <= 0) return null
-  const col = horas < 24 ? '#ef4444' : horas < 48 ? '#f59e0b' : '#22c55e'
-  const label = horas < 24 ? '⚠ RIESGO' : horas < 48 ? '⚡ AJUSTADO' : '✓ OK'
+  const col = horas < 24 ? '#ef4444' : '#22c55e'
+  const label = horas < 24 ? '⚠ RIESGO' : '✓ OK'
   return (
     <div style={{ display:'flex', alignItems:'center', gap:4, fontSize:10, color:col, background:`${col}18`, border:`1px solid ${col}44`, borderRadius:6, padding:'2px 7px', fontWeight:700, fontFamily:'DM Mono,monospace' }}>
       {label} · {horas}h recup.
@@ -1100,7 +1100,7 @@ function CalendarioPanel({ teamData }) {
               const prevEventDay = allEventDays[allEventDays.indexOf(fecha)-1]
               const recup = prevEventDay ? calcRecuperacion(prevEventDay, fecha) : null
               const hasEvents = ses.length > 0 || parts.length > 0
-              const recupAlert = hasEvents && recup !== null && recup < 48
+              const recupAlert = hasEvents && recup !== null && recup > 0
 
               return (
                 <div key={fecha}
@@ -1118,8 +1118,8 @@ function CalendarioPanel({ teamData }) {
                   <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:4 }}>
                     <span style={{ fontSize:13, fontWeight:isToday?700:500, color:isToday?'var(--lime)':'var(--snow)', fontFamily:'DM Mono,monospace' }}>{dayNum}</span>
                     {recupAlert && recup !== null && (
-                      <span title={`${recup}h de recuperación`} style={{ fontSize:9, background: recup<24?'rgba(239,68,68,.15)':'rgba(245,158,11,.15)', color:recup<24?'#f87171':'#fbbf24', border:`1px solid ${recup<24?'rgba(239,68,68,.4)':'rgba(245,158,11,.4)'}`, borderRadius:4, padding:'1px 4px', fontWeight:700 }}>
-                        ⚠{recup}h
+                      <span title={`${recup}h de recuperación`} style={{ fontSize:9, background: recup<24?'rgba(239,68,68,.15)':'rgba(34,197,94,.15)', color:recup<24?'#f87171':'#22c55e', border:`1px solid ${recup<24?'rgba(239,68,68,.4)':'rgba(34,197,94,.4)'}`, borderRadius:4, padding:'1px 4px', fontWeight:700 }}>
+                        {recup<24?'⚠':'✓'}{recup}h
                       </span>
                     )}
                   </div>
@@ -1427,7 +1427,10 @@ function BloqueMetodologia({ bloque, index, onChange, onRemove, teamPlayers = []
   const jugadoresEquipos = Object.values(equipos).flat() as number[]
   const totalJugadoresEquipos = jugadoresEquipos.length
 
-  const calcJugadores = esConEquipo ? (totalJugadoresEquipos || Number(bloque.jugadores) || 0) : Number(bloque.jugadores)
+  const totalJugadoresManual = Number(bloque.total_jugadores) || 0
+  const calcJugadores = totalJugadoresManual > 0
+    ? totalJugadoresManual
+    : esConEquipo ? (totalJugadoresEquipos || Number(bloque.jugadores) || 0) : Number(bloque.jugadores)
   const calc = esConEspacio ? calcularDistancias(calcJugadores, Number(bloque.largo), Number(bloque.ancho), Number(bloque.series), Number(bloque.minutos)) : null
 
   function handleImg(e: any) {
@@ -1545,6 +1548,18 @@ function BloqueMetodologia({ bloque, index, onChange, onRemove, teamPlayers = []
             })}
           </div>
           {totalJugadoresEquipos > 0 && <div style={{ marginTop:6, fontSize:10, color:'var(--silver)', fontFamily:'DM Mono,monospace' }}>Total: {totalJugadoresEquipos} jugadores seleccionados</div>}
+          {/* Position count fields */}
+          <div style={{ marginTop:10, display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:6 }}>
+            {[['atacantes','N° Atacantes'],['defensores','N° Defensores'],['comodines','N° Comodines'],['total_jugadores','Total jugadores']].map(([field, label]) => (
+              <div key={field}>
+                <label style={{ fontSize:9, fontWeight:700, color: field==='total_jugadores'?'var(--lime)':'var(--silver)', textTransform:'uppercase', letterSpacing:'0.05em', display:'block', marginBottom:2 }}>{label}</label>
+                <input type="number" min="0" className="wp-input" value={bloque[field]||''} onChange={e=>onChange(field, e.target.value)} placeholder="—" style={{ padding:'4px 6px', fontSize:11, width:'100%', fontFamily:'DM Mono,monospace', background: field==='total_jugadores'?'rgba(200,241,53,.06)':'var(--ink2)', border: field==='total_jugadores'?'1px solid rgba(200,241,53,.3)':'1px solid var(--mist)' }} />
+              </div>
+            ))}
+          </div>
+          {Number(bloque.total_jugadores) > 0 && (
+            <div style={{ marginTop:4, fontSize:9, color:'var(--lime)', fontFamily:'DM Mono,monospace' }}>✓ Calculadora usará {bloque.total_jugadores} jugadores como base</div>
+          )}
         </div>
       )}
 
@@ -1758,7 +1773,7 @@ function SesionEditor({ sesion, defaultFecha, onSave, onDelete, onCancel, teamPl
   const [saveError, setSaveError] = useState('')
   const set = (k,v) => setF(p=>({...p,[k]:v}))
 
-  function addBloque() { setBloques(b=>[...b, { ventana:'', subtarea:'', jugadores:'', series:'', minutos:'', pausa:'', largo:'', ancho:'', descripcion:'', imagen:'' }]) }
+  function addBloque() { setBloques(b=>[...b, { ventana:'', subtarea:'', jugadores:'', series:'', minutos:'', pausa:'', largo:'', ancho:'', descripcion:'', imagen:'', atacantes:'', defensores:'', comodines:'', total_jugadores:'' }]) }
   function updateBloque(i,k,v) { setBloques(b=>b.map((bl,idx)=>idx===i?{...bl,[k]:v}:bl)) }
   function removeBloque(i) { setBloques(b=>b.filter((_,idx)=>idx!==i)) }
 
