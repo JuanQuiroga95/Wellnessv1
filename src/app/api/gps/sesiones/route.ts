@@ -47,14 +47,21 @@ export async function GET(req: NextRequest) {
       ORDER BY pl.fecha DESC
     ` : []
 
-    // Existing GPS imports for this date (to show if already imported)
-    const existing = clubId ? await sql`
-      SELECT fecha::text, tipo_sesion, COUNT(*)::int as n_jugadores
-      FROM gps_logs
-      WHERE club_id = ${clubId}
-        AND fecha = ${fecha}
-      GROUP BY fecha, tipo_sesion
-    ` : []
+    // Existing GPS imports for this date (gps_logs may not exist if migrations haven't run)
+    let existing: any[] = []
+    if (clubId) {
+      try {
+        existing = await sql`
+          SELECT fecha::text, tipo_sesion, COUNT(*)::int as n_jugadores
+          FROM gps_logs
+          WHERE club_id = ${clubId}
+            AND fecha = ${fecha}
+          GROUP BY fecha, tipo_sesion
+        ` as any[]
+      } catch {
+        // Table doesn't exist yet — ignore
+      }
+    }
 
     return NextResponse.json({
       sesiones,

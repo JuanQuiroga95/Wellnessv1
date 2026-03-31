@@ -149,19 +149,34 @@ function parseExcel(bytes: Uint8Array): Record<string, any>[] {
 
   return dataRows.map(row => {
     let name: string | null = null
+    let firstName: string | null = null
+    let lastName: string | null = null
+    let jersey: string | null = null
     const metricas: Record<string, number> = {}
 
     row.forEach((cell, idx) => {
       const field = colMap[idx]
       if (!field || cell === null || cell === '') return
       if (field === '__name__') { name = String(cell).trim(); return }
-      if (field === '__device__' || field === '__jersey__') return
+      if (field === '__firstname__') { firstName = String(cell).trim(); return }
+      if (field === '__lastname__') { lastName = String(cell).trim(); return }
+      if (field === '__jersey__') { jersey = String(cell).trim(); return }
+      if (field === '__device__') return
       const num = parseFloat(String(cell).replace(',', '.'))
       if (!isNaN(num)) metricas[field] = num
     })
 
+    // Build name from parts if not found directly
+    if (!name && (firstName || lastName)) {
+      name = [firstName, lastName].filter(Boolean).join(' ').trim() ||
+             [lastName, firstName].filter(Boolean).join(', ').trim()
+    }
+
+    // Skip rows where name is purely numeric (device IDs leaked into name col)
+    if (name && /^[\d.\s,]+$/.test(name)) name = null
+
     if (!name) return null
-    return { nombre_catapult: name, nombre_norm: normalizeName(name), metricas }
+    return { nombre_catapult: name, nombre_norm: normalizeName(name), jersey, metricas }
   }).filter(Boolean) as any[]
 }
 
@@ -320,13 +335,25 @@ export async function POST(req: NextRequest) {
     const matched: any[] = []
     const unmatched: string[] = []
 
+    // Build jersey map for fallback matching
+    const byJersey = new Map<string, any>()
+    for (const j of jugadores as any[]) {
+      if ((j as any).dorsal) byJersey.set(String((j as any).dorsal).trim(), j)
+    }
+
     for (const row of parsedRows) {
       let jugador = null, matchMethod = null
+
+      // 1. Exact normalized name match
       if (byNormName.has(row.nombre_norm)) { jugador = byNormName.get(row.nombre_norm); matchMethod = 'nombre' }
+
+      // 2. First name only match
       if (!jugador) {
         const fn = row.nombre_norm.split(' ')[0]
-        if (byNormName.has(fn)) { jugador = byNormName.get(fn); matchMethod = 'primer_nombre' }
+        if (fn.length > 2 && byNormName.has(fn)) { jugador = byNormName.get(fn); matchMethod = 'primer_nombre' }
       }
+
+      // 3. Partial / contains match
       if (!jugador) {
         for (const [normName, j] of byNormName.entries()) {
           if (normName.includes(row.nombre_norm) || row.nombre_norm.includes(normName)) {
@@ -334,11 +361,32 @@ export async function POST(req: NextRequest) {
           }
         }
       }
+
+      // 4. Last name match (Catapult sometimes exports "Apellido, Nombre" or just apellido)
+      if (!jugador) {
+        const parts = row.nombre_norm.split(/[,\s]+/)
+        for (const part of parts) {
+          if (part.length < 3) continue
+          for (const [normName, j] of byNormName.entries()) {
+            if (normName.includes(part)) { jugador = j; matchMethod = 'apellido'; break }
+          }
+          if (jugador) break
+        }
+      }
+
+      // 5. Jersey / dorsal number match
+      if (!jugador && row.jersey && byJersey.has(row.jersey)) {
+        jugador = byJersey.get(row.jersey); matchMethod = 'dorsal'
+      }
+
       if (jugador) matched.push({ ...row, jugador_id: jugador.id, jugador_nombre: jugador.nombre, match_method: matchMethod })
       else unmatched.push(row.nombre_catapult)
     }
 
     const confirm = formData.get('confirm') === 'true'
+    // Expose raw headers for debugging when no players matched
+    const rawHeaders = parsedRows.length > 0 ? Object.keys(parsedRows[0]).filter(k => k !== 'metricas' && k !== 'nombre_norm') : []
+
     if (!confirm) {
       return NextResponse.json({
         preview: true, fecha, tipo_sesion, sesion_id,
@@ -355,6 +403,7 @@ export async function POST(req: NextRequest) {
         total_filas: parsedRows.length,
         // Show what columns were detected
         columnas_detectadas: parsedRows.length > 0 ? Object.keys(parsedRows[0].metricas || {}) : [],
+        nombres_detectados: parsedRows.slice(0, 5).map(r => r.nombre_catapult),
       })
     }
 

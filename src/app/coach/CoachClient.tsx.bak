@@ -8,60 +8,6 @@ import WellnessTrend from '@/components/charts/WellnessTrend'
 import { buildACWRHistory, buildDailyDetail } from '@/lib/acwr'
 import AnalyticsPanel from './AnalyticsPanel'
 
-// ─── GPS METRIC METADATA (shared between GpsPanel and CargaExternaPanel) ──────
-// Maps metric key → { label, unit, group } for display purposes
-const GPS_METRIC_META: Record<string, { label: string; unit: string; group: string }> = {
-  dist_total:          { label: 'Dist. Total',     unit: 'm',      group: 'Distancia' },
-  dist_per_min:        { label: 'Dist/min',         unit: 'm/min',  group: 'Distancia' },
-  dist_hir:            { label: 'High Speed Dist',  unit: 'm',      group: 'Distancia' },
-  dist_v1:             { label: 'Vel B1',           unit: 'm',      group: 'Distancia' },
-  dist_v2:             { label: 'Vel B2',           unit: 'm',      group: 'Distancia' },
-  dist_v3:             { label: 'Vel B3',           unit: 'm',      group: 'Distancia' },
-  dist_v4:             { label: 'Vel B4',           unit: 'm',      group: 'Distancia' },
-  dist_v5:             { label: 'Vel B5/B6',        unit: 'm',      group: 'Distancia' },
-  player_load:         { label: 'Player Load',      unit: 'UA',     group: 'Carga' },
-  metabolic_power:     { label: 'Pot. Metabólica',  unit: 'W/kg',   group: 'Carga' },
-  avg_metabolic_power: { label: 'Pot. Metab. Med.', unit: 'W/kg',   group: 'Carga' },
-  equiv_distance:      { label: 'Dist. Equiv.',     unit: 'm',      group: 'Carga' },
-  max_velocity:        { label: 'Vel. Máx.',        unit: 'km/h',   group: 'Velocidad' },
-  n_sprints:           { label: 'Nº Sprints',        unit: 'nº',     group: 'Sprints' },
-  acc1:                { label: 'Acc B1',            unit: 'nº',     group: 'Acc/Dec' },
-  acc2:                { label: 'Acc B2-3',          unit: 'nº',     group: 'Acc/Dec' },
-  acc3:                { label: 'Acc B3',            unit: 'nº',     group: 'Acc/Dec' },
-  acc4:                { label: 'Acc B4',            unit: 'nº',     group: 'Acc/Dec' },
-  acc_total:           { label: 'Acc Total',         unit: 'nº',     group: 'Acc/Dec' },
-  dec1:                { label: 'Dec B1',            unit: 'nº',     group: 'Acc/Dec' },
-  dec2:                { label: 'Dec B2-3',          unit: 'nº',     group: 'Acc/Dec' },
-  dec3:                { label: 'Dec B3',            unit: 'nº',     group: 'Acc/Dec' },
-  dec4:                { label: 'Dec B4',            unit: 'nº',     group: 'Acc/Dec' },
-  dec_total:           { label: 'Dec Total',         unit: 'nº',     group: 'Acc/Dec' },
-  hr_avg:              { label: 'FC Media',          unit: 'bpm',    group: 'FC' },
-  hr_max:              { label: 'FC Máx.',           unit: 'bpm',    group: 'FC' },
-  hr_z1:               { label: 'FC Zona 1',         unit: '%',      group: 'FC' },
-  hr_z2:               { label: 'FC Zona 2',         unit: '%',      group: 'FC' },
-  hr_z3:               { label: 'FC Zona 3',         unit: '%',      group: 'FC' },
-  hr_z4:               { label: 'FC Zona 4',         unit: '%',      group: 'FC' },
-  hr_z5:               { label: 'FC Zona 5',         unit: '%',      group: 'FC' },
-  duracion_min:        { label: 'Duración',          unit: 'min',    group: 'Tiempo' },
-}
-
-// Order in which columns appear (known fields first, logical order)
-const GPS_METRIC_ORDER = Object.keys(GPS_METRIC_META)
-
-// Returns a display-ready string for a GPS metric value
-function fmtGps(key: string, val: any): string {
-  if (val === null || val === undefined || val === 0 || val === '') return '—'
-  const n = Number(val)
-  if (isNaN(n) || n === 0) return '—'
-  if (key === 'dist_total' || key === 'equiv_distance') return `${(n / 1000).toFixed(2)}km`
-  if (key.startsWith('dist_')) return `${Math.round(n)}m`
-  if (key === 'max_velocity') return `${n}km/h`
-  if (key === 'dist_per_min') return `${Math.round(n)}`
-  if (key === 'player_load') return `${Math.round(n)}`
-  if (key === 'metabolic_power' || key === 'avg_metabolic_power') return `${n.toFixed(1)}`
-  return `${Math.round(n)}`
-}
-
 
 // Compress image to max 400px and 0.7 quality before saving to DB
 function compressImage(dataUrl: string, maxSize = 400, quality = 0.7): Promise<string> {
@@ -2264,8 +2210,6 @@ function CargaExternaPanel() {
   const [diaSelec,  setDiaSelec]  = useState(new Date().toISOString().split('T')[0])
   const [diaData,   setDiaData]   = useState<any>(null)
   const [diaLoading, setDiaLoading] = useState(false)
-  const [gpsVisibleCols, setGpsVisibleCols] = useState<Set<string> | null>(null)
-  const [showColPicker, setShowColPicker] = useState(false)
 
   const CICLO_DAYS = { microciclo:7, mesociclo:28, macrociclo:365 }
 
@@ -2304,22 +2248,23 @@ function CargaExternaPanel() {
   const teamAvgGps: any = data?.teamAvgGps || {}
   const hasRealGps: boolean = data?.hasRealGps || false
   const allMetricCols: string[] = data?.allMetricCols || []
-  // All columns present in the data, sorted by canonical order (known first, then alphabetical)
-  const availableCols: string[] = (() => {
-    const raw = allMetricCols.length > 0 ? allMetricCols : (
-      gpsReal.length > 0
-        ? Object.keys(gpsReal[0]).filter(k => !['jugador_id','nombre','posicion','sesiones_gps'].includes(k))
-        : []
-    )
-    return [
-      ...GPS_METRIC_ORDER.filter(k => raw.includes(k)),
-      ...raw.filter(k => !GPS_METRIC_ORDER.includes(k)).sort(),
-    ]
-  })()
-  // Active columns: filtered by gpsVisibleCols selector (null = show all)
-  const dynamicGpsCols: string[] = gpsVisibleCols === null
-    ? availableCols
-    : availableCols.filter(k => gpsVisibleCols.has(k))
+  // Build dynamic GPS columns from what's actually in the data
+  const dynamicGpsCols: string[] = allMetricCols.length > 0 ? allMetricCols : (
+    gpsReal.length > 0
+      ? Object.keys(gpsReal[0]).filter(k => !['jugador_id','nombre','posicion','sesiones_gps'].includes(k))
+      : ['dist_total','dist_hir','dist_v4','dist_v5','player_load','max_velocity','acc2','dec2','acc3','dec3','dist_per_min']
+  )
+  // Human-readable labels for known fields, fallback to the key itself
+  const GPS_FIELD_LABELS: Record<string,string> = {
+    dist_total:'Tot Dist', dist_hir:'High Speed Dist', dist_v4:'Vel B4', dist_v5:'Vel B6',
+    player_load:'Player Load', max_velocity:'Vel. Máx', acc2:'Acc B2-3', dec2:'Dec B2-3',
+    acc3:'Acc B3', dec3:'Dec B3', dist_per_min:'Dist/min', n_sprints:'Nº Sprints',
+    dist_v1:'Vel B1', dist_v2:'Vel B2', dist_v3:'Vel B3', acc1:'Acc B1', acc4:'Acc B4',
+    dec1:'Dec B1', dec4:'Dec B4', acc_total:'Acc Total', dec_total:'Dec Total',
+    metabolic_power:'Pot. Metab.', avg_metabolic_power:'Pot. Med.', equiv_distance:'Dist. Equiv.',
+    hr_avg:'FC Media', hr_max:'FC Máx', hr_z1:'FC Z1', hr_z2:'FC Z2', hr_z3:'FC Z3',
+    hr_z4:'FC Z4', hr_z5:'FC Z5', duracion_min:'Duración',
+  }
 
   const borgColor = (rpe: number) =>
     rpe <= 2 ? '#22c55e' : rpe <= 4 ? '#a3e635' : rpe <= 6 ? '#eab308' : rpe <= 8 ? '#f97316' : '#ef4444'
@@ -2647,109 +2592,43 @@ function CargaExternaPanel() {
 
           {/* ── TABLA 2: GPS REAL (datos importados desde Catapult) ── */}
           <div style={{ background: 'var(--ink2)', border: '1px solid rgba(96,165,250,.25)', borderRadius: 16, overflow: 'hidden' }}>
-            {/* Header con selector de columnas */}
-            <div style={{ padding: '12px 18px', borderBottom: '1px solid var(--mist)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
+            <div style={{ padding: '12px 18px', borderBottom: '1px solid var(--mist)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
                 <p style={{ fontSize: 11, fontWeight: 700, color: '#60a5fa', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
                   📡 GPS REAL · {ciclo.toUpperCase()}
-                  {hasRealGps && <span style={{ marginLeft: 8, fontSize: 10, fontWeight: 400, color: 'var(--fog)', background: 'rgba(96,165,250,.1)', borderRadius: 4, padding: '1px 6px' }}>
-                    {dynamicGpsCols.length}/{availableCols.length} columnas
-                  </span>}
                 </p>
                 <p style={{ fontSize: 10, color: 'var(--fog)', marginTop: 2 }}>Datos importados desde Catapult para el período</p>
               </div>
-              {hasRealGps && availableCols.length > 0 && (
-                <div style={{ position: 'relative' }}>
-                  <button
-                    onClick={() => setShowColPicker(v => !v)}
-                    style={{ fontSize: 11, padding: '6px 12px', background: showColPicker ? 'rgba(96,165,250,.2)' : 'rgba(96,165,250,.08)', border: '1px solid rgba(96,165,250,.3)', borderRadius: 8, color: '#93c5fd', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
-                  >
-                    ⚙️ Columnas {showColPicker ? '▲' : '▼'}
-                  </button>
-                  {showColPicker && (() => {
-                    // Group columns by category
-                    const groups: Record<string, string[]> = {}
-                    for (const col of availableCols) {
-                      const g = GPS_METRIC_META[col]?.group || 'Otros'
-                      if (!groups[g]) groups[g] = []
-                      groups[g].push(col)
-                    }
-                    const isVisible = (col: string) => gpsVisibleCols === null || gpsVisibleCols.has(col)
-                    const toggleCol = (col: string) => {
-                      setGpsVisibleCols(prev => {
-                        const current = prev === null ? new Set(availableCols) : new Set(prev)
-                        if (current.has(col)) { current.delete(col) } else { current.add(col) }
-                        return current.size === availableCols.length ? null : current
-                      })
-                    }
-                    return (
-                      <div style={{ position: 'absolute', right: 0, top: '110%', zIndex: 100, background: 'var(--ink)', border: '1px solid rgba(96,165,250,.3)', borderRadius: 12, padding: 16, minWidth: 260, boxShadow: '0 8px 32px rgba(0,0,0,.5)' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                          <span style={{ fontSize: 11, fontWeight: 700, color: '#93c5fd', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Columnas visibles</span>
-                          <div style={{ display: 'flex', gap: 6 }}>
-                            <button onClick={() => setGpsVisibleCols(null)} style={{ fontSize: 10, padding: '3px 8px', background: 'rgba(96,165,250,.1)', border: '1px solid rgba(96,165,250,.2)', borderRadius: 5, color: '#93c5fd', cursor: 'pointer' }}>Todas</button>
-                            <button onClick={() => setGpsVisibleCols(new Set())} style={{ fontSize: 10, padding: '3px 8px', background: 'rgba(239,68,68,.08)', border: '1px solid rgba(239,68,68,.2)', borderRadius: 5, color: '#fca5a5', cursor: 'pointer' }}>Ninguna</button>
-                          </div>
-                        </div>
-                        {Object.entries(groups).map(([grp, cols]) => (
-                          <div key={grp} style={{ marginBottom: 12 }}>
-                            <p style={{ fontSize: 9, fontWeight: 700, color: 'var(--fog)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>{grp}</p>
-                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
-                              {cols.map(col => {
-                                const on = isVisible(col)
-                                const meta = GPS_METRIC_META[col]
-                                return (
-                                  <button key={col} onClick={() => toggleCol(col)} style={{ fontSize: 10, padding: '4px 9px', borderRadius: 6, cursor: 'pointer', border: `1px solid ${on ? 'rgba(96,165,250,.4)' : 'var(--mist)'}`, background: on ? 'rgba(96,165,250,.15)' : 'transparent', color: on ? '#93c5fd' : 'var(--fog)', transition: 'all .12s' }}>
-                                    {meta ? meta.label : col}
-                                    {meta && <span style={{ opacity: 0.6, marginLeft: 3, fontSize: 9 }}>{meta.unit}</span>}
-                                  </button>
-                                )
-                              })}
-                            </div>
-                          </div>
-                        ))}
-                        <button onClick={() => setShowColPicker(false)} style={{ width: '100%', fontSize: 11, padding: '7px', background: 'rgba(96,165,250,.1)', border: '1px solid rgba(96,165,250,.2)', borderRadius: 7, color: '#93c5fd', cursor: 'pointer', marginTop: 4 }}>
-                          ✓ Aplicar
-                        </button>
-                      </div>
-                    )
-                  })()}
-                </div>
-              )}
+              {!hasRealGps && <p style={{ fontSize: 11, color: 'var(--fog)' }}>Sin datos GPS importados para este período</p>}
             </div>
-
             {hasRealGps ? (
               <div style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
                   <thead>
                     <tr style={{ background: 'rgba(96,165,250,.05)' }}>
-                      <th style={{ padding: '8px 14px', fontWeight: 600, textTransform: 'uppercase', fontSize: 9, letterSpacing: '0.06em', color: '#93c5fd', textAlign: 'left', whiteSpace: 'nowrap', position: 'sticky', left: 0, background: 'var(--ink2)' }}>Jugador</th>
+                      <th style={{ padding: '8px 14px', fontWeight: 600, textTransform: 'uppercase', fontSize: 9, letterSpacing: '0.06em', color: '#93c5fd', textAlign: 'left', whiteSpace: 'nowrap' }}>Jugador</th>
                       <th style={{ padding: '8px 10px', fontWeight: 600, textTransform: 'uppercase', fontSize: 9, letterSpacing: '0.06em', color: '#93c5fd', textAlign: 'center', whiteSpace: 'nowrap' }}>Ses.</th>
-                      {dynamicGpsCols.map(col => {
-                        const meta = GPS_METRIC_META[col]
-                        return (
-                          <th key={col} style={{ padding: '8px 10px', fontWeight: 600, textTransform: 'uppercase', fontSize: 9, letterSpacing: '0.06em', color: '#93c5fd', textAlign: 'center', whiteSpace: 'nowrap' }}>
-                            {meta ? meta.label : col}
-                            {meta && <span style={{ display: 'block', fontSize: 8, opacity: 0.55, fontWeight: 400, textTransform: 'none' }}>{meta.unit}</span>}
-                          </th>
-                        )
-                      })}
+                      {dynamicGpsCols.map(col => (
+                        <th key={col} style={{ padding: '8px 10px', fontWeight: 600, textTransform: 'uppercase', fontSize: 9, letterSpacing: '0.06em', color: '#93c5fd', textAlign: 'center', whiteSpace: 'nowrap' }}>
+                          {GPS_FIELD_LABELS[col] || col}
+                        </th>
+                      ))}
                     </tr>
                   </thead>
                   <tbody>
                     {gpsReal.map((p: any, i: number) => (
                       <tr key={i} style={{ borderTop: '1px solid var(--mist)', background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,.015)' }}>
-                        <td style={{ padding: '9px 14px', fontWeight: 500, color: 'var(--snow)', whiteSpace: 'nowrap', position: 'sticky', left: 0, background: i % 2 === 0 ? 'var(--ink2)' : 'rgba(20,20,30,1)' }}>
+                        <td style={{ padding: '9px 14px', fontWeight: 500, color: 'var(--snow)', whiteSpace: 'nowrap' }}>
                           {p.nombre}
                           {p.posicion && <span style={{ fontSize: 10, color: 'var(--fog)', marginLeft: 6 }}>{p.posicion}</span>}
                         </td>
                         <td style={{ padding: '9px 10px', textAlign: 'center', fontFamily: 'DM Mono,monospace', color: 'var(--silver)' }}>{p.sesiones_gps || '—'}</td>
                         {dynamicGpsCols.map(col => {
-                          const raw = p[col]
-                          const formatted = fmtGps(col, raw)
+                          const val = p[col]
+                          const hasVal = val !== null && val !== undefined && val !== 0
                           return (
-                            <td key={col} style={{ padding: '9px 10px', textAlign: 'center', fontFamily: 'DM Mono,monospace', color: formatted !== '—' ? 'var(--snow)' : 'var(--fog)' }}>
-                              {formatted}
+                            <td key={col} style={{ padding: '9px 10px', textAlign: 'center', fontFamily: 'DM Mono,monospace', color: hasVal ? 'var(--snow)' : 'var(--fog)' }}>
+                              {hasVal ? val : '—'}
                             </td>
                           )
                         })}
@@ -2758,29 +2637,25 @@ function CargaExternaPanel() {
                     {/* Promedio equipo */}
                     {(() => {
                       const n = gpsReal.length || 1
+                      const teamAvgDyn: Record<string,number> = {}
                       const MAX_FIELDS = new Set(['max_velocity','hr_max'])
-                      const teamAvgDyn: Record<string, number> = {}
                       for (const col of dynamicGpsCols) {
-                        const vals = (gpsReal as any[]).map((p: any) => Number(p[col]) || 0)
+                        const vals = (gpsReal as any[]).map(p => Number(p[col]) || 0)
                         teamAvgDyn[col] = MAX_FIELDS.has(col)
                           ? Math.max(...vals)
-                          : Math.round(vals.reduce((a: number, b: number) => a + b, 0) / n * 10) / 10
+                          : Math.round(vals.reduce((a,b) => a+b, 0) / n * 10) / 10
                       }
                       return (
                         <tr style={{ borderTop: '2px solid rgba(96,165,250,.3)', background: 'rgba(96,165,250,.06)' }}>
-                          <td style={{ padding: '10px 14px', fontWeight: 800, color: '#60a5fa', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.06em', position: 'sticky', left: 0, background: 'rgba(96,165,250,.06)' }}>Promedio equipo</td>
+                          <td style={{ padding: '10px 14px', fontWeight: 800, color: '#60a5fa', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Promedio equipo</td>
                           <td style={{ padding: '10px 10px', textAlign: 'center', fontFamily: 'DM Mono,monospace', color: 'var(--silver)' }}>
-                            {Math.round((gpsReal as any[]).reduce((s: number, p: any) => s + (p.sesiones_gps || 0), 0) / n)}
+                            {Math.round((gpsReal as any[]).reduce((s,p) => s + (p.sesiones_gps||0), 0) / n)}
                           </td>
-                          {dynamicGpsCols.map(col => {
-                            const v = teamAvgDyn[col]
-                            const formatted = fmtGps(col, v)
-                            return (
-                              <td key={col} style={{ padding: '10px 10px', textAlign: 'center', fontFamily: 'DM Mono,monospace', fontWeight: 700, color: formatted !== '—' ? '#60a5fa' : 'var(--fog)' }}>
-                                {formatted}
-                              </td>
-                            )
-                          })}
+                          {dynamicGpsCols.map(col => (
+                            <td key={col} style={{ padding: '10px 10px', textAlign: 'center', fontFamily: 'DM Mono,monospace', fontWeight: 700, color: teamAvgDyn[col] > 0 ? '#60a5fa' : 'var(--fog)' }}>
+                              {teamAvgDyn[col] > 0 ? teamAvgDyn[col] : '—'}
+                            </td>
+                          ))}
                         </tr>
                       )
                     })()}
@@ -3766,7 +3641,6 @@ function CoachEmailSettings() {
 }
 
 // ─── GPS PANEL ────────────────────────────────────────────────────────────────
-// GPS_METRIC_META, GPS_METRIC_ORDER, fmtGps defined at module level above
 
 function GpsPanel({ teamData }: { teamData: any }) {
   const today = new Date().toISOString().split('T')[0]
@@ -3964,139 +3838,78 @@ function GpsPanel({ teamData }: { teamData: any }) {
       </div>
 
       {/* Preview */}
-      {preview && (() => {
-        // Build dynamic columns from what was actually detected in the file
-        const detectedCols: string[] = preview.columnas_detectadas || []
-        // Fallback: gather all keys from all metricas objects
-        const allMetricKeys = detectedCols.length > 0 ? detectedCols : (() => {
-          const keys = new Set<string>()
-          preview.matched.forEach((m: any) => Object.keys(m.metricas || {}).forEach((k: string) => keys.add(k)))
-          return Array.from(keys)
-        })()
-        const sortedCols = [
-          ...GPS_METRIC_ORDER.filter(k => allMetricKeys.includes(k)),
-          ...allMetricKeys.filter(k => !GPS_METRIC_ORDER.includes(k)).sort(),
-          ...allMetricKeys.filter(k => !GPS_METRIC_ORDER.includes(k)).sort(),
-        ]
-        const validPlayers = preview.matched.filter((m: any) => !m.sin_datos)
-
-        return (
-          <div style={{ background: 'var(--ink2)', border: '1px solid var(--mist)', borderRadius: 16, padding: 24, marginBottom: 24 }}>
-            {/* Header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16, flexWrap: 'wrap', gap: 12 }}>
-              <div>
-                <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--snow)', marginBottom: 4 }}>
-                  Preview · {preview.fecha} · {preview.tipo_sesion}
-                  <span style={{ marginLeft: 10, fontSize: 11, color: 'var(--fog)', fontFamily: 'DM Mono, monospace', background: 'rgba(200,241,53,.08)', borderRadius: 4, padding: '2px 8px' }}>
-                    {preview.fuente === 'pdf' ? '📄 PDF' : '📊 Excel'}
-                  </span>
-                </p>
-                <p style={{ fontSize: 12, color: 'var(--silver)' }}>
-                  {preview.matched.length} de {preview.total_filas} jugadores encontrados en el plantel
-                  {preview.unmatched.length > 0 && ` · ${preview.unmatched.length} sin match`}
-                  {' · '}<span style={{ color: 'var(--lime)' }}>{sortedCols.length} variables detectadas</span>
-                </p>
-              </div>
-              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
-                <button onClick={() => setPreview(null)} className="btn-ghost" style={{ fontSize: 12, padding: '8px 16px' }}>Cancelar</button>
-                <button
-                  onClick={handleConfirm}
-                  disabled={importing || validPlayers.length === 0}
-                  className="btn-lime"
-                  style={{ fontSize: 13, padding: '10px 22px' }}
-                >
-                  {importing ? 'Importando...' : `✓ Confirmar (${validPlayers.length} jugadores)`}
-                </button>
-              </div>
+      {preview && (
+        <div style={{ background: 'var(--ink2)', border: '1px solid var(--mist)', borderRadius: 16, padding: 24, marginBottom: 24 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 18, flexWrap: 'wrap', gap: 12 }}>
+            <div>
+              <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--snow)', marginBottom: 4 }}>
+                Preview · {preview.fecha} · {preview.tipo_sesion}
+              </p>
+              <p style={{ fontSize: 12, color: 'var(--silver)' }}>
+                {preview.matched.length} de {preview.total_filas} jugadores encontrados en el plantel
+                {preview.unmatched.length > 0 && ` · ${preview.unmatched.length} sin match`}
+              </p>
             </div>
-
-            {/* Detected columns chips */}
-            {sortedCols.length > 0 && (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 16, padding: '10px 14px', background: 'rgba(200,241,53,.04)', borderRadius: 10, border: '1px solid rgba(200,241,53,.1)' }}>
-                <span style={{ fontSize: 10, color: 'var(--fog)', textTransform: 'uppercase', letterSpacing: '0.06em', marginRight: 4, alignSelf: 'center' }}>Variables:</span>
-                {sortedCols.map(key => {
-                  const meta = GPS_METRIC_META[key]
-                  return (
-                    <span key={key} style={{ fontSize: 10, background: 'rgba(200,241,53,.12)', color: 'var(--lime)', borderRadius: 4, padding: '2px 7px', fontFamily: 'DM Mono, monospace' }}>
-                      {meta ? meta.label : key}
-                      {meta && <span style={{ opacity: 0.6, marginLeft: 3 }}>{meta.unit}</span>}
-                    </span>
-                  )
-                })}
-              </div>
-            )}
-
-            {/* Dynamic table */}
-            <div style={{ overflowX: 'auto', marginBottom: preview.unmatched.length > 0 ? 16 : 0 }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-                <thead>
-                  <tr style={{ borderBottom: '1px solid var(--mist)', background: 'rgba(255,255,255,.02)' }}>
-                    <th style={{ padding: '8px 12px', textAlign: 'left', fontSize: 10, color: 'var(--fog)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600, whiteSpace: 'nowrap' }}>Catapult</th>
-                    <th style={{ padding: '8px 12px', textAlign: 'left', fontSize: 10, color: 'var(--fog)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600, whiteSpace: 'nowrap' }}>Jugador</th>
-                    <th style={{ padding: '8px 10px', textAlign: 'center', fontSize: 10, color: 'var(--fog)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>Match</th>
-                    {sortedCols.map(key => {
-                      const meta = GPS_METRIC_META[key]
-                      return (
-                        <th key={key} style={{ padding: '8px 10px', textAlign: 'center', fontSize: 9, color: 'var(--fog)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600, whiteSpace: 'nowrap' }}>
-                          {meta ? meta.label : key}
-                          {meta && <span style={{ display: 'block', fontSize: 8, opacity: 0.6, fontWeight: 400 }}>{meta.unit}</span>}
-                        </th>
-                      )
-                    })}
-                    <th style={{ padding: '8px 10px', textAlign: 'center', fontSize: 10, color: 'var(--fog)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>Estado</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {preview.matched.map((m: any, i: number) => (
-                    <tr key={i} style={{ borderBottom: '1px solid rgba(255,255,255,.04)', opacity: m.sin_datos ? 0.35 : 1, background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,.012)' }}>
-                      <td style={{ padding: '9px 12px', color: 'var(--silver)', fontFamily: 'DM Mono, monospace', fontSize: 11, whiteSpace: 'nowrap' }}>{m.nombre_catapult}</td>
-                      <td style={{ padding: '9px 12px', color: 'var(--snow)', fontWeight: 600, whiteSpace: 'nowrap' }}>{m.jugador_nombre}</td>
-                      <td style={{ padding: '9px 10px', textAlign: 'center' }}>
-                        <span style={{ fontSize: 9, background: `${matchColor(m.match_method)}22`, color: matchColor(m.match_method), borderRadius: 4, padding: '2px 6px', fontFamily: 'DM Mono, monospace', whiteSpace: 'nowrap' }}>
-                          {matchLabel(m.match_method)}
-                        </span>
-                      </td>
-                      {sortedCols.map(key => {
-                        const val = m.metricas?.[key]
-                        const formatted = val !== undefined && val !== null && val !== 0
-                          ? fmtGps(key, val)
-                          : '—'
-                        const hasData = val !== undefined && val !== null && val !== 0
-                        return (
-                          <td key={key} style={{ padding: '9px 10px', textAlign: 'center', fontFamily: 'DM Mono, monospace', fontSize: 11, color: hasData ? 'var(--snow)' : 'var(--fog)', whiteSpace: 'nowrap' }}>
-                            {formatted}
-                          </td>
-                        )
-                      })}
-                      <td style={{ padding: '9px 10px', textAlign: 'center' }}>
-                        {m.sin_datos
-                          ? <span style={{ fontSize: 10, color: '#f59e0b', fontFamily: 'DM Mono, monospace' }}>⚠ sin vest</span>
-                          : <span style={{ fontSize: 10, color: '#22c55e' }}>✓ ok</span>
-                        }
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button onClick={() => setPreview(null)} className="btn-ghost" style={{ fontSize: 12, padding: '8px 16px' }}>Cancelar</button>
+              <button onClick={handleConfirm} disabled={importing || preview.matched.filter((m: any) => !m.sin_datos).length === 0} className="btn-lime" style={{ fontSize: 13, padding: '10px 22px' }}>
+                {importing ? 'Importando...' : `✓ Confirmar importación (${preview.matched.filter((m: any) => !m.sin_datos).length} jugadores)`}
+              </button>
             </div>
-
-            {/* Unmatched */}
-            {preview.unmatched.length > 0 && (
-              <div style={{ background: 'rgba(245,158,11,.08)', border: '1px solid rgba(245,158,11,.2)', borderRadius: 10, padding: '12px 16px' }}>
-                <p style={{ fontSize: 11, fontWeight: 700, color: '#f59e0b', marginBottom: 6 }}>
-                  ⚠ {preview.unmatched.length} jugador{preview.unmatched.length > 1 ? 'es' : ''} del GPS no encontrado{preview.unmatched.length > 1 ? 's' : ''} en el plantel:
-                </p>
-                <p style={{ fontSize: 12, color: 'var(--silver)', fontFamily: 'DM Mono, monospace' }}>
-                  {preview.unmatched.join(' · ')}
-                </p>
-                <p style={{ fontSize: 11, color: 'var(--fog)', marginTop: 6 }}>
-                  Verificá que el nombre en Catapult coincida con el nombre del jugador en W&amp;P.
-                </p>
-              </div>
-            )}
           </div>
-        )
-      })()}
+
+          {/* Matched players */}
+          <div style={{ overflowX: 'auto', marginBottom: preview.unmatched.length > 0 ? 16 : 0 }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+              <thead>
+                <tr style={{ borderBottom: '1px solid var(--mist)' }}>
+                  {['Catapult', 'Jugador W&P', 'Match', 'Dist.Total', 'HIR', 'PlayerLoad', 'Vel.Máx', 'Estado'].map(h => (
+                    <th key={h} style={{ padding: '8px 10px', textAlign: 'left', fontSize: 10, color: 'var(--fog)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {preview.matched.map((m: any, i: number) => (
+                  <tr key={i} style={{ borderBottom: '1px solid rgba(255,255,255,.04)', opacity: m.sin_datos ? 0.4 : 1 }}>
+                    <td style={{ padding: '9px 10px', color: 'var(--silver)', fontFamily: 'DM Mono, monospace', fontSize: 11 }}>{m.nombre_catapult}</td>
+                    <td style={{ padding: '9px 10px', color: 'var(--snow)', fontWeight: 600 }}>{m.jugador_nombre}</td>
+                    <td style={{ padding: '9px 10px' }}>
+                      <span style={{ fontSize: 10, background: `${matchColor(m.match_method)}22`, color: matchColor(m.match_method), borderRadius: 4, padding: '2px 7px', fontFamily: 'DM Mono, monospace' }}>
+                        {matchLabel(m.match_method)}
+                      </span>
+                    </td>
+                    <td style={{ padding: '9px 10px', color: 'var(--silver)', fontFamily: 'DM Mono, monospace' }}>{m.dist_total ? `${(m.dist_total/1000).toFixed(1)}km` : '—'}</td>
+                    <td style={{ padding: '9px 10px', color: 'var(--silver)', fontFamily: 'DM Mono, monospace' }}>{m.dist_hir ? `${Math.round(m.dist_hir)}m` : '—'}</td>
+                    <td style={{ padding: '9px 10px', color: 'var(--silver)', fontFamily: 'DM Mono, monospace' }}>{m.player_load ?? '—'}</td>
+                    <td style={{ padding: '9px 10px', color: 'var(--silver)', fontFamily: 'DM Mono, monospace' }}>{m.max_velocity ? `${m.max_velocity}km/h` : '—'}</td>
+                    <td style={{ padding: '9px 10px' }}>
+                      {m.sin_datos
+                        ? <span style={{ fontSize: 10, color: '#f59e0b', fontFamily: 'DM Mono, monospace' }}>⚠ sin vest</span>
+                        : <span style={{ fontSize: 10, color: '#22c55e' }}>✓ ok</span>
+                      }
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Unmatched */}
+          {preview.unmatched.length > 0 && (
+            <div style={{ background: 'rgba(245,158,11,.08)', border: '1px solid rgba(245,158,11,.2)', borderRadius: 10, padding: '12px 16px' }}>
+              <p style={{ fontSize: 11, fontWeight: 700, color: '#f59e0b', marginBottom: 6 }}>
+                ⚠ {preview.unmatched.length} jugador{preview.unmatched.length > 1 ? 'es' : ''} del GPS no encontrado{preview.unmatched.length > 1 ? 's' : ''} en el plantel:
+              </p>
+              <p style={{ fontSize: 12, color: 'var(--silver)', fontFamily: 'DM Mono, monospace' }}>
+                {preview.unmatched.join(' · ')}
+              </p>
+              <p style={{ fontSize: 11, color: 'var(--fog)', marginTop: 6 }}>
+                Verificá que el nombre en Catapult coincida con el nombre del jugador en W&amp;P.
+              </p>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Success result */}
       {result && (
