@@ -159,7 +159,9 @@ function parseExcel(bytes: Uint8Array, fileName?: string): Record<string, any>[]
   // Catapult often has 1–3 title/metadata rows before the real column headers.
   // We detect the header row as the first row that contains a known name marker
   // OR a known metric keyword. We scan up to the first 6 rows.
-  const NAME_MARKERS = ['first name', 'firstname', 'name', 'athlete', 'player', 'nombre', 'apellido']
+  const NAME_MARKERS = ['first name', 'firstname', 'athlete', 'nombre', 'apellido']
+  // 'player' and 'name' alone are too generic — check them only if matchExcelCol returns null
+  const NAME_MARKERS_WEAK = ['player', 'name']
   const METRIC_MARKERS = ['total dist', 'tot dist', 'total distance', 'player load', 'playerload',
     'max velocity', 'max vel', 'high speed', 'dist per min', 'meterage',
     'vel b4', 'vel b5', 'vel b6', 'v4 dist', 'v5 dist', 'acc2', 'dec2']
@@ -178,19 +180,23 @@ function parseExcel(bytes: Uint8Array, fileName?: string): Record<string, any>[]
   // Build column map: index → field key (null = skip)
   const colMap: (string | null)[] = headers.map(h => {
     const lower = h.toLowerCase().trim()
-    // Detect name columns
-    if (NAME_MARKERS.some(k => lower.includes(k))) return '__name__'
-    if (['last name', 'lastname', 'surname'].some(k => lower.includes(k))) return '__lastname__'
-    if (['device id','device_id','tag id','tag_id'].some(k => lower.includes(k))) return '__device__'
-    // Jersey: only exact matches to avoid false positives like "Number Sprints"
-    if (['jersey', 'shirt number', 'dorsal', '#'].some(k => lower === k)) return '__jersey__'
-    // Skip metadata columns
+    // Skip metadata columns first (exact match only to avoid false positives)
     if (['date','fecha'].some(k => lower === k)) return null
     if (['interval', 'time', 'split'].some(k => lower === k)) return null
     if (['position','pos','posicion'].some(k => lower === k)) return null
     if (['session title','session name','session type'].some(k => lower.includes(k))) return null
-    if (['period'].some(k => lower === k)) return null // exact only — "period" alone, not "periodic"
-    return matchExcelCol(h)
+    if (['period'].some(k => lower === k)) return null
+    if (['device id','device_id','tag id','tag_id'].some(k => lower.includes(k))) return '__device__'
+    if (['jersey', 'shirt number', 'dorsal', '#'].some(k => lower === k)) return '__jersey__'
+    // Try metric match FIRST — this prevents 'Player Load' being caught by weak name marker 'player'
+    const metricMatch = matchExcelCol(h)
+    if (metricMatch) return metricMatch
+    // Strong name markers (specific enough to be safe)
+    if (NAME_MARKERS.some(k => lower.includes(k))) return '__name__'
+    if (['last name', 'lastname', 'surname'].some(k => lower.includes(k))) return '__lastname__'
+    // Weak name markers — only if nothing else matched
+    if (NAME_MARKERS_WEAK.some(k => lower === k)) return '__name__'
+    return null
   })
 
   const dataRows = rawData.slice(headerRowIdx + 1).filter(row =>
@@ -231,28 +237,48 @@ function parseExcel(bytes: Uint8Array, fileName?: string): Record<string, any>[]
 }
 
 // ─── PDF PARSER ──────────────────────────────────────────────────────────────
+// Uses 'unpdf' which is serverless/edge-safe (no DOMMatrix dependency)
+//
+// Catapult PDF "Cuadro Resumen" format (from real file analysis):
+// Line 1: "Tot Dist (m)  Meterage Per  Vel B4 Tot Dist  High Speed Dist  Vel B6 Tot Dist  Número Sprints  Acc B2-3 Tot Effs  Decel B2-3 Tot  Velocidad"
+// Line 2: "                Minute         (m)                (m)              (m)            (Gen 2)          Effs (Gen 2)       Máxima"
+// Line 3: "22/03/2026"  ← date row, skip
+// Line 4+: "ALBERTO RUBIO ALBERTO R.  10957  82  1585  285  126  7  23  26  28"
+//
+// Key insight: pdfplumber-style text extraction gives us:
+// Player name + numbers on the same line, separated by spaces
+
 const PDF_COL_MAP: Array<[string, string]> = [
   ['tot dist',              'dist_total'],
   ['total dist',            'dist_total'],
   ['meterage per minute',   'dist_per_min'],
   ['meterage per min',      'dist_per_min'],
   ['vel b4 tot dist',       'dist_v4'],
+  ['vel b4 tot',            'dist_v4'],
   ['vel b4',                'dist_v4'],
   ['high speed dist',       'dist_hir'],
+  ['high speed distance',   'dist_hir'],
   ['vel b6 tot dist',       'dist_v5'],
+  ['vel b6 tot',            'dist_v5'],
   ['vel b6',                'dist_v5'],
   ['vel b5 tot dist',       'dist_v5'],
   ['vel b5',                'dist_v5'],
   ['numero sprints',        'n_sprints'],
   ['número sprints',        'n_sprints'],
+  ['num sprints',           'n_sprints'],
   ['acc b2-3 tot effs',     'acc2'],
+  ['acc b2-3 tot',          'acc2'],
   ['acc b2-3',              'acc2'],
   ['decel b2-3 tot effs',   'dec2'],
+  ['decel b2-3 tot',        'dec2'],
   ['decel b2-3',            'dec2'],
   ['velocidad maxima',      'max_velocity'],
   ['velocidad máxima',      'max_velocity'],
+  ['velocidad max',         'max_velocity'],
   ['player load',           'player_load'],
+  ['playerload',            'player_load'],
   ['max velocity',          'max_velocity'],
+  ['max vel',               'max_velocity'],
 ]
 
 function matchPdfCol(token: string): string | null {
@@ -265,79 +291,128 @@ function matchPdfCol(token: string): string | null {
 }
 
 async function parsePdf(bytes: Uint8Array): Promise<Record<string, any>[]> {
-  const pdfParse = (await import('pdf-parse')).default
-  const data = await pdfParse(Buffer.from(bytes))
-  const lines = data.text.split('\n').map((l: string) => l.trim()).filter(Boolean)
+  // Use unpdf — serverless-safe, no DOMMatrix dependency
+  const { extractText } = await import('unpdf')
+  const { text: rawText } = await extractText(bytes, { mergePages: false })
 
+  // rawText is array of page texts (one per page)
+  // Find the page with CUADRO RESUMEN
+  let pageText = ''
+  for (const pt of rawText) {
+    const lower = pt.toLowerCase()
+    if (lower.includes('cuadro resumen') || lower.includes('tot dist')) {
+      pageText = pt
+      break
+    }
+  }
+  if (!pageText) {
+    // Fallback: try all pages merged
+    pageText = rawText.join('\n')
+  }
+  if (!pageText) {
+    throw new Error('No se encontró la tabla de datos GPS en el PDF. Asegurate de exportar el "Cuadro Resumen" desde Catapult OpenField.')
+  }
+
+  const lines = pageText.split('\n').map((l: string) => l.trim()).filter(Boolean)
+
+  // ── Find header row ─────────────────────────────────────────────────────────
+  // The header is the first line containing known metric keywords
+  const HEADER_SIGNALS = ['tot dist', 'vel b4', 'meterage', 'high speed', 'player load', 'numero sprints', 'acc b2']
   let headerIdx = -1
   for (let i = 0; i < lines.length; i++) {
-    const l = lines[i].toLowerCase()
-    if (l.includes('tot dist') || l.includes('meterage per minute') || l.includes('vel b4 tot dist') || l.includes('vel b4')) {
-      headerIdx = i; break
-    }
+    const l = lines[i].toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    if (HEADER_SIGNALS.some(s => l.includes(s))) { headerIdx = i; break }
   }
   if (headerIdx === -1) {
-    for (let i = 0; i < lines.length; i++) {
-      if (lines[i].toLowerCase().includes('cuadro resumen')) {
-        for (let j = i + 1; j < Math.min(i + 8, lines.length); j++) {
-          const l = lines[j].toLowerCase()
-          if (l.includes('dist') && (l.includes('vel') || l.includes('sprint') || l.includes('meterage'))) {
-            headerIdx = j; break
-          }
-        }
-        break
-      }
-    }
+    throw new Error('No se encontró la tabla de datos GPS en el PDF. Verificá que el reporte incluya el Cuadro Resumen de Catapult.')
   }
-  if (headerIdx === -1)
-    throw new Error('No se encontró la tabla de datos GPS en el PDF. Asegurate de exportar el "Cuadro Resumen" desde Catapult.')
 
-  const headerTokens = lines[headerIdx].split(/\s{2,}|\t/).map(t => t.trim()).filter(Boolean)
-
-  let extraHeaderIdx = -1
+  // ── Build column list from header (may span 2 rows) ─────────────────────────
+  // Catapult splits "Meterage Per / Minute" and "Decel B2-3 Tot / Effs (Gen 2)" across lines
+  const headerLine1 = lines[headerIdx]
+  let headerLine2 = ''
   if (headerIdx + 1 < lines.length) {
     const next = lines[headerIdx + 1]
-    if (!/\d{3,}/.test(next) && next.length < 120) {
-      extraHeaderIdx = headerIdx + 1
-      const extraTokens = next.split(/\s{2,}|\t/).map(t => t.trim()).filter(Boolean)
-      extraTokens.forEach((tok, idx) => {
-        if (idx < headerTokens.length) headerTokens[idx] += ' ' + tok
-      })
+    // Second header row has no leading numbers and is short
+    if (!/^\d/.test(next) && next.length < 150 && !/^[A-ZÁÉÍÓÚÑ]+ [A-ZÁÉÍÓÚÑ]+\s+\d/.test(next)) {
+      headerLine2 = next
     }
   }
 
-  const colFields: (string | null)[] = headerTokens.map(tok => matchPdfCol(tok))
-  const startIdx = extraHeaderIdx !== -1 ? extraHeaderIdx + 1 : headerIdx + 1
+  // Split header into tokens by 2+ spaces (Catapult uses wide spacing)
+  const tokens1 = headerLine1.split(/\s{2,}|\t/).map(t => t.trim()).filter(Boolean)
+  const tokens2 = headerLine2 ? headerLine2.split(/\s{2,}|\t/).map(t => t.trim()).filter(Boolean) : []
 
+  // Merge multi-line header tokens
+  const headerTokens = tokens1.map((t, i) => {
+    const extra = tokens2[i] ? ' ' + tokens2[i] : ''
+    return (t + extra).trim()
+  })
+
+  const colFields: (string | null)[] = headerTokens.map(tok => matchPdfCol(tok))
+  const nCols = colFields.length
+
+  const startIdx = headerLine2 ? headerIdx + 2 : headerIdx + 1
+
+  // ── Parse data rows ──────────────────────────────────────────────────────────
   const results: Record<string, any>[] = []
   for (let i = startIdx; i < lines.length; i++) {
     const line = lines[i]
     const lower = line.toLowerCase()
-    if (lower.includes('page ') || lower.includes('catapult sport') || lower.includes('generated') || lower.includes('reporte')) break
-    if (lower.startsWith('promedio') || lower.startsWith('total') || lower.startsWith('equipo') || lower.startsWith('team')) continue
 
-    const tokens = line.split(/\s{2,}|\t/).map(t => t.trim()).filter(Boolean)
-    if (tokens.length < 2) continue
+    // Stop signals
+    if (lower.includes('page ') && lower.includes(' of ')) break
+    if (lower.includes('catapult sport') || lower.includes('generated by')) break
 
-    const name = tokens[0]
-    if (!name || /^\d+([.,]\d+)?$/.test(name) || !name.match(/[a-záéíóúñA-ZÁÉÍÓÚÑ]/)) continue
+    // Skip aggregate rows
+    if (/^(promedio|total|max|min|equipo|team)\b/i.test(line.trim())) continue
+
+    // Skip date rows (e.g. "22/03/2026")
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(line.trim())) continue
+
+    // A data row must start with text (player name) followed by numbers
+    // Extract: trailing numbers are the metrics, leading text is the name
+    const numPattern = /(\d[\d,.]*)$/
+    const numMatch = line.match(/^(.+?)\s{2,}(\d[\d\s,.]*)$/)
+
+    let name: string
+    let numStr: string
+
+    if (numMatch) {
+      name = numMatch[1].trim()
+      numStr = numMatch[2].trim()
+    } else {
+      // Try splitting: everything before first run of numbers is the name
+      const parts = line.split(/\s+/)
+      let firstNumIdx = parts.findIndex(p => /^\d+([.,]\d+)?$/.test(p))
+      if (firstNumIdx < 1) continue
+      name = parts.slice(0, firstNumIdx).join(' ').trim()
+      numStr = parts.slice(firstNumIdx).join(' ')
+    }
+
+    if (!name || /^[\d.,\s]+$/.test(name) || !name.match(/[a-záéíóúñA-ZÁÉÍÓÚÑ]/)) continue
+
+    // Parse numbers from the metric portion
+    const nums = numStr.split(/\s+/).map(n => parseFloat(n.replace(',', '.'))).filter(n => !isNaN(n))
+    if (nums.length === 0) continue
 
     const metricas: Record<string, number> = {}
-    tokens.slice(1).forEach((tok, idx) => {
-      const field = colFields[idx + 1] ?? colFields[idx]
-      if (field && metricas[field] === undefined) {
-        const num = parseFloat(tok.replace(',', '.').replace(/[^\d.]/g, ''))
-        if (!isNaN(num)) metricas[field] = num
+    // Map numbers to fields — skip null fields (non-metric columns in header)
+    const activeFields = colFields.filter(f => f !== null)
+    activeFields.forEach((field, idx) => {
+      if (field && nums[idx] !== undefined) {
+        metricas[field] = nums[idx]
       }
     })
 
     const hasData = Object.values(metricas).some(v => v > 0)
-    if (hasData) results.push({ nombre_catapult: name, nombre_norm: normalizeName(name), metricas })
+    if (hasData) {
+      results.push({ nombre_catapult: name, nombre_norm: normalizeName(name), metricas })
+    }
   }
 
   return results
 }
-
 // ─── ROUTE HANDLER ──────────────────────────────────────────────────────────
 export async function POST(req: NextRequest) {
   try {
