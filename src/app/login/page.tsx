@@ -101,7 +101,7 @@ export default function LoginPage() {
       </div>
       <div style={{ borderTop:'1px solid var(--mist)', padding:'12px 24px', display:'flex', justifyContent:'space-between' }}>
         <span style={{ fontFamily:'DM Mono,monospace', fontSize:10, color:'var(--fog)' }}>W&P v1.0</span>
-        <span style={{ fontFamily:'DM Mono,monospace', fontSize:10, color:'var(--fog)' }}>ACWR · RPE · WELLNESS</span>
+        <a href="/landing.html" style={{ fontFamily:'DM Mono,monospace', fontSize:10, color:'var(--fog)', textDecoration:'none' }}>← Volver al inicio</a>
       </div>
     </div>
   )

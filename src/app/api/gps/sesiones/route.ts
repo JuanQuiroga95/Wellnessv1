@@ -28,24 +28,32 @@ export async function GET(req: NextRequest) {
     const clubId = s.clubId ?? null
 
     // Planned training sessions
-    const sesiones = await sql`
-      SELECT id, fecha::text, tipo, titulo, hora_inicio::text, objetivo
-      FROM sesiones_plan
-      WHERE admin_id = ${s.userId}
-        AND fecha BETWEEN ${desdeStr} AND ${hastaStr}
-      ORDER BY fecha DESC, hora_inicio
-    `
+    let sesiones: any[] = []
+    try {
+      sesiones = await sql`
+        SELECT id, fecha::text, tipo, titulo, hora_inicio::text, objetivo
+        FROM sesiones_plan
+        WHERE admin_id = ${s.userId}
+          AND fecha BETWEEN ${desdeStr} AND ${hastaStr}
+        ORDER BY fecha DESC, hora_inicio
+      ` as any[]
+    } catch { /* table may not exist yet */ }
 
     // Also check for partido_logs on that date (these don't have a sesion_id)
-    const partidos = clubId ? await sql`
-      SELECT DISTINCT pl.fecha::text, pl.rival, pl.tipo_partido
-      FROM partido_logs pl
-      JOIN jugadores j ON j.id = pl.jugador_id
-      JOIN usuarios u ON u.id = j.usuario_id
-      WHERE u.club_id = ${clubId}
-        AND pl.fecha BETWEEN ${desdeStr} AND ${hastaStr}
-      ORDER BY pl.fecha DESC
-    ` : []
+    let partidos: any[] = []
+    if (clubId) {
+      try {
+        partidos = await sql`
+          SELECT DISTINCT pl.fecha::text, pl.rival, pl.tipo_partido
+          FROM partido_logs pl
+          JOIN jugadores j ON j.id = pl.jugador_id
+          JOIN usuarios u ON u.id = j.usuario_id
+          WHERE u.club_id = ${clubId}
+            AND pl.fecha BETWEEN ${desdeStr} AND ${hastaStr}
+          ORDER BY pl.fecha DESC
+        ` as any[]
+      } catch { /* table may not exist yet */ }
+    }
 
     // Existing GPS imports for this date (gps_logs may not exist if migrations haven't run)
     let existing: any[] = []

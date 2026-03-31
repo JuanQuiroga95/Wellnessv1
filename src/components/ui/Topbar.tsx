@@ -2,7 +2,7 @@
 import { useRouter } from 'next/navigation'
 export default function Topbar({ nombre, rol, activeTab, onTabChange, tabs, clubNombre = null }) {
   const router = useRouter()
-  async function logout() { await fetch('/api/auth/logout', { method:'POST' }); router.push('/login') }
+  async function logout() { await fetch('/api/auth/logout', { method:'POST' }); router.push('/landing.html') }
   return (
     <header style={{ position:'sticky', top:0, zIndex:50, background:'rgba(8,8,8,0.92)', backdropFilter:'blur(12px)', borderBottom:'1px solid var(--mist)' }}>
       <div style={{ borderBottom:'1px solid var(--mist)', padding:'6px 20px', display:'flex', justifyContent:'space-between', alignItems:'center' }}>

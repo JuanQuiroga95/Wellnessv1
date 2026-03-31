@@ -6,6 +6,7 @@ const PUBLIC_PATHS = [
   '/login',
   '/api/auth/login',
   '/api/auth/logout',
+  '/landing.html',
 ]
 
 // Routes that are public ONLY during first-time setup (before any admin exists)
@@ -135,5 +136,5 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\\.html$|.*\\.png$|.*\\.jpg$|.*\\.svg$|.*\\.ico$).*)'],
 }

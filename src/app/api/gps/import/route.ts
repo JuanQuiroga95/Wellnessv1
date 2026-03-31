@@ -28,9 +28,11 @@ const EXCEL_COL_MAP: Array<[string, string]> = [
   ['meterage per minute',      'dist_per_min'],
   ['meterage per min',         'dist_per_min'],
   ['distance per minute',      'dist_per_min'],
+  ['dist per minute',          'dist_per_min'],
   ['dist per min',             'dist_per_min'],
   ['dist/min',                 'dist_per_min'],
   ['high speed dist',          'dist_hir'],
+  ['high speed distance',      'dist_hir'],
   ['high intensity',           'dist_hir'],
   ['hsr',                      'dist_hir'],
   ['hsd',                      'dist_hir'],
@@ -55,32 +57,45 @@ const EXCEL_COL_MAP: Array<[string, string]> = [
   ['max vel',                  'max_velocity'],
   ['top speed',                'max_velocity'],
   ['velocidad maxima',         'max_velocity'],
-  // Accelerations / decelerations
+  ['velocidad máxima',         'max_velocity'],
+  // Accelerations / decelerations — Catapult uses "Acc2 Eff", "Dec2 Eff" style
   ['acc b2-3 tot effs',        'acc2'],
+  ['acc b2-3 tot eff',         'acc2'],
   ['acc b2-3',                 'acc2'],
   ['acc b2',                   'acc2'],
   ['acc2 eff',                 'acc2'],
+  ['acc2 effs',                'acc2'],
   ['acc 2',                    'acc2'],
   ['accel2',                   'acc2'],
+  ['accel b2',                 'acc2'],
   ['decel b2-3 tot effs',      'dec2'],
+  ['decel b2-3 tot eff',       'dec2'],
   ['decel b2-3',               'dec2'],
   ['dec b2',                   'dec2'],
   ['dec2 eff',                 'dec2'],
+  ['dec2 effs',                'dec2'],
   ['dec 2',                    'dec2'],
   ['decel2',                   'dec2'],
+  ['decel b2',                 'dec2'],
   ['acc b3',                   'acc3'],
   ['acc3 eff',                 'acc3'],
+  ['acc3 effs',                'acc3'],
   ['acc 3',                    'acc3'],
   ['accel3',                   'acc3'],
+  ['accel b3',                 'acc3'],
   ['dec b3',                   'dec3'],
   ['dec3 eff',                 'dec3'],
+  ['dec3 effs',                'dec3'],
   ['dec 3',                    'dec3'],
   ['decel3',                   'dec3'],
+  ['decel b3',                 'dec3'],
   // Sprints
   ['number sprints',           'n_sprints'],
   ['num sprints',              'n_sprints'],
   ['numero sprints',           'n_sprints'],
+  ['número sprints',           'n_sprints'],
   ['sprint count',             'n_sprints'],
+  ['sprints',                  'n_sprints'],
   // Velocity bands (extra)
   ['vel b1',                   'dist_v1'],
   ['velocity band 1',          'dist_v1'],
@@ -124,28 +139,63 @@ function matchExcelCol(header: string): string | null {
   return null
 }
 
-function parseExcel(bytes: Uint8Array): Record<string, any>[] {
-  const workbook = XLSX.read(bytes, { type: 'array' })
+function parseExcel(bytes: Uint8Array, fileName?: string): Record<string, any>[] {
+  // XLSX.read auto-detects format. For CSV files saved as .xlsx (common Catapult export),
+  // we try xlsx first and fall back to csv parsing if the result looks wrong.
+  let workbook: any
+  try {
+    workbook = XLSX.read(bytes, { type: 'array', raw: false, dateNF: 'yyyy-mm-dd' })
+  } catch {
+    // If binary parse fails, try treating as CSV text
+    const text = new TextDecoder('utf-8').decode(bytes)
+    workbook = XLSX.read(text, { type: 'string' })
+  }
   const sheetName = workbook.SheetNames[0]
   const sheet = workbook.Sheets[sheetName]
-  const rawData: any[][] = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: null })
+  const rawData: any[][] = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: null, raw: false })
   if (rawData.length < 2) return []
 
-  const headers = (rawData[0] as string[]).map(h => String(h || ''))
+  // ── Find the actual header row ──────────────────────────────────────────────
+  // Catapult often has 1–3 title/metadata rows before the real column headers.
+  // We detect the header row as the first row that contains a known name marker
+  // OR a known metric keyword. We scan up to the first 6 rows.
+  const NAME_MARKERS = ['first name', 'firstname', 'name', 'athlete', 'player', 'nombre', 'apellido']
+  const METRIC_MARKERS = ['total dist', 'tot dist', 'total distance', 'player load', 'playerload',
+    'max velocity', 'max vel', 'high speed', 'dist per min', 'meterage',
+    'vel b4', 'vel b5', 'vel b6', 'v4 dist', 'v5 dist', 'acc2', 'dec2']
+
+  let headerRowIdx = 0
+  for (let i = 0; i < Math.min(6, rawData.length); i++) {
+    const row = rawData[i] as any[]
+    const rowStr = row.map(c => String(c ?? '').toLowerCase()).join(' ')
+    const hasName = NAME_MARKERS.some(m => rowStr.includes(m))
+    const hasMetric = METRIC_MARKERS.some(m => rowStr.includes(m))
+    if (hasName || hasMetric) { headerRowIdx = i; break }
+  }
+
+  const headers = (rawData[headerRowIdx] as string[]).map(h => String(h || ''))
 
   // Build column map: index → field key (null = skip)
   const colMap: (string | null)[] = headers.map(h => {
     const lower = h.toLowerCase().trim()
-    // Detect name column
-    if (['first name','name','athlete','player','nombre'].some(k => lower.includes(k))) return '__name__'
+    // Detect name columns
+    if (NAME_MARKERS.some(k => lower.includes(k))) return '__name__'
+    if (['last name', 'lastname', 'surname'].some(k => lower.includes(k))) return '__lastname__'
     if (['device id','device_id','tag id','tag_id'].some(k => lower.includes(k))) return '__device__'
-    if (['jersey','shirt','number'].some(k => lower === k)) return '__jersey__'
-    if (['date','fecha'].some(k => lower === k)) return null // skip date col
-    if (['session','sesion','periodo','period'].some(k => lower.includes(k))) return null
+    // Jersey: only exact matches to avoid false positives like "Number Sprints"
+    if (['jersey', 'shirt number', 'dorsal', '#'].some(k => lower === k)) return '__jersey__'
+    // Skip metadata columns
+    if (['date','fecha'].some(k => lower === k)) return null
+    if (['interval', 'time', 'split'].some(k => lower === k)) return null
+    if (['position','pos','posicion'].some(k => lower === k)) return null
+    if (['session title','session name','session type'].some(k => lower.includes(k))) return null
+    if (['period'].some(k => lower === k)) return null // exact only — "period" alone, not "periodic"
     return matchExcelCol(h)
   })
 
-  const dataRows = rawData.slice(1).filter(row => row.some(cell => cell !== null && cell !== ''))
+  const dataRows = rawData.slice(headerRowIdx + 1).filter(row =>
+    row.some(cell => cell !== null && cell !== '')
+  )
 
   return dataRows.map(row => {
     let name: string | null = null
@@ -310,13 +360,32 @@ export async function POST(req: NextRequest) {
 
     let parsedRows: Record<string, any>[]
     try {
-      parsedRows = isPdf ? await parsePdf(bytes) : parseExcel(bytes)
+      parsedRows = isPdf ? await parsePdf(bytes) : parseExcel(bytes, fileName)
     } catch (parseErr) {
       return NextResponse.json({ error: String(parseErr) }, { status: 400 })
     }
 
-    if (parsedRows.length === 0)
-      return NextResponse.json({ error: 'No se encontraron datos válidos. Verificá que sea un reporte de Catapult con el Cuadro Resumen.' }, { status: 400 })
+    if (parsedRows.length === 0) {
+      const debugInfo = isPdf ? '' : ` Columnas detectadas en el archivo: ${
+        (() => {
+          try {
+            let wb: any
+            try { wb = XLSX.read(bytes, { type: 'array', raw: false }) }
+            catch { wb = XLSX.read(new TextDecoder('utf-8').decode(bytes), { type: 'string' }) }
+            const ws = wb.Sheets[wb.SheetNames[0]]
+            const raw: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null, raw: false })
+            // Show first 3 rows to help diagnose format
+            const rows = raw.slice(0, 3).map((r: any[]) =>
+              '[' + (r as any[]).slice(0, 6).map(c => String(c ?? '')).join(' | ') + ']'
+            ).join(' → ')
+            return rows
+          } catch { return 'desconocidas' }
+        })()
+      }`
+      return NextResponse.json({
+        error: `No se encontraron datos válidos.${debugInfo} Asegurate de exportar el reporte de sesión desde Catapult OpenField (Session Summary o Cuadro Resumen).`
+      }, { status: 400 })
+    }
 
     const sql = getDb()
     const jugadores = s.clubId ? await sql`
