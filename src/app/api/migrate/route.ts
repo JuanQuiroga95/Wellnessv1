@@ -44,6 +44,7 @@ export async function POST(req: NextRequest) {
       dec3 INTEGER,
       dist_per_min NUMERIC(6,2),
       fuente VARCHAR(20) DEFAULT 'excel',
+      metricas JSONB DEFAULT '{}',
       created_at TIMESTAMPTZ DEFAULT NOW()
     )`, 'gps_logs table'],
     [`CREATE INDEX IF NOT EXISTS idx_gps_logs_jugador_fecha ON gps_logs(jugador_id, fecha)`, 'gps_logs index jugador_fecha'],
