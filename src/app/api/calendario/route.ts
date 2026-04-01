@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { getDb } from '@/lib/db'
 import { getSessionFromRequest } from '@/lib/auth'
-import { rateLimit, sanitizeString, sanitizeInt } from '@/lib/security'
+import { rateLimit } from '@/lib/security'
 
 function isAdmin(s: any) { return s?.rol === 'admin' || s?.rol === 'master_admin' }
 
@@ -15,16 +15,15 @@ export async function GET(req: NextRequest) {
     const hasta = searchParams.get('hasta') || new Date().toISOString().split('T')[0]
     const sql = getDb()
 
-    // Sesiones planificadas por este admin
     const sesiones = await sql`
       SELECT id, fecha::text, hora_inicio::text, hora_fin::text, tipo, titulo,
-             objetivo, objetivo_secundario, descripcion, ejercicios, rpe_objetivo, notas
+             objetivo, objetivo_secundario, descripcion, ejercicios, rpe_objetivo, notas,
+             rival, rival_foto
       FROM sesiones_plan
       WHERE admin_id = ${s.userId}
         AND fecha BETWEEN ${desde} AND ${hasta}
       ORDER BY fecha, hora_inicio NULLS LAST`
 
-    // Partidos ya registrados (distintos por fecha+rival)
     let partidos: any[] = []
     try {
       if (s.clubId != null) {
@@ -36,7 +35,6 @@ export async function GET(req: NextRequest) {
           WHERE pl.fecha BETWEEN ${desde} AND ${hasta}
             AND u.club_id = ${s.clubId}
           ORDER BY pl.fecha DESC`
-        // Deduplicate by fecha+rival in JS to avoid DISTINCT ON issues
         const seen = new Set<string>()
         for (const r of raw as any[]) {
           const key = `${r.fecha}__${r.rival}`
@@ -45,7 +43,6 @@ export async function GET(req: NextRequest) {
       }
     } catch { partidos = [] }
 
-    // Logs de entrenamiento reales agrupados por día
     let logs: any[] = []
     try {
       if (s.clubId != null) {
@@ -76,18 +73,27 @@ export async function POST(req: NextRequest) {
     if (!s || !isAdmin(s)) return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
     const b = await req.json()
     const { fecha, hora_inicio, hora_fin, tipo, titulo, objetivo, objetivo_secundario,
-            descripcion, ejercicios, rpe_objetivo, notas } = b
+            descripcion, ejercicios, rpe_objetivo, notas, rival, rival_foto } = b
     if (!fecha) return NextResponse.json({ error: 'Fecha requerida' }, { status: 400 })
     const sql = getDb()
+
+    // Add rival and rival_foto columns if they don't exist yet
+    try {
+      await sql`ALTER TABLE sesiones_plan ADD COLUMN IF NOT EXISTS rival TEXT`
+      await sql`ALTER TABLE sesiones_plan ADD COLUMN IF NOT EXISTS rival_foto TEXT`
+    } catch {}
+
     const [r] = await sql`
       INSERT INTO sesiones_plan(admin_id, club_id, fecha, hora_inicio, hora_fin, tipo, titulo,
-                                objetivo, objetivo_secundario, descripcion, ejercicios, rpe_objetivo, notas)
+                                objetivo, objetivo_secundario, descripcion, ejercicios, rpe_objetivo, notas,
+                                rival, rival_foto)
       VALUES(${s.userId}, ${s.clubId ?? null}, ${fecha},
              ${hora_inicio || null}, ${hora_fin || null},
              ${tipo || 'entrenamiento'}, ${titulo || null}, ${objetivo || null},
              ${objetivo_secundario || null}, ${descripcion || null},
              ${JSON.stringify(ejercicios || [])}::jsonb,
-             ${rpe_objetivo || null}, ${notas || null})
+             ${rpe_objetivo || null}, ${notas || null},
+             ${rival || null}, ${rival_foto || null})
       RETURNING id, fecha::text`
     return NextResponse.json(r)
   } catch (err) {
@@ -101,9 +107,15 @@ export async function PATCH(req: NextRequest) {
     const s = await getSessionFromRequest(req)
     if (!s || !isAdmin(s)) return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
     const { id, fecha, hora_inicio, hora_fin, tipo, titulo, objetivo, objetivo_secundario,
-            descripcion, ejercicios, rpe_objetivo, notas } = await req.json()
+            descripcion, ejercicios, rpe_objetivo, notas, rival, rival_foto } = await req.json()
     if (!id) return NextResponse.json({ error: 'id requerido' }, { status: 400 })
     const sql = getDb()
+
+    try {
+      await sql`ALTER TABLE sesiones_plan ADD COLUMN IF NOT EXISTS rival TEXT`
+      await sql`ALTER TABLE sesiones_plan ADD COLUMN IF NOT EXISTS rival_foto TEXT`
+    } catch {}
+
     await sql`
       UPDATE sesiones_plan SET
         fecha              = COALESCE(${fecha ?? null}, fecha),
@@ -116,7 +128,9 @@ export async function PATCH(req: NextRequest) {
         descripcion        = COALESCE(${descripcion ?? null}, descripcion),
         ejercicios         = ${JSON.stringify(ejercicios ?? [])}::jsonb,
         rpe_objetivo       = COALESCE(${rpe_objetivo ?? null}, rpe_objetivo),
-        notas              = COALESCE(${notas ?? null}, notas)
+        notas              = COALESCE(${notas ?? null}, notas),
+        rival              = ${rival ?? null},
+        rival_foto         = ${rival_foto ?? null}
       WHERE id = ${id} AND admin_id = ${s.userId}`
     return NextResponse.json({ ok: true })
   } catch (err) {

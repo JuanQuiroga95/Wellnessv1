@@ -1242,7 +1242,7 @@ function CalendarioPanel({ teamData }) {
                     )}
                     {ses.map(s=>(
                       <button key={s.id} onClick={()=>{setEditSesion(s);setShowEditor(true)}} style={{ fontSize:12, padding:'4px 10px', borderRadius:8, background:`${TIPO_COLORES[s.tipo]||'#888'}20`, color:TIPO_COLORES[s.tipo]||'#888', border:`1px solid ${TIPO_COLORES[s.tipo]||'#888'}44`, cursor:'pointer' }}>
-                        {TIPO_ICONOS[s.tipo]} {s.titulo||s.tipo} {s.hora_inicio?`· ${s.hora_inicio.slice(0,5)}`:''}
+                        {s.tipo==='partido' && s.rival_foto ? <img src={s.rival_foto} style={{ width:14, height:14, objectFit:'contain', borderRadius:2, verticalAlign:'middle', marginRight:4 }} alt="" /> : TIPO_ICONOS[s.tipo]+' '}{s.tipo==='partido' && s.rival ? `vs ${s.rival}` : (s.titulo||s.tipo)}{s.hora_inicio?` · ${s.hora_inicio.slice(0,5)}`:''}
                       </button>
                     ))}
                     {parts.map((p,i)=>(
@@ -1820,6 +1820,8 @@ function SesionEditor({ sesion, defaultFecha, onSave, onDelete, onCancel, teamPl
     fecha: sesion?.fecha || defaultFecha,
     hora_inicio: sesion?.hora_inicio?.slice(0,5) || '',
     hora_fin: sesion?.hora_fin?.slice(0,5) || '',
+    rival: sesion?.rival || '',
+    rival_foto: sesion?.rival_foto || '',
     tipo: sesion?.tipo || 'entrenamiento',
     titulo: sesion?.titulo || '',
     objetivo: sesion?.objetivo || '',
@@ -1843,7 +1845,7 @@ function SesionEditor({ sesion, defaultFecha, onSave, onDelete, onCancel, teamPl
     if (!f.fecha) return
     setLoading(true); setSaveError('')
     try {
-      await onSave({ ...f, rpe_objetivo:f.rpe_objetivo?Number(f.rpe_objetivo):null, ejercicios: bloques })
+      await onSave({ ...f, hora_inicio: f.hora_inicio||null, hora_fin: f.hora_fin||null, rpe_objetivo:f.rpe_objetivo?Number(f.rpe_objetivo):null, ejercicios: bloques })
     } catch(e) {
       setSaveError('Error al guardar. Intentá de nuevo.')
     }
@@ -1911,6 +1913,49 @@ function SesionEditor({ sesion, defaultFecha, onSave, onDelete, onCancel, teamPl
           <label style={{ display:'block', fontSize:10, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:5 }}>RPE objetivo (1–10)</label>
           <input type="number" min="1" max="10" className="wp-input" value={f.rpe_objetivo} onChange={e=>set('rpe_objetivo',e.target.value)} placeholder="ej: 7" style={{ padding:'8px 12px', fontSize:13 }} />
         </div>
+        {/* Rival + escudo — solo para tipo partido */}
+        {f.tipo === 'partido' && (<>
+          <div style={{ gridColumn:'span 2' }}>
+            <label style={{ display:'block', fontSize:10, fontWeight:700, color:'var(--lime)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:5 }}>🏆 Rival</label>
+            <input className="wp-input" value={f.rival||''} onChange={e=>set('rival',e.target.value)} placeholder="Nombre del equipo rival" style={{ padding:'8px 12px', fontSize:13 }} />
+          </div>
+          <div style={{ gridColumn:'span 2' }}>
+            <label style={{ display:'block', fontSize:10, fontWeight:700, color:'var(--lime)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:5 }}>🛡️ Escudo del rival (imagen)</label>
+            <div style={{ display:'flex', gap:12, alignItems:'center' }}>
+              {f.rival_foto && (
+                <div style={{ width:48, height:48, borderRadius:10, overflow:'hidden', border:'1px solid var(--lime)', background:'var(--ink3)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                  <img src={f.rival_foto} style={{ width:'100%', height:'100%', objectFit:'contain', padding:4 }} alt="escudo rival" />
+                </div>
+              )}
+              <label style={{ flex:1, cursor:'pointer' }}>
+                <div style={{ padding:'8px 14px', borderRadius:8, border:'1px dashed var(--fog)', color:'var(--silver)', fontSize:12, textAlign:'center', background:'var(--ink3)', cursor:'pointer' }}>
+                  {f.rival_foto ? '✓ Escudo cargado · Click para cambiar' : '📁 Click para subir escudo (PNG/JPG)'}
+                </div>
+                <input type="file" accept="image/*" style={{ display:'none' }} onChange={e=>{
+                  const file = e.target.files?.[0]; if (!file) return
+                  const reader = new FileReader()
+                  reader.onload = () => {
+                    const img = new Image()
+                    img.onload = () => {
+                      const canvas = document.createElement('canvas')
+                      const MAX = 120
+                      const scale = Math.min(MAX/img.width, MAX/img.height, 1)
+                      canvas.width = img.width * scale
+                      canvas.height = img.height * scale
+                      canvas.getContext('2d')!.drawImage(img, 0, 0, canvas.width, canvas.height)
+                      set('rival_foto', canvas.toDataURL('image/png', 0.8))
+                    }
+                    img.src = reader.result as string
+                  }
+                  reader.readAsDataURL(file)
+                }} />
+              </label>
+              {f.rival_foto && (
+                <button type="button" onClick={()=>set('rival_foto','')} style={{ fontSize:10, padding:'4px 8px', borderRadius:6, background:'rgba(239,68,68,.1)', color:'#f87171', border:'1px solid rgba(239,68,68,.2)', cursor:'pointer' }}>✕</button>
+              )}
+            </div>
+          </div>
+        </>)}
       </div>
 
       {/* Descripción / Metodología — Bloques de tareas */}
@@ -4538,19 +4583,41 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
 
   useEffect(() => { cargar() }, [desde, hasta])
   useEffect(() => {
-    // Load all matches from the last 12 months for reference selection
+    // Load partido sessions from the calendar (sesiones_plan with tipo='partido')
+    // These come from /api/calendario GET response
     const hace1año = new Date(); hace1año.setFullYear(hace1año.getFullYear()-1)
-    fetch(`/api/partidos?desde=${hace1año.toISOString().split('T')[0]}&hasta=${today}`)
+    const desdeStr = hace1año.toISOString().split('T')[0]
+    fetch(`/api/calendario?desde=${desdeStr}&hasta=${today}`)
       .then(r=>r.json())
-      .then(rows => {
+      .then(d => {
+        // sesiones with tipo='partido' from calendar
+        const sesPartido = (d.sesiones||[]).filter((s:any) => s.tipo === 'partido')
+        // Also include partido_logs as fallback
+        const partidosLog = (d.partidos||[])
+        // Merge, prefer calendar sesiones
+        const all = [...sesPartido.map((s:any) => ({
+          id: s.id,
+          fecha: s.fecha,
+          rival: s.rival || s.titulo || 'Partido',
+          rival_foto: s.rival_foto,
+          tipo_partido: s.titulo || 'Oficial',
+          _src: 'calendar',
+          _sesion: s, // keep full sesion for auto-loading metrics
+        })), ...partidosLog.map((p:any) => ({
+          fecha: p.fecha,
+          rival: p.rival,
+          rival_foto: p.rival_foto,
+          tipo_partido: p.tipo_partido,
+          _src: 'log',
+        }))]
         // Deduplicate by fecha+rival
         const seen = new Set()
-        const unique = (Array.isArray(rows)?rows:[]).filter((p:any) => {
+        const unique = all.filter((p:any) => {
           const key = `${p.fecha}_${p.rival}`
           if (seen.has(key)) return false
           seen.add(key); return true
         })
-        setPartidos(unique)
+        setPartidos(unique.sort((a:any,b:any) => b.fecha.localeCompare(a.fecha)))
       }).catch(()=>{})
   }, [])
 
@@ -4560,13 +4627,12 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
     catch(e){} finally { setLoading(false) }
   }
 
-  // When a match is selected, fetch its session data from calendario to get calculated metrics
+  // When a match is selected, load its metrics automatically
   async function selectPartido(slotIdx: number, partido: any) {
     const updated = [...selectedPartidos]
     if (!partido) { updated[slotIdx] = null; setSelectedPartidos(updated); const nr=[...partidoRefs]; nr[slotIdx]={}; setPartidoRefs(nr); return }
     updated[slotIdx] = partido
     setSelectedPartidos(updated)
-    // Fetch sessions for that match date to get calculated metrics
     try {
       const r = await fetch(`/api/carga-gps?desde=${partido.fecha}&hasta=${partido.fecha}&ciclo=microciclo`)
       const d = await r.json()
@@ -4580,6 +4646,8 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
         nSprints:   avg.nSprints   || 0,
         nAcel:      avg.nAcel      || 0,
         nDecel:     avg.nDecel     || 0,
+        nAcel3:     avg.nAcel3     || 0,
+        nDecel3:    avg.nDecel3    || 0,
         distMP:     avg.distMP     || 0,
       }
       setPartidoRefs(nr)
@@ -4587,21 +4655,24 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
   }
 
   const VARS = [
-    {key:'ua_total',   label:'UA',           color:'#60a5fa', unit:''},
-    {key:'minActivo',  label:'Tiempo (min)',  color:'#34d399', unit:'min'},
-    {key:'distTotal',  label:'DT (m)',        color:'#f59e0b', unit:'m'},
-    {key:'distSprint', label:'Dist. Sprint',  color:'#f97316', unit:'m'},
-    {key:'nSprints',   label:'Nº Sprints',    color:'#a78bfa', unit:'nº'},
-    {key:'nAcel',      label:'Ace >2',        color:'#ec4899', unit:'nº'},
-    {key:'nDecel',     label:'Dec >2',        color:'#14b8a6', unit:'nº'},
-    {key:'distMP',     label:'Alta Pot.',     color:'#fbbf24', unit:'m'},
+    {key:'ua_total',   label:'UA',            color:'#60a5fa', unit:''},
+    {key:'minActivo',  label:'Tiempo (min)',   color:'#34d399', unit:'min'},
+    {key:'distTotal',  label:'DT (m)',         color:'#f59e0b', unit:'m'},
+    {key:'distSprint', label:'Dist. Sprint (m)',color:'#f97316', unit:'m'},
+    {key:'nSprints',   label:'Nº Sprints',     color:'#a78bfa', unit:'nº'},
+    {key:'nAcel',      label:'Ace >2 (m)',     color:'#ec4899', unit:'m'},
+    {key:'nDecel',     label:'Dec >2 (m)',     color:'#14b8a6', unit:'m'},
+    {key:'nAcel3',     label:'ACE >3 (n)',     color:'#f43f5e', unit:'nº'},
+    {key:'nDecel3',    label:'DEC >3 (n)',     color:'#0ea5e9', unit:'nº'},
+    {key:'distMP',     label:'Alta Pot.',      color:'#fbbf24', unit:'m'},
   ]
 
   const GRUPOS = [
-    { label:'DT + Mts/min',        vars: ['distTotal','minActivo'],  colors:['#f59e0b','#34d399'] },
-    { label:'Dist. Sprint + Nº Sprint', vars: ['distSprint','nSprints'], colors:['#f97316','#a78bfa'] },
-    { label:'Acc + Dec',           vars: ['nAcel','nDecel'],         colors:['#ec4899','#14b8a6'] },
-    { label:'Alta Potencia',       vars: ['distMP'],                 colors:['#fbbf24'] },
+    { label:'DT + Mts/min',             vars: ['distTotal','minActivo'],   colors:['#f59e0b','#34d399'] },
+    { label:'Dist. Sprint + Nº Sprint', vars: ['distSprint','nSprints'],   colors:['#f97316','#a78bfa'] },
+    { label:'Acc >2 + Dec >2',          vars: ['nAcel','nDecel'],          colors:['#ec4899','#14b8a6'] },
+    { label:'Acc >3 + Dec >3',          vars: ['nAcel3','nDecel3'],        colors:['#f43f5e','#0ea5e9'] },
+    { label:'Alta Potencia',            vars: ['distMP'],                  colors:['#fbbf24'] },
   ]
 
   const players: any[] = data?.players || []
@@ -4882,7 +4953,7 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
                     <option value="">— Seleccionar partido del calendario —</option>
                     {partidos.map((p:any)=>(
                       <option key={`${p.fecha}_${p.rival}`} value={`${p.fecha}_${p.rival}`} style={{ background:'var(--ink2)' }}>
-                        {p.fecha} · vs {p.rival} ({p.tipo_partido})
+                        {p.fecha} · vs {p.rival||'Partido'} {p._src==='calendar'?'📅':'📋'}
                       </option>
                     ))}
                   </select>
