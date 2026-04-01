@@ -713,14 +713,31 @@ function CambioCargaPanel() {
   const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(false)
   const [view, setView] = useState<'diario'|'semanal'>('diario')
+  const [chartVar, setChartVar] = useState<'ua'|'rpe'|'distTotal'|'distSprint'|'nSprints'|'nAcel'|'nDecel'|'distMP'>('ua')
+  const [gpsData, setGpsData] = useState<any>(null)
+
+  const CHART_VARS = [
+    { key:'ua',         label:'UA',            color:'#c8f135', src:'rpe' },
+    { key:'rpe',        label:'RPE',            color:'#60a5fa', src:'rpe' },
+    { key:'distTotal',  label:'Dist. Total (m)',color:'#f59e0b', src:'gps' },
+    { key:'distSprint', label:'Dist. Sprint',   color:'#f97316', src:'gps' },
+    { key:'nSprints',   label:'Nº Sprints',     color:'#a78bfa', src:'gps' },
+    { key:'nAcel',      label:'Ace >2',         color:'#ec4899', src:'gps' },
+    { key:'nDecel',     label:'Dec >2',         color:'#14b8a6', src:'gps' },
+    { key:'distMP',     label:'Alta Pot.',      color:'#fbbf24', src:'gps' },
+  ]
 
   useEffect(() => { load() }, [desde, hasta, minEnt, minPart])
 
   async function load() {
     setLoading(true)
     try {
-      const r = await fetch(`/api/cambio-carga?desde=${desde}&hasta=${hasta}&minEntrenamiento=${minEnt}&minPartido=${minPart}`)
-      setData(await r.json())
+      const [r1, r2] = await Promise.all([
+        fetch(`/api/cambio-carga?desde=${desde}&hasta=${hasta}&minEntrenamiento=${minEnt}&minPartido=${minPart}`),
+        fetch(`/api/carga-gps?desde=${desde}&hasta=${hasta}&ciclo=microciclo`),
+      ])
+      setData(await r1.json())
+      setGpsData(await r2.json())
     } finally { setLoading(false) }
   }
 
@@ -744,7 +761,28 @@ function CambioCargaPanel() {
     return 'rgba(34,197,94,.1)'
   }
 
-  const maxUA = Math.max(...rows.map((r: any) => r.avg_ua), 1)
+  // Build GPS daily map from perSession (keyed by MD label) — we match by fecha
+  const gpsDailyMap: Record<string,any> = {}
+  const gpsPerSession = gpsData?.perSession || {}
+  const gpsSesionesInfo = gpsData?.sesionesInfo || []
+  gpsSesionesInfo.forEach((s:any) => {
+    if (s.fecha && gpsPerSession[s.titulo]) {
+      gpsDailyMap[s.fecha] = gpsPerSession[s.titulo]
+    }
+  })
+  const GPS_KEYS = ['distTotal','distSprint','nSprints','nAcel','nDecel','distMP']
+  const getRowVal = (row: any) => {
+    if (chartVar === 'ua') return row.avg_ua||0
+    if (chartVar === 'rpe') return row.avg_rpe||0
+    if (GPS_KEYS.includes(chartVar)) {
+      const fecha = row.fecha || row.semana
+      const gps = gpsDailyMap[fecha]
+      return gps ? (Math.round(Number(gps[chartVar])||0)) : 0
+    }
+    return 0
+  }
+  const maxUA = Math.max(...rows.map((r: any) => getRowVal(r)), 1)
+  const chartColor = CHART_VARS.find(v=>v.key===chartVar)?.color || '#c8f135'
 
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
@@ -785,6 +823,16 @@ function CambioCargaPanel() {
         ))}
       </div>
 
+      {/* Variable selector */}
+      <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+        <span style={{ fontSize:10, color:'var(--fog)', textTransform:'uppercase', letterSpacing:'0.06em', fontWeight:600 }}>Variable:</span>
+        {CHART_VARS.map(v=>(
+          <button key={v.key} onClick={()=>setChartVar(v.key as any)} style={{ fontSize:12, padding:'6px 14px', borderRadius:8, cursor:'pointer', border:chartVar===v.key?`2px solid ${v.color}`:'1px solid var(--fog)', background:chartVar===v.key?`${v.color}18`:'var(--ink2)', color:chartVar===v.key?v.color:'var(--silver)', fontWeight:chartVar===v.key?700:400 }}>
+            {v.label}
+          </button>
+        ))}
+      </div>
+
       {/* Legend */}
       <div style={{ display:'flex', gap:14, flexWrap:'wrap', paddingLeft:4 }}>
         {[['#22c55e','Carga baja o estable (≤0%)'],['#f59e0b','Aumento moderado (1–10%)'],['#ef4444','Aumento alto (>10%)'],['#60a5fa','Reducción notable (<-10%)']].map(([c,l])=>(
@@ -803,18 +851,18 @@ function CambioCargaPanel() {
               {rows.length >= 2 && (() => {
                 const last = rows[rows.length - 1]
                 const prev = rows[rows.length - 2]
-                const pct = prev.avg_ua > 0 ? Math.round(((last.avg_ua - prev.avg_ua) / prev.avg_ua) * 100) : null
+                const pct = getRowVal(prev) > 0 ? Math.round(((getRowVal(last) - getRowVal(prev)) / getRowVal(prev)) * 100) : null
                 return (
                   <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(160px,1fr))', gap:10 }}>
-                    <div style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:14, padding:16, textAlign:'center' }}>
-                      <div style={{ fontSize:10, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:6 }}>Último promedio UA</div>
-                      <div className="display" style={{ fontSize:36, color:'var(--snow)', lineHeight:1 }}>{last.avg_ua}</div>
+                    <div style={{ background:'var(--ink2)', border:`1px solid ${chartColor}33`, borderRadius:14, padding:16, textAlign:'center' }}>
+                      <div style={{ fontSize:10, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:6 }}>Último {CHART_VARS.find(v=>v.key===chartVar)?.label}</div>
+                      <div className="display" style={{ fontSize:36, color:chartColor, lineHeight:1 }}>{getRowVal(last)}</div>
                       <div style={{ fontSize:11, color:'var(--silver)', marginTop:4 }}>{view==='diario' ? last.fecha : last.label}</div>
                     </div>
                     <div style={{ background:pctBg(pct), border:`1px solid ${pctColor(pct)}44`, borderRadius:14, padding:16, textAlign:'center' }}>
                       <div style={{ fontSize:10, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:6 }}>Cambio vs anterior</div>
                       <div className="display" style={{ fontSize:36, color:pctColor(pct), lineHeight:1 }}>{pct !== null ? `${pct > 0 ? '+' : ''}${pct}%` : '—'}</div>
-                      <div style={{ fontSize:11, color:'var(--silver)', marginTop:4 }}>{prev.avg_ua} → {last.avg_ua} UA</div>
+                      <div style={{ fontSize:11, color:'var(--silver)', marginTop:4 }}>{getRowVal(prev)} → {getRowVal(last)} {CHART_VARS.find(v=>v.key===chartVar)?.label}</div>
                     </div>
                     <div style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:14, padding:16, textAlign:'center' }}>
                       <div style={{ fontSize:10, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:6 }}>Jugadores calificados</div>
@@ -832,10 +880,12 @@ function CambioCargaPanel() {
 
               {/* Bar chart */}
               <div style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:16, padding:'16px 18px' }}>
-                <p style={{ fontSize:10, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:14 }}>Promedio UA — {view === 'diario' ? 'por día' : 'por semana'}</p>
+                <p style={{ fontSize:10, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:14 }}>
+                  {CHART_VARS.find(v=>v.key===chartVar)?.label} — {view === 'diario' ? 'por día' : 'por semana'}
+                </p>
                 <div style={{ display:'flex', alignItems:'flex-end', gap:4, height:140, overflowX:'auto', paddingBottom:4 }}>
                   {rows.map((row: any, i: number) => {
-                    const h = Math.round((row.avg_ua / maxUA) * 110)
+                    const h = Math.round((getRowVal(row) / maxUA) * 110)
                     const col = pctColor(row.pct_change)
                     const label = view === 'diario'
                       ? row.fecha.slice(5) // MM-DD
@@ -845,8 +895,8 @@ function CambioCargaPanel() {
                         <span style={{ fontSize:9, color:col, fontFamily:'DM Mono,monospace', fontWeight:700, whiteSpace:'nowrap' }}>
                           {row.pct_change !== null ? `${row.pct_change > 0 ? '+' : ''}${row.pct_change}%` : ''}
                         </span>
-                        <div title={`${row.avg_ua} UA${row.pct_change !== null ? ` (${row.pct_change > 0 ? '+' : ''}${row.pct_change}%)` : ''}`}
-                          style={{ width:'100%', height:h, background:col, borderRadius:'4px 4px 0 0', opacity:.85, minHeight:4, transition:'height .2s' }} />
+                        <div title={`${getRowVal(row)} ${CHART_VARS.find(v=>v.key===chartVar)?.label}${row.pct_change !== null ? ` (${row.pct_change > 0 ? '+' : ''}${row.pct_change}%)` : ''}`}
+                          style={{ width:'100%', height:h, background:chartColor, borderRadius:'4px 4px 0 0', opacity:.85, minHeight:4, transition:'height .2s' }} />
                         <span style={{ fontSize:8, color:'var(--fog)', fontFamily:'DM Mono,monospace', whiteSpace:'nowrap', transform:'rotate(-35deg)', transformOrigin:'top center', marginTop:4 }}>{label}</span>
                       </div>
                     )
@@ -873,7 +923,7 @@ function CambioCargaPanel() {
                       ? <span style={{ fontSize:11, color:'var(--silver)' }} title={row.players?.join(', ')}>{row.count} jugadores</span>
                       : <span style={{ fontSize:11, color:'var(--silver)' }}>{row.label}</span>
                     }
-                    <span className="mono" style={{ fontSize:14, color:'var(--snow)', fontWeight:600 }}>{row.avg_ua} <span style={{ fontSize:10, color:'var(--silver)', fontWeight:400 }}>UA</span></span>
+                    <span className="mono" style={{ fontSize:14, color:chartColor, fontWeight:600 }}>{getRowVal(row)} <span style={{ fontSize:10, color:'var(--silver)', fontWeight:400 }}>{CHART_VARS.find(v=>v.key===chartVar)?.label}</span></span>
                     <span style={{ fontSize:13, fontWeight:700, color:pctColor(row.pct_change), background:pctBg(row.pct_change), padding:'3px 8px', borderRadius:6, display:'inline-block', fontFamily:'DM Mono,monospace' }}>
                       {row.pct_change !== null ? `${row.pct_change > 0 ? '+' : ''}${row.pct_change}%` : '—'}
                     </span>
@@ -912,11 +962,12 @@ function CambioCargaPanel() {
 const OBJETIVOS_FISICOS = ['Fuerza','Resistencia','Velocidad','Recuperación-Compensación','Recuperación','Competición']
 const OBJETIVOS_SECUNDARIOS = ['Táctico','Técnico','Técnico-Táctico']
 const TITULOS_SESION = ['MD+1','MD+2','MD+3','MD-4','MD-3','MD-2','MD-1','MD']
-const TAREAS_PRINCIPALES = ['Activación en campo','Activación en gimnasio','Gimnasio + Tarea analítica','Rondo','Trabajo analítico','Juego de posesión','Juego de posición','Partido reducido','Partido modificado','Partido de entrenamiento','Partido amistoso','Partido oficial']
+const TAREAS_PRINCIPALES = ['Activación en campo','Activación en gimnasio','Gimnasio','Rondo','Trabajo analítico','Juego de posesión','Juego de posición','Partido reducido','Partido modificado','Partido de entrenamiento','Partido amistoso','Partido oficial']
 const SUBTAREAS: Record<string, string[]> = { 'Activación en campo': ['Circuito técnico','Circuito neuromuscular','Pliometría','Movilidad'], 'Activación en gimnasio': ['Isométricos','Pliometría','Movilidad','Excéntricos','Estabilidad','Tracción y empuje'], 'Rondo': ['Rondo 4v2','Rondo 5v2','Rondo 6v2','Rondo 4v1+1','Rondo en movimiento','Rondo conservación','Rondo orientado','Rondo en espacio'] }
 const TAREAS_CON_ESPACIO = ['Rondo','Trabajo analítico','Juego de posesión','Juego de posición','Partido reducido','Partido modificado','Partido de entrenamiento','Partido amistoso','Partido oficial']
 const TAREAS_CON_EQUIPO = ['Rondo','Trabajo analítico','Juego de posesión','Juego de posición','Partido reducido','Partido modificado','Partido de entrenamiento','Partido amistoso','Partido oficial']
-const TAREAS_MOSTRAR_FORM = [...TAREAS_CON_ESPACIO, 'Activación en campo','Activación en gimnasio','Gimnasio + Tarea analítica']
+const TAREAS_PARTIDO_SIMPLE = ['Partido amistoso','Partido oficial','Partido de entrenamiento']
+const TAREAS_MOSTRAR_FORM = [...TAREAS_CON_ESPACIO, 'Activación en campo','Activación en gimnasio','Gimnasio']
 const TIPO_COLORES = { entrenamiento:'#c8f135', partido:'#3b82f6', recuperacion:'#f59e0b', descanso:'#555' }
 const TIPO_ICONOS = { entrenamiento:'⚽', partido:'🏆', recuperacion:'🔄', descanso:'😴' }
 
@@ -1513,7 +1564,7 @@ function BloqueMetodologia({ bloque, index, onChange, onRemove, teamPlayers = []
       {mostrarForm && (
         <div style={{ marginBottom:8 }}>
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:6, marginBottom:6 }}>
-            {!esConEquipo && <div><label style={{ fontSize:9, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:2 }}>
+            {(!esConEquipo || TAREAS_PARTIDO_SIMPLE.includes(bloque.ventana)) && <div><label style={{ fontSize:9, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:2 }}>
                 Jugadores
                 {teamPlayers.length > 0 && !bloque.jugadores && (
                   <button type="button" onClick={()=>onChange('jugadores',String(teamPlayers.length))} style={{ marginLeft:6, fontSize:8, padding:'1px 5px', borderRadius:3, background:'rgba(200,241,53,.15)', color:'var(--lime)', border:'1px solid rgba(200,241,53,.3)', cursor:'pointer' }}>
@@ -3751,14 +3802,39 @@ function AcumPanel({ teamData }) {
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [weeks, setWeeks] = useState(4)
+  const [miciData, setMiciData] = useState<any>(null)
+  const [miciLoading, setMiciLoading] = useState(false)
+  const today = new Date().toISOString().split('T')[0]
+  const weekStart = (() => { const d=new Date(); d.setDate(d.getDate()-d.getDay()+1); return d.toISOString().split('T')[0] })()
+  const [miciDesde, setMiciDesde] = useState(weekStart)
+  const [miciHasta, setMiciHasta] = useState(today)
+  const [miciNum, setMiciNum] = useState(1)
 
   useEffect(() => { loadData() }, [weeks])
+  useEffect(() => { loadMici() }, [miciDesde, miciHasta])
 
   async function loadData() {
     setLoading(true)
     try { const r = await fetch(`/api/readiness?weeks=${weeks}`); setData(await r.json()) }
     finally { setLoading(false) }
   }
+
+  async function loadMici() {
+    setMiciLoading(true)
+    try { const r = await fetch(`/api/carga-gps?desde=${miciDesde}&hasta=${miciHasta}&ciclo=microciclo`); setMiciData(await r.json()) }
+    catch(e){} finally { setMiciLoading(false) }
+  }
+
+  const MICI_VARS = [
+    {key:'ua_total',   label:'UA',           color:'#60a5fa'},
+    {key:'minActivo',  label:'Tiempo (min)',  color:'#34d399'},
+    {key:'distTotal',  label:'DT (m)',        color:'#f59e0b'},
+    {key:'distSprint', label:'Dist. Sprint',  color:'#f97316'},
+    {key:'nSprints',   label:'Nº Sprints',    color:'#a78bfa'},
+    {key:'nAcel',      label:'Ace >2',        color:'#ec4899'},
+    {key:'nDecel',     label:'Dec >2',        color:'#14b8a6'},
+    {key:'distMP',     label:'Alta Pot.',     color:'#fbbf24'},
+  ]
 
   const WK2 = ['avg_fatiga','avg_sueno','avg_dolor','avg_estres','avg_animo']
   const WL2 = ['Fatiga','Sueño','Dolor','Estrés','Ánimo']
@@ -3782,11 +3858,88 @@ function AcumPanel({ teamData }) {
     rpeMap[key] = r
   }
 
+  const miciPlayers: any[] = miciData?.players || []
+  const miciTeamAvg = miciData?.teamAvg || {}
+
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
+
+      {/* ══ ACUMULATIVO MICROCICLO ═══════════════════════════════════ */}
+      <div style={{ background:'var(--ink2)', border:'1px solid rgba(200,241,53,.25)', borderRadius:16, overflow:'hidden' }}>
+        <div style={{ padding:'12px 16px', borderBottom:'1px solid var(--mist)', display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:10 }}>
+          <div>
+            <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+              <h2 style={{ fontFamily:'Bebas Neue,sans-serif', fontSize:28, color:'var(--snow)', letterSpacing:'0.04em' }}>
+                ACUMULATIVO MICROCICLO {miciNum}
+              </h2>
+              <div style={{ display:'flex', gap:4 }}>
+                <button onClick={()=>setMiciNum(n=>Math.max(1,n-1))} style={{ width:24, height:24, borderRadius:6, background:'var(--ink3)', border:'1px solid var(--mist)', color:'var(--silver)', cursor:'pointer', fontSize:12 }}>−</button>
+                <button onClick={()=>setMiciNum(n=>n+1)} style={{ width:24, height:24, borderRadius:6, background:'var(--ink3)', border:'1px solid var(--mist)', color:'var(--silver)', cursor:'pointer', fontSize:12 }}>+</button>
+              </div>
+            </div>
+            <p style={{ fontSize:11, color:'var(--lime)', fontFamily:'DM Mono,monospace', marginTop:2 }}>
+              {miciDesde} → {miciHasta}
+            </p>
+          </div>
+          <div style={{ display:'flex', gap:8, alignItems:'flex-end', flexWrap:'wrap' }}>
+            <div>
+              <label style={{ fontSize:9, color:'var(--fog)', display:'block', marginBottom:3, textTransform:'uppercase' }}>Desde</label>
+              <input className="wp-input" type="date" value={miciDesde} onChange={e=>setMiciDesde(e.target.value)} />
+            </div>
+            <div>
+              <label style={{ fontSize:9, color:'var(--fog)', display:'block', marginBottom:3, textTransform:'uppercase' }}>Hasta</label>
+              <input className="wp-input" type="date" value={miciHasta} onChange={e=>setMiciHasta(e.target.value)} />
+            </div>
+            <button onClick={()=>window.print()} style={{ fontSize:11, padding:'8px 12px', borderRadius:8, background:'rgba(200,241,53,.1)', color:'var(--lime)', border:'1px solid rgba(200,241,53,.3)', cursor:'pointer' }}>🖨️ PDF</button>
+          </div>
+        </div>
+        {miciLoading ? (
+          <div style={{ padding:32, textAlign:'center', color:'var(--silver)' }}>Cargando...</div>
+        ) : !miciPlayers.length ? (
+          <div style={{ padding:32, textAlign:'center', color:'var(--silver)', fontSize:12 }}>Sin datos para este período. Registrá sesiones con RPE en el Calendario.</div>
+        ) : (
+          <div style={{ overflowX:'auto' }}>
+            <table style={{ width:'100%', borderCollapse:'collapse', fontSize:11 }}>
+              <thead>
+                <tr style={{ background:'rgba(200,241,53,.04)' }}>
+                  <th style={{ padding:'8px 14px', textAlign:'left', color:'var(--silver)', fontSize:9, fontWeight:700, textTransform:'uppercase' }}>Jugador</th>
+                  <th style={{ padding:'8px 8px', textAlign:'left', color:'var(--silver)', fontSize:9, fontWeight:700, textTransform:'uppercase' }}>Pos.</th>
+                  {MICI_VARS.map(v=>(
+                    <th key={v.key} style={{ padding:'8px 8px', textAlign:'center', color:v.color, fontSize:9, fontWeight:700, textTransform:'uppercase', whiteSpace:'nowrap' }}>{v.label}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {miciPlayers.map((p:any,i:number)=>(
+                  <tr key={i} style={{ borderTop:'1px solid var(--mist)', background:i%2===0?'transparent':'rgba(255,255,255,.015)' }}>
+                    <td style={{ padding:'8px 14px', color:'var(--snow)', fontWeight:500, whiteSpace:'nowrap' }}>{p.nombre}</td>
+                    <td style={{ padding:'8px 8px', color:'var(--fog)', fontSize:10 }}>{p.posicion||'—'}</td>
+                    {MICI_VARS.map(v=>(
+                      <td key={v.key} style={{ padding:'8px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', color:p[v.key]?v.color:'var(--fog)' }}>
+                        {p[v.key]||'—'}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+                <tr style={{ borderTop:'2px solid rgba(200,241,53,.4)', background:'rgba(200,241,53,.04)' }}>
+                  <td style={{ padding:'8px 14px', fontWeight:800, color:'var(--lime)', fontSize:10, textTransform:'uppercase' }}>PROM. EQUIPO</td>
+                  <td/>
+                  {MICI_VARS.map(v=>(
+                    <td key={v.key} style={{ padding:'8px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, color:'var(--lime)' }}>
+                      {miciTeamAvg[v.key]||'—'}
+                    </td>
+                  ))}
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* ══ WELLNESS SEMANAL (existing content) ═══════════════════════ */}
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', flexWrap:'wrap', gap:12 }}>
         <div>
-          <h2 className="display" style={{ fontSize:48, color:'var(--snow)' }}>ACUM. M1</h2>
+          <h2 className="display" style={{ fontSize:36, color:'var(--snow)' }}>WELLNESS ACUMULADO</h2>
           <p style={{ fontSize:12, color:'var(--silver)', marginTop:2 }}>Promedios semanales por jugador — detección de fatiga acumulada</p>
         </div>
         <div style={{ display:'flex', gap:8 }}>
@@ -4380,12 +4533,57 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
   const [loading, setLoading] = useState(false)
   const [partidoRefs, setPartidoRefs] = useState<any[]>([{},{},{}])
   const [showRefInput, setShowRefInput] = useState(false)
+  const [partidos, setPartidos] = useState<any[]>([])
+  const [selectedPartidos, setSelectedPartidos] = useState<(any|null)[]>([null,null,null])
 
   useEffect(() => { cargar() }, [desde, hasta])
+  useEffect(() => {
+    // Load all matches from the last 12 months for reference selection
+    const hace1año = new Date(); hace1año.setFullYear(hace1año.getFullYear()-1)
+    fetch(`/api/partidos?desde=${hace1año.toISOString().split('T')[0]}&hasta=${today}`)
+      .then(r=>r.json())
+      .then(rows => {
+        // Deduplicate by fecha+rival
+        const seen = new Set()
+        const unique = (Array.isArray(rows)?rows:[]).filter((p:any) => {
+          const key = `${p.fecha}_${p.rival}`
+          if (seen.has(key)) return false
+          seen.add(key); return true
+        })
+        setPartidos(unique)
+      }).catch(()=>{})
+  }, [])
+
   async function cargar() {
     setLoading(true)
     try { const r = await fetch(`/api/carga-gps?desde=${desde}&hasta=${hasta}&ciclo=microciclo`); setData(await r.json()) }
     catch(e){} finally { setLoading(false) }
+  }
+
+  // When a match is selected, fetch its session data from calendario to get calculated metrics
+  async function selectPartido(slotIdx: number, partido: any) {
+    const updated = [...selectedPartidos]
+    if (!partido) { updated[slotIdx] = null; setSelectedPartidos(updated); const nr=[...partidoRefs]; nr[slotIdx]={}; setPartidoRefs(nr); return }
+    updated[slotIdx] = partido
+    setSelectedPartidos(updated)
+    // Fetch sessions for that match date to get calculated metrics
+    try {
+      const r = await fetch(`/api/carga-gps?desde=${partido.fecha}&hasta=${partido.fecha}&ciclo=microciclo`)
+      const d = await r.json()
+      const avg = d?.teamAvg || {}
+      const nr = [...partidoRefs]
+      nr[slotIdx] = {
+        ua_total:   avg.ua_total   || 0,
+        minActivo:  avg.minActivo  || 0,
+        distTotal:  avg.distTotal  || 0,
+        distSprint: avg.distSprint || 0,
+        nSprints:   avg.nSprints   || 0,
+        nAcel:      avg.nAcel      || 0,
+        nDecel:     avg.nDecel     || 0,
+        distMP:     avg.distMP     || 0,
+      }
+      setPartidoRefs(nr)
+    } catch(e) {}
   }
 
   const VARS = [
@@ -4552,38 +4750,57 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
         )}
       </div>
 
-      {/* ══ CUADRO 2: SUMA TOTAL + gráficos agrupados ═══════════════════ */}
+      {/* ══ CUADRO 2: TOTALES POR MD (filas=métricas, cols=MD) ════════ */}
       <div style={{ background:'var(--ink2)', border:'1px solid rgba(96,165,250,.2)', borderRadius:16, overflow:'hidden', marginBottom:20 }}>
         <div style={{ padding:'10px 16px', borderBottom:'1px solid var(--mist)' }}>
-          <p style={{ fontSize:11, fontWeight:700, color:'#60a5fa', textTransform:'uppercase', letterSpacing:'0.08em' }}>CUADRO 2 · SUMA TOTAL DEL MICROCICLO</p>
-          <p style={{ fontSize:10, color:'var(--fog)', marginTop:2 }}>Suma de todas las variables durante el microciclo · MD+1 → MD</p>
+          <p style={{ fontSize:11, fontWeight:700, color:'#60a5fa', textTransform:'uppercase', letterSpacing:'0.08em' }}>CUADRO 2 · TOTALES POR MD · MD+1 → MD</p>
+          <p style={{ fontSize:10, color:'var(--fog)', marginTop:2 }}>Suma total del equipo en cada día de entrenamiento del microciclo</p>
         </div>
-        <div style={{ overflowX:'auto' }}>
-          <table style={{ width:'100%', borderCollapse:'collapse', fontSize:11 }}>
-            <thead>
-              <tr style={{ background:'rgba(96,165,250,.04)' }}>
-                <th style={{ padding:'7px 14px', textAlign:'left', color:'var(--silver)', fontSize:9, fontWeight:700, textTransform:'uppercase' }}>Jugador</th>
-                {VARS.map(v=><th key={v.key} style={{ padding:'7px 8px', textAlign:'center', color:v.color, fontSize:9, fontWeight:700, textTransform:'uppercase', whiteSpace:'nowrap' }}>{v.label}</th>)}
-              </tr>
-            </thead>
-            <tbody>
-              {players.map((p:any,i:number)=>(
-                <tr key={i} style={{ borderTop:'1px solid var(--mist)', background:i%2===0?'transparent':'rgba(255,255,255,.015)' }}>
-                  <td style={{ padding:'7px 14px', color:'var(--snow)', fontWeight:500, whiteSpace:'nowrap' }}>{p.nombre}</td>
-                  {VARS.map(v=><td key={v.key} style={{ padding:'7px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', color:p[v.key]?v.color:'var(--fog)' }}>{p[v.key]||'—'}</td>)}
+        {mdCols.length === 0 ? (
+          <div style={{ padding:24, textAlign:'center', color:'var(--fog)', fontSize:12 }}>Sin sesiones con MD asignado. Asigná MD en el Calendario.</div>
+        ) : (
+          <div style={{ overflowX:'auto' }}>
+            <table style={{ width:'100%', borderCollapse:'collapse', fontSize:11 }}>
+              <thead>
+                <tr style={{ background:'rgba(96,165,250,.05)' }}>
+                  <th style={{ padding:'8px 16px', textAlign:'left', color:'var(--silver)', fontSize:9, fontWeight:700, textTransform:'uppercase' }}>MÉTRICA</th>
+                  {mdCols.map(md=>(
+                    <th key={md} style={{ padding:'8px 10px', textAlign:'center', color:'#60a5fa', fontSize:10, fontWeight:700, whiteSpace:'nowrap' }}>{md}</th>
+                  ))}
+                  <th style={{ padding:'8px 10px', textAlign:'center', color:'#34d399', fontSize:9, fontWeight:700, textTransform:'uppercase' }}>TOTAL</th>
                 </tr>
-              ))}
-              <tr style={{ borderTop:'2px solid rgba(52,211,153,.4)', background:'rgba(52,211,153,.05)' }}>
-                <td style={{ padding:'8px 14px', fontWeight:800, color:'#34d399', fontSize:10, textTransform:'uppercase' }}>∑ SUMA EQUIPO</td>
-                {VARS.map(v=>{ const t=players.reduce((s:number,p:any)=>s+(Number(p[v.key])||0),0); return <td key={v.key} style={{ padding:'8px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, color:'#34d399' }}>{Math.round(t)||'—'}</td> })}
-              </tr>
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {VARS.map((v,i)=>{
+                  const vals = mdCols.map(md => {
+                    // Sum all players for this MD session
+                    const sessVal = perSession[md]?.[v.key]
+                    // perSession holds team avg — multiply by players count for total
+                    return Math.round(Number(sessVal)||0)
+                  })
+                  const total = vals.reduce((s,x)=>s+x,0)
+                  return (
+                    <tr key={v.key} style={{ borderTop:'1px solid var(--mist)', background:i%2===0?'transparent':'rgba(255,255,255,.015)' }}>
+                      <td style={{ padding:'8px 16px', color:v.color, fontWeight:600, fontSize:11 }}>{v.label}</td>
+                      {vals.map((val,j)=>(
+                        <td key={j} style={{ padding:'8px 10px', textAlign:'center', fontFamily:'DM Mono,monospace', color:val>0?v.color:'var(--fog)', fontWeight:val>0?600:400 }}>
+                          {val>0?val:'—'}
+                        </td>
+                      ))}
+                      <td style={{ padding:'8px 10px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:800, color:'#34d399' }}>
+                        {total>0?total:'—'}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
         <div style={{ padding:16, borderTop:'1px solid var(--mist)' }}>
-          <p style={{ fontSize:10, fontWeight:700, color:'#60a5fa', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:12 }}>📊 GRÁFICO AGRUPADO · SUMA POR JUGADOR</p>
+          <p style={{ fontSize:10, fontWeight:700, color:'#60a5fa', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:12 }}>📊 GRÁFICO AGRUPADO · TOTALES POR DÍA DE ENTRENAMIENTO</p>
           <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))', gap:12 }}>
-            {GRUPOS.map(g=>renderGrupoBar(g,'jugador'))}
+            {GRUPOS.map(g=>renderGrupoBar(g,'md'))}
           </div>
         </div>
       </div>
@@ -4644,16 +4861,43 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
         </div>
         {showRefInput && (
           <div style={{ padding:16, borderBottom:'1px solid var(--mist)', background:'rgba(239,68,68,.03)' }}>
-            <p style={{ fontSize:10, color:'var(--fog)', marginBottom:12 }}>Ingresá los valores de hasta 3 partidos — la media se calcula automáticamente:</p>
-            {partidoRefs.map((ref,ri)=>(
-              <div key={ri} style={{ marginBottom:16 }}>
-                <p style={{ fontSize:10, fontWeight:700, color:'#f87171', marginBottom:8 }}>🏆 Partido {ri+1}</p>
-                <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(110px,1fr))', gap:8 }}>
+            <p style={{ fontSize:10, color:'var(--fog)', marginBottom:14 }}>
+              Seleccioná hasta 3 partidos del Calendario — los datos se cargan automáticamente. También podés editar los valores manualmente.
+            </p>
+            {[0,1,2].map(ri=>(
+              <div key={ri} style={{ marginBottom:16, background:'var(--ink3)', borderRadius:10, padding:12, border:'1px solid rgba(239,68,68,.15)' }}>
+                <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:10, flexWrap:'wrap' }}>
+                  <span style={{ fontSize:10, fontWeight:700, color:'#f87171' }}>🏆 Partido {ri+1}</span>
+                  <select
+                    className="wp-input"
+                    style={{ flex:1, minWidth:200, appearance:'none', fontSize:11, padding:'5px 10px' }}
+                    value={selectedPartidos[ri]?.fecha+'_'+selectedPartidos[ri]?.rival || ''}
+                    onChange={e=>{
+                      const val = e.target.value
+                      if (!val) { selectPartido(ri, null); return }
+                      const p = partidos.find((x:any)=>`${x.fecha}_${x.rival}`===val)
+                      if (p) selectPartido(ri, p)
+                    }}
+                  >
+                    <option value="">— Seleccionar partido del calendario —</option>
+                    {partidos.map((p:any)=>(
+                      <option key={`${p.fecha}_${p.rival}`} value={`${p.fecha}_${p.rival}`} style={{ background:'var(--ink2)' }}>
+                        {p.fecha} · vs {p.rival} ({p.tipo_partido})
+                      </option>
+                    ))}
+                  </select>
+                  {selectedPartidos[ri] && (
+                    <button onClick={()=>selectPartido(ri,null)} style={{ fontSize:10, padding:'4px 8px', borderRadius:6, background:'rgba(239,68,68,.1)', color:'#f87171', border:'1px solid rgba(239,68,68,.2)', cursor:'pointer' }}>✕</button>
+                  )}
+                </div>
+                {/* Show loaded values or manual entry */}
+                <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(100px,1fr))', gap:6 }}>
                   {VARS.map(v=>(
                     <div key={v.key}>
-                      <label style={{ fontSize:9, color:v.color, display:'block', marginBottom:3, textTransform:'uppercase', fontWeight:600 }}>{v.label}</label>
-                      <input className="wp-input" type="number" placeholder="—" style={{ padding:'5px 8px', fontSize:11, width:'100%' }}
-                        value={ref[v.key]||''}
+                      <label style={{ fontSize:8, color:v.color, display:'block', marginBottom:2, textTransform:'uppercase', fontWeight:600 }}>{v.label}</label>
+                      <input className="wp-input" type="number" placeholder="—"
+                        style={{ padding:'4px 7px', fontSize:11, width:'100%', background: partidoRefs[ri]?.[v.key] ? 'rgba(239,68,68,.08)' : 'transparent' }}
+                        value={partidoRefs[ri]?.[v.key]||''}
                         onChange={e=>{ const nr=[...partidoRefs]; nr[ri]={...nr[ri],[v.key]:Number(e.target.value)||''}; setPartidoRefs(nr) }}
                       />
                     </div>
@@ -4662,8 +4906,8 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
               </div>
             ))}
             {Object.keys(refMedia).length>0 && (
-              <div style={{ padding:'8px 12px', background:'rgba(239,68,68,.08)', borderRadius:8, display:'flex', flexWrap:'wrap', gap:12 }}>
-                <span style={{ fontSize:10, color:'#f87171', fontWeight:700 }}>📊 Media 3 partidos:</span>
+              <div style={{ padding:'8px 12px', background:'rgba(239,68,68,.08)', borderRadius:8, display:'flex', flexWrap:'wrap', gap:10, marginTop:4 }}>
+                <span style={{ fontSize:10, color:'#f87171', fontWeight:700 }}>📊 Media referencia:</span>
                 {VARS.filter(v=>refMedia[v.key]).map(v=>(
                   <span key={v.key} style={{ fontSize:11, color:v.color, fontFamily:'DM Mono,monospace' }}>{v.label}: <strong>{refMedia[v.key]}</strong></span>
                 ))}
@@ -4710,6 +4954,85 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
           </div>
         )}
       </div>
+      {/* ══ CUADRO 5: ÍNDICE DE CARGA (CIV) ════════════════════════════ */}
+      {Object.keys(refMedia).length > 0 && mdCols.length > 0 && (() => {
+        // SUMA = suma de los promedios de todas las sesiones MD del microciclo
+        // MD = dato del partido (refMedia)
+        // CIV = SUMA / MD → 1=igual al partido, 2=doble, etc.
+        const civData = VARS.map(v => {
+          const suma = mdCols.reduce((acc, md) => acc + (Number(perSession[md]?.[v.key]) || 0), 0)
+          const md = refMedia[v.key] || 0
+          const civ = md > 0 ? Math.round((suma / md) * 100) / 100 : null
+          return { ...v, suma: Math.round(suma), md, civ }
+        }).filter(v => v.md > 0 || v.suma > 0)
+
+        if (!civData.length) return null
+
+        return (
+          <div style={{ background:'var(--ink2)', border:'1px solid rgba(96,165,250,.25)', borderRadius:16, overflow:'hidden', marginBottom:8 }}>
+            <div style={{ padding:'10px 16px', borderBottom:'1px solid var(--mist)' }}>
+              <p style={{ fontSize:11, fontWeight:700, color:'#60a5fa', textTransform:'uppercase', letterSpacing:'0.08em' }}>
+                CUADRO 5 · ÍNDICE DE CARGA (CIV) — MICROCICLO vs PARTIDO
+              </p>
+              <p style={{ fontSize:10, color:'var(--fog)', marginTop:2 }}>
+                CIV = Suma MD ÷ Partido · <span style={{ color:'#60a5fa' }}>Azul ≤1.5</span> · <span style={{ color:'#ef4444' }}>Rojo &gt;1.5</span> · 1.0 = igual al partido · 2.0 = doble carga
+              </p>
+            </div>
+            <div style={{ overflowX:'auto' }}>
+              <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12 }}>
+                <thead>
+                  <tr style={{ background:'rgba(96,165,250,.05)' }}>
+                    <th style={{ padding:'9px 16px', textAlign:'left', color:'var(--silver)', fontSize:9, fontWeight:700, textTransform:'uppercase', letterSpacing:'0.06em' }}>MÉTRICA</th>
+                    <th style={{ padding:'9px 12px', textAlign:'center', color:'#34d399', fontSize:9, fontWeight:700, textTransform:'uppercase', letterSpacing:'0.06em' }}>SUMA MD</th>
+                    <th style={{ padding:'9px 12px', textAlign:'center', color:'#f87171', fontSize:9, fontWeight:700, textTransform:'uppercase', letterSpacing:'0.06em' }}>PARTIDO</th>
+                    <th style={{ padding:'9px 16px', textAlign:'center', color:'#60a5fa', fontSize:9, fontWeight:700, textTransform:'uppercase', letterSpacing:'0.06em' }}>CIV</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {civData.map((v, i) => {
+                    const civColor = v.civ === null ? 'var(--fog)' : v.civ > 1.5 ? '#ef4444' : '#60a5fa'
+                    const civBg = v.civ === null ? 'transparent' : v.civ > 1.5 ? 'rgba(239,68,68,.08)' : 'rgba(96,165,250,.08)'
+                    const civBorder = v.civ === null ? 'transparent' : v.civ > 1.5 ? 'rgba(239,68,68,.25)' : 'rgba(96,165,250,.25)'
+                    return (
+                      <tr key={v.key} style={{ borderTop:'1px solid var(--mist)', background: i%2===0 ? 'transparent' : 'rgba(255,255,255,.015)' }}>
+                        <td style={{ padding:'9px 16px', color: v.color, fontWeight:600 }}>{v.label}</td>
+                        <td style={{ padding:'9px 12px', textAlign:'center', fontFamily:'DM Mono,monospace', color:'#34d399', fontWeight:600 }}>
+                          {v.suma > 0 ? v.suma : '—'}
+                        </td>
+                        <td style={{ padding:'9px 12px', textAlign:'center', fontFamily:'DM Mono,monospace', color:'#f87171', fontWeight:600 }}>
+                          {v.md > 0 ? v.md : '—'}
+                        </td>
+                        <td style={{ padding:'9px 16px', textAlign:'center' }}>
+                          {v.civ !== null ? (
+                            <span style={{
+                              fontFamily:'DM Mono,monospace', fontWeight:800, fontSize:14,
+                              color: civColor,
+                              background: civBg,
+                              border: `1px solid ${civBorder}`,
+                              borderRadius: 8,
+                              padding: '3px 14px',
+                              display: 'inline-block',
+                              minWidth: 60,
+                            }}>
+                              {v.civ.toFixed(2)}
+                            </span>
+                          ) : <span style={{ color:'var(--fog)' }}>N/D</span>}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <div style={{ padding:'8px 16px', borderTop:'1px solid var(--mist)', display:'flex', gap:20, fontSize:10, color:'var(--fog)', flexWrap:'wrap' }}>
+              <span>📘 CIV = Carga microciclo ÷ Carga partido</span>
+              <span style={{ color:'#60a5fa' }}>🔵 ≤1.5 — carga controlada</span>
+              <span style={{ color:'#ef4444' }}>🔴 &gt;1.5 — carga elevada vs partido</span>
+              <span>1.0 = igual al partido · 0.5 = mitad · 2.0 = doble</span>
+            </div>
+          </div>
+        )
+      })()}
       </>)}
     </div>
   )
