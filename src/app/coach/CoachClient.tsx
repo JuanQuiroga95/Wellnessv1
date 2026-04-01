@@ -794,6 +794,25 @@ function CambioCargaPanel() {
   const maxUA = Math.max(...rows.map((r: any) => getRowVal(r)), 1)
   const chartColor = CHART_VARS.find(v=>v.key===chartVar)?.color || '#c8f135'
 
+  // Recalculate pct_change based on the SELECTED variable (not always UA)
+  // Compare each row to the last row that had a non-zero value
+  const rowsWithPct = rows.map((row: any, i: number) => {
+    const val = getRowVal(row)
+    // Find last previous row with val > 0
+    let prevVal: number | null = null
+    for (let j = i - 1; j >= 0; j--) {
+      const pv = getRowVal(rows[j])
+      if (pv > 0) { prevVal = pv; break }
+    }
+    let pct: number | null = null
+    if (prevVal !== null) {
+      if (prevVal === 0 && val > 0) pct = 100
+      else if (prevVal > 0 && val === 0) pct = -100
+      else if (prevVal > 0) pct = Math.round(((val - prevVal) / prevVal) * 100)
+    }
+    return { ...row, _pct: pct, _val: val }
+  })
+
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
       <div>
@@ -858,10 +877,10 @@ function CambioCargaPanel() {
           ? <div style={{ padding:40, textAlign:'center', color:'var(--silver)' }}>Sin datos para el período seleccionado.<br /><span style={{ fontSize:11 }}>Verificá que haya jugadores con ≥{minEnt}min entrenamiento y ≥{minPart}min en partido.</span></div>
           : <>
               {/* Summary cards */}
-              {rows.length >= 2 && (() => {
-                const last = rows[rows.length - 1]
-                const prev = rows[rows.length - 2]
-                const pct = getRowVal(prev) > 0 ? Math.round(((getRowVal(last) - getRowVal(prev)) / getRowVal(prev)) * 100) : null
+              {rowsWithPct.length >= 2 && (() => {
+                const last = rowsWithPct[rowsWithPct.length - 1]
+                const prev = rowsWithPct.slice(0, -1).reverse().find((r:any) => r._val > 0) || rowsWithPct[rowsWithPct.length - 2]
+                const pct = last._pct
                 return (
                   <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(160px,1fr))', gap:10 }}>
                     <div style={{ background:'var(--ink2)', border:`1px solid ${chartColor}33`, borderRadius:14, padding:16, textAlign:'center' }}>
@@ -881,7 +900,7 @@ function CambioCargaPanel() {
                     </div>
                     <div style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:14, padding:16, textAlign:'center' }}>
                       <div style={{ fontSize:10, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:6 }}>{view==='diario' ? 'Días' : 'Semanas'} con datos</div>
-                      <div className="display" style={{ fontSize:36, color:'var(--snow)', lineHeight:1 }}>{rows.length}</div>
+                      <div className="display" style={{ fontSize:36, color:'var(--snow)', lineHeight:1 }}>{rowsWithPct.length}</div>
                       <div style={{ fontSize:11, color:'var(--silver)', marginTop:4 }}>{desde} – {hasta}</div>
                     </div>
                   </div>
@@ -894,18 +913,18 @@ function CambioCargaPanel() {
                   {CHART_VARS.find(v=>v.key===chartVar)?.label} — {view === 'diario' ? 'por día' : 'por semana'}
                 </p>
                 <div style={{ display:'flex', alignItems:'flex-end', gap:4, height:140, overflowX:'auto', paddingBottom:4 }}>
-                  {rows.map((row: any, i: number) => {
-                    const h = Math.round((getRowVal(row) / maxUA) * 110)
-                    const col = pctColor(row.pct_change)
+                  {rowsWithPct.map((row: any, i: number) => {
+                    const h = Math.round((row._val / maxUA) * 110)
+                    const col = pctColor(row._pct)
                     const label = view === 'diario'
                       ? row.fecha.slice(5) // MM-DD
                       : row.semana.replace(/\d{4}-/, '') // S01
                     return (
                       <div key={i} style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:3, minWidth:view==='diario'?28:48, flex:'1 0 auto' }}>
                         <span style={{ fontSize:9, color:col, fontFamily:'DM Mono,monospace', fontWeight:700, whiteSpace:'nowrap' }}>
-                          {row.pct_change !== null ? `${row.pct_change > 0 ? '+' : ''}${row.pct_change}%` : ''}
+                          {row._pct !== null ? `${row._pct > 0 ? '+' : ''}${row._pct}%` : ''}
                         </span>
-                        <div title={`${getRowVal(row)} ${CHART_VARS.find(v=>v.key===chartVar)?.label}${row.pct_change !== null ? ` (${row.pct_change > 0 ? '+' : ''}${row.pct_change}%)` : ''}`}
+                        <div title={`${row._val} ${CHART_VARS.find(v=>v.key===chartVar)?.label}${row._pct !== null ? ` (${row._pct > 0 ? '+' : ''}${row._pct}%)` : ''}`}
                           style={{ width:'100%', height:h, background:chartColor, borderRadius:'4px 4px 0 0', opacity:.85, minHeight:4, transition:'height .2s' }} />
                         <span style={{ fontSize:8, color:'var(--fog)', fontFamily:'DM Mono,monospace', whiteSpace:'nowrap', transform:'rotate(-35deg)', transformOrigin:'top center', marginTop:4 }}>{label}</span>
                       </div>
@@ -924,8 +943,8 @@ function CambioCargaPanel() {
                     <span key={h} style={{ fontSize:9, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em' }}>{h}</span>
                   ))}
                 </div>
-                {rows.map((row: any, i: number) => (
-                  <div key={i} style={{ display:'grid', gridTemplateColumns: view==='diario' ? '1fr 120px 120px 120px' : '1fr 1fr 120px 120px', gap:0, padding:'11px 18px', borderBottom:i<rows.length-1?'1px solid var(--mist)':'none', alignItems:'center' }}>
+                {rowsWithPct.map((row: any, i: number) => (
+                  <div key={i} style={{ display:'grid', gridTemplateColumns: view==='diario' ? '1fr 120px 120px 120px' : '1fr 1fr 120px 120px', gap:0, padding:'11px 18px', borderBottom:i<rowsWithPct.length-1?'1px solid var(--mist)':'none', alignItems:'center' }}>
                     <span className="mono" style={{ fontSize:13, color:'var(--snow)' }}>
                       {view==='diario' ? row.fecha : row.semana}
                     </span>
@@ -934,8 +953,8 @@ function CambioCargaPanel() {
                       : <span style={{ fontSize:11, color:'var(--silver)' }}>{row.label}</span>
                     }
                     <span className="mono" style={{ fontSize:14, color:chartColor, fontWeight:600 }}>{getRowVal(row)} <span style={{ fontSize:10, color:'var(--silver)', fontWeight:400 }}>{CHART_VARS.find(v=>v.key===chartVar)?.label}</span></span>
-                    <span style={{ fontSize:13, fontWeight:700, color:pctColor(row.pct_change), background:pctBg(row.pct_change), padding:'3px 8px', borderRadius:6, display:'inline-block', fontFamily:'DM Mono,monospace' }}>
-                      {row.pct_change !== null ? `${row.pct_change > 0 ? '+' : ''}${row.pct_change}%` : '—'}
+                    <span style={{ fontSize:13, fontWeight:700, color:pctColor(row._pct), background:pctBg(row._pct), padding:'3px 8px', borderRadius:6, display:'inline-block', fontFamily:'DM Mono,monospace' }}>
+                      {row._pct !== null ? `${row._pct > 0 ? '+' : ''}${row._pct}%` : '—'}
                     </span>
                   </div>
                 ))}
@@ -1507,7 +1526,8 @@ function BloqueMetodologia({ bloque, index, onChange, onRemove, teamPlayers = []
   const jugadoresEquipos = Object.values(equipos).flat() as number[]
   const totalJugadoresEquipos = jugadoresEquipos.length
 
-  const calcJugadores = esConEquipo ? (totalJugadoresEquipos || Number(bloque.jugadores) || 0) : Number(bloque.jugadores)
+  // For partido types: prefer manual jugadores input; team selector as bonus info
+  const calcJugadores = Number(bloque.jugadores) || (esConEquipo ? totalJugadoresEquipos : 0)
   const calc = esConEspacio ? calcularDistancias(calcJugadores, Number(bloque.largo), Number(bloque.ancho), Number(bloque.series), Number(bloque.minutos)) : null
 
   function handleImg(e: any) {
@@ -1574,14 +1594,15 @@ function BloqueMetodologia({ bloque, index, onChange, onRemove, teamPlayers = []
       {mostrarForm && (
         <div style={{ marginBottom:8 }}>
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:6, marginBottom:6 }}>
-            {(!esConEquipo || TAREAS_PARTIDO_SIMPLE.includes(bloque.ventana)) && <div><label style={{ fontSize:9, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:2 }}>
+            {/* Jugadores: mostrar siempre — incluso para tipos con equipo (partido amistoso/oficial/entrenamiento) */}
+            <div><label style={{ fontSize:9, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:2 }}>
                 Jugadores
                 {teamPlayers.length > 0 && !bloque.jugadores && (
                   <button type="button" onClick={()=>onChange('jugadores',String(teamPlayers.length))} style={{ marginLeft:6, fontSize:8, padding:'1px 5px', borderRadius:3, background:'rgba(200,241,53,.15)', color:'var(--lime)', border:'1px solid rgba(200,241,53,.3)', cursor:'pointer' }}>
                     Auto ({teamPlayers.length})
                   </button>
                 )}
-              </label>{inp('jugadores','Nº jugadores','number')}</div>}
+              </label>{inp('jugadores','Nº jugadores','number')}</div>
             <div><label style={{ fontSize:9, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:2 }}>Bloques</label>{inp('series','Nº bloques','number')}</div>
             <div><label style={{ fontSize:9, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:2 }}>Min / bloque</label>{inp('minutos','Min','number')}</div>
             <div><label style={{ fontSize:9, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:2 }}>Pausa x bloque (min)</label>{inp('pausa','Min descanso','number')}</div>
@@ -2437,15 +2458,11 @@ function CargaExternaPanel() {
   const hasRealGps: boolean = data?.hasRealGps || false
   const allMetricCols: string[] = data?.allMetricCols || []
   const sesionesInfo: any[] = data?.sesionesInfo || []
-  // Deduplicate mdCols by label and sort by MD_ORDER
+  // Always show ALL MD columns in fixed order, filling with — where no data
   const MD_ORDER_LOCAL = ['MD+1','MD+2','MD+3','MD-4','MD-3','MD-2','MD-1','MD']
-  const mdCols = Array.from(new Set(sesionesInfo.map((s:any) => s.titulo)))
-    .sort((a,b) => {
-      const ai = MD_ORDER_LOCAL.indexOf(a); const bi = MD_ORDER_LOCAL.indexOf(b)
-      if (ai !== -1 && bi !== -1) return ai - bi
-      if (ai !== -1) return -1; if (bi !== -1) return 1
-      return a.localeCompare(b)
-    })
+  const existingMdLabels = new Set(sesionesInfo.map((s:any) => s.titulo))
+  // mdCols = full sequence always; mark which have data
+  const mdCols = MD_ORDER_LOCAL
   // All columns present in the data, sorted by canonical order (known first, then alphabetical)
   const availableCols: string[] = (() => {
     const raw = allMetricCols.length > 0 ? allMetricCols : (
@@ -4697,15 +4714,11 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
   const teamAvg = data?.teamAvg || {}
   const perSession: Record<string,any> = data?.perSession || {}
   const sesionesInfo: any[] = data?.sesionesInfo || []
-  // Deduplicate mdCols by label and sort by MD_ORDER
+  // Always show ALL MD columns in fixed order, filling with — where no data
   const MD_ORDER_LOCAL = ['MD+1','MD+2','MD+3','MD-4','MD-3','MD-2','MD-1','MD']
-  const mdCols = Array.from(new Set(sesionesInfo.map((s:any) => s.titulo)))
-    .sort((a,b) => {
-      const ai = MD_ORDER_LOCAL.indexOf(a); const bi = MD_ORDER_LOCAL.indexOf(b)
-      if (ai !== -1 && bi !== -1) return ai - bi
-      if (ai !== -1) return -1; if (bi !== -1) return 1
-      return a.localeCompare(b)
-    })
+  const existingMdLabels = new Set(sesionesInfo.map((s:any) => s.titulo))
+  // mdCols = full sequence always; mark which have data
+  const mdCols = MD_ORDER_LOCAL
 
   const refMedia: Record<string,number> = {}
   VARS.forEach(v => {
@@ -4821,7 +4834,7 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
               <thead>
                 <tr style={{ background:'rgba(200,241,53,.03)' }}>
                   <th style={{ padding:'6px 14px', textAlign:'left', color:'var(--silver)', fontSize:9, fontWeight:700, textTransform:'uppercase' }}>Métrica</th>
-                  {mdCols.map(md=><th key={md} style={{ padding:'6px 10px', textAlign:'center', color:'var(--lime)', fontSize:9, fontWeight:700, whiteSpace:'nowrap' }}>{md}</th>)}
+                  {mdCols.map(md=><th key={md} style={{ padding:'6px 10px', textAlign:'center', color:existingMdLabels.has(md)?'var(--lime)':'var(--fog)', fontSize:9, fontWeight:700, whiteSpace:'nowrap', opacity:existingMdLabels.has(md)?1:0.5 }}>{md}</th>)}
                   <th style={{ padding:'6px 10px', textAlign:'center', color:'#34d399', fontSize:9, fontWeight:700 }}>TOTAL</th>
                   <th style={{ padding:'6px 10px', textAlign:'center', color:'#60a5fa', fontSize:9, fontWeight:700 }}>PROM.</th>
                 </tr>
@@ -4853,7 +4866,7 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
           <p style={{ fontSize:11, fontWeight:700, color:'#60a5fa', textTransform:'uppercase', letterSpacing:'0.08em' }}>CUADRO 2 · TOTALES POR MD · MD+1 → MD</p>
           <p style={{ fontSize:10, color:'var(--fog)', marginTop:2 }}>Suma total del equipo en cada día de entrenamiento del microciclo</p>
         </div>
-        {mdCols.length === 0 ? (
+        {existingMdLabels.size === 0 ? (
           <div style={{ padding:24, textAlign:'center', color:'var(--fog)', fontSize:12 }}>Sin sesiones con MD asignado. Asigná MD en el Calendario.</div>
         ) : (
           <div style={{ overflowX:'auto' }}>
@@ -4862,7 +4875,7 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
                 <tr style={{ background:'rgba(96,165,250,.05)' }}>
                   <th style={{ padding:'8px 16px', textAlign:'left', color:'var(--silver)', fontSize:9, fontWeight:700, textTransform:'uppercase' }}>MÉTRICA</th>
                   {mdCols.map(md=>(
-                    <th key={md} style={{ padding:'8px 10px', textAlign:'center', color:'#60a5fa', fontSize:10, fontWeight:700, whiteSpace:'nowrap' }}>{md}</th>
+                    <th key={md} style={{ padding:'8px 10px', textAlign:'center', color:existingMdLabels.has(md)?'#60a5fa':'var(--fog)', fontSize:10, fontWeight:700, whiteSpace:'nowrap', opacity:existingMdLabels.has(md)?1:0.5 }}>{md}</th>
                   ))}
                   <th style={{ padding:'8px 10px', textAlign:'center', color:'#34d399', fontSize:9, fontWeight:700, textTransform:'uppercase' }}>TOTAL</th>
                 </tr>
@@ -4908,7 +4921,7 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
           <p style={{ fontSize:11, fontWeight:700, color:'#a78bfa', textTransform:'uppercase', letterSpacing:'0.08em' }}>CUADRO 3 · PROMEDIO POR MD · MD+1 → MD</p>
           <p style={{ fontSize:10, color:'var(--fog)', marginTop:2 }}>Promedio del equipo en cada sesión del microciclo · con gráfico agrupado</p>
         </div>
-        {mdCols.length === 0 ? (
+        {existingMdLabels.size === 0 ? (
           <div style={{ padding:24, textAlign:'center', color:'var(--fog)', fontSize:12 }}>Sin sesiones con MD asignado en este período. Asigná MD en el Calendario.</div>
         ) : (<>
           <div style={{ overflowX:'auto' }}>
@@ -4916,7 +4929,7 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
               <thead>
                 <tr style={{ background:'rgba(168,85,247,.04)' }}>
                   <th style={{ padding:'7px 14px', textAlign:'left', color:'var(--silver)', fontSize:9, fontWeight:700, textTransform:'uppercase' }}>Métrica</th>
-                  {mdCols.map(md=><th key={md} style={{ padding:'7px 10px', textAlign:'center', color:'#a78bfa', fontSize:10, fontWeight:700, whiteSpace:'nowrap' }}>{md}</th>)}
+                  {mdCols.map(md=><th key={md} style={{ padding:'7px 10px', textAlign:'center', color:existingMdLabels.has(md)?'#a78bfa':'var(--fog)', fontSize:10, fontWeight:700, whiteSpace:'nowrap', opacity:existingMdLabels.has(md)?1:0.5 }}>{md}</th>)}
                   <th style={{ padding:'7px 10px', textAlign:'center', color:'#60a5fa', fontSize:9, fontWeight:700 }}>PROM. TOTAL</th>
                 </tr>
               </thead>
@@ -5052,7 +5065,7 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
         )}
       </div>
       {/* ══ CUADRO 5: ÍNDICE DE CARGA (CIV) ════════════════════════════ */}
-      {Object.keys(refMedia).length > 0 && mdCols.length > 0 && (() => {
+      {Object.keys(refMedia).length > 0 && existingMdLabels.size > 0 && (() => {
         // SUMA = suma de los promedios de todas las sesiones MD del microciclo
         // MD = dato del partido (refMedia)
         // CIV = SUMA / MD → 1=igual al partido, 2=doble, etc.
@@ -5342,15 +5355,11 @@ function ExpoAIPanel({ teamData }: { teamData: any[] }) {
 
   const gpsReal: any[] = data?.gpsReal || []
   const sesionesInfo: any[] = data?.sesionesInfo || []
-  // Deduplicate mdCols by label and sort by MD_ORDER
+  // Always show ALL MD columns in fixed order, filling with — where no data
   const MD_ORDER_LOCAL = ['MD+1','MD+2','MD+3','MD-4','MD-3','MD-2','MD-1','MD']
-  const mdCols = Array.from(new Set(sesionesInfo.map((s:any) => s.titulo)))
-    .sort((a,b) => {
-      const ai = MD_ORDER_LOCAL.indexOf(a); const bi = MD_ORDER_LOCAL.indexOf(b)
-      if (ai !== -1 && bi !== -1) return ai - bi
-      if (ai !== -1) return -1; if (bi !== -1) return 1
-      return a.localeCompare(b)
-    })
+  const existingMdLabels = new Set(sesionesInfo.map((s:any) => s.titulo))
+  // mdCols = full sequence always; mark which have data
+  const mdCols = MD_ORDER_LOCAL
 
   // Build per-player per-MD GPS data from gps_logs (need raw date-level data)
   // For now we use the aggregated gpsReal and note MD columns require future per-session GPS API  
