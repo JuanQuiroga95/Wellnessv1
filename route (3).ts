@@ -4913,136 +4913,170 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
                     </tbody>
                   </table>
                 </div>
-                {/* ── Gráficos de comparación por jugador ── */}
-                {players.length > 1 && (() => {
-                  const CHART_GROUPS = [
-                    {
-                      title: 'RESISTENCIA',
-                      color: '#3b82f6',
-                      bars: [
-                        { key:'ua_total', label:'UA', color:'#60a5fa' },
-                        { key:'minActivo', label:'Tiempo', color:'#34d399' },
-                      ],
-                      line: { key:'rpe', label:'RPE', color:'#c8f135' },
-                    },
-                    {
-                      title: 'VELOCIDAD',
-                      color: '#a78bfa',
-                      bars: [
-                        { key:'distSprint', label:'Sprint (m)', color:'#f97316' },
-                        { key:'nSprints', label:'Nº Sprint', color:'#a78bfa' },
-                      ],
-                      line: null,
-                    },
-                    {
-                      title: 'FUERZA',
-                      color: '#ef4444',
-                      bars: [
-                        { key:'nAcel', label:'ACE >2', color:'#ec4899' },
-                        { key:'nDecel', label:'DEC >2', color:'#14b8a6' },
-                      ],
-                      line: null,
-                    },
-                  ]
+                {/* ── Gráficos comparativos estilo Catapult ── */}
+                {(() => {
+                  // Data per player per bar metric
+                  const GRP_RES = {
+                    title: 'RESISTENCIA', color: '#3b82f6',
+                    bars: [
+                      { key:'distTotal', label:'DT (m)',   color:'#3b82f6', axis:'left' },
+                      { key:'distSprint',label:'Sprint (m)',color:'#ec4899', axis:'left' },
+                    ],
+                    line: { key:'minActivo', label:'Mts/min', color:'#f59e0b' },
+                  }
+                  const GRP_VEL = {
+                    title: 'VELOCIDAD', color: '#a78bfa',
+                    bars: [
+                      { key:'nSprints', label:'Nº Sprint',  color:'#a78bfa', axis:'left' },
+                      { key:'ua_total', label:'UA',          color:'#60a5fa', axis:'right' },
+                    ],
+                    line: { key:'rpe', label:'RPE', color:'#c8f135' },
+                  }
+                  const GRP_FZA = {
+                    title: 'FUERZA', color: '#ef4444',
+                    bars: [
+                      { key:'nDecel', label:'DEC >2', color:'#ef4444', axis:'left' },
+                      { key:'nAcel',  label:'ACE >2', color:'#3b82f6', axis:'left' },
+                    ],
+                    line: null,
+                  }
+                  const GROUPS = [GRP_RES, GRP_VEL, GRP_FZA]
+                  const BAR_H = 130
+                  const BAR_W = Math.max(24, Math.min(48, Math.floor(320 / (players.length || 1))))
 
-                  const BAR_H = 90
-                  const posColors: Record<string,string> = {}
-                  const posColList = ['#22c55e','#3b82f6','#f59e0b','#ef4444','#a78bfa','#06b6d4']
-                  let pci = 0
-                  players.forEach((p:any) => {
-                    const pos = (p.posicion||'').toLowerCase()
-                    if (!posColors[pos]) { posColors[pos] = posColList[pci % posColList.length]; pci++ }
-                  })
+                  // Position colors
+                  const POS_COLS: Record<string,string> = {}
+                  const POS_LIST = ['#22c55e','#3b82f6','#f59e0b','#ef4444','#a78bfa','#ec4899','#06b6d4','#fbbf24']
+                  players.forEach((p:any, i:number) => { POS_COLS[p.nombre] = POS_LIST[i % POS_LIST.length] })
 
                   return (
-                    <div style={{ padding:'12px 16px', borderTop:'1px solid var(--mist)', background:'rgba(0,0,0,.15)' }}>
-                      <p style={{ fontSize:9, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:12 }}>
+                    <div style={{ padding:'16px', borderTop:'2px solid rgba(200,241,53,.15)', background:'rgba(0,0,0,.25)' }}>
+                      <div style={{ fontSize:10, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:16 }}>
                         📊 COMPARATIVA ENTRE JUGADORES · {md}
-                      </p>
-                      <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12 }}>
-                        {CHART_GROUPS.map(grp => {
-                          // Get max value across all bars for scaling
-                          const allVals = players.flatMap((p:any) => grp.bars.map(b => Number(p[b.key])||0))
-                          const maxVal = Math.max(...allVals, 1)
+                      </div>
+                      <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:16 }}>
+                        {GROUPS.map(grp => {
+                          const maxBar = Math.max(...players.flatMap((p:any) => grp.bars.map(b => Number(p[b.key])||0)), 1)
                           const lineVals = grp.line ? players.map((p:any) => Number(p[grp.line!.key])||0) : []
-                          const maxLine = grp.line ? Math.max(...lineVals, 1) : 1
+                          const maxLine = Math.max(...lineVals, 1)
 
                           return (
-                            <div key={grp.title} style={{ background:'var(--ink2)', borderRadius:10, padding:12, border:`1px solid ${grp.color}22` }}>
-                              <div style={{ fontSize:10, fontWeight:800, color:grp.color, textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:6, textAlign:'center' }}>{grp.title}</div>
+                            <div key={grp.title} style={{ background:'var(--ink2)', borderRadius:12, padding:14, border:`1px solid ${grp.color}30` }}>
+                              {/* Chart title */}
+                              <div style={{ fontSize:11, fontWeight:800, color:grp.color, textTransform:'uppercase', letterSpacing:'0.08em', textAlign:'center', marginBottom:4, borderBottom:`1px solid ${grp.color}30`, paddingBottom:6 }}>
+                                {grp.title}
+                              </div>
                               {/* Legend */}
-                              <div style={{ display:'flex', gap:8, justifyContent:'center', marginBottom:8, flexWrap:'wrap' }}>
+                              <div style={{ display:'flex', flexWrap:'wrap', gap:6, justifyContent:'center', marginBottom:10 }}>
                                 {grp.bars.map(b => (
-                                  <span key={b.key} style={{ display:'flex', alignItems:'center', gap:3, fontSize:8, color:'var(--fog)' }}>
-                                    <span style={{ width:8, height:8, borderRadius:2, background:b.color, display:'inline-block' }}/>
+                                  <span key={b.key} style={{ display:'flex', alignItems:'center', gap:3, fontSize:8.5, color:'var(--silver)' }}>
+                                    <span style={{ width:10, height:10, borderRadius:2, background:b.color, display:'inline-block', flexShrink:0 }}/>
                                     {b.label}
                                   </span>
                                 ))}
                                 {grp.line && (
-                                  <span style={{ display:'flex', alignItems:'center', gap:3, fontSize:8, color:'var(--fog)' }}>
-                                    <span style={{ width:12, height:2, background:grp.line.color, display:'inline-block', borderRadius:1 }}/>
+                                  <span style={{ display:'flex', alignItems:'center', gap:3, fontSize:8.5, color:'var(--silver)' }}>
+                                    <svg width="16" height="8"><line x1="0" y1="4" x2="16" y2="4" stroke={grp.line.color} strokeWidth="2" strokeDasharray="4,2"/><circle cx="8" cy="4" r="2.5" fill={grp.line.color}/></svg>
                                     {grp.line.label}
                                   </span>
                                 )}
                               </div>
-                              {/* Bar chart */}
-                              <div style={{ display:'flex', alignItems:'flex-end', gap:4, height:BAR_H, position:'relative' }}>
-                                {players.map((p:any, pi:number) => {
-                                  const posColor = posColors[(p.posicion||'').toLowerCase()] || '#888'
-                                  return (
-                                    <div key={pi} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', gap:0, minWidth:0 }}>
-                                      {/* Bars grouped */}
-                                      <div style={{ display:'flex', gap:1, alignItems:'flex-end', height:BAR_H-16, width:'100%', justifyContent:'center' }}>
-                                        {grp.bars.map((b, bi) => {
-                                          const val = Number(p[b.key])||0
-                                          const h = Math.max((val/maxVal)*(BAR_H-20), val>0?3:0)
-                                          return (
-                                            <div key={bi} title={`${p.nombre}: ${val} ${b.label}`}
-                                              style={{ width:'40%', height:`${h}px`, background:val>0?b.color:`${b.color}22`, borderRadius:'2px 2px 0 0', minWidth:3 }} />
-                                          )
-                                        })}
+
+                              {/* Chart area */}
+                              <div style={{ position:'relative', height:`${BAR_H + 36}px` }}>
+                                {/* Y-axis grid lines */}
+                                {[0,25,50,75,100].map(pct => (
+                                  <div key={pct} style={{ position:'absolute', left:0, right:0, bottom:`${(pct/100)*BAR_H + 28}px`,
+                                    borderTop:'1px solid rgba(255,255,255,.04)', pointerEvents:'none' }} />
+                                ))}
+
+                                {/* Bars + labels per player */}
+                                <div style={{ position:'absolute', bottom:28, left:0, right:0, display:'flex', alignItems:'flex-end', gap:players.length > 4 ? 4 : 8, padding:'0 4px' }}>
+                                  {players.map((p:any, pi:number) => {
+                                    const nameColor = POS_COLS[p.nombre] || '#888'
+                                    return (
+                                      <div key={pi} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', minWidth:0 }}>
+                                        {/* Value labels on top */}
+                                        <div style={{ display:'flex', gap:1, marginBottom:3 }}>
+                                          {grp.bars.map((b, bi) => {
+                                            const val = Number(p[b.key])||0
+                                            return (
+                                              <span key={bi} style={{ fontSize:8, color:b.color, fontFamily:'DM Mono,monospace', fontWeight:700, lineHeight:1 }}>
+                                                {val > 0 ? val : ''}
+                                              </span>
+                                            )
+                                          })}
+                                        </div>
+                                        {/* Grouped bars */}
+                                        <div style={{ display:'flex', gap:2, alignItems:'flex-end', width:'100%', justifyContent:'center' }}>
+                                          {grp.bars.map((b, bi) => {
+                                            const val = Number(p[b.key])||0
+                                            const h = Math.max((val/maxBar)*BAR_H, val>0?4:2)
+                                            return (
+                                              <div key={bi} title={`${p.nombre}: ${val} ${b.label}`}
+                                                style={{ flex:1, maxWidth:20, height:`${h}px`,
+                                                  background: val > 0 ? b.color : `${b.color}18`,
+                                                  borderRadius:'3px 3px 0 0', minWidth:6,
+                                                  transition:'height .3s' }} />
+                                            )
+                                          })}
+                                        </div>
                                       </div>
-                                      {/* Value label */}
-                                      <div style={{ fontSize:7, color:'var(--fog)', fontFamily:'DM Mono,monospace', marginTop:1 }}>
-                                        {Number(p[grp.bars[0].key])||0}
-                                      </div>
-                                      {/* Player name abbreviated */}
-                                      <div style={{ fontSize:7, color:posColor, fontWeight:700, whiteSpace:'nowrap', overflow:'hidden', maxWidth:32, textOverflow:'ellipsis', textAlign:'center' }}>
-                                        {p.nombre.split(' ')[0]}
-                                      </div>
-                                    </div>
-                                  )
-                                })}
-                                {/* Line chart overlay for RPE */}
-                                {grp.line && lineVals.length > 1 && (() => {
+                                    )
+                                  })}
+                                </div>
+
+                                {/* Line overlay (m/min or RPE) */}
+                                {grp.line && players.length >= 1 && (() => {
+                                  const n = players.length
+                                  // Map each player to x position (center of their group)
                                   const pts = lineVals.map((v, i) => {
-                                    const x = (i / (lineVals.length - 1)) * 100
-                                    const y = 100 - (v / maxLine) * 80
-                                    return `${x}%,${y}%`
+                                    const xPct = n === 1 ? 50 : (i / (n-1)) * 100
+                                    const yPx = BAR_H - (v / maxLine) * BAR_H
+                                    return { x: xPct, y: yPx, v }
                                   })
                                   return (
-                                    <svg style={{ position:'absolute', top:0, left:0, width:'100%', height:`${BAR_H-16}px`, overflow:'visible', pointerEvents:'none' }}>
-                                      <polyline
-                                        points={lineVals.map((v,i)=>`${(i/(lineVals.length-1))*100}%,${(BAR_H-20)-(v/maxLine)*(BAR_H-20)}px`).join(' ')}
-                                        fill="none" stroke={grp.line.color} strokeWidth="1.5" strokeDasharray="3,2"
-                                      />
-                                      {lineVals.map((v,i)=>(
-                                        <circle key={i}
-                                          cx={`${(i/(lineVals.length-1))*100}%`}
-                                          cy={`${(BAR_H-20)-(v/maxLine)*(BAR_H-20)}px`}
-                                          r="3" fill={grp.line!.color}
+                                    <svg style={{ position:'absolute', bottom:28, left:4, right:4, width:'calc(100% - 8px)', height:`${BAR_H}px`, overflow:'visible', pointerEvents:'none' }}>
+                                      {n > 1 && (
+                                        <polyline
+                                          points={pts.map(p=>`${p.x}%,${p.y}px`).join(' ')}
+                                          fill="none" stroke={grp.line.color} strokeWidth="2" strokeDasharray="5,3"
                                         />
+                                      )}
+                                      {pts.map((pt, i) => (
+                                        <g key={i}>
+                                          <circle cx={`${pt.x}%`} cy={`${pt.y}px`} r="4" fill={grp.line!.color} stroke="var(--ink2)" strokeWidth="1.5"/>
+                                          <text x={`${pt.x}%`} y={`${pt.y - 7}px`} textAnchor="middle" fill={grp.line!.color}
+                                            style={{ fontSize:'8px', fontFamily:'DM Mono, monospace', fontWeight:'bold' }}>
+                                            {pt.v > 0 ? pt.v : ''}
+                                          </text>
+                                        </g>
                                       ))}
                                     </svg>
                                   )
                                 })()}
+
+                                {/* Player names on X axis */}
+                                <div style={{ position:'absolute', bottom:0, left:0, right:0, display:'flex', gap:players.length > 4 ? 4 : 8, padding:'0 4px' }}>
+                                  {players.map((p:any, pi:number) => (
+                                    <div key={pi} style={{ flex:1, textAlign:'center', minWidth:0 }}>
+                                      <div style={{ fontSize:8, color: POS_COLS[p.nombre] || '#888', fontWeight:700,
+                                        whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
+                                        {p.nombre.split(' ')[0]}
+                                      </div>
+                                      <div style={{ fontSize:7, color:'var(--fog)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
+                                        {p.posicion ? p.posicion.split(' ')[0] : ''}
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
                               </div>
                             </div>
                           )
                         })}
                       </div>
-                      <p style={{ fontSize:8, color:'var(--fog)', marginTop:8, fontStyle:'italic' }}>
-                        * RESISTENCIA y FUERZA muestran datos de la calculadora · GPS real disponible en Ctrl. Carga GPS
+                      <p style={{ fontSize:8, color:'var(--fog)', marginTop:10, fontStyle:'italic' }}>
+                        * Datos de la calculadora (sesión planificada). En Ctrl. Carga GPS verás datos reales individuales por jugador.
                       </p>
                     </div>
                   )
