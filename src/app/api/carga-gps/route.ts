@@ -316,27 +316,44 @@ export async function GET(req: NextRequest) {
       sesiones_gps: avgGps('sesiones_gps'),
     }
 
-    // Build sesionesInfo: array of {id, fecha, titulo, rpe_objetivo} sorted by MD label order
+    // Build sesionesInfo: deduplicated by MD label, sorted MD+1→MD+3→MD-4→MD-3→MD-2→MD-1→MD
     const MD_ORDER = ['MD+1','MD+2','MD+3','MD-4','MD-3','MD-2','MD-1','MD']
-    const sesionesInfo = (sesiones as any[])
-      .map(s => ({ id: s.id, fecha: s.fecha, titulo: s.titulo || s.fecha, rpe_objetivo: s.rpe_objetivo }))
-      .sort((a,b) => {
-        const ai = MD_ORDER.indexOf(a.titulo)
-        const bi = MD_ORDER.indexOf(b.titulo)
-        if (ai !== -1 && bi !== -1) return ai - bi
-        return a.fecha.localeCompare(b.fecha)
-      })
 
-    // Build perSession data: for each session, get team avg values
+    // Build perSession: accumulate metrics per MD label (sum if multiple sessions share same label)
     const perSession: Record<string, any> = {}
     for (const ses of sesiones as any[]) {
+      const label = ses.titulo || ses.fecha
       const m = sumarMetricasBloques(ses.ejercicios || [])
-      perSession[ses.titulo || ses.fecha] = {
-        fecha: ses.fecha,
-        rpe_objetivo: ses.rpe_objetivo,
-        ...m
+      if (!perSession[label]) {
+        perSession[label] = { fecha: ses.fecha, rpe_objetivo: ses.rpe_objetivo, ...m }
+      } else {
+        // Accumulate: sum numeric values for duplicate MD labels
+        for (const k of Object.keys(m)) {
+          perSession[label][k] = (perSession[label][k] || 0) + (m[k] || 0)
+        }
       }
     }
+
+    // Deduplicate sesionesInfo by MD label (keep first occurrence per label)
+    const seenTitulos = new Set<string>()
+    const sesionesInfo = (sesiones as any[])
+      .map(s => ({ id: s.id, fecha: s.fecha, titulo: s.titulo || s.fecha, rpe_objetivo: s.rpe_objetivo }))
+      .filter(s => {
+        if (seenTitulos.has(s.titulo)) return false
+        seenTitulos.add(s.titulo)
+        return true
+      })
+      .sort((a, b) => {
+        const ai = MD_ORDER.indexOf(a.titulo)
+        const bi = MD_ORDER.indexOf(b.titulo)
+        // Known MD labels → sort by MD_ORDER
+        if (ai !== -1 && bi !== -1) return ai - bi
+        // Known before unknown
+        if (ai !== -1) return -1
+        if (bi !== -1) return 1
+        // Unknown → sort by date
+        return a.fecha.localeCompare(b.fecha)
+      })
 
     return NextResponse.json({
       players, teamAvg,

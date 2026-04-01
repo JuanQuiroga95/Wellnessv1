@@ -713,18 +713,22 @@ function CambioCargaPanel() {
   const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(false)
   const [view, setView] = useState<'diario'|'semanal'>('diario')
-  const [chartVar, setChartVar] = useState<'ua'|'rpe'|'distTotal'|'distSprint'|'nSprints'|'nAcel'|'nDecel'|'distMP'>('ua')
+  const [chartVar, setChartVar] = useState<string>('ua')
   const [gpsData, setGpsData] = useState<any>(null)
 
   const CHART_VARS = [
-    { key:'ua',         label:'UA',            color:'#c8f135', src:'rpe' },
-    { key:'rpe',        label:'RPE',            color:'#60a5fa', src:'rpe' },
-    { key:'distTotal',  label:'Dist. Total (m)',color:'#f59e0b', src:'gps' },
-    { key:'distSprint', label:'Dist. Sprint',   color:'#f97316', src:'gps' },
-    { key:'nSprints',   label:'Nº Sprints',     color:'#a78bfa', src:'gps' },
-    { key:'nAcel',      label:'Ace >2',         color:'#ec4899', src:'gps' },
-    { key:'nDecel',     label:'Dec >2',         color:'#14b8a6', src:'gps' },
-    { key:'distMP',     label:'Alta Pot.',      color:'#fbbf24', src:'gps' },
+    { key:'ua',         label:'UA',              color:'#c8f135', src:'rpe' },
+    { key:'rpe',        label:'RPE',             color:'#60a5fa', src:'rpe' },
+    { key:'distTotal',  label:'Dist. Total (m)', color:'#f59e0b', src:'gps' },
+    { key:'distSprint', label:'Dist. Sprint (m)',color:'#f97316', src:'gps' },
+    { key:'nSprints',   label:'Nº Sprints',      color:'#a78bfa', src:'gps' },
+    { key:'nAcel',      label:'Ace >2 (m)',      color:'#ec4899', src:'gps' },
+    { key:'nDecel',     label:'Dec >2 (m)',      color:'#14b8a6', src:'gps' },
+    { key:'nAcel3',     label:'ACE >3 (n)',      color:'#f43f5e', src:'gps' },
+    { key:'nDecel3',    label:'DEC >3 (n)',      color:'#0ea5e9', src:'gps' },
+    { key:'distMP',     label:'Alta Pot. (m)',   color:'#fbbf24', src:'gps' },
+    { key:'maxVelocity',label:'Vel. Máx (km/h)', color:'#ef4444', src:'gps' },
+    { key:'distPerMin', label:'m/min',           color:'#84cc16', src:'gps' },
   ]
 
   useEffect(() => { load() }, [desde, hasta, minEnt, minPart])
@@ -749,7 +753,7 @@ function CambioCargaPanel() {
     if (pct === null) return 'var(--silver)'
     if (pct > 10) return '#ef4444'
     if (pct > 0) return '#f59e0b'
-    if (pct < -10) return '#60a5fa'
+    if (pct < 0) return '#60a5fa'   // any decrease → blue
     return '#22c55e'
   }
 
@@ -757,7 +761,7 @@ function CambioCargaPanel() {
     if (pct === null) return 'transparent'
     if (pct > 10) return 'rgba(239,68,68,.1)'
     if (pct > 0) return 'rgba(245,158,11,.1)'
-    if (pct < -10) return 'rgba(96,165,250,.1)'
+    if (pct < 0) return 'rgba(96,165,250,.1)'   // any decrease → blue
     return 'rgba(34,197,94,.1)'
   }
 
@@ -770,14 +774,20 @@ function CambioCargaPanel() {
       gpsDailyMap[s.fecha] = gpsPerSession[s.titulo]
     }
   })
-  const GPS_KEYS = ['distTotal','distSprint','nSprints','nAcel','nDecel','distMP']
+  const GPS_KEYS = ['distTotal','distSprint','nSprints','nAcel','nDecel','nAcel3','nDecel3','distMP','maxVelocity','distPerMin']
   const getRowVal = (row: any) => {
     if (chartVar === 'ua') return row.avg_ua||0
     if (chartVar === 'rpe') return row.avg_rpe||0
     if (GPS_KEYS.includes(chartVar)) {
       const fecha = row.fecha || row.semana
       const gps = gpsDailyMap[fecha]
-      return gps ? (Math.round(Number(gps[chartVar])||0)) : 0
+      // Map chartVar keys to actual GPS field names
+      const GPS_FIELD_MAP: Record<string,string> = {
+        nAcel3: 'acc3', nDecel3: 'dec3',
+        maxVelocity: 'max_velocity', distPerMin: 'dist_per_min',
+      }
+      const field = GPS_FIELD_MAP[chartVar] || chartVar
+      return gps ? (Math.round(Number(gps[field])||0)) : 0
     }
     return 0
   }
@@ -2427,7 +2437,15 @@ function CargaExternaPanel() {
   const hasRealGps: boolean = data?.hasRealGps || false
   const allMetricCols: string[] = data?.allMetricCols || []
   const sesionesInfo: any[] = data?.sesionesInfo || []
-  const mdCols = sesionesInfo.map((s:any) => s.titulo)
+  // Deduplicate mdCols by label and sort by MD_ORDER
+  const MD_ORDER_LOCAL = ['MD+1','MD+2','MD+3','MD-4','MD-3','MD-2','MD-1','MD']
+  const mdCols = Array.from(new Set(sesionesInfo.map((s:any) => s.titulo)))
+    .sort((a,b) => {
+      const ai = MD_ORDER_LOCAL.indexOf(a); const bi = MD_ORDER_LOCAL.indexOf(b)
+      if (ai !== -1 && bi !== -1) return ai - bi
+      if (ai !== -1) return -1; if (bi !== -1) return 1
+      return a.localeCompare(b)
+    })
   // All columns present in the data, sorted by canonical order (known first, then alphabetical)
   const availableCols: string[] = (() => {
     const raw = allMetricCols.length > 0 ? allMetricCols : (
@@ -4567,7 +4585,7 @@ function GpsPanel({ teamData }: { teamData: any }) {
 // ═══════════════════════════════════════════════════════════════════
 // CONTROL DE CARGA — CALC (datos RPE + calculadora desde Calendario)
 // ═══════════════════════════════════════════════════════════════════
-const MD_ORDER = ['MD+1','MD+2','MD-4','MD-3','MD-2','MD-1','MD']
+const MD_ORDER = ['MD+1','MD+2','MD+3','MD-4','MD-3','MD-2','MD-1','MD']
 
 function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
   const today = new Date().toISOString().split('T')[0]
@@ -4679,7 +4697,15 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
   const teamAvg = data?.teamAvg || {}
   const perSession: Record<string,any> = data?.perSession || {}
   const sesionesInfo: any[] = data?.sesionesInfo || []
-  const mdCols = sesionesInfo.map((s:any) => s.titulo)
+  // Deduplicate mdCols by label and sort by MD_ORDER
+  const MD_ORDER_LOCAL = ['MD+1','MD+2','MD+3','MD-4','MD-3','MD-2','MD-1','MD']
+  const mdCols = Array.from(new Set(sesionesInfo.map((s:any) => s.titulo)))
+    .sort((a,b) => {
+      const ai = MD_ORDER_LOCAL.indexOf(a); const bi = MD_ORDER_LOCAL.indexOf(b)
+      if (ai !== -1 && bi !== -1) return ai - bi
+      if (ai !== -1) return -1; if (bi !== -1) return 1
+      return a.localeCompare(b)
+    })
 
   const refMedia: Record<string,number> = {}
   VARS.forEach(v => {
@@ -5316,7 +5342,15 @@ function ExpoAIPanel({ teamData }: { teamData: any[] }) {
 
   const gpsReal: any[] = data?.gpsReal || []
   const sesionesInfo: any[] = data?.sesionesInfo || []
-  const mdCols = sesionesInfo.map((s:any) => s.titulo)
+  // Deduplicate mdCols by label and sort by MD_ORDER
+  const MD_ORDER_LOCAL = ['MD+1','MD+2','MD+3','MD-4','MD-3','MD-2','MD-1','MD']
+  const mdCols = Array.from(new Set(sesionesInfo.map((s:any) => s.titulo)))
+    .sort((a,b) => {
+      const ai = MD_ORDER_LOCAL.indexOf(a); const bi = MD_ORDER_LOCAL.indexOf(b)
+      if (ai !== -1 && bi !== -1) return ai - bi
+      if (ai !== -1) return -1; if (bi !== -1) return 1
+      return a.localeCompare(b)
+    })
 
   // Build per-player per-MD GPS data from gps_logs (need raw date-level data)
   // For now we use the aggregated gpsReal and note MD columns require future per-session GPS API  

@@ -79,12 +79,27 @@ export async function GET(req: NextRequest) {
   }
 
   // Build daily array sorted by date
+  // pct_change: compare to last day that had data (not just previous index)
   const dailyDates = Object.keys(byDate).sort()
   const daily = dailyDates.map((fecha, i) => {
     const avg = byDate[fecha].count > 0 ? Math.round(byDate[fecha].total_ua / byDate[fecha].count) : 0
     const avg_rpe = byDate[fecha].count > 0 ? byDate[fecha].total_rpe / byDate[fecha].count : 0
-    const prev = i > 0 ? Math.round(byDate[dailyDates[i - 1]].total_ua / byDate[dailyDates[i - 1]].count) : null
-    const pct = prev !== null && prev > 0 ? Math.round(((avg - prev) / prev) * 100) : null
+    // Find last previous date that had actual data (ua > 0)
+    let prevAvg: number | null = null
+    for (let j = i - 1; j >= 0; j--) {
+      const pDate = dailyDates[j]
+      const pAvg = byDate[pDate].count > 0 ? Math.round(byDate[pDate].total_ua / byDate[pDate].count) : 0
+      if (pAvg > 0) { prevAvg = pAvg; break }
+    }
+    // pct: if current=0 and prev>0 → -100%. if current>0 and prev=0/null → +100%. else normal calc
+    let pct: number | null = null
+    if (prevAvg !== null) {
+      if (prevAvg === 0 && avg > 0) pct = 100
+      else if (prevAvg > 0 && avg === 0) pct = -100
+      else if (prevAvg > 0) pct = Math.round(((avg - prevAvg) / prevAvg) * 100)
+    } else if (avg > 0) {
+      pct = null // first data point, no comparison
+    }
     return {
       fecha,
       label: fecha,
