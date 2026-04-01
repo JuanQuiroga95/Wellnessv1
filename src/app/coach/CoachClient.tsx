@@ -717,18 +717,18 @@ function CambioCargaPanel() {
   const [gpsData, setGpsData] = useState<any>(null)
 
   const CHART_VARS = [
-    { key:'ua',         label:'UA',              color:'#c8f135', src:'rpe' },
-    { key:'rpe',        label:'RPE',             color:'#60a5fa', src:'rpe' },
-    { key:'distTotal',  label:'Dist. Total (m)', color:'#f59e0b', src:'gps' },
-    { key:'distSprint', label:'Dist. Sprint (m)',color:'#f97316', src:'gps' },
-    { key:'nSprints',   label:'Nº Sprints',      color:'#a78bfa', src:'gps' },
-    { key:'nAcel',      label:'Ace >2 (m)',      color:'#ec4899', src:'gps' },
-    { key:'nDecel',     label:'Dec >2 (m)',      color:'#14b8a6', src:'gps' },
-    { key:'nAcel3',     label:'ACE >3 (n)',      color:'#f43f5e', src:'gps' },
-    { key:'nDecel3',    label:'DEC >3 (n)',      color:'#0ea5e9', src:'gps' },
-    { key:'distMP',     label:'Alta Pot. (m)',   color:'#fbbf24', src:'gps' },
-    { key:'maxVelocity',label:'Vel. Máx (km/h)', color:'#ef4444', src:'gps' },
-    { key:'distPerMin', label:'m/min',           color:'#84cc16', src:'gps' },
+    { key:'ua',         label:'UA',           color:'#c8f135', src:'rpe' },
+    { key:'rpe',        label:'RPE',          color:'#60a5fa', src:'rpe' },
+    { key:'distTotal',  label:'Dist. Total',  color:'#f59e0b', src:'gps' },
+    { key:'distPerMin', label:'m/min',        color:'#84cc16', src:'gps' },
+    { key:'distSprint', label:'Dist. Sprint', color:'#f97316', src:'gps' },
+    { key:'nSprints',   label:'Nº Sprints',   color:'#a78bfa', src:'gps' },
+    { key:'nAcel',      label:'Ace >2 (m)',   color:'#ec4899', src:'gps' },
+    { key:'nDecel',     label:'Dec >2 (m)',   color:'#14b8a6', src:'gps' },
+    { key:'nAcel3',     label:'ACE >3 (n)',   color:'#f43f5e', src:'gps' },
+    { key:'nDecel3',    label:'DEC >3 (n)',   color:'#0ea5e9', src:'gps' },
+    { key:'distMP',     label:'Alta Pot.',    color:'#fbbf24', src:'gps' },
+    { key:'maxVelocity',label:'Vel. Máx',     color:'#ef4444', src:'gps' },
   ]
 
   useEffect(() => { load() }, [desde, hasta, minEnt, minPart])
@@ -798,17 +798,27 @@ function CambioCargaPanel() {
   // Compare each row to the last row that had a non-zero value
   const rowsWithPct = rows.map((row: any, i: number) => {
     const val = getRowVal(row)
-    // Find last previous row with val > 0
+    // Find the last PREVIOUS row that had training data (any non-zero value for this variable,
+    // or fall back to any previous row if none has this variable data)
     let prevVal: number | null = null
+    // First try: last row where this variable had data > 0
     for (let j = i - 1; j >= 0; j--) {
       const pv = getRowVal(rows[j])
       if (pv > 0) { prevVal = pv; break }
     }
+    // If no previous row had this GPS variable > 0, but current > 0 → first occurrence
+    // Check if there was ANY previous row at all (even with val=0)
+    const hasPrevRow = i > 0
     let pct: number | null = null
-    if (prevVal !== null) {
-      if (prevVal === 0 && val > 0) pct = 100
-      else if (prevVal > 0 && val === 0) pct = -100
-      else if (prevVal > 0) pct = Math.round(((val - prevVal) / prevVal) * 100)
+    if (hasPrevRow) {
+      if (prevVal === null && val > 0) {
+        // Current is the first nonzero — compare to 0 = +100%
+        pct = 100
+      } else if (prevVal !== null) {
+        if (prevVal > 0 && val === 0) pct = -100
+        else if (prevVal > 0 && val > 0) pct = Math.round(((val - prevVal) / prevVal) * 100)
+        // prevVal > 0 handled above; prevVal null already handled
+      }
     }
     return { ...row, _pct: pct, _val: val }
   })
@@ -852,14 +862,22 @@ function CambioCargaPanel() {
         ))}
       </div>
 
-      {/* Variable selector */}
-      <div style={{ display:'flex', gap:8, alignItems:'center' }}>
-        <span style={{ fontSize:10, color:'var(--fog)', textTransform:'uppercase', letterSpacing:'0.06em', fontWeight:600 }}>Variable:</span>
-        {CHART_VARS.map(v=>(
-          <button key={v.key} onClick={()=>setChartVar(v.key as any)} style={{ fontSize:12, padding:'6px 14px', borderRadius:8, cursor:'pointer', border:chartVar===v.key?`2px solid ${v.color}`:'1px solid var(--fog)', background:chartVar===v.key?`${v.color}18`:'var(--ink2)', color:chartVar===v.key?v.color:'var(--silver)', fontWeight:chartVar===v.key?700:400 }}>
-            {v.label}
-          </button>
-        ))}
+      {/* Variable selector — uniform width grid */}
+      <div>
+        <div style={{ fontSize:10, color:'var(--fog)', textTransform:'uppercase', letterSpacing:'0.06em', fontWeight:600, marginBottom:8 }}>Variable:</div>
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(6,1fr)', gap:6 }}>
+          {CHART_VARS.map(v=>(
+            <button key={v.key} onClick={()=>setChartVar(v.key as any)}
+              style={{ fontSize:11, padding:'7px 4px', borderRadius:8, cursor:'pointer', textAlign:'center', lineHeight:1.3,
+                border:chartVar===v.key?`2px solid ${v.color}`:'1px solid var(--mist)',
+                background:chartVar===v.key?`${v.color}18`:'var(--ink2)',
+                color:chartVar===v.key?v.color:'var(--silver)',
+                fontWeight:chartVar===v.key?700:400,
+                minHeight:44 }}>
+              {v.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Legend */}
