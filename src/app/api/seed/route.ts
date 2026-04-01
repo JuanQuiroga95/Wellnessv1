@@ -1,3 +1,4 @@
+export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { getDb, SCHEMA_STATEMENTS } from '@/lib/db'
 import { getSessionFromRequest } from '@/lib/auth'

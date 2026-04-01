@@ -1,9 +1,6 @@
 import { SignJWT, jwtVerify } from 'jose'
-import { cookies } from 'next/headers'
 import { NextRequest } from 'next/server'
 
-// SECRET is evaluated lazily at runtime, not at module load time.
-// This prevents build-time errors when JWT_SECRET isn't available yet.
 function getSecret(): Uint8Array {
   const s = process.env.JWT_SECRET
   if (!s) throw new Error('JWT_SECRET environment variable is required. Set it in Vercel → Settings → Environment Variables.')
@@ -39,7 +36,9 @@ export async function verifyToken(token: string): Promise<Session | null> {
   }
 }
 
+// Lazy import of cookies() to avoid tainting API routes at module load time
 export async function getSession(): Promise<Session | null> {
+  const { cookies } = await import('next/headers')
   const t = cookies().get('wp_token')?.value
   return t ? verifyToken(t) : null
 }
