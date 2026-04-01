@@ -306,57 +306,151 @@ function NotificationConfig({ jugadorId, jugador, onSaved }) {
   )
 }
 
-// GPS view for player profile
+// GPS view for player profile — Catapult-style report
 function PlayerGpsView({ jugador }: { jugador: any }) {
-  const [data, setData] = useState<any[]>([])
+  const [logs, setLogs] = useState<any[]>([])
+  const [resumen, setResumen] = useState<any>(null)
   const [loading, setLoading] = useState(true)
-  const today = new Date().toISOString().split('T')[0]
-  const desde30 = new Date(); desde30.setDate(desde30.getDate()-30)
-  const desde = desde30.toISOString().split('T')[0]
+  const [rango, setRango] = useState<'30'|'90'|'180'>('90')
 
   useEffect(() => {
-    fetch(`/api/gps/sesiones?fecha=${today}`)
+    setLoading(true)
+    const hasta = new Date().toISOString().split('T')[0]
+    const d = new Date(); d.setDate(d.getDate() - Number(rango))
+    const desde = d.toISOString().split('T')[0]
+    fetch(`/api/gps/player?desde=${desde}&hasta=${hasta}`)
       .then(r=>r.json())
-      .then(d => {
-        // Load last 30 days of GPS data for this player
-        setLoading(false)
-      })
-      .catch(()=>setLoading(false))
-  }, [])
+      .then(d => { setLogs(d.logs||[]); setResumen(d.resumen||null) })
+      .catch(()=>{})
+      .finally(()=>setLoading(false))
+  }, [rango])
 
   const GPS_METRICS = [
-    {key:'dist_total',label:'Dist. Total',unit:'m',color:'#60a5fa'},
-    {key:'dist_hir',label:'High Speed',unit:'m',color:'#f59e0b'},
-    {key:'dist_v4',label:'Vel B4',unit:'m',color:'#34d399'},
-    {key:'dist_v5',label:'Vel B6',unit:'m',color:'#f97316'},
-    {key:'max_velocity',label:'Vel. Máx',unit:'km/h',color:'#ef4444'},
-    {key:'acc2',label:'Acc B2-3',unit:'nº',color:'#a78bfa'},
-    {key:'dec2',label:'Dec B2-3',unit:'nº',color:'#a78bfa'},
-    {key:'dist_per_min',label:'m/min',unit:'m',color:'#c8f135'},
+    {key:'dist_total',label:'Tot Dist',unit:'m',color:'#60a5fa',res:'dist_total_avg',resLabel:'prom/ses'},
+    {key:'dist_hir',label:'High Speed',unit:'m',color:'#f59e0b',res:'dist_hir_avg',resLabel:'prom/ses'},
+    {key:'dist_v4',label:'Vel B4',unit:'m',color:'#34d399',res:'dist_v4_sum',resLabel:'total'},
+    {key:'dist_v5',label:'Vel B6',unit:'m',color:'#f97316',res:'dist_v5_sum',resLabel:'total'},
+    {key:'max_velocity',label:'Vel. Máx',unit:'km/h',color:'#ef4444',res:'max_velocity_max',resLabel:'máx'},
+    {key:'acc2',label:'Acc B2-3',unit:'nº',color:'#a78bfa',res:'acc2_avg',resLabel:'prom/ses'},
+    {key:'dec2',label:'Dec B2-3',unit:'nº',color:'#a78bfa',res:'dec2_avg',resLabel:'prom/ses'},
+    {key:'dist_per_min',label:'m/min',unit:'',color:'#c8f135',res:'dist_per_min_avg',resLabel:'prom'},
   ]
 
+  // Bar chart helper
+  const renderMiniBar = (vals: number[], color: string) => {
+    const maxV = Math.max(...vals, 1)
+    return (
+      <div style={{ display:'flex', alignItems:'flex-end', gap:2, height:32, marginTop:6 }}>
+        {vals.slice(-10).map((v,i)=>(
+          <div key={i} style={{ flex:1, borderRadius:'2px 2px 0 0', minHeight:2,
+            height:`${Math.max((v/maxV)*30, v>0?2:0)}px`,
+            background: v>0 ? color : `${color}22` }} />
+        ))}
+      </div>
+    )
+  }
+
   return (
-    <div style={{ padding:'20px 16px' }}>
-      <h2 style={{ fontFamily:'Bebas Neue,sans-serif', fontSize:28, color:'var(--snow)', letterSpacing:'0.04em', marginBottom:4 }}>📡 MIS DATOS GPS</h2>
-      <p style={{ fontSize:12, color:'var(--silver)', marginBottom:24 }}>Tus métricas de carga externa importadas por el preparador</p>
+    <div style={{ padding:'20px 0' }}>
+      {/* Header */}
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-end', flexWrap:'wrap', gap:10, marginBottom:20 }}>
+        <div>
+          <h2 style={{ fontFamily:'Bebas Neue,sans-serif', fontSize:28, color:'var(--snow)', letterSpacing:'0.04em', marginBottom:2 }}>📡 MIS DATOS GPS</h2>
+          <p style={{ fontSize:12, color:'var(--silver)' }}>Carga externa · Datos importados por el preparador</p>
+        </div>
+        <div style={{ display:'flex', gap:4, background:'var(--ink2)', borderRadius:8, padding:3, border:'1px solid var(--mist)' }}>
+          {(['30','90','180'] as const).map(r=>(
+            <button key={r} onClick={()=>setRango(r)} style={{ padding:'5px 12px', borderRadius:6, fontSize:11, fontWeight:600, cursor:'pointer', border:'none',
+              background:rango===r?'var(--lime)':'transparent', color:rango===r?'var(--ink)':'var(--silver)' }}>
+              {r}d
+            </button>
+          ))}
+        </div>
+      </div>
+
       {loading ? (
-        <div style={{ padding:40, textAlign:'center', color:'var(--silver)' }}>Cargando datos GPS...</div>
-      ) : (
-        <div style={{ background:'rgba(96,165,250,.06)', border:'1px solid rgba(96,165,250,.2)', borderRadius:14, padding:20 }}>
-          <p style={{ fontSize:12, color:'#93c5fd', textAlign:'center' }}>
-            El preparador importa los datos GPS de cada sesión. Cuando haya datos disponibles aparecerán aquí con tus métricas individuales.
-          </p>
-          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(120px,1fr))', gap:10, marginTop:16 }}>
-            {GPS_METRICS.map(m=>(
-              <div key={m.key} style={{ background:'var(--ink2)', borderRadius:10, padding:12, textAlign:'center', border:'1px solid var(--mist)' }}>
-                <div style={{ fontSize:18, fontWeight:700, fontFamily:'DM Mono,monospace', color:m.color }}>—</div>
-                <div style={{ fontSize:9, color:'var(--silver)', marginTop:4, textTransform:'uppercase', letterSpacing:'0.06em' }}>{m.label}</div>
-                <div style={{ fontSize:8, color:'var(--fog)' }}>{m.unit}</div>
-              </div>
-            ))}
+        <div style={{ padding:40, textAlign:'center', color:'var(--silver)' }}>Cargando...</div>
+      ) : !logs.length ? (
+        <div style={{ padding:32, textAlign:'center', color:'var(--silver)', background:'var(--ink2)', borderRadius:14, border:'1px solid var(--mist)' }}>
+          <div style={{ fontSize:28, marginBottom:8 }}>📡</div>
+          <p style={{ fontSize:13, marginBottom:6 }}>Sin datos GPS para este período</p>
+          <p style={{ fontSize:11, color:'var(--fog)' }}>El preparador importa los datos GPS después de cada sesión.</p>
+        </div>
+      ) : (<>
+
+        {/* KPIs resumen */}
+        {resumen && (
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(130px,1fr))', gap:10, marginBottom:20 }}>
+            {GPS_METRICS.map(m => {
+              const val = resumen[m.res]
+              return (
+                <div key={m.key} style={{ background:'var(--ink2)', borderRadius:12, padding:14, textAlign:'center', border:`1px solid ${m.color}22` }}>
+                  <div style={{ fontSize:22, fontWeight:700, fontFamily:'DM Mono,monospace', color:m.color, lineHeight:1 }}>
+                    {val || '—'}
+                  </div>
+                  <div style={{ fontSize:8, color:'var(--fog)', marginTop:2, textTransform:'uppercase', letterSpacing:'0.04em' }}>{m.resLabel}</div>
+                  <div style={{ fontSize:9, color:'var(--silver)', marginTop:3, fontWeight:600, textTransform:'uppercase' }}>{m.label}</div>
+                  {val > 0 && renderMiniBar(logs.map(l=>Number(l[m.key])||0).reverse(), m.color)}
+                </div>
+              )
+            })}
+          </div>
+        )}
+
+        {/* Sesiones count */}
+        <div style={{ display:'flex', gap:12, marginBottom:16, fontSize:11, color:'var(--fog)' }}>
+          <span style={{ color:'var(--lime)', fontWeight:700 }}>{resumen?.sesiones || logs.length} sesiones</span>
+          <span>en los últimos {rango} días</span>
+          {resumen?.dist_total_sum && <span>· {(resumen.dist_total_sum/1000).toFixed(1)} km totales</span>}
+          {resumen?.max_velocity_max && <span>· Vel. máx {resumen.max_velocity_max} km/h</span>}
+        </div>
+
+        {/* Tabla de sesiones — estilo informe Catapult */}
+        <div style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:14, overflow:'hidden' }}>
+          <div style={{ padding:'10px 14px', borderBottom:'1px solid var(--mist)', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+            <p style={{ fontSize:10, fontWeight:700, color:'#93c5fd', textTransform:'uppercase', letterSpacing:'0.08em' }}>CUADRO RESUMEN · SESIONES</p>
+            <p style={{ fontSize:10, color:'var(--fog)' }}>{logs.length} registros</p>
+          </div>
+          <div style={{ overflowX:'auto' }}>
+            <table style={{ width:'100%', borderCollapse:'collapse', fontSize:11 }}>
+              <thead>
+                <tr style={{ background:'rgba(96,165,250,.05)' }}>
+                  {['Fecha','MD','Tipo','Tot Dist','m/min','Vel B4','High Speed','Vel B6','Vel Máx','Acc B2-3','Dec B2-3'].map(h=>(
+                    <th key={h} style={{ padding:'7px 8px', textAlign:h==='Fecha'||h==='MD'||h==='Tipo'?'left':'center', color:'#93c5fd', fontSize:8, fontWeight:600, textTransform:'uppercase', whiteSpace:'nowrap', letterSpacing:'0.05em' }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {logs.map((l:any,i:number)=>{
+                  // Merge fixed cols + metricas JSON
+                  const met = typeof l.metricas === 'object' ? l.metricas : {}
+                  const get = (k:string) => l[k] ?? met[k] ?? null
+                  const fmt = (v:any) => (v !== null && v !== undefined && v !== 0) ? v : '—'
+                  return (
+                    <tr key={i} style={{ borderTop:'1px solid var(--mist)', background:i%2===0?'transparent':'rgba(255,255,255,.01)' }}>
+                      <td style={{ padding:'7px 8px', color:'var(--snow)', whiteSpace:'nowrap', fontFamily:'DM Mono,monospace', fontSize:10 }}>{l.fecha}</td>
+                      <td style={{ padding:'7px 8px', color:'var(--lime)', fontWeight:600, fontSize:10 }}>{l.md_label||'—'}</td>
+                      <td style={{ padding:'7px 8px', fontSize:9 }}>
+                        <span style={{ padding:'2px 6px', borderRadius:4, background:l.tipo_sesion==='partido'?'rgba(59,130,246,.15)':'rgba(200,241,53,.1)', color:l.tipo_sesion==='partido'?'#93c5fd':'var(--lime)', fontWeight:600 }}>
+                          {l.tipo_sesion==='partido'?'🏆 Partido':'⚽ Ent.'}
+                        </span>
+                      </td>
+                      <td style={{ padding:'7px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', color:get('dist_total')?'#60a5fa':'var(--fog)' }}>{fmt(get('dist_total'))}</td>
+                      <td style={{ padding:'7px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', color:get('dist_per_min')?'#c8f135':'var(--fog)' }}>{fmt(get('dist_per_min'))}</td>
+                      <td style={{ padding:'7px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', color:get('dist_v4')?'#34d399':'var(--fog)' }}>{fmt(get('dist_v4'))}</td>
+                      <td style={{ padding:'7px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', color:get('dist_hir')?'#f59e0b':'var(--fog)' }}>{fmt(get('dist_hir'))}</td>
+                      <td style={{ padding:'7px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', color:get('dist_v5')?'#f97316':'var(--fog)' }}>{fmt(get('dist_v5'))}</td>
+                      <td style={{ padding:'7px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, color:get('max_velocity')?'#ef4444':'var(--fog)' }}>{fmt(get('max_velocity'))}</td>
+                      <td style={{ padding:'7px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', color:get('acc2')?'#a78bfa':'var(--fog)' }}>{fmt(get('acc2'))}</td>
+                      <td style={{ padding:'7px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', color:get('dec2')?'#a78bfa':'var(--fog)' }}>{fmt(get('dec2'))}</td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
           </div>
         </div>
-      )}
+      </>)}
     </div>
   )
 }

@@ -3,6 +3,7 @@ import { verifyToken } from '@/lib/auth'
 
 // Public routes — everything else requires a valid token
 const PUBLIC_PATHS = [
+  '/',
   '/login',
   '/api/auth/login',
   '/api/auth/logout',

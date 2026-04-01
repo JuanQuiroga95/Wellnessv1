@@ -39,8 +39,9 @@ export default async function CoachPage() {
   }
 
   const teamData = await Promise.all(players.map(async (p) => {
-    const [logs, wRows] = await Promise.all([
+    const [logs, wRows, lastLogRows] = await Promise.all([
       sql`SELECT id,fecha::text, carga_ua::int, rpe::int, duracion_min::int FROM entrenamiento_logs WHERE jugador_id=${p.jugador_id} AND fecha>=CURRENT_DATE-28 ORDER BY fecha ASC`,
+      sql`SELECT fecha::text FROM entrenamiento_logs WHERE jugador_id=${p.jugador_id} ORDER BY fecha DESC LIMIT 1`,
       sql`SELECT fecha::text, fatiga::int, calidad_sueno::int, dolor_muscular::int, nivel_estres::int, estado_animo::int, dolor_zona, COALESCE(tqr::int,0) AS tqr, COALESCE(recovery::int,0) AS recovery, COALESCE(entrena_grupo::text,'true') AS entrena_grupo, COALESCE(fue_gimnasio::text,'false') AS fue_gimnasio, COALESCE(grupos_musculares,'') AS grupos_musculares FROM wellness_logs WHERE jugador_id=${p.jugador_id} ORDER BY fecha DESC LIMIT 1`,
     ])
     const sl = logs.map(l=>({ fecha:String(l.fecha), carga_ua:Number(l.carga_ua)||0 }))
@@ -56,6 +57,7 @@ export default async function CoachPage() {
       recentLogs:logs.map(l=>({ id:Number(l.id), fecha:String(l.fecha), carga_ua:Number(l.carga_ua)||0, rpe:Number(l.rpe)||0, duracion_min:Number(l.duracion_min)||0 })),
       lastWellness:lastW, respondedToday, entrena_grupo:respondedToday?(lastW?.entrena_grupo??null):null,
       lesion:lesionMap[p.jugador_id]||null,
+      last_session_fecha: lastLogRows[0] ? String(lastLogRows[0].fecha) : null,
     }
   }))
 

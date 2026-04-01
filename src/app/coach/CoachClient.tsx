@@ -80,7 +80,7 @@ function compressImage(dataUrl: string, maxSize = 400, quality = 0.7): Promise<s
   })
 }
 
-const TABS = [{id:'team',label:'Equipo'},{id:'calendario',label:'📅 Calendario'},{id:'analytics',label:'Analytics'},{id:'minutos',label:'Minutaje'},{id:'carga-externa',label:'Carga Externa'},{id:'control-carga-calc',label:'🏋️ Ctrl. Carga Calc'},{id:'control-carga-gps',label:'📡 Ctrl. Carga GPS'},{id:'acumulado',label:'📈 Acumulado Ind.'},{id:'cambio-carga',label:'Cambio de Carga'},{id:'expo-ai',label:'⚡ Expo. AI'},{id:'evaluaciones',label:'📋 Evaluaciones'},{id:'lesiones',label:'Lesiones'},{id:'gps',label:'📡 GPS'},{id:'players',label:'Jugadores'},{id:'biblioteca',label:'📚 Biblioteca'}]
+const TABS = [{id:'team',label:'Equipo'},{id:'calendario',label:'📅 Calendario'},{id:'analytics',label:'Analytics'},{id:'minutos',label:'Minutaje'},{id:'carga-externa',label:'Carga Externa'},{id:'control-carga-calc',label:'🏋️ Ctrl. Carga Calc'},{id:'control-carga-gps',label:'📡 Ctrl. Carga GPS'},{id:'acumulado',label:'📈 Acumulado Ind.'},{id:'cambio-carga',label:'Cambio de Carga'},{id:'expo-ai',label:'⚡ Expo. AI'},{id:'evaluaciones',label:'📋 Evaluaciones'},{id:'comparativa',label:'⚖️ Comparativa'},{id:'lesiones',label:'Lesiones'},{id:'gps',label:'📡 GPS'},{id:'players',label:'Jugadores'},{id:'biblioteca',label:'📚 Biblioteca'}]
 const SC = {optimo:'#22c55e',precaucion:'#f59e0b',peligro:'#ef4444',sin_datos:'#555'}
 const SL = {optimo:'ÓPTIMO',precaucion:'PRECAUCIÓN',peligro:'RIESGO',sin_datos:'—'}
 const WK = ['fatiga','calidad_sueno','dolor_muscular','nivel_estres','estado_animo']
@@ -321,6 +321,7 @@ export default function CoachClient({ session, teamData, today }) {
         {tab==='evaluaciones' && <EvaluacionesPanel teamData={teamData} />}
         {tab==='biblioteca' && <BibliotecaPanel />}
         {tab==='cambio-carga' && <CambioCargaPanel />}
+        {tab==='comparativa' && <ComparativaPanel teamData={teamData} />}
         {tab==='lesiones' && <LesionesPanel teamData={teamData} onRefresh={()=>router.refresh()} />}
         {tab==='gps' && <GpsPanel teamData={teamData} />}
 
@@ -369,6 +370,18 @@ function PlayerRow({ player:p, last, onOpen, isInjured }) {
           {['fatiga','calidad_sueno','dolor_muscular','nivel_estres','estado_animo'].map(k=>{ const v=p.lastWellness[k]||0; return <div key={k} style={{ width:5, height:`${v*20}%`, background:wCol(v), borderRadius:2 }} /> })}
         </div>
       )}
+      {p.last_session_fecha && !isInjured && (() => {
+        const lastDate = new Date(p.last_session_fecha + 'T12:00:00')
+        const now = new Date()
+        const horasDesde = Math.round((now.getTime() - lastDate.getTime()) / 3600000)
+        const recupCol = horasDesde < 24 ? '#ef4444' : horasDesde < 48 ? '#f59e0b' : 'var(--fog)'
+        const recupLabel = horasDesde < 24 ? '⚠ <24h' : horasDesde < 48 ? '~48h' : null
+        return recupLabel ? (
+          <span style={{ fontSize:9, padding:'2px 5px', borderRadius:4, background:`${recupCol}15`, color:recupCol, border:`1px solid ${recupCol}33`, fontWeight:700, whiteSpace:'nowrap' }}>
+            {recupLabel}
+          </span>
+        ) : null
+      })()}
       {!isInjured
         ? <div style={{ textAlign:'right', minWidth:72 }}>
             <div className="mono" style={{ fontSize:16, fontWeight:600, color:col }}>{p.acwr?.ratio>0?p.acwr.ratio.toFixed(2):'—'}</div>
@@ -2824,6 +2837,213 @@ function CargaExternaPanel() {
   )
 }
 
+
+// ═══════════════════════════════════════════════════════════════════
+// COMPARATIVA POR POSICIÓN
+// ═══════════════════════════════════════════════════════════════════
+function ComparativaPanel({ teamData }: { teamData: any[] }) {
+  const [desde, setDesde] = useState(() => { const d=new Date(); d.setDate(d.getDate()-28); return d.toISOString().split('T')[0] })
+  const [hasta, setHasta] = useState(new Date().toISOString().split('T')[0])
+  const [data, setData] = useState<any>(null)
+  const [loading, setLoading] = useState(false)
+  const [posFilter, setPosFilter] = useState<string>('todas')
+  const [sortKey, setSortKey] = useState('ua_total')
+  const [sortDir, setSortDir] = useState<'desc'|'asc'>('desc')
+
+  useEffect(() => { cargar() }, [desde, hasta])
+
+  async function cargar() {
+    setLoading(true)
+    try {
+      const r = await fetch(`/api/carga-gps?desde=${desde}&hasta=${hasta}&ciclo=microciclo`)
+      setData(await r.json())
+    } catch(e){} finally { setLoading(false) }
+  }
+
+  const players: any[] = data?.players || []
+  const gpsReal: any[] = data?.gpsReal || []
+
+  // Merge player data with GPS
+  const merged = players.map(p => {
+    const gps = gpsReal.find(g => g.jugador_id === p.jugador_id) || {}
+    return { ...p, ...gps, posicion: p.posicion || '—' }
+  })
+
+  // Get unique positions
+  const positions = ['todas', ...Array.from(new Set(merged.map(p => p.posicion).filter(Boolean).sort()))]
+
+  const filtered = merged
+    .filter(p => posFilter === 'todas' || p.posicion === posFilter)
+    .sort((a, b) => {
+      const va = Number(a[sortKey]) || 0
+      const vb = Number(b[sortKey]) || 0
+      return sortDir === 'desc' ? vb - va : va - vb
+    })
+
+  const VARS = [
+    { key:'rpe',        label:'RPE',       color:'#c8f135', unit:'' },
+    { key:'ua_total',   label:'UA Total',  color:'#60a5fa', unit:'' },
+    { key:'sesiones',   label:'Sesiones',  color:'var(--silver)', unit:'' },
+    { key:'minActivo',  label:'Min Activos',color:'#34d399', unit:'min' },
+    { key:'distTotal',  label:'Dist. Calc',color:'#f59e0b', unit:'m' },
+    { key:'dist_total', label:'Dist. GPS', color:'#93c5fd', unit:'m' },
+    { key:'dist_hir',   label:'High Speed',color:'#f59e0b', unit:'m' },
+    { key:'max_velocity',label:'Vel. Máx', color:'#ef4444', unit:'km/h' },
+    { key:'acc2',       label:'Acc B2-3',  color:'#a78bfa', unit:'nº' },
+    { key:'dec2',       label:'Dec B2-3',  color:'#a78bfa', unit:'nº' },
+  ]
+
+  const posColor = (pos: string) => {
+    const p = pos?.toLowerCase()
+    if (p?.includes('portero')||p?.includes('gk')) return '#22c55e'
+    if (p?.includes('central')||p?.includes('defen')) return '#3b82f6'
+    if (p?.includes('lateral')) return '#06b6d4'
+    if (p?.includes('medio')||p?.includes('mc')||p?.includes('mco')) return '#f59e0b'
+    if (p?.includes('extremo')||p?.includes('banda')) return '#f97316'
+    if (p?.includes('delantero')||p?.includes('9')) return '#ef4444'
+    return '#888'
+  }
+
+  // Bar chart by position for a variable
+  const renderPosChart = (varKey: string, label: string, color: string) => {
+    const byPos: Record<string, number[]> = {}
+    merged.forEach(p => {
+      const pos = p.posicion || 'Sin pos.'
+      if (!byPos[pos]) byPos[pos] = []
+      const v = Number(p[varKey]) || 0
+      if (v > 0) byPos[pos].push(v)
+    })
+    const posAvgs = Object.entries(byPos)
+      .map(([pos, vals]) => ({ pos, avg: Math.round(vals.reduce((s,v)=>s+v,0)/(vals.length||1)) }))
+      .filter(x => x.avg > 0)
+      .sort((a,b) => b.avg - a.avg)
+    if (!posAvgs.length) return null
+    const maxV = Math.max(...posAvgs.map(x=>x.avg), 1)
+    return (
+      <div key={varKey} style={{ background:'var(--ink2)', borderRadius:12, padding:14, border:'1px solid var(--mist)' }}>
+        <div style={{ fontSize:10, fontWeight:700, color, textTransform:'uppercase', marginBottom:10 }}>{label}</div>
+        <div style={{ display:'flex', alignItems:'flex-end', gap:6, height:64 }}>
+          {posAvgs.map((x,i)=>(
+            <div key={i} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', gap:2, minWidth:0 }}>
+              <div style={{ fontSize:8, color:'var(--fog)', fontFamily:'DM Mono,monospace' }}>{x.avg}</div>
+              <div style={{ width:'100%', borderRadius:'3px 3px 0 0', height:`${Math.max((x.avg/maxV)*52,4)}px`,
+                background:posColor(x.pos), opacity:0.8 }} />
+              <div style={{ fontSize:7, color:'var(--fog)', whiteSpace:'nowrap', overflow:'hidden', maxWidth:36, textOverflow:'ellipsis', textAlign:'center' }}>{x.pos}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div style={{ padding:'24px 20px', maxWidth:1200, margin:'0 auto' }}>
+      {/* Header */}
+      <div style={{ marginBottom:20, display:'flex', justifyContent:'space-between', alignItems:'flex-end', flexWrap:'wrap', gap:12 }}>
+        <div>
+          <h2 style={{ fontFamily:'Bebas Neue,sans-serif', fontSize:36, color:'var(--snow)', letterSpacing:'0.04em', marginBottom:4 }}>⚖️ COMPARATIVA POR POSICIÓN</h2>
+          <p style={{ fontSize:12, color:'var(--silver)' }}>Comparación de carga entre jugadores de la misma posición</p>
+        </div>
+        <div style={{ display:'flex', gap:8, alignItems:'flex-end', flexWrap:'wrap' }}>
+          <div>
+            <label style={{ fontSize:10, color:'var(--fog)', display:'block', marginBottom:3, textTransform:'uppercase' }}>Desde</label>
+            <input className="wp-input" type="date" value={desde} onChange={e=>setDesde(e.target.value)} />
+          </div>
+          <div>
+            <label style={{ fontSize:10, color:'var(--fog)', display:'block', marginBottom:3, textTransform:'uppercase' }}>Hasta</label>
+            <input className="wp-input" type="date" value={hasta} onChange={e=>setHasta(e.target.value)} />
+          </div>
+          <button onClick={()=>window.print()} style={{ fontSize:11, padding:'8px 14px', borderRadius:8, background:'rgba(200,241,53,.1)', color:'var(--lime)', border:'1px solid rgba(200,241,53,.3)', cursor:'pointer', marginBottom:1 }}>🖨️ PDF</button>
+        </div>
+      </div>
+
+      {/* Position filter */}
+      <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginBottom:20 }}>
+        {positions.map(pos=>(
+          <button key={pos} onClick={()=>setPosFilter(pos)} style={{ padding:'5px 12px', borderRadius:8, fontSize:11, fontWeight:600, cursor:'pointer', border:`1px solid ${posFilter===pos?posColor(pos):'var(--mist)'}`,
+            background:posFilter===pos?`${posColor(pos)}22`:'transparent', color:posFilter===pos?posColor(pos):'var(--silver)' }}>
+            {pos === 'todas' ? '👥 Todas' : pos}
+            {pos !== 'todas' && <span style={{ marginLeft:5, fontSize:9, color:'var(--fog)' }}>({merged.filter(p=>p.posicion===pos).length})</span>}
+          </button>
+        ))}
+      </div>
+
+      {loading ? <div style={{ padding:48, textAlign:'center', color:'var(--silver)' }}>Cargando...</div> :
+      !filtered.length ? (
+        <div style={{ padding:48, textAlign:'center', color:'var(--silver)', background:'var(--ink2)', borderRadius:16 }}>
+          Sin datos para este período. Registrá sesiones con RPE en el Calendario.
+        </div>
+      ) : (<>
+
+      {/* Main comparison table */}
+      <div style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:16, overflow:'hidden', marginBottom:20 }}>
+        <div style={{ padding:'10px 16px', borderBottom:'1px solid var(--mist)', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+          <p style={{ fontSize:11, fontWeight:700, color:'var(--lime)', textTransform:'uppercase', letterSpacing:'0.08em' }}>
+            COMPARATIVA · {posFilter === 'todas' ? 'TODOS LOS JUGADORES' : posFilter.toUpperCase()}
+          </p>
+          <p style={{ fontSize:10, color:'var(--fog)' }}>Click en columna para ordenar</p>
+        </div>
+        <div style={{ overflowX:'auto' }}>
+          <table style={{ width:'100%', borderCollapse:'collapse', fontSize:11 }}>
+            <thead>
+              <tr style={{ background:'rgba(255,255,255,.02)' }}>
+                <th style={{ padding:'8px 14px', textAlign:'left', color:'var(--silver)', fontSize:9, fontWeight:600, textTransform:'uppercase' }}>Jugador</th>
+                <th style={{ padding:'8px 8px', textAlign:'left', color:'var(--silver)', fontSize:9, fontWeight:600, textTransform:'uppercase' }}>Pos.</th>
+                {VARS.map(v=>(
+                  <th key={v.key} onClick={()=>{ if(sortKey===v.key) setSortDir(d=>d==='desc'?'asc':'desc'); else { setSortKey(v.key); setSortDir('desc') } }}
+                    style={{ padding:'8px 8px', textAlign:'center', color:sortKey===v.key?v.color:'var(--silver)', fontSize:9, fontWeight:600, textTransform:'uppercase', whiteSpace:'nowrap', cursor:'pointer' }}>
+                    {v.label}{sortKey===v.key?(sortDir==='desc'?' ↓':' ↑'):''}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((p:any,i:number)=>{
+                // Rank within same position
+                const samePos = merged.filter(x=>x.posicion===p.posicion)
+                const rankInPos = (key:string) => {
+                  const sorted = [...samePos].sort((a,b)=>(Number(b[key])||0)-(Number(a[key])||0))
+                  return sorted.findIndex(x=>x.jugador_id===p.jugador_id) + 1
+                }
+                return (
+                  <tr key={i} style={{ borderTop:'1px solid var(--mist)', background:i%2===0?'transparent':'rgba(255,255,255,.015)' }}>
+                    <td style={{ padding:'8px 14px', color:'var(--snow)', fontWeight:500, whiteSpace:'nowrap' }}>{p.nombre}</td>
+                    <td style={{ padding:'8px 8px' }}>
+                      <span style={{ fontSize:10, padding:'2px 6px', borderRadius:4, background:`${posColor(p.posicion)}18`, color:posColor(p.posicion), fontWeight:600 }}>{p.posicion||'—'}</span>
+                    </td>
+                    {VARS.map(v=>{
+                      const val = Number(p[v.key]) || 0
+                      const rank = rankInPos(v.key)
+                      const total = samePos.filter(x=>(Number(x[v.key])||0)>0).length
+                      return (
+                        <td key={v.key} style={{ padding:'8px 8px', textAlign:'center' }}>
+                          {val > 0 ? (
+                            <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:1 }}>
+                              <span style={{ fontFamily:'DM Mono,monospace', fontWeight:600, color:v.color }}>{val}</span>
+                              {total > 1 && <span style={{ fontSize:8, color:rank===1?'#22c55e':rank<=2?'#f59e0b':'var(--fog)' }}>#{rank}/{total}</span>}
+                            </div>
+                          ) : <span style={{ color:'var(--fog)' }}>—</span>}
+                        </td>
+                      )
+                    })}
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Charts by position */}
+      <p style={{ fontSize:11, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:16 }}>📊 PROMEDIO POR POSICIÓN</p>
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))', gap:12 }}>
+        {VARS.filter(v=>v.key!=='sesiones').map(v=>renderPosChart(v.key, v.label, v.color))}
+      </div>
+      </>)}
+    </div>
+  )
+}
+
 function LesionesPanel({ teamData, onRefresh }) {
   const [lesiones, setLesiones] = useState([])
   const [loading, setLoading] = useState(true)
@@ -4158,29 +4378,32 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
   const [hasta, setHasta] = useState(today)
   const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(false)
-  const [partidoRef, setPartidoRef] = useState<Record<string,number>>({})
+  const [partidoRefs, setPartidoRefs] = useState<any[]>([{},{},{}])
   const [showRefInput, setShowRefInput] = useState(false)
 
   useEffect(() => { cargar() }, [desde, hasta])
-
   async function cargar() {
     setLoading(true)
-    try {
-      const r = await fetch(`/api/carga-gps?desde=${desde}&hasta=${hasta}&ciclo=microciclo`)
-      const d = await r.json()
-      setData(d)
-    } catch(e){} finally { setLoading(false) }
+    try { const r = await fetch(`/api/carga-gps?desde=${desde}&hasta=${hasta}&ciclo=microciclo`); setData(await r.json()) }
+    catch(e){} finally { setLoading(false) }
   }
 
   const VARS = [
-    {key:'rpe',label:'RPE',color:'#c8f135'},
-    {key:'ua_total',label:'UA',color:'#60a5fa'},
-    {key:'minActivo',label:'Min',color:'#34d399'},
-    {key:'distTotal',label:'DT (m)',color:'#f59e0b'},
-    {key:'distSprint',label:'Sprint (m)',color:'#f97316'},
-    {key:'nSprints',label:'Nº Sprint',color:'#a78bfa'},
-    {key:'nAcel',label:'Ace >2',color:'#ec4899'},
-    {key:'nDecel',label:'Dec >2',color:'#14b8a6'},
+    {key:'ua_total',   label:'UA',           color:'#60a5fa', unit:''},
+    {key:'minActivo',  label:'Tiempo (min)',  color:'#34d399', unit:'min'},
+    {key:'distTotal',  label:'DT (m)',        color:'#f59e0b', unit:'m'},
+    {key:'distSprint', label:'Dist. Sprint',  color:'#f97316', unit:'m'},
+    {key:'nSprints',   label:'Nº Sprints',    color:'#a78bfa', unit:'nº'},
+    {key:'nAcel',      label:'Ace >2',        color:'#ec4899', unit:'nº'},
+    {key:'nDecel',     label:'Dec >2',        color:'#14b8a6', unit:'nº'},
+    {key:'distMP',     label:'Alta Pot.',     color:'#fbbf24', unit:'m'},
+  ]
+
+  const GRUPOS = [
+    { label:'DT + Mts/min',        vars: ['distTotal','minActivo'],  colors:['#f59e0b','#34d399'] },
+    { label:'Dist. Sprint + Nº Sprint', vars: ['distSprint','nSprints'], colors:['#f97316','#a78bfa'] },
+    { label:'Acc + Dec',           vars: ['nAcel','nDecel'],         colors:['#ec4899','#14b8a6'] },
+    { label:'Alta Potencia',       vars: ['distMP'],                 colors:['#fbbf24'] },
   ]
 
   const players: any[] = data?.players || []
@@ -4189,177 +4412,309 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
   const sesionesInfo: any[] = data?.sesionesInfo || []
   const mdCols = sesionesInfo.map((s:any) => s.titulo)
 
-  const pct = (val: number, key: string) => {
-    const ref = partidoRef[key]; if (!ref||ref===0) return null
-    return Math.round((val/ref)*100)
+  const refMedia: Record<string,number> = {}
+  VARS.forEach(v => {
+    const vals = partidoRefs.map(r => Number(r[v.key])||0).filter(x=>x>0)
+    if (vals.length) refMedia[v.key] = Math.round(vals.reduce((s,x)=>s+x,0)/vals.length)
+  })
+  const pct = (val:number, key:string) => { const ref = refMedia[key]; if(!ref||ref===0) return null; return Math.round((val/ref)*100) }
+  const pctColor = (p:number|null) => p===null?'var(--fog)':p>=85?'#22c55e':p>=65?'#f59e0b':'#ef4444'
+
+  const renderGrupoBar = (grupo: {label:string,vars:string[],colors:string[]}, dataSource: 'jugador'|'md') => {
+    const series = grupo.vars.map((vk, ci) => {
+      const varDef = VARS.find(v=>v.key===vk)!
+      return {
+        label: varDef?.label || vk,
+        color: grupo.colors[ci] || '#888',
+        vals: dataSource === 'jugador'
+          ? players.map((p:any)=>({ name: p.nombre.split(' ')[0], val: Number(p[vk])||0 }))
+          : mdCols.map(md=>({ name: md, val: Math.round(Number(perSession[md]?.[vk])||0) }))
+      }
+    })
+    const allVals = series.flatMap(s=>s.vals.map((v:any)=>v.val))
+    const maxVal = Math.max(...allVals, 1)
+    const names = series[0]?.vals.map((v:any)=>v.name) || []
+    return (
+      <div key={grupo.label} style={{ background:'var(--ink3)', borderRadius:10, padding:12, border:'1px solid var(--mist)' }}>
+        <div style={{ fontSize:9, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:6 }}>{grupo.label}</div>
+        <div style={{ display:'flex', gap:4, fontSize:8, color:'var(--fog)', marginBottom:8, flexWrap:'wrap' }}>
+          {series.map((s,i)=>(
+            <span key={i} style={{ display:'flex', alignItems:'center', gap:3 }}>
+              <span style={{ width:8, height:8, borderRadius:2, background:s.color, display:'inline-block' }}/>
+              {s.label}
+            </span>
+          ))}
+        </div>
+        <div style={{ display:'flex', gap:3, alignItems:'flex-end', height:72 }}>
+          {names.map((name:string,ni:number)=>(
+            <div key={ni} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', gap:0, minWidth:0 }}>
+              <div style={{ display:'flex', gap:1, alignItems:'flex-end', height:58 }}>
+                {series.map((s,si)=>{
+                  const val = (s.vals[ni] as any)?.val || 0
+                  return (
+                    <div key={si} title={`${s.label}: ${val}`}
+                      style={{ width:'10px', minWidth:'4px', height:`${Math.max((val/maxVal)*55, val>0?2:0)}px`,
+                        background: val>0 ? s.color : `${s.color}22`,
+                        borderRadius:'2px 2px 0 0', transition:'height .3s' }} />
+                  )
+                })}
+              </div>
+              <div style={{ fontSize:6.5, color:'var(--fog)', marginTop:2, whiteSpace:'nowrap', overflow:'hidden', maxWidth:32, textOverflow:'ellipsis', textAlign:'center' }}>{name}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    )
   }
-  const pctColor = (p: number|null) => p===null?'var(--fog)':p>=85?'#22c55e':p>=70?'#f59e0b':'#ef4444'
 
   return (
-    <div style={{ padding:'24px 20px', maxWidth:1200, margin:'0 auto' }}>
-      <div style={{ marginBottom:24, display:'flex', justifyContent:'space-between', alignItems:'flex-end', flexWrap:'wrap', gap:12 }}>
+    <div style={{ padding:'24px 20px', maxWidth:1400, margin:'0 auto' }}>
+      <div style={{ marginBottom:20, display:'flex', justifyContent:'space-between', alignItems:'flex-end', flexWrap:'wrap', gap:12 }}>
         <div>
-          <h2 style={{ fontFamily:'Bebas Neue,sans-serif', fontSize:36, color:'var(--snow)', letterSpacing:'0.04em', marginBottom:4 }}>CONTROL DE CARGA · CALC</h2>
+          <h2 style={{ fontFamily:'Bebas Neue,sans-serif', fontSize:36, color:'var(--snow)', letterSpacing:'0.04em', marginBottom:4 }}>🏋️ CONTROL DE CARGA · CALC</h2>
           <p style={{ fontSize:12, color:'var(--silver)' }}>Microciclo · RPE, UA y carga calculada desde sesiones planificadas</p>
         </div>
-        <div style={{ display:'flex', gap:10, alignItems:'flex-end', flexWrap:'wrap' }}>
-          <div><label style={{ fontSize:10, color:'var(--fog)', display:'block', marginBottom:4, textTransform:'uppercase' }}>Desde</label><input className="wp-input" type="date" value={desde} onChange={e=>setDesde(e.target.value)} /></div>
-          <div><label style={{ fontSize:10, color:'var(--fog)', display:'block', marginBottom:4, textTransform:'uppercase' }}>Hasta</label><input className="wp-input" type="date" value={hasta} onChange={e=>setHasta(e.target.value)} /></div>
-          <button onClick={()=>window.print()} style={{ fontSize:11, padding:'8px 14px', borderRadius:8, background:'rgba(200,241,53,.1)', color:'var(--lime)', border:'1px solid rgba(200,241,53,.3)', cursor:'pointer' }}>Imprimir PDF</button>
+        <div style={{ display:'flex', gap:8, flexWrap:'wrap', alignItems:'flex-end' }}>
+          <div><label style={{ fontSize:10, color:'var(--fog)', display:'block', marginBottom:3, textTransform:'uppercase' }}>Desde</label><input className="wp-input" type="date" value={desde} onChange={e=>setDesde(e.target.value)} /></div>
+          <div><label style={{ fontSize:10, color:'var(--fog)', display:'block', marginBottom:3, textTransform:'uppercase' }}>Hasta</label><input className="wp-input" type="date" value={hasta} onChange={e=>setHasta(e.target.value)} /></div>
+          <button onClick={()=>window.print()} style={{ fontSize:11, padding:'8px 14px', borderRadius:8, background:'rgba(200,241,53,.1)', color:'var(--lime)', border:'1px solid rgba(200,241,53,.3)', cursor:'pointer' }}>🖨️ PDF</button>
         </div>
       </div>
 
-      {loading ? <div style={{ padding:48, textAlign:'center', color:'var(--silver)' }}>Cargando...</div> : !players.length ? (
+      {loading ? <div style={{ padding:48, textAlign:'center', color:'var(--silver)' }}>Cargando...</div> :
+      !players.length ? (
         <div style={{ padding:48, textAlign:'center', color:'var(--silver)', background:'var(--ink2)', borderRadius:16 }}>Sin datos para este período. Registrá sesiones con RPE en el Calendario.</div>
       ) : (<>
 
-      {/* CUADRO 1+2+3: tabla jugadores con totales y promedios */}
-      <div style={{ background:'var(--ink2)', border:'1px solid rgba(200,241,53,.2)', borderRadius:16, overflow:'hidden', marginBottom:20 }}>
-        <div style={{ padding:'12px 18px', borderBottom:'1px solid var(--mist)' }}>
-          <p style={{ fontSize:11, fontWeight:700, color:'var(--lime)', textTransform:'uppercase', letterSpacing:'0.08em' }}>CUADRO 1 · MICROCICLO — VARIABLES POR JUGADOR</p>
-          <p style={{ fontSize:10, color:'var(--fog)', marginTop:2 }}>RPE · UA · Minutos · Distancia · Sprint · Sprints · Acel · Decel</p>
+      {/* ══ CUADRO 1 ══════════════════════════════════════════════════════ */}
+      <div style={{ background:'var(--ink2)', border:'1px solid rgba(200,241,53,.25)', borderRadius:16, overflow:'hidden', marginBottom:20 }}>
+        <div style={{ padding:'10px 16px', borderBottom:'1px solid var(--mist)' }}>
+          <p style={{ fontSize:11, fontWeight:700, color:'var(--lime)', textTransform:'uppercase', letterSpacing:'0.08em' }}>CUADRO 1 · SESIONES DEL MICROCICLO · MD+1 → MD</p>
+          <p style={{ fontSize:10, color:'var(--fog)', marginTop:2 }}>Variables acumuladas por jugador en el período · promedio equipo al pie</p>
         </div>
         <div style={{ overflowX:'auto' }}>
           <table style={{ width:'100%', borderCollapse:'collapse', fontSize:11 }}>
             <thead>
-              <tr style={{ background:'rgba(255,255,255,.03)' }}>
-                <th style={{ padding:'8px 14px', textAlign:'left', color:'var(--silver)', fontSize:9, fontWeight:600, textTransform:'uppercase', whiteSpace:'nowrap' }}>Jugador</th>
-                <th style={{ padding:'8px 8px', textAlign:'left', color:'var(--silver)', fontSize:9, fontWeight:600, textTransform:'uppercase' }}>Pos</th>
-                {VARS.map(v=><th key={v.key} style={{ padding:'8px 10px', textAlign:'center', color:v.color, fontSize:9, fontWeight:600, textTransform:'uppercase', whiteSpace:'nowrap' }}>{v.label}</th>)}
+              <tr style={{ background:'rgba(200,241,53,.04)' }}>
+                <th style={{ padding:'7px 14px', textAlign:'left', color:'var(--silver)', fontSize:9, fontWeight:700, textTransform:'uppercase' }}>Jugador</th>
+                <th style={{ padding:'7px 8px', textAlign:'left', color:'var(--silver)', fontSize:9, fontWeight:700, textTransform:'uppercase' }}>Pos.</th>
+                {VARS.map(v=><th key={v.key} style={{ padding:'7px 8px', textAlign:'center', color:v.color, fontSize:9, fontWeight:700, textTransform:'uppercase', whiteSpace:'nowrap' }}>{v.label}</th>)}
               </tr>
             </thead>
             <tbody>
               {players.map((p:any,i:number)=>(
                 <tr key={i} style={{ borderTop:'1px solid var(--mist)', background:i%2===0?'transparent':'rgba(255,255,255,.015)' }}>
-                  <td style={{ padding:'8px 14px', color:'var(--snow)', fontWeight:500, whiteSpace:'nowrap' }}>{p.nombre}</td>
-                  <td style={{ padding:'8px 8px', color:'var(--fog)', fontSize:10 }}>{p.posicion||'—'}</td>
-                  {VARS.map(v=><td key={v.key} style={{ padding:'8px 10px', textAlign:'center', fontFamily:'DM Mono,monospace', color:p[v.key]?v.color:'var(--fog)' }}>{p[v.key]||'—'}</td>)}
+                  <td style={{ padding:'7px 14px', color:'var(--snow)', fontWeight:500, whiteSpace:'nowrap' }}>{p.nombre}</td>
+                  <td style={{ padding:'7px 8px', color:'var(--fog)', fontSize:10 }}>{p.posicion||'—'}</td>
+                  {VARS.map(v=><td key={v.key} style={{ padding:'7px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', color:p[v.key]?v.color:'var(--fog)' }}>{p[v.key]||'—'}</td>)}
                 </tr>
               ))}
-              <tr style={{ borderTop:'2px solid rgba(200,241,53,.4)', background:'rgba(200,241,53,.05)' }}>
-                <td colSpan={2} style={{ padding:'9px 14px', fontWeight:800, color:'var(--lime)', fontSize:10, textTransform:'uppercase' }}>CUADRO 2 · TOTAL</td>
-                {VARS.map(v=>{ const t=players.reduce((s:number,p:any)=>s+(Number(p[v.key])||0),0); return <td key={v.key} style={{ padding:'9px 10px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, color:v.color }}>{Math.round(t)||'—'}</td> })}
-              </tr>
-              <tr style={{ borderTop:'1px solid rgba(96,165,250,.3)', background:'rgba(96,165,250,.04)' }}>
-                <td colSpan={2} style={{ padding:'9px 14px', fontWeight:800, color:'#60a5fa', fontSize:10, textTransform:'uppercase' }}>CUADRO 3 · PROMEDIO</td>
-                {VARS.map(v=><td key={v.key} style={{ padding:'9px 10px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, color:'#60a5fa' }}>{teamAvg[v.key]||'—'}</td>)}
+              <tr style={{ borderTop:'2px solid rgba(200,241,53,.3)', background:'rgba(200,241,53,.04)' }}>
+                <td style={{ padding:'8px 14px', fontWeight:800, color:'var(--lime)', fontSize:10, textTransform:'uppercase' }}>PROM. EQUIPO</td>
+                <td/>
+                {VARS.map(v=><td key={v.key} style={{ padding:'8px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, color:'var(--lime)' }}>{teamAvg[v.key]||'—'}</td>)}
               </tr>
             </tbody>
           </table>
         </div>
-      </div>
-
-      {/* PROMEDIO POR MD: columnas = MD+1, MD+2, MD-4... */}
-      {mdCols.length > 0 && (
-        <div style={{ background:'var(--ink2)', border:'1px solid rgba(168,85,247,.2)', borderRadius:16, overflow:'hidden', marginBottom:20 }}>
-          <div style={{ padding:'12px 18px', borderBottom:'1px solid var(--mist)' }}>
-            <p style={{ fontSize:11, fontWeight:700, color:'#a78bfa', textTransform:'uppercase', letterSpacing:'0.08em' }}>PROMEDIO EQUIPO POR SESIÓN (MD)</p>
-            <p style={{ fontSize:10, color:'var(--fog)', marginTop:2 }}>Valor promedio del equipo en cada jornada del microciclo</p>
-          </div>
-          <div style={{ overflowX:'auto' }}>
+        {mdCols.length > 0 && (
+          <div style={{ borderTop:'2px solid rgba(200,241,53,.1)', overflowX:'auto' }}>
+            <div style={{ padding:'8px 16px 4px' }}>
+              <span style={{ fontSize:9, fontWeight:700, color:'var(--lime)', textTransform:'uppercase', letterSpacing:'0.08em' }}>Desglose por MD (prom. equipo) →</span>
+            </div>
             <table style={{ width:'100%', borderCollapse:'collapse', fontSize:11 }}>
               <thead>
-                <tr style={{ background:'rgba(168,85,247,.04)' }}>
-                  <th style={{ padding:'8px 14px', textAlign:'left', color:'var(--silver)', fontSize:9, fontWeight:600, textTransform:'uppercase' }}>Métrica</th>
-                  {mdCols.map((md:string)=>(<th key={md} style={{ padding:'8px 10px', textAlign:'center', color:'#a78bfa', fontSize:10, fontWeight:700, whiteSpace:'nowrap' }}>{md}</th>))}
-                  <th style={{ padding:'8px 10px', textAlign:'center', color:'#34d399', fontSize:9, fontWeight:600, textTransform:'uppercase' }}>Total</th>
-                  <th style={{ padding:'8px 10px', textAlign:'center', color:'#60a5fa', fontSize:9, fontWeight:600, textTransform:'uppercase' }}>Prom.</th>
+                <tr style={{ background:'rgba(200,241,53,.03)' }}>
+                  <th style={{ padding:'6px 14px', textAlign:'left', color:'var(--silver)', fontSize:9, fontWeight:700, textTransform:'uppercase' }}>Métrica</th>
+                  {mdCols.map(md=><th key={md} style={{ padding:'6px 10px', textAlign:'center', color:'var(--lime)', fontSize:9, fontWeight:700, whiteSpace:'nowrap' }}>{md}</th>)}
+                  <th style={{ padding:'6px 10px', textAlign:'center', color:'#34d399', fontSize:9, fontWeight:700 }}>TOTAL</th>
+                  <th style={{ padding:'6px 10px', textAlign:'center', color:'#60a5fa', fontSize:9, fontWeight:700 }}>PROM.</th>
                 </tr>
               </thead>
               <tbody>
-                {VARS.filter(v=>v.key!=='rpe').map((v,i)=>{
-                  const vals = mdCols.map((md:string)=>Math.round(perSession[md]?.[v.key]||0))
-                  const total = vals.reduce((s:number,x:number)=>s+x,0)
-                  const prom = vals.filter((x:number)=>x>0).length > 0 ? Math.round(total/vals.filter((x:number)=>x>0).length) : 0
+                {VARS.map((v,i)=>{
+                  const vals = mdCols.map(md=>Math.round(Number(perSession[md]?.[v.key])||0))
+                  const total = vals.reduce((s,x)=>s+x,0)
+                  const actives = vals.filter(x=>x>0)
+                  const prom = actives.length ? Math.round(total/actives.length) : 0
                   return (
-                    <tr key={v.key} style={{ borderTop:'1px solid var(--mist)', background:i%2===0?'transparent':'rgba(255,255,255,.015)' }}>
-                      <td style={{ padding:'8px 14px', color:v.color, fontWeight:600, fontSize:10 }}>{v.label}</td>
-                      {vals.map((val:number,j:number)=>(
-                        <td key={j} style={{ padding:'8px 10px', textAlign:'center', fontFamily:'DM Mono,monospace', color:val>0?v.color:'var(--fog)' }}>{val||'—'}</td>
-                      ))}
-                      <td style={{ padding:'8px 10px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, color:'#34d399' }}>{total||'—'}</td>
-                      <td style={{ padding:'8px 10px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, color:'#60a5fa' }}>{prom||'—'}</td>
+                    <tr key={v.key} style={{ borderTop:'1px solid var(--mist)', background:i%2===0?'transparent':'rgba(255,255,255,.01)' }}>
+                      <td style={{ padding:'6px 14px', color:v.color, fontWeight:600, fontSize:10 }}>{v.label}</td>
+                      {vals.map((val,j)=><td key={j} style={{ padding:'6px 10px', textAlign:'center', fontFamily:'DM Mono,monospace', color:val>0?v.color:'var(--fog)' }}>{val||'—'}</td>)}
+                      <td style={{ padding:'6px 10px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, color:'#34d399' }}>{total||'—'}</td>
+                      <td style={{ padding:'6px 10px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, color:'#60a5fa' }}>{prom||'—'}</td>
                     </tr>
                   )
                 })}
               </tbody>
             </table>
           </div>
-        </div>
-      )}
-
-      {/* CUADRO 4: % sobre el partido */}
-      <div style={{ background:'var(--ink2)', border:'1px solid rgba(168,85,247,.2)', borderRadius:16, overflow:'hidden', marginBottom:20 }}>
-        <div style={{ padding:'12px 18px', borderBottom:'1px solid var(--mist)', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-          <div>
-            <p style={{ fontSize:11, fontWeight:700, color:'#a78bfa', textTransform:'uppercase', letterSpacing:'0.08em' }}>CUADRO 4 · % SOBRE EL PARTIDO (= 100%)</p>
-            <p style={{ fontSize:10, color:'var(--fog)', marginTop:2 }}>Ingresá los valores del partido de referencia para calcular porcentajes</p>
-          </div>
-          <button onClick={()=>setShowRefInput(!showRefInput)} style={{ fontSize:11, padding:'6px 14px', borderRadius:8, background:'rgba(168,85,247,.1)', color:'#a78bfa', border:'1px solid rgba(168,85,247,.3)', cursor:'pointer' }}>{showRefInput?'Ocultar':'Editar referencia'}</button>
-        </div>
-        {showRefInput && (
-          <div style={{ padding:16, borderBottom:'1px solid var(--mist)', display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(120px,1fr))', gap:8 }}>
-            {VARS.map(v=>(
-              <div key={v.key}>
-                <label style={{ fontSize:9, color:v.color, display:'block', marginBottom:3, textTransform:'uppercase', fontWeight:600 }}>{v.label} (partido)</label>
-                <input className="wp-input" type="number" placeholder="Valor ref." style={{ padding:'5px 8px', fontSize:11, width:'100%' }} value={partidoRef[v.key]||''} onChange={e=>setPartidoRef((r:any)=>({...r,[v.key]:Number(e.target.value)}))} />
-              </div>
-            ))}
-          </div>
         )}
+      </div>
+
+      {/* ══ CUADRO 2: SUMA TOTAL + gráficos agrupados ═══════════════════ */}
+      <div style={{ background:'var(--ink2)', border:'1px solid rgba(96,165,250,.2)', borderRadius:16, overflow:'hidden', marginBottom:20 }}>
+        <div style={{ padding:'10px 16px', borderBottom:'1px solid var(--mist)' }}>
+          <p style={{ fontSize:11, fontWeight:700, color:'#60a5fa', textTransform:'uppercase', letterSpacing:'0.08em' }}>CUADRO 2 · SUMA TOTAL DEL MICROCICLO</p>
+          <p style={{ fontSize:10, color:'var(--fog)', marginTop:2 }}>Suma de todas las variables durante el microciclo · MD+1 → MD</p>
+        </div>
         <div style={{ overflowX:'auto' }}>
           <table style={{ width:'100%', borderCollapse:'collapse', fontSize:11 }}>
             <thead>
-              <tr style={{ background:'rgba(168,85,247,.04)' }}>
-                <th style={{ padding:'8px 14px', textAlign:'left', color:'var(--silver)', fontSize:9, fontWeight:600, textTransform:'uppercase' }}>Jugador</th>
-                {VARS.map(v=><th key={v.key} style={{ padding:'8px 10px', textAlign:'center', color:v.color, fontSize:9, fontWeight:600, textTransform:'uppercase', whiteSpace:'nowrap' }}>{v.label}</th>)}
+              <tr style={{ background:'rgba(96,165,250,.04)' }}>
+                <th style={{ padding:'7px 14px', textAlign:'left', color:'var(--silver)', fontSize:9, fontWeight:700, textTransform:'uppercase' }}>Jugador</th>
+                {VARS.map(v=><th key={v.key} style={{ padding:'7px 8px', textAlign:'center', color:v.color, fontSize:9, fontWeight:700, textTransform:'uppercase', whiteSpace:'nowrap' }}>{v.label}</th>)}
               </tr>
             </thead>
             <tbody>
               {players.map((p:any,i:number)=>(
-                <tr key={i} style={{ borderTop:'1px solid var(--mist)' }}>
-                  <td style={{ padding:'8px 14px', color:'var(--snow)', fontWeight:500 }}>{p.nombre}</td>
-                  {VARS.map(v=>{ const pv=pct(p[v.key]||0,v.key); return <td key={v.key} style={{ padding:'8px 10px', textAlign:'center', fontFamily:'DM Mono,monospace', color:pctColor(pv), fontWeight:pv?600:400 }}>{pv!==null?`${pv}%`:Object.keys(partidoRef).length?'—':<span style={{color:'var(--fog)',fontSize:9}}>sin ref.</span>}</td> })}
+                <tr key={i} style={{ borderTop:'1px solid var(--mist)', background:i%2===0?'transparent':'rgba(255,255,255,.015)' }}>
+                  <td style={{ padding:'7px 14px', color:'var(--snow)', fontWeight:500, whiteSpace:'nowrap' }}>{p.nombre}</td>
+                  {VARS.map(v=><td key={v.key} style={{ padding:'7px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', color:p[v.key]?v.color:'var(--fog)' }}>{p[v.key]||'—'}</td>)}
                 </tr>
               ))}
-              <tr style={{ borderTop:'2px solid rgba(168,85,247,.3)', background:'rgba(168,85,247,.04)' }}>
-                <td style={{ padding:'9px 14px', fontWeight:800, color:'#a78bfa', fontSize:10, textTransform:'uppercase' }}>Promedio</td>
-                {VARS.map(v=>{ const av=pct(teamAvg[v.key]||0,v.key); return <td key={v.key} style={{ padding:'9px 10px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, color:pctColor(av) }}>{av!==null?`${av}%`:'—'}</td> })}
+              <tr style={{ borderTop:'2px solid rgba(52,211,153,.4)', background:'rgba(52,211,153,.05)' }}>
+                <td style={{ padding:'8px 14px', fontWeight:800, color:'#34d399', fontSize:10, textTransform:'uppercase' }}>∑ SUMA EQUIPO</td>
+                {VARS.map(v=>{ const t=players.reduce((s:number,p:any)=>s+(Number(p[v.key])||0),0); return <td key={v.key} style={{ padding:'8px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, color:'#34d399' }}>{Math.round(t)||'—'}</td> })}
               </tr>
             </tbody>
           </table>
         </div>
+        <div style={{ padding:16, borderTop:'1px solid var(--mist)' }}>
+          <p style={{ fontSize:10, fontWeight:700, color:'#60a5fa', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:12 }}>📊 GRÁFICO AGRUPADO · SUMA POR JUGADOR</p>
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))', gap:12 }}>
+            {GRUPOS.map(g=>renderGrupoBar(g,'jugador'))}
+          </div>
+        </div>
       </div>
 
-      {/* Graficos por variable */}
-      <div>
-        <p style={{ fontSize:11, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:16 }}>GRAFICOS · COMPORTAMIENTO DE CARGA POR VARIABLE</p>
-        <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))', gap:12 }}>
-          {VARS.map(v => {
-            const vals = players.map((p:any)=>({ nombre:p.nombre.split(' ')[0], val:Number(p[v.key])||0 }))
-            const maxVal = Math.max(...vals.map((x:any)=>x.val), 1)
-            return (
-              <div key={v.key} style={{ background:'var(--ink2)', borderRadius:12, padding:16, border:'1px solid var(--mist)' }}>
-                <div style={{ fontSize:11, fontWeight:700, color:v.color, textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:12 }}>{v.label}</div>
-                <div style={{ display:'flex', alignItems:'flex-end', gap:3, height:80 }}>
-                  {vals.map((item:any,i:number)=>(
-                    <div key={i} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', gap:2 }}>
-                      <div style={{ fontSize:8, color:'var(--fog)', fontFamily:'DM Mono,monospace' }}>{item.val>0?item.val:''}</div>
-                      <div style={{ width:'100%', borderRadius:'3px 3px 0 0', minHeight:2, height:`${Math.max((item.val/maxVal)*64,item.val>0?2:0)}px`, background:item.val>0?v.color:`${v.color}22` }} />
-                      <div style={{ fontSize:7, color:'var(--fog)', whiteSpace:'nowrap', overflow:'hidden', maxWidth:28, textOverflow:'ellipsis' }}>{item.nombre}</div>
+      {/* ══ CUADRO 3: PROMEDIO POR MD + gráficos agrupados ══════════════ */}
+      <div style={{ background:'var(--ink2)', border:'1px solid rgba(168,85,247,.2)', borderRadius:16, overflow:'hidden', marginBottom:20 }}>
+        <div style={{ padding:'10px 16px', borderBottom:'1px solid var(--mist)' }}>
+          <p style={{ fontSize:11, fontWeight:700, color:'#a78bfa', textTransform:'uppercase', letterSpacing:'0.08em' }}>CUADRO 3 · PROMEDIO POR MD · MD+1 → MD</p>
+          <p style={{ fontSize:10, color:'var(--fog)', marginTop:2 }}>Promedio del equipo en cada sesión del microciclo · con gráfico agrupado</p>
+        </div>
+        {mdCols.length === 0 ? (
+          <div style={{ padding:24, textAlign:'center', color:'var(--fog)', fontSize:12 }}>Sin sesiones con MD asignado en este período. Asigná MD en el Calendario.</div>
+        ) : (<>
+          <div style={{ overflowX:'auto' }}>
+            <table style={{ width:'100%', borderCollapse:'collapse', fontSize:11 }}>
+              <thead>
+                <tr style={{ background:'rgba(168,85,247,.04)' }}>
+                  <th style={{ padding:'7px 14px', textAlign:'left', color:'var(--silver)', fontSize:9, fontWeight:700, textTransform:'uppercase' }}>Métrica</th>
+                  {mdCols.map(md=><th key={md} style={{ padding:'7px 10px', textAlign:'center', color:'#a78bfa', fontSize:10, fontWeight:700, whiteSpace:'nowrap' }}>{md}</th>)}
+                  <th style={{ padding:'7px 10px', textAlign:'center', color:'#60a5fa', fontSize:9, fontWeight:700 }}>PROM. TOTAL</th>
+                </tr>
+              </thead>
+              <tbody>
+                {VARS.map((v,i)=>{
+                  const vals = mdCols.map(md=>Math.round(Number(perSession[md]?.[v.key])||0))
+                  const actives = vals.filter(x=>x>0)
+                  const promTotal = actives.length ? Math.round(actives.reduce((s,x)=>s+x,0)/actives.length) : 0
+                  return (
+                    <tr key={v.key} style={{ borderTop:'1px solid var(--mist)', background:i%2===0?'transparent':'rgba(255,255,255,.015)' }}>
+                      <td style={{ padding:'7px 14px', color:v.color, fontWeight:600, fontSize:10 }}>{v.label}</td>
+                      {vals.map((val,j)=><td key={j} style={{ padding:'7px 10px', textAlign:'center', fontFamily:'DM Mono,monospace', color:val>0?v.color:'var(--fog)' }}>{val||'—'}</td>)}
+                      <td style={{ padding:'7px 10px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, color:'#60a5fa' }}>{promTotal||'—'}</td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+          <div style={{ padding:16, borderTop:'1px solid var(--mist)' }}>
+            <p style={{ fontSize:10, fontWeight:700, color:'#a78bfa', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:12 }}>📊 GRÁFICO AGRUPADO · PROMEDIO POR MD</p>
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))', gap:12 }}>
+              {GRUPOS.map(g=>renderGrupoBar(g,'md'))}
+            </div>
+          </div>
+        </>)}
+      </div>
+
+      {/* ══ CUADRO 4: % vs MEDIA 3 PARTIDOS ═════════════════════════════ */}
+      <div style={{ background:'var(--ink2)', border:'1px solid rgba(239,68,68,.2)', borderRadius:16, overflow:'hidden', marginBottom:8 }}>
+        <div style={{ padding:'10px 16px', borderBottom:'1px solid var(--mist)', display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:8 }}>
+          <div>
+            <p style={{ fontSize:11, fontWeight:700, color:'#f87171', textTransform:'uppercase', letterSpacing:'0.08em' }}>CUADRO 4 · % SOBRE EL PARTIDO (= 100%)</p>
+            <p style={{ fontSize:10, color:'var(--fog)', marginTop:2 }}>Media de 3 partidos de referencia → objetivo: 100% en cada variable por sesión</p>
+          </div>
+          <button onClick={()=>setShowRefInput(!showRefInput)} style={{ fontSize:11, padding:'6px 14px', borderRadius:8, background:'rgba(239,68,68,.1)', color:'#f87171', border:'1px solid rgba(239,68,68,.3)', cursor:'pointer' }}>
+            {showRefInput?'▲ Ocultar partidos':'▼ Ingresar 3 partidos'}
+          </button>
+        </div>
+        {showRefInput && (
+          <div style={{ padding:16, borderBottom:'1px solid var(--mist)', background:'rgba(239,68,68,.03)' }}>
+            <p style={{ fontSize:10, color:'var(--fog)', marginBottom:12 }}>Ingresá los valores de hasta 3 partidos — la media se calcula automáticamente:</p>
+            {partidoRefs.map((ref,ri)=>(
+              <div key={ri} style={{ marginBottom:16 }}>
+                <p style={{ fontSize:10, fontWeight:700, color:'#f87171', marginBottom:8 }}>🏆 Partido {ri+1}</p>
+                <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(110px,1fr))', gap:8 }}>
+                  {VARS.map(v=>(
+                    <div key={v.key}>
+                      <label style={{ fontSize:9, color:v.color, display:'block', marginBottom:3, textTransform:'uppercase', fontWeight:600 }}>{v.label}</label>
+                      <input className="wp-input" type="number" placeholder="—" style={{ padding:'5px 8px', fontSize:11, width:'100%' }}
+                        value={ref[v.key]||''}
+                        onChange={e=>{ const nr=[...partidoRefs]; nr[ri]={...nr[ri],[v.key]:Number(e.target.value)||''}; setPartidoRefs(nr) }}
+                      />
                     </div>
                   ))}
                 </div>
-                <div style={{ fontSize:9, color:'var(--fog)', marginTop:8, textAlign:'right', borderTop:'1px solid var(--mist)', paddingTop:4 }}>Prom: <span style={{ color:v.color, fontFamily:'DM Mono,monospace' }}>{teamAvg[v.key]||'—'}</span></div>
               </div>
-            )
-          })}
-        </div>
+            ))}
+            {Object.keys(refMedia).length>0 && (
+              <div style={{ padding:'8px 12px', background:'rgba(239,68,68,.08)', borderRadius:8, display:'flex', flexWrap:'wrap', gap:12 }}>
+                <span style={{ fontSize:10, color:'#f87171', fontWeight:700 }}>📊 Media 3 partidos:</span>
+                {VARS.filter(v=>refMedia[v.key]).map(v=>(
+                  <span key={v.key} style={{ fontSize:11, color:v.color, fontFamily:'DM Mono,monospace' }}>{v.label}: <strong>{refMedia[v.key]}</strong></span>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+        {Object.keys(refMedia).length === 0 ? (
+          <div style={{ padding:24, textAlign:'center', color:'var(--fog)', fontSize:12 }}>
+            Ingresá los valores de 3 partidos de referencia para ver los porcentajes de carga.
+          </div>
+        ) : (
+          <div style={{ overflowX:'auto' }}>
+            <table style={{ width:'100%', borderCollapse:'collapse', fontSize:11 }}>
+              <thead>
+                <tr style={{ background:'rgba(239,68,68,.04)' }}>
+                  <th style={{ padding:'7px 14px', textAlign:'left', color:'var(--silver)', fontSize:9, fontWeight:700, textTransform:'uppercase' }}>Jugador / MD</th>
+                  {VARS.filter(v=>refMedia[v.key]).map(v=>(
+                    <th key={v.key} style={{ padding:'7px 8px', textAlign:'center', color:v.color, fontSize:9, fontWeight:700, textTransform:'uppercase', whiteSpace:'nowrap' }}>
+                      {v.label}<div style={{ fontSize:8, color:'var(--fog)', fontWeight:400 }}>ref:{refMedia[v.key]}</div>
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {players.map((p:any,i:number)=>(
+                  <tr key={i} style={{ borderTop:'1px solid var(--mist)', background:i%2===0?'transparent':'rgba(255,255,255,.015)' }}>
+                    <td style={{ padding:'7px 14px', color:'var(--snow)', fontWeight:500, whiteSpace:'nowrap' }}>{p.nombre}</td>
+                    {VARS.filter(v=>refMedia[v.key]).map(v=>{ const pv=pct(Number(p[v.key])||0,v.key); return <td key={v.key} style={{ padding:'7px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:pv?600:400, color:pctColor(pv) }}>{pv!==null?`${pv}%`:'—'}</td> })}
+                  </tr>
+                ))}
+                {mdCols.map(md=>(
+                  <tr key={md} style={{ borderTop:'1px solid rgba(239,68,68,.15)', background:'rgba(239,68,68,.03)' }}>
+                    <td style={{ padding:'7px 14px', color:'#f87171', fontWeight:700, fontSize:10 }}>{md} (prom)</td>
+                    {VARS.filter(v=>refMedia[v.key]).map(v=>{ const val=Math.round(Number(perSession[md]?.[v.key])||0); const pv=pct(val,v.key); return <td key={v.key} style={{ padding:'7px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:pv?600:400, color:pctColor(pv) }}>{pv!==null?`${pv}%`:'—'}</td> })}
+                  </tr>
+                ))}
+                <tr style={{ borderTop:'2px solid rgba(239,68,68,.3)', background:'rgba(239,68,68,.05)' }}>
+                  <td style={{ padding:'8px 14px', fontWeight:800, color:'#f87171', fontSize:10, textTransform:'uppercase' }}>Prom. Equipo</td>
+                  {VARS.filter(v=>refMedia[v.key]).map(v=>{ const pv=pct(Number(teamAvg[v.key])||0,v.key); return <td key={v.key} style={{ padding:'8px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, color:pctColor(pv) }}>{pv!==null?`${pv}%`:'—'}</td> })}
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
       </>)}
     </div>
   )
 }
+
 
 // ═══════════════════════════════════════════════════════════════════
 // CONTROL DE CARGA — GPS (datos reales Catapult)
@@ -4870,6 +5225,8 @@ function BibliotecaPanel() {
   const [form, setForm] = useState({ nombre:'', ventana:'', subtarea:'', jugadores:'', series:'', minutos:'', pausa:'', largo:'', ancho:'', descripcion:'' })
   const [saving, setSaving] = useState(false)
   const [copied, setCopied] = useState<number|null>(null)
+  const [ventanaFilter, setVentanaFilter] = useState('')
+  const [sortBy, setSortBy] = useState<'uso'|'reciente'>('uso')
 
   useEffect(() => { cargar() }, [])
 
@@ -4905,7 +5262,14 @@ function BibliotecaPanel() {
     await cargar()
   }
 
-  const filtradas = tareas.filter(t=>!buscar||t.nombre.toLowerCase().includes(buscar.toLowerCase())||(t.ventana||'').toLowerCase().includes(buscar.toLowerCase()))
+  const ventanas = Array.from(new Set(tareas.map(t=>t.ventana).filter(Boolean))).sort()
+  const filtradas = tareas
+    .filter(t => {
+      const matchBuscar = !buscar || t.nombre.toLowerCase().includes(buscar.toLowerCase()) || (t.ventana||'').toLowerCase().includes(buscar.toLowerCase())
+      const matchVentana = !ventanaFilter || t.ventana === ventanaFilter
+      return matchBuscar && matchVentana
+    })
+    .sort((a,b) => sortBy === 'uso' ? (b.veces_usada - a.veces_usada) : (new Date(b.created_at||0).getTime() - new Date(a.created_at||0).getTime()))
 
   return (
     <div style={{ padding:'24px 20px', maxWidth:900, margin:'0 auto' }}>
@@ -4953,8 +5317,17 @@ function BibliotecaPanel() {
         </div>
       )}
 
-      <div style={{ marginBottom:16 }}>
-        <input className="wp-input" type="text" placeholder="🔍 Buscar por nombre o tipo de tarea..." value={buscar} onChange={e=>setBuscar(e.target.value)} style={{ width:'100%' }} />
+      <div style={{ display:'flex', gap:8, marginBottom:12, flexWrap:'wrap' }}>
+        <input className="wp-input" type="text" placeholder="🔍 Buscar..." value={buscar} onChange={e=>setBuscar(e.target.value)} style={{ flex:1, minWidth:180 }} />
+        <select className="wp-input" value={ventanaFilter} onChange={e=>setVentanaFilter(e.target.value)} style={{ appearance:'none', minWidth:140 }}>
+          <option value="">Todas las tareas</option>
+          {ventanas.map(v=><option key={v} value={v} style={{ background:'var(--ink2)' }}>{v}</option>)}
+        </select>
+        <div style={{ display:'flex', gap:4, background:'var(--ink2)', borderRadius:8, padding:3, border:'1px solid var(--mist)' }}>
+          {([['uso','↓ Más usadas'],['reciente','↓ Recientes']] as const).map(([k,l])=>(
+            <button key={k} onClick={()=>setSortBy(k)} style={{ padding:'4px 10px', borderRadius:6, fontSize:10, fontWeight:600, cursor:'pointer', border:'none', background:sortBy===k?'var(--lime)':'transparent', color:sortBy===k?'var(--ink)':'var(--silver)' }}>{l}</button>
+          ))}
+        </div>
       </div>
 
       {loading ? <div style={{ padding:48, textAlign:'center', color:'var(--silver)' }}>Cargando...</div> : !filtradas.length ? (
@@ -4964,29 +5337,37 @@ function BibliotecaPanel() {
       ) : (
         <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
           {filtradas.map((t:any)=>(
-            <div key={t.id} style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:14, padding:16, display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:12 }}>
-              <div style={{ flex:1 }}>
-                <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:6, flexWrap:'wrap' }}>
-                  <span style={{ fontWeight:600, color:'var(--snow)', fontSize:14 }}>{t.nombre}</span>
-                  {t.ventana && <span style={{ fontSize:10, padding:'2px 8px', borderRadius:6, background:'rgba(200,241,53,.12)', color:'var(--lime)', fontWeight:600 }}>{t.ventana}</span>}
-                  <span style={{ fontSize:10, color:'var(--fog)' }}>Usada {t.veces_usada}x</span>
+            <div key={t.id} style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:14, padding:16 }}>
+              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:12, marginBottom:8 }}>
+                <div style={{ flex:1 }}>
+                  <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap', marginBottom:6 }}>
+                    <span style={{ fontWeight:700, color:'var(--snow)', fontSize:14 }}>{t.nombre}</span>
+                    {t.ventana && <span style={{ fontSize:10, padding:'2px 8px', borderRadius:6, background:'rgba(200,241,53,.12)', color:'var(--lime)', fontWeight:600 }}>{t.ventana}</span>}
+                    {t.subtarea && <span style={{ fontSize:10, padding:'2px 8px', borderRadius:6, background:'rgba(200,241,53,.06)', color:'var(--silver)' }}>↳ {t.subtarea}</span>}
+                    <span style={{ fontSize:9, color:'var(--fog)', fontFamily:'DM Mono,monospace' }}>usada {t.veces_usada}×</span>
+                  </div>
+                  <div style={{ display:'flex', gap:12, flexWrap:'wrap', fontSize:11, color:'var(--silver)' }}>
+                    {t.jugadores && <span>👥 <strong>{t.jugadores}</strong> jug.</span>}
+                    {t.series && <span>🔄 <strong>{t.series}</strong> series</span>}
+                    {t.minutos && <span>⏱ <strong>{t.minutos}</strong> min/serie</span>}
+                    {t.pausa && <span>⏸ <strong>{t.pausa}</strong> min pausa</span>}
+                    {t.largo && t.ancho && <span>📐 <strong>{t.largo}×{t.ancho}</strong>m</span>}
+                    {t.series && t.minutos && <span style={{ color:'var(--lime)', fontFamily:'DM Mono,monospace', fontSize:10 }}>→ {t.series*t.minutos} min activo</span>}
+                  </div>
                 </div>
-                <div style={{ display:'flex', gap:14, flexWrap:'wrap', fontSize:11, color:'var(--silver)' }}>
-                  {t.jugadores && <span>👥 {t.jugadores} jug.</span>}
-                  {t.series && <span>🔄 {t.series} series</span>}
-                  {t.minutos && <span>⏱ {t.minutos} min</span>}
-                  {t.pausa && <span>⏸ {t.pausa} min pausa</span>}
-                  {t.largo && t.ancho && <span>📐 {t.largo}×{t.ancho}m</span>}
+                <div style={{ display:'flex', gap:8, flexShrink:0, alignItems:'center' }}>
+                  <button onClick={()=>usar(t.id)}
+                    style={{ fontSize:11, padding:'7px 16px', borderRadius:8, background:copied===t.id?'rgba(34,197,94,.2)':'rgba(200,241,53,.15)', color:copied===t.id?'#22c55e':'var(--lime)', border:`1px solid ${copied===t.id?'rgba(34,197,94,.4)':'rgba(200,241,53,.35)'}`, cursor:'pointer', fontWeight:700, whiteSpace:'nowrap' }}>
+                    {copied===t.id?'✓ ¡Usada!':'+ Usar en sesión'}
+                  </button>
+                  <button onClick={()=>eliminar(t.id)} style={{ fontSize:10, padding:'7px 10px', borderRadius:8, background:'rgba(239,68,68,.06)', color:'#f87171', border:'1px solid rgba(239,68,68,.2)', cursor:'pointer' }} title="Eliminar">✕</button>
                 </div>
-                {t.descripcion && <p style={{ fontSize:11, color:'var(--fog)', marginTop:6 }}>{t.descripcion}</p>}
               </div>
-              <div style={{ display:'flex', gap:8, flexShrink:0 }}>
-                <button onClick={()=>usar(t.id)}
-                  style={{ fontSize:11, padding:'6px 14px', borderRadius:8, background:copied===t.id?'rgba(34,197,94,.2)':'rgba(200,241,53,.12)', color:copied===t.id?'#22c55e':'var(--lime)', border:`1px solid ${copied===t.id?'rgba(34,197,94,.4)':'rgba(200,241,53,.3)'}`, cursor:'pointer', fontWeight:600, whiteSpace:'nowrap' }}>
-                  {copied===t.id?'✓ Marcada':'Usar'}
-                </button>
-                <button onClick={()=>eliminar(t.id)} style={{ fontSize:10, padding:'6px 10px', borderRadius:8, background:'rgba(239,68,68,.08)', color:'#f87171', border:'1px solid rgba(239,68,68,.2)', cursor:'pointer' }}>✕</button>
-              </div>
+              {t.descripcion && (
+                <div style={{ fontSize:11, color:'var(--fog)', background:'var(--ink3)', borderRadius:8, padding:'6px 10px', borderLeft:'2px solid rgba(200,241,53,.2)' }}>
+                  {t.descripcion}
+                </div>
+              )}
             </div>
           ))}
         </div>
