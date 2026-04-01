@@ -207,10 +207,10 @@ export default function CoachClient({ session, teamData, today }) {
               <div style={{ display:'flex', alignItems:'center', gap:14 }}>
                 <label style={{ cursor:'pointer', flexShrink:0 }}>
                   <div style={{ position:'relative' }}>
-                    <div style={{ width:52, height:52, borderRadius:10, overflow:'hidden', background:'var(--ink3)', border:`2px solid ${logoSaving==='error'?'#ef4444':logoSaving==='ok'?'var(--lime)':clubLogo?'var(--lime)':'var(--fog)'}`, display:'flex', alignItems:'center', justifyContent:'center', transition:'border-color .15s' }}>
+                    <div style={{ width:80, height:80, borderRadius:14, overflow:'hidden', background:'var(--ink3)', border:`2px solid ${logoSaving==='error'?'#ef4444':logoSaving==='ok'?'var(--lime)':clubLogo?'var(--lime)':'var(--fog)'}`, display:'flex', alignItems:'center', justifyContent:'center', transition:'border-color .15s' }}>
                       {logoSaving==='saving' 
-                        ? <span style={{ fontSize:14, animation:'spin 1s linear infinite' }}>⏳</span>
-                        : clubLogo ? <img src={clubLogo} style={{ width:'100%', height:'100%', objectFit:'contain', padding:4 }} alt="escudo"/> : <span style={{ fontSize:22 }}>🛡️</span>}
+                        ? <span style={{ fontSize:18, animation:'spin 1s linear infinite' }}>⏳</span>
+                        : clubLogo ? <img src={clubLogo} style={{ width:'100%', height:'100%', objectFit:'contain', padding:4 }} alt="escudo"/> : <span style={{ fontSize:32 }}>🛡️</span>}
                     </div>
                     {logoSaving==='ok' && <span style={{ position:'absolute', top:-4, right:-4, fontSize:12, background:'var(--lime)', borderRadius:'50%', width:16, height:16, display:'flex', alignItems:'center', justifyContent:'center', color:'var(--ink)', fontWeight:700 }}>✓</span>}
                     {logoSaving==='error' && <span style={{ position:'absolute', top:-4, right:-4, fontSize:10, background:'#ef4444', borderRadius:'50%', width:16, height:16, display:'flex', alignItems:'center', justifyContent:'center', color:'white', fontWeight:700 }}>✕</span>}
@@ -4916,33 +4916,54 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
                 {/* ── Gráficos comparativos estilo Catapult ── */}
                 {(() => {
                   // Data per player per bar metric
-                  const GRP_RES = {
-                    title: 'RESISTENCIA', color: '#3b82f6',
-                    bars: [
-                      { key:'distTotal', label:'DT (m)',   color:'#3b82f6', axis:'left' },
-                      { key:'distSprint',label:'Sprint (m)',color:'#ec4899', axis:'left' },
-                    ],
-                    line: { key:'minActivo', label:'Mts/min', color:'#f59e0b' },
-                  }
-                  const GRP_VEL = {
-                    title: 'VELOCIDAD', color: '#a78bfa',
-                    bars: [
-                      { key:'nSprints', label:'Nº Sprint',  color:'#a78bfa', axis:'left' },
-                      { key:'ua_total', label:'UA',          color:'#60a5fa', axis:'right' },
-                    ],
-                    line: { key:'rpe', label:'RPE', color:'#c8f135' },
-                  }
-                  const GRP_FZA = {
-                    title: 'FUERZA', color: '#ef4444',
-                    bars: [
-                      { key:'nDecel', label:'DEC >2', color:'#ef4444', axis:'left' },
-                      { key:'nAcel',  label:'ACE >2', color:'#3b82f6', axis:'left' },
-                    ],
-                    line: null,
-                  }
-                  const GROUPS = [GRP_RES, GRP_VEL, GRP_FZA]
-                  const BAR_H = 130
-                  const BAR_W = Math.max(24, Math.min(48, Math.floor(320 / (players.length || 1))))
+                  const GROUPS = [
+                    {
+                      title: 'RESISTENCIA', color: '#3b82f6',
+                      bars: [
+                        { key:'distTotal',  label:'DT (m)',     color:'#3b82f6' },
+                        { key:'distSprint', label:'Sprint (m)', color:'#ec4899' },
+                      ],
+                      line: { key:'minActivo', label:'Mts/min', color:'#f59e0b' },
+                    },
+                    {
+                      title: 'VELOCIDAD', color: '#a78bfa',
+                      bars: [
+                        { key:'nSprints', label:'Nº Sprint', color:'#a78bfa' },
+                      ],
+                      line: null,
+                    },
+                    {
+                      title: 'UA + RPE', color: '#c8f135',
+                      bars: [
+                        { key:'ua_total', label:'UA', color:'#60a5fa' },
+                      ],
+                      line: { key:'rpe', label:'RPE', color:'#c8f135' },
+                    },
+                    {
+                      title: 'FUERZA', color: '#ef4444',
+                      bars: [
+                        { key:'nDecel', label:'DEC >2 (m)', color:'#ef4444' },
+                        { key:'nAcel',  label:'ACE >2 (m)', color:'#3b82f6' },
+                      ],
+                      line: null,
+                    },
+                    {
+                      title: 'ACC/DEC >3', color: '#f43f5e',
+                      bars: [
+                        { key:'nDecel3', label:'DEC >3 (n)', color:'#f43f5e' },
+                        { key:'nAcel3',  label:'ACE >3 (n)', color:'#0ea5e9' },
+                      ],
+                      line: null,
+                    },
+                    {
+                      title: 'ALTA POT.', color: '#fbbf24',
+                      bars: [
+                        { key:'distMP', label:'Alta Pot. (m)', color:'#fbbf24' },
+                      ],
+                      line: null,
+                    },
+                  ]
+                  const BAR_H = 180
 
                   // Position colors
                   const POS_COLS: Record<string,string> = {}
@@ -4951,10 +4972,10 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
 
                   return (
                     <div style={{ padding:'16px', borderTop:'2px solid rgba(200,241,53,.15)', background:'rgba(0,0,0,.25)' }}>
-                      <div style={{ fontSize:10, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:16 }}>
+                      <div style={{ fontSize:13, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:16 }}>
                         📊 COMPARATIVA ENTRE JUGADORES · {md}
                       </div>
-                      <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:16 }}>
+                      <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:14 }}>
                         {GROUPS.map(grp => {
                           const maxBar = Math.max(...players.flatMap((p:any) => grp.bars.map(b => Number(p[b.key])||0)), 1)
                           const lineVals = grp.line ? players.map((p:any) => Number(p[grp.line!.key])||0) : []
@@ -4963,19 +4984,19 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
                           return (
                             <div key={grp.title} style={{ background:'var(--ink2)', borderRadius:12, padding:14, border:`1px solid ${grp.color}30` }}>
                               {/* Chart title */}
-                              <div style={{ fontSize:11, fontWeight:800, color:grp.color, textTransform:'uppercase', letterSpacing:'0.08em', textAlign:'center', marginBottom:4, borderBottom:`1px solid ${grp.color}30`, paddingBottom:6 }}>
+                              <div style={{ fontSize:13, fontWeight:800, color:grp.color, textTransform:'uppercase', letterSpacing:'0.08em', textAlign:'center', marginBottom:4, borderBottom:`1px solid ${grp.color}30`, paddingBottom:6 }}>
                                 {grp.title}
                               </div>
                               {/* Legend */}
                               <div style={{ display:'flex', flexWrap:'wrap', gap:6, justifyContent:'center', marginBottom:10 }}>
                                 {grp.bars.map(b => (
-                                  <span key={b.key} style={{ display:'flex', alignItems:'center', gap:3, fontSize:8.5, color:'var(--silver)' }}>
+                                  <span key={b.key} style={{ display:'flex', alignItems:'center', gap:3, fontSize:11, color:'var(--silver)' }}>
                                     <span style={{ width:10, height:10, borderRadius:2, background:b.color, display:'inline-block', flexShrink:0 }}/>
                                     {b.label}
                                   </span>
                                 ))}
                                 {grp.line && (
-                                  <span style={{ display:'flex', alignItems:'center', gap:3, fontSize:8.5, color:'var(--silver)' }}>
+                                  <span style={{ display:'flex', alignItems:'center', gap:3, fontSize:11, color:'var(--silver)' }}>
                                     <svg width="16" height="8"><line x1="0" y1="4" x2="16" y2="4" stroke={grp.line.color} strokeWidth="2" strokeDasharray="4,2"/><circle cx="8" cy="4" r="2.5" fill={grp.line.color}/></svg>
                                     {grp.line.label}
                                   </span>
@@ -5001,7 +5022,7 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
                                           {grp.bars.map((b, bi) => {
                                             const val = Number(p[b.key])||0
                                             return (
-                                              <span key={bi} style={{ fontSize:8, color:b.color, fontFamily:'DM Mono,monospace', fontWeight:700, lineHeight:1 }}>
+                                              <span key={bi} style={{ fontSize:11, color:b.color, fontFamily:'DM Mono,monospace', fontWeight:700, lineHeight:1 }}>
                                                 {val > 0 ? val : ''}
                                               </span>
                                             )
@@ -5032,26 +5053,38 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
                                   // Map each player to x position (center of their group)
                                   const pts = lineVals.map((v, i) => {
                                     const xPct = n === 1 ? 50 : (i / (n-1)) * 100
-                                    const yPx = BAR_H - (v / maxLine) * BAR_H
-                                    return { x: xPct, y: yPx, v }
+                                    return { x: xPct, v }
                                   })
+                                  // Use a ref-free approach: calculate pixel positions using known width
+                                  // SVG viewBox trick: use viewBox="0 0 100 BAR_H" so % = numeric
                                   return (
-                                    <svg style={{ position:'absolute', bottom:28, left:4, right:4, width:'calc(100% - 8px)', height:`${BAR_H}px`, overflow:'visible', pointerEvents:'none' }}>
+                                    <svg viewBox={`0 0 100 ${BAR_H}`} preserveAspectRatio="none"
+                                      style={{ position:'absolute', bottom:28, left:0, right:0, width:'100%', height:`${BAR_H}px`, overflow:'visible', pointerEvents:'none' }}>
+                                      {/* Line connecting points */}
                                       {n > 1 && (
                                         <polyline
-                                          points={pts.map(p=>`${p.x}%,${p.y}px`).join(' ')}
-                                          fill="none" stroke={grp.line.color} strokeWidth="2" strokeDasharray="5,3"
+                                          points={pts.map(pt=>`${pt.x},${(1-(pt.v/maxLine))*BAR_H}`).join(' ')}
+                                          fill="none" stroke={grp.line.color} strokeWidth="1.5" strokeDasharray="4,3"
+                                          vectorEffect="non-scaling-stroke"
                                         />
                                       )}
-                                      {pts.map((pt, i) => (
-                                        <g key={i}>
-                                          <circle cx={`${pt.x}%`} cy={`${pt.y}px`} r="4" fill={grp.line!.color} stroke="var(--ink2)" strokeWidth="1.5"/>
-                                          <text x={`${pt.x}%`} y={`${pt.y - 7}px`} textAnchor="middle" fill={grp.line!.color}
-                                            style={{ fontSize:'8px', fontFamily:'DM Mono, monospace', fontWeight:'bold' }}>
-                                            {pt.v > 0 ? pt.v : ''}
-                                          </text>
-                                        </g>
-                                      ))}
+                                      {/* Dots and value labels */}
+                                      {pts.map((pt, i) => {
+                                        const cy = (1-(pt.v/maxLine))*BAR_H
+                                        return (
+                                          <g key={i}>
+                                            <circle cx={pt.x} cy={cy} r="3" fill={grp.line!.color} stroke="var(--ink)" strokeWidth="1"
+                                              vectorEffect="non-scaling-stroke"/>
+                                            {pt.v > 0 && (
+                                              <text x={pt.x} y={Math.max(cy - 5, 8)} textAnchor="middle" fill={grp.line!.color}
+                                                fontSize="10" fontFamily="DM Mono, monospace" fontWeight="bold"
+                                                style={{ dominantBaseline:'auto' }}>
+                                                {pt.v}
+                                              </text>
+                                            )}
+                                          </g>
+                                        )
+                                      })}
                                     </svg>
                                   )
                                 })()}
@@ -5060,11 +5093,11 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
                                 <div style={{ position:'absolute', bottom:0, left:0, right:0, display:'flex', gap:players.length > 4 ? 4 : 8, padding:'0 4px' }}>
                                   {players.map((p:any, pi:number) => (
                                     <div key={pi} style={{ flex:1, textAlign:'center', minWidth:0 }}>
-                                      <div style={{ fontSize:8, color: POS_COLS[p.nombre] || '#888', fontWeight:700,
+                                      <div style={{ fontSize:11, color: POS_COLS[p.nombre] || '#888', fontWeight:700,
                                         whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
                                         {p.nombre.split(' ')[0]}
                                       </div>
-                                      <div style={{ fontSize:7, color:'var(--fog)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
+                                      <div style={{ fontSize:10, color:'var(--fog)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
                                         {p.posicion ? p.posicion.split(' ')[0] : ''}
                                       </div>
                                     </div>
