@@ -3924,14 +3924,16 @@ function AcumPanel({ teamData }) {
   }
 
   const MICI_VARS = [
-    {key:'ua_total',   label:'UA',           color:'#60a5fa'},
-    {key:'minActivo',  label:'Tiempo (min)',  color:'#34d399'},
-    {key:'distTotal',  label:'DT (m)',        color:'#f59e0b'},
-    {key:'distSprint', label:'Dist. Sprint',  color:'#f97316'},
-    {key:'nSprints',   label:'Nº Sprints',    color:'#a78bfa'},
-    {key:'nAcel',      label:'Ace >2',        color:'#ec4899'},
-    {key:'nDecel',     label:'Dec >2',        color:'#14b8a6'},
-    {key:'distMP',     label:'Alta Pot.',     color:'#fbbf24'},
+    {key:'ua_total',   label:'UA',             color:'#60a5fa'},
+    {key:'minActivo',  label:'Tiempo (min)',    color:'#34d399'},
+    {key:'distTotal',  label:'DT (m)',          color:'#f59e0b'},
+    {key:'distSprint', label:'Dist. Sprint (m)',color:'#f97316'},
+    {key:'nSprints',   label:'Nº Sprints',      color:'#a78bfa'},
+    {key:'nAcel',      label:'Ace >2 (m)',      color:'#ec4899'},
+    {key:'nDecel',     label:'Dec >2 (m)',      color:'#14b8a6'},
+    {key:'nAcel3',     label:'ACE >3 (n)',      color:'#f43f5e'},
+    {key:'nDecel3',    label:'DEC >3 (n)',      color:'#0ea5e9'},
+    {key:'distMP',     label:'Alta Pot.',       color:'#fbbf24'},
   ]
 
   const WK2 = ['avg_fatiga','avg_sueno','avg_dolor','avg_estres','avg_animo']
@@ -4812,70 +4814,110 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
         <div style={{ padding:48, textAlign:'center', color:'var(--silver)', background:'var(--ink2)', borderRadius:16 }}>Sin datos para este período. Registrá sesiones con RPE en el Calendario.</div>
       ) : (<>
 
-      {/* ══ CUADRO 1 ══════════════════════════════════════════════════════ */}
-      <div style={{ background:'var(--ink2)', border:'1px solid rgba(200,241,53,.25)', borderRadius:16, overflow:'hidden', marginBottom:20 }}>
-        <div style={{ padding:'10px 16px', borderBottom:'1px solid var(--mist)' }}>
-          <p style={{ fontSize:11, fontWeight:700, color:'var(--lime)', textTransform:'uppercase', letterSpacing:'0.08em' }}>CUADRO 1 · SESIONES DEL MICROCICLO · MD+1 → MD</p>
-          <p style={{ fontSize:10, color:'var(--fog)', marginTop:2 }}>Variables acumuladas por jugador en el período · promedio equipo al pie</p>
+      {/* ══ CUADRO 1: MICROCICLO — INDIVIDUAL + SESIÓN (CALCULADA) ══════ */}
+      <div style={{ marginBottom:20 }}>
+        <div style={{ padding:'10px 0 12px' }}>
+          <p style={{ fontSize:11, fontWeight:700, color:'var(--lime)', textTransform:'uppercase', letterSpacing:'0.08em' }}>CUADRO 1 · MICROCICLO — DATOS POR SESIÓN · MD+1 → MD</p>
+          <p style={{ fontSize:10, color:'var(--fog)', marginTop:2 }}>Izquierda: datos individuales por jugador · Derecha: datos de sesión calculada (iguales para todos)</p>
         </div>
-        <div style={{ overflowX:'auto' }}>
-          <table style={{ width:'100%', borderCollapse:'collapse', fontSize:11 }}>
-            <thead>
-              <tr style={{ background:'rgba(200,241,53,.04)' }}>
-                <th style={{ padding:'7px 14px', textAlign:'left', color:'var(--silver)', fontSize:9, fontWeight:700, textTransform:'uppercase' }}>Jugador</th>
-                <th style={{ padding:'7px 8px', textAlign:'left', color:'var(--silver)', fontSize:9, fontWeight:700, textTransform:'uppercase' }}>Pos.</th>
-                {VARS.map(v=><th key={v.key} style={{ padding:'7px 8px', textAlign:'center', color:v.color, fontSize:9, fontWeight:700, textTransform:'uppercase', whiteSpace:'nowrap' }}>{v.label}</th>)}
-              </tr>
-            </thead>
-            <tbody>
-              {players.map((p:any,i:number)=>(
-                <tr key={i} style={{ borderTop:'1px solid var(--mist)', background:i%2===0?'transparent':'rgba(255,255,255,.015)' }}>
-                  <td style={{ padding:'7px 14px', color:'var(--snow)', fontWeight:500, whiteSpace:'nowrap' }}>{p.nombre}</td>
-                  <td style={{ padding:'7px 8px', color:'var(--fog)', fontSize:10 }}>{p.posicion||'—'}</td>
-                  {VARS.map(v=><td key={v.key} style={{ padding:'7px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', color:p[v.key]?v.color:'var(--fog)' }}>{p[v.key]||'—'}</td>)}
-                </tr>
-              ))}
-              <tr style={{ borderTop:'2px solid rgba(200,241,53,.3)', background:'rgba(200,241,53,.04)' }}>
-                <td style={{ padding:'8px 14px', fontWeight:800, color:'var(--lime)', fontSize:10, textTransform:'uppercase' }}>PROM. EQUIPO</td>
-                <td/>
-                {VARS.map(v=><td key={v.key} style={{ padding:'8px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, color:'var(--lime)' }}>{teamAvg[v.key]||'—'}</td>)}
-              </tr>
-            </tbody>
-          </table>
-        </div>
-        {mdCols.length > 0 && (
-          <div style={{ borderTop:'2px solid rgba(200,241,53,.1)', overflowX:'auto' }}>
-            <div style={{ padding:'8px 16px 4px' }}>
-              <span style={{ fontSize:9, fontWeight:700, color:'var(--lime)', textTransform:'uppercase', letterSpacing:'0.08em' }}>Desglose por MD (prom. equipo) →</span>
+        {mdCols.map((md:string) => {
+          const ses = sesionesInfo.find((s:any) => s.titulo === md)
+          const sesData = perSession[md] || {}
+          const hasData = existingMdLabels.has(md)
+          const SESSION_VARS = [
+            {key:'distTotal',  label:'DT (m)',          color:'#f59e0b'},
+            {key:'minActivo',  label:'m/min',           color:'#84cc16'},
+            {key:'distSprint', label:'Dist. Sprint (m)',color:'#f97316'},
+            {key:'nSprints',   label:'Nº Sprint',       color:'#a78bfa'},
+            {key:'nAcel',      label:'ACE >2 (m)',      color:'#ec4899'},
+            {key:'nDecel',     label:'DEC >2 (m)',      color:'#14b8a6'},
+            {key:'nAcel3',     label:'ACE >3 (n)',      color:'#f43f5e'},
+            {key:'nDecel3',    label:'DEC >3 (n)',      color:'#0ea5e9'},
+            {key:'distMP',     label:'Alta Pot.',       color:'#fbbf24'},
+          ]
+          return (
+            <div key={md} style={{ background:'var(--ink2)', border:`1px solid ${hasData?'rgba(200,241,53,.2)':'var(--mist)'}`, borderRadius:14, overflow:'hidden', marginBottom:12, opacity:hasData?1:0.5 }}>
+              {/* MD Header */}
+              <div style={{ padding:'8px 16px', background:hasData?'rgba(200,241,53,.06)':'rgba(255,255,255,.02)', borderBottom:'1px solid var(--mist)', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                <span style={{ fontSize:12, fontWeight:800, color:hasData?'var(--lime)':'var(--fog)', fontFamily:'Bebas Neue,sans-serif', letterSpacing:'0.1em' }}>{md}</span>
+                {ses ? (
+                  <span style={{ fontSize:10, color:'var(--fog)', fontFamily:'DM Mono,monospace' }}>{ses.fecha}</span>
+                ) : (
+                  <span style={{ fontSize:10, color:'var(--fog)', fontStyle:'italic' }}>Sin sesión asignada</span>
+                )}
+              </div>
+              {hasData ? (
+                <div style={{ overflowX:'auto' }}>
+                  <table style={{ width:'100%', borderCollapse:'collapse', fontSize:11 }}>
+                    <thead>
+                      <tr>
+                        {/* Individual cols */}
+                        <th colSpan={5} style={{ padding:'6px 14px', textAlign:'left', background:'rgba(96,165,250,.06)', color:'#60a5fa', fontSize:9, fontWeight:700, textTransform:'uppercase', letterSpacing:'0.06em', borderBottom:'1px solid var(--mist)', borderRight:'2px solid rgba(200,241,53,.3)' }}>
+                          DATOS INDIVIDUALES
+                        </th>
+                        {/* Session cols */}
+                        <th colSpan={SESSION_VARS.length} style={{ padding:'6px 14px', textAlign:'left', background:'rgba(200,241,53,.06)', color:'var(--lime)', fontSize:9, fontWeight:700, textTransform:'uppercase', letterSpacing:'0.06em', borderBottom:'1px solid var(--mist)' }}>
+                          DATOS SESIÓN (calculadora) — iguales para todos
+                        </th>
+                      </tr>
+                      <tr style={{ background:'rgba(255,255,255,.02)' }}>
+                        <th style={{ padding:'5px 14px', textAlign:'left', color:'var(--silver)', fontSize:8, fontWeight:700, textTransform:'uppercase', whiteSpace:'nowrap', borderBottom:'1px solid var(--mist)' }}>Jugador</th>
+                        <th style={{ padding:'5px 8px', textAlign:'left', color:'var(--silver)', fontSize:8, fontWeight:700, textTransform:'uppercase', borderBottom:'1px solid var(--mist)' }}>Pos.</th>
+                        <th style={{ padding:'5px 8px', textAlign:'center', color:'#c8f135', fontSize:8, fontWeight:700, textTransform:'uppercase', borderBottom:'1px solid var(--mist)' }}>RPE</th>
+                        <th style={{ padding:'5px 8px', textAlign:'center', color:'#34d399', fontSize:8, fontWeight:700, textTransform:'uppercase', borderBottom:'1px solid var(--mist)' }}>Tiempo</th>
+                        <th style={{ padding:'5px 8px', textAlign:'center', color:'#60a5fa', fontSize:8, fontWeight:700, textTransform:'uppercase', borderBottom:'1px solid var(--mist)', borderRight:'2px solid rgba(200,241,53,.3)' }}>UA</th>
+                        {SESSION_VARS.map(sv => (
+                          <th key={sv.key} style={{ padding:'5px 8px', textAlign:'center', color:sv.color, fontSize:8, fontWeight:700, textTransform:'uppercase', whiteSpace:'nowrap', borderBottom:'1px solid var(--mist)', background:'rgba(200,241,53,.03)' }}>{sv.label}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {players.map((p:any, i:number) => (
+                        <tr key={i} style={{ borderTop:'1px solid var(--mist)', background:i%2===0?'transparent':'rgba(255,255,255,.01)' }}>
+                          <td style={{ padding:'6px 14px', color:'var(--snow)', fontWeight:500, whiteSpace:'nowrap' }}>{p.nombre}</td>
+                          <td style={{ padding:'6px 8px', color:'var(--fog)', fontSize:10 }}>{p.posicion||'—'}</td>
+                          <td style={{ padding:'6px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', color:p.rpe?'#c8f135':'var(--fog)' }}>{p.rpe||'—'}</td>
+                          <td style={{ padding:'6px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', color:p.minActivo?'#34d399':'var(--fog)' }}>{p.minActivo||'—'}</td>
+                          <td style={{ padding:'6px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', color:p.ua_total?'#60a5fa':'var(--fog)', borderRight:'2px solid rgba(200,241,53,.3)' }}>{p.ua_total||'—'}</td>
+                          {SESSION_VARS.map((sv, si) => {
+                            // Session data is the same for all players — highlight in lime
+                            const val = Math.round(Number(sesData[sv.key])||0)
+                            return (
+                              <td key={sv.key} style={{ padding:'6px 8px', textAlign:'center', fontFamily:'DM Mono,monospace',
+                                color: val > 0 ? sv.color : 'var(--fog)',
+                                background:'rgba(200,241,53,.04)',
+                                fontWeight: val > 0 ? 700 : 400 }}>
+                                {val > 0 ? val : '—'}
+                              </td>
+                            )
+                          })}
+                        </tr>
+                      ))}
+                      {/* PROM row */}
+                      <tr style={{ borderTop:'2px solid rgba(200,241,53,.3)', background:'rgba(200,241,53,.04)' }}>
+                        <td style={{ padding:'6px 14px', fontWeight:800, color:'var(--lime)', fontSize:10, textTransform:'uppercase' }}>PROM.</td>
+                        <td/>
+                        <td style={{ padding:'6px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, color:teamAvg.rpe?'#c8f135':'var(--fog)' }}>{teamAvg.rpe||'—'}</td>
+                        <td style={{ padding:'6px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, color:teamAvg.minActivo?'#34d399':'var(--fog)' }}>{teamAvg.minActivo||'—'}</td>
+                        <td style={{ padding:'6px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, color:teamAvg.ua_total?'#60a5fa':'var(--fog)', borderRight:'2px solid rgba(200,241,53,.3)' }}>{teamAvg.ua_total||'—'}</td>
+                        {SESSION_VARS.map(sv => {
+                          const val = Math.round(Number(sesData[sv.key])||0)
+                          return (
+                            <td key={sv.key} style={{ padding:'6px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, color:val>0?sv.color:'var(--fog)', background:'rgba(200,241,53,.06)' }}>
+                              {val > 0 ? val : '—'}
+                            </td>
+                          )
+                        })}
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div style={{ padding:'10px 16px', color:'var(--fog)', fontSize:11, fontStyle:'italic' }}>Sin sesión registrada para {md}</div>
+              )}
             </div>
-            <table style={{ width:'100%', borderCollapse:'collapse', fontSize:11 }}>
-              <thead>
-                <tr style={{ background:'rgba(200,241,53,.03)' }}>
-                  <th style={{ padding:'6px 14px', textAlign:'left', color:'var(--silver)', fontSize:9, fontWeight:700, textTransform:'uppercase' }}>Métrica</th>
-                  {mdCols.map(md=><th key={md} style={{ padding:'6px 10px', textAlign:'center', color:existingMdLabels.has(md)?'var(--lime)':'var(--fog)', fontSize:9, fontWeight:700, whiteSpace:'nowrap', opacity:existingMdLabels.has(md)?1:0.5 }}>{md}</th>)}
-                  <th style={{ padding:'6px 10px', textAlign:'center', color:'#34d399', fontSize:9, fontWeight:700 }}>TOTAL</th>
-                  <th style={{ padding:'6px 10px', textAlign:'center', color:'#60a5fa', fontSize:9, fontWeight:700 }}>PROM.</th>
-                </tr>
-              </thead>
-              <tbody>
-                {VARS.map((v,i)=>{
-                  const vals = mdCols.map(md=>Math.round(Number(perSession[md]?.[v.key])||0))
-                  const total = vals.reduce((s,x)=>s+x,0)
-                  const actives = vals.filter(x=>x>0)
-                  const prom = actives.length ? Math.round(total/actives.length) : 0
-                  return (
-                    <tr key={v.key} style={{ borderTop:'1px solid var(--mist)', background:i%2===0?'transparent':'rgba(255,255,255,.01)' }}>
-                      <td style={{ padding:'6px 14px', color:v.color, fontWeight:600, fontSize:10 }}>{v.label}</td>
-                      {vals.map((val,j)=><td key={j} style={{ padding:'6px 10px', textAlign:'center', fontFamily:'DM Mono,monospace', color:val>0?v.color:'var(--fog)' }}>{val||'—'}</td>)}
-                      <td style={{ padding:'6px 10px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, color:'#34d399' }}>{total||'—'}</td>
-                      <td style={{ padding:'6px 10px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, color:'#60a5fa' }}>{prom||'—'}</td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
+          )
+        })}
       </div>
 
       {/* ══ CUADRO 2: TOTALES POR MD (filas=métricas, cols=MD) ════════ */}
