@@ -1,0 +1,1161 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>W&P — Wellness & Performance</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --lime: #C8F135;
+    --dark: #0A0A0A;
+    --dark2: #111111;
+    --dark3: #1A1A1A;
+    --dark4: #222222;
+    --gray: #888888;
+    --gray2: #444444;
+    --white: #F5F5F0;
+    --accent: #C8F135;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--dark);
+    color: var(--white);
+    font-family: 'DM Sans', sans-serif;
+    overflow-x: hidden;
+  }
+
+  /* ── NOISE OVERLAY ── */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='1'/%3E%3C/svg%3E");
+    opacity: 0.035;
+    pointer-events: none;
+    z-index: 999;
+  }
+
+  /* ── NAV ── */
+  nav {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 48px;
+    height: 68px;
+    background: rgba(10,10,10,0.85);
+    backdrop-filter: blur(16px);
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+
+  .nav-logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    text-decoration: none;
+  }
+
+  .nav-logo-icon {
+    width: 36px; height: 36px;
+    background: var(--lime);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 16px;
+    color: var(--dark);
+    letter-spacing: 0.5px;
+  }
+
+  .nav-logo-text {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 22px;
+    letter-spacing: 2px;
+    color: var(--white);
+  }
+
+  .nav-links {
+    display: flex;
+    align-items: center;
+    gap: 36px;
+    list-style: none;
+  }
+
+  .nav-links a {
+    text-decoration: none;
+    color: var(--gray);
+    font-size: 14px;
+    font-weight: 500;
+    letter-spacing: 0.3px;
+    transition: color 0.2s;
+  }
+
+  .nav-links a:hover { color: var(--white); }
+
+  .nav-cta {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .btn-login {
+    padding: 10px 24px;
+    background: var(--lime);
+    color: var(--dark);
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 600;
+    font-size: 14px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    text-decoration: none;
+    transition: transform 0.15s, box-shadow 0.15s;
+    letter-spacing: 0.3px;
+  }
+
+  .btn-login:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 24px rgba(200,241,53,0.3);
+  }
+
+  /* ── HERO ── */
+  .hero {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 140px 48px 100px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .hero-grid-bg {
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(200,241,53,0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(200,241,53,0.04) 1px, transparent 1px);
+    background-size: 60px 60px;
+    mask-image: radial-gradient(ellipse 80% 80% at 50% 50%, black 30%, transparent 100%);
+  }
+
+  .hero-glow {
+    position: absolute;
+    width: 600px; height: 600px;
+    background: radial-gradient(circle, rgba(200,241,53,0.12) 0%, transparent 70%);
+    top: -100px; right: -100px;
+    pointer-events: none;
+  }
+
+  .hero-glow2 {
+    position: absolute;
+    width: 400px; height: 400px;
+    background: radial-gradient(circle, rgba(200,241,53,0.06) 0%, transparent 70%);
+    bottom: 0; left: 10%;
+    pointer-events: none;
+  }
+
+  .hero-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(200,241,53,0.1);
+    border: 1px solid rgba(200,241,53,0.25);
+    color: var(--lime);
+    font-size: 12px;
+    font-weight: 500;
+    font-family: 'DM Mono', monospace;
+    letter-spacing: 1.5px;
+    padding: 6px 14px;
+    border-radius: 100px;
+    width: fit-content;
+    margin-bottom: 32px;
+    animation: fadeUp 0.6s ease both;
+  }
+
+  .hero-tag::before {
+    content: '';
+    width: 6px; height: 6px;
+    background: var(--lime);
+    border-radius: 50%;
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(0.8); }
+  }
+
+  .hero-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(72px, 10vw, 140px);
+    line-height: 0.92;
+    letter-spacing: 2px;
+    animation: fadeUp 0.6s 0.1s ease both;
+  }
+
+  .hero-title .accent { color: var(--lime); }
+
+  .hero-subtitle {
+    margin-top: 28px;
+    max-width: 560px;
+    font-size: 18px;
+    font-weight: 300;
+    color: rgba(245,245,240,0.65);
+    line-height: 1.65;
+    animation: fadeUp 0.6s 0.2s ease both;
+  }
+
+  .hero-actions {
+    margin-top: 48px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    animation: fadeUp 0.6s 0.3s ease both;
+  }
+
+  .btn-primary {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 16px 36px;
+    background: var(--lime);
+    color: var(--dark);
+    font-weight: 700;
+    font-size: 15px;
+    border-radius: 8px;
+    text-decoration: none;
+    transition: transform 0.15s, box-shadow 0.15s;
+    letter-spacing: 0.3px;
+  }
+
+  .btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 40px rgba(200,241,53,0.35);
+  }
+
+  .btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 16px 28px;
+    background: transparent;
+    color: var(--white);
+    font-weight: 500;
+    font-size: 15px;
+    border: 1px solid var(--gray2);
+    border-radius: 8px;
+    text-decoration: none;
+    transition: border-color 0.2s, color 0.2s;
+  }
+
+  .btn-secondary:hover { border-color: var(--white); }
+
+  .hero-stats {
+    margin-top: 80px;
+    display: flex;
+    gap: 60px;
+    animation: fadeUp 0.6s 0.4s ease both;
+  }
+
+  .stat-item { display: flex; flex-direction: column; gap: 4px; }
+
+  .stat-num {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 42px;
+    color: var(--lime);
+    line-height: 1;
+  }
+
+  .stat-label {
+    font-size: 13px;
+    color: var(--gray);
+    font-weight: 400;
+    letter-spacing: 0.3px;
+  }
+
+  /* ── MARQUEE ── */
+  .marquee-wrap {
+    overflow: hidden;
+    border-top: 1px solid var(--dark4);
+    border-bottom: 1px solid var(--dark4);
+    background: var(--dark2);
+    padding: 16px 0;
+  }
+
+  .marquee-track {
+    display: flex;
+    gap: 0;
+    animation: marquee 25s linear infinite;
+    white-space: nowrap;
+  }
+
+  .marquee-item {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    padding: 0 40px;
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    color: var(--gray);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  .marquee-dot {
+    width: 4px; height: 4px;
+    background: var(--lime);
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  @keyframes marquee {
+    from { transform: translateX(0); }
+    to { transform: translateX(-50%); }
+  }
+
+  /* ── SECTIONS COMMON ── */
+  section { padding: 120px 48px; }
+
+  .section-tag {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 2px;
+    color: var(--lime);
+    text-transform: uppercase;
+    margin-bottom: 16px;
+  }
+
+  .section-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(42px, 5vw, 72px);
+    line-height: 1;
+    letter-spacing: 1px;
+    margin-bottom: 20px;
+  }
+
+  .section-subtitle {
+    font-size: 17px;
+    font-weight: 300;
+    color: rgba(245,245,240,0.6);
+    max-width: 520px;
+    line-height: 1.65;
+  }
+
+  /* ── FEATURES ── */
+  #features { background: var(--dark2); }
+
+  .features-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-bottom: 72px;
+    gap: 40px;
+  }
+
+  .features-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 2px;
+  }
+
+  .feature-card {
+    background: var(--dark3);
+    padding: 44px 36px;
+    position: relative;
+    overflow: hidden;
+    transition: background 0.3s;
+    cursor: default;
+  }
+
+  .feature-card:hover { background: var(--dark4); }
+
+  .feature-card::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--lime);
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 0.4s ease;
+  }
+
+  .feature-card:hover::after { transform: scaleX(1); }
+
+  .feature-icon {
+    width: 48px; height: 48px;
+    background: rgba(200,241,53,0.1);
+    border: 1px solid rgba(200,241,53,0.2);
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px;
+    margin-bottom: 28px;
+  }
+
+  .feature-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 26px;
+    letter-spacing: 0.5px;
+    margin-bottom: 12px;
+  }
+
+  .feature-desc {
+    font-size: 14px;
+    color: rgba(245,245,240,0.55);
+    line-height: 1.7;
+    font-weight: 300;
+  }
+
+  .feature-tag {
+    display: inline-block;
+    margin-top: 20px;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 1px;
+    color: var(--lime);
+    background: rgba(200,241,53,0.08);
+    padding: 4px 10px;
+    border-radius: 4px;
+  }
+
+  /* ── DISCIPLINES ── */
+  #disciplines { background: var(--dark); }
+
+  .disciplines-layout {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 80px;
+    align-items: center;
+    margin-top: 72px;
+  }
+
+  .disciplines-left { }
+
+  .discipline-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin-top: 32px;
+  }
+
+  .discipline-item {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding: 20px 24px;
+    background: var(--dark3);
+    border-left: 3px solid transparent;
+    transition: border-color 0.2s, background 0.2s;
+    cursor: default;
+  }
+
+  .discipline-item:hover {
+    border-left-color: var(--lime);
+    background: var(--dark4);
+  }
+
+  .discipline-emoji { font-size: 24px; }
+
+  .discipline-name {
+    font-weight: 500;
+    font-size: 15px;
+  }
+
+  .discipline-detail {
+    margin-left: auto;
+    font-size: 12px;
+    color: var(--gray);
+    font-family: 'DM Mono', monospace;
+  }
+
+  .disciplines-right {
+    position: relative;
+  }
+
+  .disciplines-visual {
+    background: var(--dark3);
+    border: 1px solid var(--dark4);
+    border-radius: 16px;
+    padding: 40px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .disciplines-visual::before {
+    content: '';
+    position: absolute;
+    top: -60px; right: -60px;
+    width: 200px; height: 200px;
+    background: radial-gradient(circle, rgba(200,241,53,0.15), transparent 70%);
+  }
+
+  .visual-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 1.5px;
+    color: var(--lime);
+    text-transform: uppercase;
+    margin-bottom: 24px;
+  }
+
+  .metrics-display {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+
+  .metric-box {
+    background: var(--dark);
+    border: 1px solid var(--dark4);
+    border-radius: 10px;
+    padding: 20px;
+  }
+
+  .metric-box-label {
+    font-size: 12px;
+    color: var(--gray);
+    margin-bottom: 8px;
+    font-weight: 400;
+  }
+
+  .metric-box-value {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 32px;
+    color: var(--lime);
+    line-height: 1;
+  }
+
+  .metric-box-unit {
+    font-size: 13px;
+    color: var(--gray);
+    margin-top: 2px;
+  }
+
+  .bar-chart {
+    margin-top: 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .bar-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .bar-label { font-size: 12px; color: var(--gray); width: 60px; flex-shrink: 0; }
+
+  .bar-track {
+    flex: 1;
+    height: 6px;
+    background: var(--dark);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+
+  .bar-fill {
+    height: 100%;
+    background: var(--lime);
+    border-radius: 3px;
+    animation: barGrow 1.2s ease both;
+  }
+
+  @keyframes barGrow {
+    from { width: 0 !important; }
+  }
+
+  .bar-val { font-size: 12px; color: var(--white); font-family: 'DM Mono', monospace; width: 36px; text-align: right; }
+
+  /* ── HOW IT WORKS ── */
+  #how { background: var(--dark2); }
+
+  .steps-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 2px;
+    margin-top: 72px;
+  }
+
+  .step-card {
+    padding: 44px 32px;
+    background: var(--dark3);
+    position: relative;
+  }
+
+  .step-num {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 80px;
+    color: rgba(200,241,53,0.08);
+    line-height: 1;
+    margin-bottom: 20px;
+    display: block;
+  }
+
+  .step-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 24px;
+    letter-spacing: 0.5px;
+    margin-bottom: 12px;
+  }
+
+  .step-desc {
+    font-size: 14px;
+    color: rgba(245,245,240,0.55);
+    line-height: 1.7;
+    font-weight: 300;
+  }
+
+  /* ── TEAM ── */
+  #team { background: var(--dark); }
+
+  .team-header { margin-bottom: 72px; }
+
+  .team-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 380px);
+    gap: 32px;
+  }
+
+  .team-card {
+    background: var(--dark3);
+    border: 1px solid var(--dark4);
+    border-radius: 16px;
+    overflow: hidden;
+    transition: transform 0.3s, box-shadow 0.3s;
+  }
+
+  .team-card:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 24px 60px rgba(0,0,0,0.5);
+  }
+
+  .team-photo-wrap {
+    position: relative;
+    height: 320px;
+    overflow: hidden;
+  }
+
+  .team-photo-wrap img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center top;
+    filter: grayscale(20%);
+    transition: filter 0.4s, transform 0.4s;
+  }
+
+  .team-card:hover .team-photo-wrap img {
+    filter: grayscale(0%);
+    transform: scale(1.04);
+  }
+
+  .team-photo-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to bottom, transparent 50%, var(--dark3) 100%);
+  }
+
+  .team-info {
+    padding: 28px 32px 32px;
+  }
+
+  .team-role {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 2px;
+    color: var(--lime);
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+
+  .team-name {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 32px;
+    letter-spacing: 1px;
+    margin-bottom: 10px;
+  }
+
+  .team-bio {
+    font-size: 14px;
+    color: rgba(245,245,240,0.6);
+    line-height: 1.65;
+    font-weight: 300;
+  }
+
+  /* ── CTA ── */
+  #cta {
+    background: var(--dark2);
+    text-align: center;
+    padding: 140px 48px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  #cta::before {
+    content: '';
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 800px; height: 400px;
+    background: radial-gradient(ellipse, rgba(200,241,53,0.08) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  .cta-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(52px, 7vw, 100px);
+    line-height: 0.95;
+    letter-spacing: 2px;
+    margin-bottom: 24px;
+  }
+
+  .cta-sub {
+    font-size: 17px;
+    color: rgba(245,245,240,0.6);
+    font-weight: 300;
+    margin-bottom: 48px;
+    max-width: 480px;
+    margin-left: auto;
+    margin-right: auto;
+    line-height: 1.65;
+  }
+
+  /* ── FOOTER ── */
+  footer {
+    background: var(--dark);
+    border-top: 1px solid var(--dark4);
+    padding: 40px 48px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .footer-logo {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 20px;
+    letter-spacing: 2px;
+    color: var(--gray);
+  }
+
+  .footer-copy {
+    font-size: 13px;
+    color: var(--gray);
+  }
+
+  .footer-copy span { color: var(--lime); }
+
+  /* ── ANIMATIONS ── */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(24px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .reveal {
+    opacity: 0;
+    transform: translateY(32px);
+    transition: opacity 0.6s ease, transform 0.6s ease;
+  }
+
+  .reveal.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  /* ── MOBILE ── */
+  @media (max-width: 900px) {
+    nav { padding: 0 24px; }
+    .nav-links { display: none; }
+    section { padding: 80px 24px; }
+    .hero { padding: 120px 24px 80px; }
+    .hero-stats { gap: 32px; flex-wrap: wrap; }
+    .features-grid { grid-template-columns: 1fr; }
+    .features-header { flex-direction: column; align-items: flex-start; }
+    .disciplines-layout { grid-template-columns: 1fr; gap: 48px; }
+    .steps-grid { grid-template-columns: 1fr 1fr; }
+    .team-grid { grid-template-columns: 1fr; max-width: 400px; }
+    footer { flex-direction: column; gap: 12px; text-align: center; }
+  }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <a href="#" class="nav-logo">
+    <div class="nav-logo-icon">W&P</div>
+    <span class="nav-logo-text">WELLNESS & PERFORMANCE</span>
+  </a>
+  <ul class="nav-links">
+    <li><a href="#features">Funciones</a></li>
+    <li><a href="#disciplines">Disciplinas</a></li>
+    <li><a href="#how">Cómo funciona</a></li>
+    <li><a href="#team">Equipo</a></li>
+    <li><a href="#contact">Contacto</a></li>
+  </ul>
+  <div class="nav-cta">
+    <a href="/login" class="btn-login">Iniciar sesión →</a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-grid-bg"></div>
+  <div class="hero-glow"></div>
+  <div class="hero-glow2"></div>
+
+  <div class="hero-tag">PLATAFORMA DE GESTIÓN DEPORTIVA</div>
+
+  <h1 class="hero-title">
+    EL RENDIMIENTO<br>
+    DE TUS <span class="accent">ATLETAS,</span><br>
+    EN TUS MANOS.
+  </h1>
+
+  <p class="hero-subtitle">
+    Monitoreo de bienestar, carga de entrenamiento, riesgo de lesiones y GPS. Una plataforma que te permite trabajar como profesional, adaptable a cualquier deporte y equipo.
+  </p>
+
+  <div class="hero-actions">
+    <a href="/login" class="btn-primary">
+      Acceder al sistema
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8h10M8 3l5 5-5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </a>
+    <a href="#features" class="btn-secondary">Ver funciones</a>
+  </div>
+
+  <div class="hero-stats">
+    <div class="stat-item">
+      <span class="stat-num">360°</span>
+      <span class="stat-label">Monitoreo del atleta</span>
+    </div>
+    <div class="stat-item">
+      <span class="stat-num">8+</span>
+      <span class="stat-label">Módulos integrados</span>
+    </div>
+    <div class="stat-item">
+      <span class="stat-num">GPS</span>
+      <span class="stat-label">Datos en tiempo real</span>
+    </div>
+    <div class="stat-item">
+      <span class="stat-num">Multi</span>
+      <span class="stat-label">Disciplinas deportivas</span>
+    </div>
+  </div>
+</section>
+
+<!-- MARQUEE -->
+<div class="marquee-wrap">
+  <div class="marquee-track">
+    <!-- first set -->
+    <span class="marquee-item"><span class="marquee-dot"></span>WELLNESS DIARIO</span>
+    <span class="marquee-item"><span class="marquee-dot"></span>RPE & CARGA UA</span>
+    <span class="marquee-item"><span class="marquee-dot"></span>GPS IMPORT</span>
+    <span class="marquee-item"><span class="marquee-dot"></span>GESTIÓN DE LESIONES</span>
+    <span class="marquee-item"><span class="marquee-dot"></span>CALENDARIO DE SESIONES</span>
+    <span class="marquee-item"><span class="marquee-dot"></span>ANALYTICS AVANZADO</span>
+    <span class="marquee-item"><span class="marquee-dot"></span>MINUTAJE DE PARTIDOS</span>
+    <span class="marquee-item"><span class="marquee-dot"></span>ACWR & READINESS</span>
+    <!-- duplicate for seamless loop -->
+    <span class="marquee-item"><span class="marquee-dot"></span>WELLNESS DIARIO</span>
+    <span class="marquee-item"><span class="marquee-dot"></span>RPE & CARGA UA</span>
+    <span class="marquee-item"><span class="marquee-dot"></span>GPS IMPORT</span>
+    <span class="marquee-item"><span class="marquee-dot"></span>GESTIÓN DE LESIONES</span>
+    <span class="marquee-item"><span class="marquee-dot"></span>CALENDARIO DE SESIONES</span>
+    <span class="marquee-item"><span class="marquee-dot"></span>ANALYTICS AVANZADO</span>
+    <span class="marquee-item"><span class="marquee-dot"></span>MINUTAJE DE PARTIDOS</span>
+    <span class="marquee-item"><span class="marquee-dot"></span>ACWR & READINESS</span>
+  </div>
+</div>
+
+<!-- FEATURES -->
+<section id="features">
+  <div class="features-header reveal">
+    <div>
+      <div class="section-tag">// FUNCIONALIDADES</div>
+      <h2 class="section-title">TODO LO QUE<br>UN CUERPO TÉCNICO<br>NECESITA</h2>
+    </div>
+    <p class="section-subtitle">Desde el bienestar matutino hasta el análisis GPS post-sesión. Un ecosistema completo para tomar decisiones basadas en datos.</p>
+  </div>
+
+  <div class="features-grid">
+    <div class="feature-card reveal">
+      <div class="feature-icon">📊</div>
+      <div class="feature-title">Wellness Diario</div>
+      <p class="feature-desc">Los jugadores completan encuestas de bienestar cada mañana: fatiga, calidad de sueño, dolor muscular, estrés y estado anímico. Visualizá tendencias en tiempo real.</p>
+      <span class="feature-tag">RPE · TQR · RECOVERY</span>
+    </div>
+    <div class="feature-card reveal">
+      <div class="feature-icon">⚡</div>
+      <div class="feature-title">Carga de Entrenamiento</div>
+      <p class="feature-desc">Registrá y analizá la carga interna (RPE × duración) y externa (GPS) de cada sesión. Calculá el ACWR para optimizar el riesgo/rendimiento de cada atleta.</p>
+      <span class="feature-tag">UA · ACWR · GPS</span>
+    </div>
+    <div class="feature-card reveal">
+      <div class="feature-icon">🗓️</div>
+      <div class="feature-title">Calendario & Planificación</div>
+      <p class="feature-desc">Planificá sesiones con tareas detalladas, objetivos, bloques de ejercicios y cálculo automático de métricas GPS estimadas por densidad y espacio de juego.</p>
+      <span class="feature-tag">MICROCICLO · MESOCICLO</span>
+    </div>
+    <div class="feature-card reveal">
+      <div class="feature-icon">🛰️</div>
+      <div class="feature-title">Importación GPS Real</div>
+      <p class="feature-desc">Importá datos GPS desde planillas Excel. El sistema normaliza y agrega métricas individuales: distancia, sprints, aceleraciones, player load y velocidad máxima.</p>
+      <span class="feature-tag">EXCEL IMPORT · MULTI-MÉTRICA</span>
+    </div>
+    <div class="feature-card reveal">
+      <div class="feature-icon">🩺</div>
+      <div class="feature-title">Gestión de Lesiones</div>
+      <p class="feature-desc">Registrá y hacé seguimiento del historial lesivo de cada jugador. Dashboards de enfermería con días perdidos, tipo de lesión, zona afectada y estado de recuperación.</p>
+      <span class="feature-tag">HISTORIAL · ETA · ENFERMERÍA</span>
+    </div>
+    <div class="feature-card reveal">
+      <div class="feature-icon">📈</div>
+      <div class="feature-title">Analytics & Readiness</div>
+      <p class="feature-desc">Dashboards de analytics con scatter plots, distribución de carga, comparativas individuales y grupales. Índice de readiness calculado automáticamente por atleta.</p>
+      <span class="feature-tag">SCATTER · TRENDS · COMPARATIVAS</span>
+    </div>
+  </div>
+</section>
+
+<!-- DISCIPLINES -->
+<section id="disciplines">
+  <div class="section-tag reveal">// ADAPTABILIDAD</div>
+  <div class="disciplines-layout">
+    <div class="disciplines-left">
+      <h2 class="section-title reveal">DISEÑADA PARA<br>CUALQUIER<br><span style="color:var(--lime)">DEPORTE</span></h2>
+      <p class="section-subtitle reveal">W&P no es una solución de fútbol. Es una plataforma de rendimiento deportivo que se adapta a las métricas, terminología y necesidades de cada disciplina.</p>
+
+      <div class="discipline-list reveal">
+        <div class="discipline-item">
+          <span class="discipline-emoji">⚽</span>
+          <span class="discipline-name">Fútbol</span>
+          
+        </div>
+        <div class="discipline-item">
+          <span class="discipline-emoji">🏀</span>
+          <span class="discipline-name">Básquet</span>
+          <span class="discipline-detail">CARGA POR CUARTO</span>
+        </div>
+        <div class="discipline-item">
+          <span class="discipline-emoji">🏉</span>
+          <span class="discipline-name">Rugby</span>
+          <span class="discipline-detail">IMPACTOS · CONTACTO</span>
+        </div>
+        <div class="discipline-item">
+          <span class="discipline-emoji">🏐</span>
+          <span class="discipline-name">Vóley</span>
+          <span class="discipline-detail">SALTOS · SETS</span>
+        </div>
+        <div class="discipline-item">
+          <span class="discipline-emoji">🏃</span>
+          <span class="discipline-name">Atletismo</span>
+          <span class="discipline-detail">KM · RITMO · VO2</span>
+        </div>
+        <div class="discipline-item">
+          <span class="discipline-emoji">🎾</span>
+          <span class="discipline-name">Tenis / Pádel</span>
+          <span class="discipline-detail">RALLIES · DISTANCIA</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="disciplines-right reveal">
+      <div class="disciplines-visual">
+        <div class="visual-label">// PANEL DE CARGA — MICROCICLO</div>
+
+        <div class="metrics-display">
+          <div class="metric-box">
+            <div class="metric-box-label">Dist. Total Promedio</div>
+            <div class="metric-box-value">8.4</div>
+            <div class="metric-box-unit">km / sesión</div>
+          </div>
+          <div class="metric-box">
+            <div class="metric-box-label">Carga UA Equipo</div>
+            <div class="metric-box-value">342</div>
+            <div class="metric-box-unit">UA promedio</div>
+          </div>
+          <div class="metric-box">
+            <div class="metric-box-label">Wellness Index</div>
+            <div class="metric-box-value">7.2</div>
+            <div class="metric-box-unit">/ 10</div>
+          </div>
+          <div class="metric-box">
+            <div class="metric-box-label">ACWR</div>
+            <div class="metric-box-value">1.12</div>
+            <div class="metric-box-unit">zona óptima</div>
+          </div>
+        </div>
+
+        <div class="bar-chart">
+          <div class="bar-row">
+            <span class="bar-label">Lun</span>
+            <div class="bar-track"><div class="bar-fill" style="width:55%"></div></div>
+            <span class="bar-val">420</span>
+          </div>
+          <div class="bar-row">
+            <span class="bar-label">Mar</span>
+            <div class="bar-track"><div class="bar-fill" style="width:80%"></div></div>
+            <span class="bar-val">610</span>
+          </div>
+          <div class="bar-row">
+            <span class="bar-label">Mié</span>
+            <div class="bar-track"><div class="bar-fill" style="width:40%"></div></div>
+            <span class="bar-val">310</span>
+          </div>
+          <div class="bar-row">
+            <span class="bar-label">Jue</span>
+            <div class="bar-track"><div class="bar-fill" style="width:90%"></div></div>
+            <span class="bar-val">690</span>
+          </div>
+          <div class="bar-row">
+            <span class="bar-label">Vie</span>
+            <div class="bar-track"><div class="bar-fill" style="width:25%"></div></div>
+            <span class="bar-val">190</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section id="how">
+  <div class="reveal">
+    <div class="section-tag">// FLUJO DE TRABAJO</div>
+    <h2 class="section-title">ASÍ FUNCIONA</h2>
+  </div>
+
+  <div class="steps-grid">
+    <div class="step-card reveal">
+      <span class="step-num">01</span>
+      <div class="step-title">Configurá tu equipo</div>
+      <p class="step-desc">Creá tu club, registrá jugadores con su perfil completo y configurá los parámetros del sistema según tu deporte y metodología.</p>
+    </div>
+    <div class="step-card reveal">
+      <span class="step-num">02</span>
+      <div class="step-title">Planificá sesiones</div>
+      <p class="step-desc">Diseñá tu microciclo en el calendario con tareas, bloques de ejercicios y objetivos. El sistema calcula la carga estimada automáticamente.</p>
+    </div>
+    <div class="step-card reveal">
+      <span class="step-num">03</span>
+      <div class="step-title">Monitoreá en tiempo real</div>
+      <p class="step-desc">Los atletas completan el wellness diario desde su celular. Vos recibís alertas, ves tendencias y ajustás la carga antes de que aparezcan problemas.</p>
+    </div>
+    <div class="step-card reveal">
+      <span class="step-num">04</span>
+      <div class="step-title">Analizá y decidí</div>
+      <p class="step-desc">Dashboards de analytics con todos los datos integrados: bienestar, RPE, GPS, lesiones y readiness. Tomá decisiones basadas en evidencia, no en intuición.</p>
+    </div>
+  </div>
+</section>
+
+<!-- TEAM -->
+<section id="team">
+  <div class="team-header reveal">
+    <div class="section-tag">// CREADORES</div>
+    <h2 class="section-title">DETRÁS DE<br>W&P</h2>
+    <p class="section-subtitle" style="margin-top:16px">Dos profesionales que combinaron ciencias del deporte y tecnología para construir la herramienta que el cuerpo técnico moderno necesita.</p>
+  </div>
+
+  <div class="team-grid reveal">
+    <div class="team-card">
+      <div class="team-photo-wrap">
+        <img src="/foto-franco.png" alt="Franco Tosoni" />
+        <div class="team-photo-overlay"></div>
+      </div>
+      <div class="team-info">
+        <div class="team-role">Preparador Físico · Dirección deportiva</div>
+        <div class="team-name">Franco Tosoni</div>
+        <p class="team-bio">Preparador físico profesional con experiencia en fútbol de alta competencia. Definió cada módulo, flujo y métrica del sistema desde la necesidad real del cuerpo técnico.</p>
+      </div>
+    </div>
+
+    <div class="team-card">
+      <div class="team-photo-wrap">
+        <img src="/foto-juan.png" alt="Juan Quiroga" />
+        <div class="team-photo-overlay"></div>
+      </div>
+      <div class="team-info">
+        <div class="team-role">Desarrollador · Arquitectura del sistema</div>
+        <div class="team-name">Juan Quiroga</div>
+        <p class="team-bio">Desarrollador full-stack especializado en aplicaciones de datos deportivos. Diseñó y construyó toda la arquitectura técnica de W&P desde cero.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section id="cta">
+  <div class="reveal">
+    <h2 class="cta-title">LLEVÁ TU<br>EQUIPO AL<br><span style="color:var(--lime)">SIGUIENTE NIVEL</span></h2>
+    <p class="cta-sub">Accedé al sistema hoy. Sin contratos complicados. Sin instalación. Solo resultados.</p>
+    <a href="/login" class="btn-primary" style="font-size:16px; padding:18px 48px; display:inline-flex;">
+      Iniciar sesión en W&P
+      <svg width="18" height="18" viewBox="0 0 16 16" fill="none" style="margin-left:8px"><path d="M3 8h10M8 3l5 5-5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </a>
+  </div>
+</section>
+
+<!-- CONTACT -->
+<section id="contact" style="background:var(--dark3); padding:80px 48px; border-top:1px solid var(--dark4);">
+  <div style="max-width:900px; margin:0 auto; display:flex; justify-content:space-between; align-items:center; gap:48px; flex-wrap:wrap;">
+    <div class="reveal">
+      <div class="section-tag">// CONTACTO</div>
+      <h2 style="font-family:'Bebas Neue',sans-serif; font-size:48px; letter-spacing:1px; margin-bottom:8px;">¿QUERÉS SABER MÁS?</h2>
+      <p style="font-size:16px; color:rgba(245,245,240,0.6); font-weight:300; max-width:400px; line-height:1.6;">Contactanos para información sobre implementación, personalización para tu disciplina o cualquier consulta.</p>
+    </div>
+    <div class="reveal" style="display:flex; flex-direction:column; gap:20px;">
+      <a href="tel:+34672007390" style="display:flex; align-items:center; gap:16px; text-decoration:none; group;">
+        <div style="width:48px; height:48px; background:rgba(200,241,53,0.1); border:1px solid rgba(200,241,53,0.25); border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:20px; flex-shrink:0;">📞</div>
+        <div>
+          <div style="font-size:12px; color:var(--gray); font-family:'DM Mono',monospace; letter-spacing:1px; margin-bottom:3px;">TELÉFONO / WHATSAPP</div>
+          <div style="font-size:18px; font-weight:500; color:var(--white);">+34 672 00 73 90</div>
+        </div>
+      </a>
+      <a href="mailto:wellnesstraining95@gmail.com" style="display:flex; align-items:center; gap:16px; text-decoration:none;">
+        <div style="width:48px; height:48px; background:rgba(200,241,53,0.1); border:1px solid rgba(200,241,53,0.25); border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:20px; flex-shrink:0;">✉️</div>
+        <div>
+          <div style="font-size:12px; color:var(--gray); font-family:'DM Mono',monospace; letter-spacing:1px; margin-bottom:3px;">EMAIL</div>
+          <div style="font-size:18px; font-weight:500; color:var(--white);">wellnesstraining95@gmail.com</div>
+        </div>
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-logo">W&P — WELLNESS & PERFORMANCE</div>
+  <div class="footer-copy">Desarrollado con ♥ por <span>Juan Quiroga</span> & <span>Franco Tosoni</span> · Mendoza, Argentina · 2026</div>
+</footer>
+
+<script>
+  // Scroll reveal
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach((entry, i) => {
+      if (entry.isIntersecting) {
+        setTimeout(() => entry.target.classList.add('visible'), i * 80)
+        observer.unobserve(entry.target)
+      }
+    })
+  }, { threshold: 0.1 })
+
+  document.querySelectorAll('.reveal').forEach(el => observer.observe(el))
+
+  // Nav shrink on scroll
+  const navEl = document.querySelector('nav')
+  window.addEventListener('scroll', () => {
+    navEl.style.height = window.scrollY > 60 ? '56px' : '68px'
+  })
+</script>
+</body>
+</html>
