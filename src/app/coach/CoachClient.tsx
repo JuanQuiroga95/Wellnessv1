@@ -2301,29 +2301,56 @@ function MinutosPanel({ teamData }) {
 }
 
 function AddMatchForm({ teamData, onSuccess, onCancel }) {
-  const [form, setForm] = useState({ fecha:new Date().toISOString().split('T')[0], rival:'', tipo_partido:'Oficial', jugador_id:'', minutos:'' })
-  const [bulk, setBulk] = useState(true)
+  const [calPartidos, setCalPartidos] = useState<any[]>([])
+  const [loadingCal, setLoadingCal] = useState(true)
+  const [selectedMatch, setSelectedMatch] = useState<any>(null)
   const [bulkMins, setBulkMins] = useState<Record<string,string>>({})
-  const [rivalLogo, setRivalLogo] = useState<string|null>(null)
   const [loading, setLoading] = useState(false)
-  const set = (k,v) => setForm(p=>({...p,[k]:v}))
+
+  useEffect(() => {
+    // Load last ~8 weeks of calendar to find partidos
+    const hasta = new Date().toISOString().split('T')[0]
+    const desde = new Date(Date.now() - 56 * 86400000).toISOString().split('T')[0]
+    setLoadingCal(true)
+    fetch(`/api/calendario?desde=${desde}&hasta=${hasta}`)
+      .then(r => r.json())
+      .then(d => {
+        const parts = (d.sesiones || [])
+          .filter((s: any) => s.tipo === 'partido')
+          .sort((a: any, b: any) => b.fecha.localeCompare(a.fecha))
+          .slice(0, 4)
+        setCalPartidos(parts)
+      })
+      .catch(() => {})
+      .finally(() => setLoadingCal(false))
+  }, [])
 
   function setAllMins(mins: string) {
     const all: Record<string,string> = {}
-    teamData.forEach((p:any) => { all[p.jugador_id] = mins })
+    teamData.forEach((p:any) => { all[p.jugador_id] = mins === '0' ? '' : mins })
     setBulkMins(all)
   }
 
-  async function submit(e) {
-    e.preventDefault(); setLoading(true)
+  async function submit(e: any) {
+    e.preventDefault()
+    if (!selectedMatch) return
+    setLoading(true)
     try {
-      if (bulk) {
-        await Promise.all(Object.entries(bulkMins).filter(([,m])=>m&&Number(m)>0).map(([jid,m])=>
-          fetch('/api/partidos',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({jugador_id:Number(jid),fecha:form.fecha,rival:form.rival,tipo_partido:form.tipo_partido,minutos:Number(m),rival_foto:rivalLogo||null})})
-        ))
-      } else {
-        await fetch('/api/partidos',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...form,jugador_id:Number(form.jugador_id),minutos:Number(form.minutos),rival_foto:rivalLogo||null})})
-      }
+      const entries = Object.entries(bulkMins).filter(([,m]) => m && Number(m) > 0)
+      await Promise.all(entries.map(([jid, m]) =>
+        fetch('/api/partidos', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            jugador_id: Number(jid),
+            fecha: selectedMatch.fecha,
+            rival: selectedMatch.rival || '',
+            tipo_partido: selectedMatch.titulo || 'Oficial',
+            minutos: Number(m),
+            rival_foto: selectedMatch.rival_foto || null,
+          })
+        })
+      ))
       onSuccess()
     } finally { setLoading(false) }
   }
@@ -2332,60 +2359,87 @@ function AddMatchForm({ teamData, onSuccess, onCancel }) {
     <div style={{ background:'var(--ink2)', border:'1px solid rgba(200,241,53,.2)', borderRadius:14, padding:20 }} className="anim-up">
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16 }}>
         <p style={{ fontSize:13, fontWeight:600, color:'var(--lime)', textTransform:'uppercase', letterSpacing:'0.06em' }}>Registrar Partido</p>
-        <div style={{ display:'flex', gap:8 }}>
-          {['Individual','Equipo completo'].map((lbl,i)=>(
-            <button key={lbl} type="button" onClick={()=>setBulk(i===1)} style={{ fontSize:11, padding:'5px 10px', borderRadius:8, cursor:'pointer', border: bulk===(i===1)?'2px solid var(--lime)':'1px solid var(--fog)', background: bulk===(i===1)?'rgba(200,241,53,.1)':'var(--ink3)', color: bulk===(i===1)?'var(--lime)':'var(--silver)' }}>{lbl}</button>
-          ))}
-        </div>
+        <button type="button" onClick={onCancel} style={{ background:'transparent', border:'none', color:'var(--fog)', cursor:'pointer', fontSize:18 }}>✕</button>
       </div>
-      <form onSubmit={submit}>
-        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:10, marginBottom:12 }}>
-          <div><label style={{ display:'block', fontSize:10, fontWeight:600, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:4 }}>Fecha</label><input type="date" className="wp-input" style={{ padding:'8px 12px', fontSize:13 }} value={form.fecha} onChange={e=>set('fecha',e.target.value)} /></div>
-          <div><label style={{ display:'block', fontSize:10, fontWeight:600, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:4 }}>Rival</label>
-            <div style={{ display:'flex', gap:8, alignItems:'center' }}>
-              <input className="wp-input" style={{ padding:'8px 12px', fontSize:13, flex:1 }} value={form.rival} onChange={e=>set('rival',e.target.value)} placeholder="vs. Club X" />
-              <label style={{ cursor:'pointer', flexShrink:0 }}>
-                <div style={{ width:36, height:36, borderRadius:8, overflow:'hidden', background:'var(--ink3)', border:`1px solid ${rivalLogo?'var(--lime)':'var(--fog)'}`, display:'flex', alignItems:'center', justifyContent:'center' }}>
-                  {rivalLogo ? <img src={rivalLogo} style={{ width:'100%', height:'100%', objectFit:'contain', padding:2 }} alt="rival"/> : <span style={{ fontSize:16 }}>🛡️</span>}
-                </div>
-                <input type="file" accept="image/*" style={{ display:'none' }} onChange={e=>{ const f=e.target.files?.[0]; if(!f) return; const r=new FileReader(); r.onload=async()=>{ const c=await compressImage(r.result as string,150,0.65); setRivalLogo(c) }; r.readAsDataURL(f) }} />
-              </label>
-            </div>
-          </div>
-          <div><label style={{ display:'block', fontSize:10, fontWeight:600, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:4 }}>Tipo</label><select className="wp-input" style={{ padding:'8px 12px', fontSize:13, appearance:'none' }} value={form.tipo_partido} onChange={e=>set('tipo_partido',e.target.value)}>{['Oficial','Amistoso','Copa'].map(v=><option key={v} value={v} style={{ background:'var(--ink2)' }}>{v}</option>)}</select></div>
-        </div>
-        {!bulk ? (
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:12 }}>
-            <div><label style={{ display:'block', fontSize:10, fontWeight:600, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:4 }}>Jugador</label><select className="wp-input" style={{ padding:'8px 12px', fontSize:13, appearance:'none' }} value={form.jugador_id} onChange={e=>set('jugador_id',e.target.value)} required><option value="" style={{ background:'var(--ink2)' }}>— Seleccionar —</option>{teamData.map(p=><option key={p.jugador_id} value={p.jugador_id} style={{ background:'var(--ink2)' }}>{p.nombre}</option>)}</select></div>
-            <div><label style={{ display:'block', fontSize:10, fontWeight:600, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:4 }}>Minutos</label><input type="number" min="0" max="120" className="wp-input" style={{ padding:'8px 12px', fontSize:13 }} value={form.minutos} onChange={e=>set('minutos',e.target.value)} placeholder="ej: 90" required /></div>
-          </div>
+
+      {/* Step 1: Select a match from calendar */}
+      <div style={{ marginBottom:16 }}>
+        <p style={{ fontSize:10, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:10 }}>
+          Paso 1 — Seleccioná el partido del calendario
+        </p>
+        {loadingCal ? (
+          <p style={{ fontSize:12, color:'var(--fog)' }}>Cargando partidos...</p>
+        ) : calPartidos.length === 0 ? (
+          <p style={{ fontSize:12, color:'var(--fog)', padding:'10px', background:'var(--ink3)', borderRadius:8 }}>
+            No hay partidos creados en el Calendario. Primero creá un partido desde el Calendario con tipo "Partido" y el rival.
+          </p>
         ) : (
-          <div style={{ marginBottom:12 }}>
-            <div style={{ display:'flex', gap:8, alignItems:'center', marginBottom:8, flexWrap:'wrap' }}>
-              <span style={{ fontSize:10, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em' }}>Carga rápida:</span>
-              {['90','45','0'].map(m=>(
-                <button key={m} type="button" onClick={()=>setAllMins(m)}
-                  style={{ fontSize:11, padding:'4px 10px', borderRadius:6, cursor:'pointer', background:'var(--ink3)', border:'1px solid var(--fog)', color:'var(--silver)' }}>
-                  {m==='0' ? 'Limpiar' : `Todos ${m} min`}
+          <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+            {calPartidos.map((p: any) => {
+              const isSelected = selectedMatch?.id === p.id
+              return (
+                <button key={p.id} type="button" onClick={() => setSelectedMatch(isSelected ? null : p)}
+                  style={{ display:'flex', alignItems:'center', gap:12, padding:'10px 14px', borderRadius:10, cursor:'pointer', textAlign:'left', border:`2px solid ${isSelected ? 'var(--lime)' : 'var(--mist)'}`, background:isSelected ? 'rgba(200,241,53,.08)' : 'var(--ink3)', transition:'all .15s' }}>
+                  <div style={{ width:40, height:40, borderRadius:8, background:'rgba(96,165,250,.15)', border:'1px solid rgba(96,165,250,.3)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                    {p.rival_foto
+                      ? <img src={p.rival_foto} style={{ width:34, height:34, objectFit:'contain', borderRadius:6, padding:2 }} alt="" />
+                      : <span style={{ fontSize:18, fontWeight:700, color:'#60a5fa' }}>{(p.rival||'?').charAt(0).toUpperCase()}</span>
+                    }
+                  </div>
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <div style={{ fontSize:13, fontWeight:700, color: isSelected ? 'var(--lime)' : 'var(--snow)' }}>
+                      vs. {p.rival || 'Sin rival'}
+                    </div>
+                    <div style={{ fontSize:11, color:'var(--silver)', marginTop:2 }}>
+                      {p.fecha} · {p.titulo || 'Partido'}
+                    </div>
+                  </div>
+                  {isSelected && <span style={{ color:'var(--lime)', fontSize:18 }}>✓</span>}
                 </button>
-              ))}
-            </div>
-            <div style={{ background:'var(--ink3)', border:'1px solid var(--mist)', borderRadius:10, padding:14, maxHeight:280, overflowY:'auto' }}>
-              <p style={{ fontSize:10, color:'var(--silver)', marginBottom:10, textTransform:'uppercase', letterSpacing:'0.06em' }}>Minutos por jugador (vacío = no jugó)</p>
-              {teamData.map((p:any)=>(
-                <div key={p.jugador_id} style={{ display:'flex', alignItems:'center', gap:10, marginBottom:6 }}>
-                  <span style={{ fontSize:13, color:'var(--silver)', flex:1, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{p.nombre}</span>
-                  <input type="number" min="0" max="200" placeholder="min" style={{ width:70, background:'var(--ink2)', border:'1px solid var(--fog)', borderRadius:6, padding:'5px 8px', fontSize:12, color:'var(--snow)', fontFamily:'DM Mono,monospace', outline:'none' }} value={bulkMins[p.jugador_id]||''} onChange={e=>setBulkMins(m=>({...m,[p.jugador_id]:e.target.value}))} />
-                </div>
-              ))}
-            </div>
+              )
+            })}
           </div>
         )}
-        <div style={{ display:'flex', gap:10 }}>
-          <button type="button" className="btn-ghost" style={{ flex:1 }} onClick={onCancel}>Cancelar</button>
-          <button type="submit" className="btn-lime" style={{ flex:1 }} disabled={loading}>{loading?'Guardando...':'Guardar →'}</button>
-        </div>
-      </form>
+      </div>
+
+      {/* Step 2: Enter minutes per player */}
+      {selectedMatch && (
+        <form onSubmit={submit}>
+          <p style={{ fontSize:10, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:8 }}>
+            Paso 2 — Minutos por jugador · vs. {selectedMatch.rival || 'Rival'}
+          </p>
+          <div style={{ display:'flex', gap:8, alignItems:'center', marginBottom:8, flexWrap:'wrap' }}>
+            <span style={{ fontSize:10, color:'var(--fog)' }}>Carga rápida:</span>
+            {['90','45','0'].map(m=>(
+              <button key={m} type="button" onClick={()=>setAllMins(m)}
+                style={{ fontSize:11, padding:'4px 10px', borderRadius:6, cursor:'pointer', background:'var(--ink3)', border:'1px solid var(--fog)', color:'var(--silver)' }}>
+                {m==='0' ? 'Limpiar' : `Todos ${m} min`}
+              </button>
+            ))}
+          </div>
+          <div style={{ background:'var(--ink3)', border:'1px solid var(--mist)', borderRadius:10, padding:14, maxHeight:260, overflowY:'auto', marginBottom:12 }}>
+            {teamData.map((p:any)=>(
+              <div key={p.jugador_id} style={{ display:'flex', alignItems:'center', gap:10, marginBottom:6 }}>
+                <span style={{ fontSize:13, color:'var(--silver)', flex:1, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{p.nombre}</span>
+                <input type="number" min="0" max="200" placeholder="min"
+                  style={{ width:70, background:'var(--ink2)', border:'1px solid var(--fog)', borderRadius:6, padding:'5px 8px', fontSize:12, color:'var(--snow)', fontFamily:'DM Mono,monospace', outline:'none' }}
+                  value={bulkMins[p.jugador_id]||''}
+                  onChange={e=>setBulkMins(m=>({...m,[p.jugador_id]:e.target.value}))} />
+              </div>
+            ))}
+          </div>
+          <div style={{ display:'flex', gap:10 }}>
+            <button type="button" className="btn-ghost" style={{ flex:1 }} onClick={onCancel}>Cancelar</button>
+            <button type="submit" className="btn-lime" style={{ flex:1 }} disabled={loading||!Object.values(bulkMins).some(m=>m&&Number(m)>0)}>
+              {loading ? 'Guardando...' : 'Guardar minutos →'}
+            </button>
+          </div>
+        </form>
+      )}
+
+      {!selectedMatch && (
+        <button type="button" className="btn-ghost" style={{ width:'100%' }} onClick={onCancel}>Cancelar</button>
+      )}
     </div>
   )
 }
