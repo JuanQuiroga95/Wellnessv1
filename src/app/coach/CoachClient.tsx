@@ -4299,48 +4299,37 @@ function GpsPanel({ teamData }: { teamData: any }) {
       .catch(() => setLoadingHistorial(false))
   }, [result])
 
-  // Parse Excel client-side (avoids Vercel 4.5MB body limit)
-  // Only the parsed rows (tiny JSON) are sent to the server
-  async function parseFileClientSide(f: File): Promise<{rows: any[], fileName: string, isPdf: boolean}> {
-    const isPdf = f.name.toLowerCase().endsWith('.pdf')
+  // For Excel: parse client-side, send only rows JSON (avoids Vercel 4.5MB body limit)
+  // For PDF: send as FormData (pdf-parse is server-only, PDFs are usually small)
+  async function buildImportBody(confirmFlag: boolean): Promise<{body: BodyInit, headers?: Record<string,string>}> {
+    const isPdf = file!.name.toLowerCase().endsWith('.pdf')
     if (isPdf) {
-      // PDF must be sent as base64 to server (pdf-parse runs server-side)
-      const reader = new FileReader()
-      const base64 = await new Promise<string>((resolve, reject) => {
-        reader.onload = () => resolve((reader.result as string).split(',')[1] || '')
-        reader.onerror = reject
-        reader.readAsDataURL(f)
-      })
-      return { rows: [], fileName: f.name, isPdf: true, base64 } as any
+      const fd = new FormData()
+      fd.append('file', file!)
+      fd.append('fecha', fecha)
+      fd.append('tipo_sesion', tipoSesion)
+      if (sesionId) fd.append('sesion_id', String(sesionId))
+      fd.append('confirm', String(confirmFlag))
+      return { body: fd }
     }
-    // Excel/CSV: parse in browser with SheetJS
-    const arrayBuffer = await f.arrayBuffer()
+    // Excel: parse in browser, send rows as JSON
+    const arrayBuffer = await file!.arrayBuffer()
     const data = new Uint8Array(arrayBuffer)
     const wb = XLSX.read(data, { type: 'array' })
     const ws = wb.Sheets[wb.SheetNames[0]]
-    const raw: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null }) as any[][]
-    return { rows: raw, fileName: f.name, isPdf: false }
+    const rows: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null }) as any[][]
+    return {
+      body: JSON.stringify({ rows, fileName: file!.name, fecha, tipo_sesion: tipoSesion, sesion_id: sesionId || null, confirm: confirmFlag }),
+      headers: { 'Content-Type': 'application/json' }
+    }
   }
 
   async function handlePreview() {
     if (!file) { setError('Seleccioná un archivo Excel o PDF'); return }
     setLoading(true); setError(''); setPreview(null); setResult(null)
     try {
-      const parsed = await parseFileClientSide(file)
-      const body = JSON.stringify({
-        ...(parsed.isPdf ? { fileBase64: (parsed as any).base64 } : { rows: parsed.rows }),
-        fileName: parsed.fileName,
-        isPdf: parsed.isPdf,
-        fecha,
-        tipo_sesion: tipoSesion,
-        sesion_id: sesionId || null,
-        confirm: false,
-      })
-      const r = await fetch('/api/gps/import', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body,
-      })
+      const { body, headers } = await buildImportBody(false)
+      const r = await fetch('/api/gps/import', { method: 'POST', body, headers })
       const d = await r.json()
       if (!r.ok) { setError(d.error || 'Error al procesar el archivo'); return }
       setPreview(d)
@@ -4352,25 +4341,11 @@ function GpsPanel({ teamData }: { teamData: any }) {
     if (!file || !preview) return
     setImporting(true); setError('')
     try {
-      const parsed = await parseFileClientSide(file)
-      const body = JSON.stringify({
-        ...(parsed.isPdf ? { fileBase64: (parsed as any).base64 } : { rows: parsed.rows }),
-        fileName: parsed.fileName,
-        isPdf: parsed.isPdf,
-        fecha,
-        tipo_sesion: tipoSesion,
-        sesion_id: sesionId || null,
-        confirm: true,
-      })
-      const r = await fetch('/api/gps/import', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body,
-      })
+      const { body, headers } = await buildImportBody(true)
+      const r = await fetch('/api/gps/import', { method: 'POST', body, headers })
       const d = await r.json()
       if (!r.ok) { setError(d.error || 'Error al importar'); return }
       setResult(d); setPreview(null); setFile(null)
-      // Refresh existing
       fetch(`/api/gps/sesiones?fecha=${fecha}`).then(r => r.json()).then(d => setExisting(d.existing || []))
     } catch (e) { setError('Error de conexión') }
     finally { setImporting(false) }

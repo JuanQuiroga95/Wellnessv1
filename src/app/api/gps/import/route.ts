@@ -1,7 +1,4 @@
 export const dynamic = 'force-dynamic'
-export const maxDuration = 60
-// Allow large file uploads (up to 20MB) for GPS Excel files
-export const preferredRegion = 'auto'
 import { NextRequest, NextResponse } from 'next/server'
 import { getDb } from '@/lib/db'
 import { getSessionFromRequest } from '@/lib/auth'
@@ -47,23 +44,22 @@ function matchExcelCol(h: string): string | null {
   return null
 }
 
+// Parse a 2D array of rows (pre-parsed by client or from XLSX)
 function parseRawRows(raw: any[][]): Record<string, any>[] {
   if (raw.length < 2) return []
-  const headers = (raw[0] as any[]).map(h => String(h || ''))
+  const headers = (raw[0] as any[]).map(h => String(h ?? ''))
   const colMap: (string | null)[] = headers.map(h => {
     const ln = normStr(h)
-    const isNameCol = (
-      ln === 'name' || ln === 'nombre' || ln === 'athlete' || ln === 'player' ||
-      ln.includes('first name') || ln.includes('last name') || ln.includes('full name') ||
-      ln.includes('player name') || ln.includes('athlete name') || ln === 'jugador'
-    )
+    // Strict name detection — avoid false positives like 'Player Load'
+    const isNameCol = ln === 'name' || ln === 'nombre' || ln === 'athlete' || ln === 'player' ||
+      ln === 'jugador' || ln.includes('first name') || ln.includes('player name') || ln.includes('athlete name')
     if (isNameCol) return '__name__'
-    if (['date','fecha','session','period','device','jersey','shirt','interval','position','pos.'].some(k => ln === k || ln.startsWith(k))) return null
-    if (ln === 'time') return null
+    // Ignore non-metric columns
+    if (['interval','time','date','fecha','session','period','device','jersey','shirt','position','pos'].some(k => ln === k || ln.startsWith(k + ' '))) return null
     return matchExcelCol(h)
   })
-  return raw.slice(1)
-    .filter(row => (row as any[]).some((c: any) => c !== null && c !== ''))
+  return (raw.slice(1) as any[][])
+    .filter(row => row.some((c: any) => c !== null && c !== ''))
     .map(row => {
       let name: string | null = null
       const metricas: Record<string, number> = {}
@@ -85,7 +81,6 @@ function parseExcel(bytes: Uint8Array): Record<string, any>[] {
   const raw: any[][] = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: null }) as any[][]
   return parseRawRows(raw)
 }
-
 
 // ─── PDF PARSER — Catapult columnar format ────────────────────────────────────
 // Catapult PDFs render columns as stacked blocks:
@@ -260,70 +255,57 @@ export async function POST(req: NextRequest) {
     const s = await getSessionFromRequest(req)
     if (!s || !isAdmin(s)) return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
 
-    // Accept both JSON+base64 (large files) and legacy multipart/form-data
-    let bytes: Uint8Array
-    let fileName: string
-    let fecha: string
-    let tipo_sesion: string
-    let sesion_id: number | null
-    let confirm_flag: boolean
-    let preloadedRows: any[][] | null = null
-
     const contentType = req.headers.get('content-type') || ''
+    let fecha: string, tipo_sesion: string, sesion_id: number | null, confirm: boolean
+    let parsedRows: Record<string, any>[]
 
     if (contentType.includes('application/json')) {
+      // JSON path: Excel rows pre-parsed client-side, or PDF as base64
       const body = await req.json()
       if (!body.fecha) return NextResponse.json({ error: 'Falta fecha' }, { status: 400 })
       fecha = String(body.fecha)
       tipo_sesion = String(body.tipo_sesion || 'entrenamiento')
       sesion_id = body.sesion_id ? Number(body.sesion_id) : null
-      confirm_flag = body.confirm === true
-      fileName = String(body.fileName || 'archivo.xlsx')
+      confirm = body.confirm === true
 
-      if (body.rows && Array.isArray(body.rows)) {
-        // Excel pre-parsed client-side — rows is a 2D array [[headers,...],[row,...],...]
-        preloadedRows = body.rows as any[][]
-        bytes = new Uint8Array(0)
-      } else if (body.fileBase64) {
-        // PDF or fallback: decode base64
-        const binaryStr = atob(body.fileBase64)
-        bytes = new Uint8Array(binaryStr.length)
-        for (let i = 0; i < binaryStr.length; i++) bytes[i] = binaryStr.charCodeAt(i)
-      } else {
-        return NextResponse.json({ error: 'Falta archivo (rows o fileBase64)' }, { status: 400 })
+      try {
+        if (body.rows && Array.isArray(body.rows)) {
+          // Excel rows pre-parsed in browser — parse directly, no file bytes needed
+          parsedRows = parseRawRows(body.rows as any[][])
+        } else if (body.fileBase64) {
+          // PDF as base64
+          const binaryStr = atob(body.fileBase64)
+          const bytes = new Uint8Array(binaryStr.length)
+          for (let i = 0; i < binaryStr.length; i++) bytes[i] = binaryStr.charCodeAt(i)
+          parsedRows = await parsePdf(bytes)
+        } else {
+          return NextResponse.json({ error: 'Falta rows o fileBase64' }, { status: 400 })
+        }
+      } catch (e) {
+        return NextResponse.json({ error: String(e) }, { status: 400 })
       }
     } else {
-      // Legacy multipart
+      // FormData path (PDF and small Excel — original working code)
       const fd = await req.formData()
       const file = fd.get('file') as File | null
-      if (!file) return NextResponse.json({ error: 'Falta archivo' }, { status: 400 })
-      fecha = String(fd.get('fecha') || '')
-      if (!fecha) return NextResponse.json({ error: 'Falta fecha' }, { status: 400 })
-      tipo_sesion = String(fd.get('tipo_sesion') || 'entrenamiento')
+      fecha = fd.get('fecha') as string
+      tipo_sesion = (fd.get('tipo_sesion') as string) || 'entrenamiento'
       sesion_id = fd.get('sesion_id') ? Number(fd.get('sesion_id')) : null
-      confirm_flag = fd.get('confirm') === 'true'
-      bytes = new Uint8Array(await file.arrayBuffer())
-      fileName = file.name
-    }
-
-    const isPdf = fileName.toLowerCase().endsWith('.pdf')
-
-    let parsedRows: Record<string, any>[]
-    try {
-      if (preloadedRows) {
-        // Client already parsed the Excel rows — use them directly
-        parsedRows = parseRawRows(preloadedRows)
-      } else {
+      if (!file || !fecha) return NextResponse.json({ error: 'Falta archivo o fecha' }, { status: 400 })
+      const bytes = new Uint8Array(await file.arrayBuffer())
+      const isPdf = file.name.toLowerCase().endsWith('.pdf') || file.type === 'application/pdf'
+      confirm = fd.get('confirm') === 'true'
+      try {
         parsedRows = isPdf ? await parsePdf(bytes) : parseExcel(bytes)
+      } catch (e) {
+        return NextResponse.json({ error: String(e) }, { status: 400 })
       }
-    } catch (e) {
-      return NextResponse.json({ error: String(e) }, { status: 400 })
     }
+
     if (!parsedRows.length)
       return NextResponse.json({ error: 'No se encontraron datos válidos. Verificá que sea un reporte de Catapult con el Cuadro Resumen.' }, { status: 400 })
 
     const { matched, unmatched } = await matchPlayers(parsedRows, s.clubId || null)
-    const confirm = confirm_flag
 
     if (!confirm) {
       return NextResponse.json({
