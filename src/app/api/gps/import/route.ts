@@ -257,15 +257,43 @@ export async function POST(req: NextRequest) {
     const s = await getSessionFromRequest(req)
     if (!s || !isAdmin(s)) return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
 
-    const fd = await req.formData()
-    const file = fd.get('file') as File | null
-    const fecha = fd.get('fecha') as string
-    const tipo_sesion = (fd.get('tipo_sesion') as string) || 'entrenamiento'
-    const sesion_id = fd.get('sesion_id') ? Number(fd.get('sesion_id')) : null
-    if (!file || !fecha) return NextResponse.json({ error: 'Falta archivo o fecha' }, { status: 400 })
+    // Accept both JSON+base64 (large files) and legacy multipart/form-data
+    let bytes: Uint8Array
+    let fileName: string
+    let fecha: string
+    let tipo_sesion: string
+    let sesion_id: number | null
+    let confirm_flag: boolean
 
-    const bytes = new Uint8Array(await file.arrayBuffer())
-    const isPdf = file.name.toLowerCase().endsWith('.pdf') || file.type === 'application/pdf'
+    const contentType = req.headers.get('content-type') || ''
+
+    if (contentType.includes('application/json')) {
+      const body = await req.json()
+      if (!body.fileBase64 || !body.fecha) return NextResponse.json({ error: 'Falta archivo o fecha' }, { status: 400 })
+      // Decode base64
+      const binaryStr = atob(body.fileBase64)
+      bytes = new Uint8Array(binaryStr.length)
+      for (let i = 0; i < binaryStr.length; i++) bytes[i] = binaryStr.charCodeAt(i)
+      fileName = body.fileName || 'archivo.xlsx'
+      fecha = String(body.fecha)
+      tipo_sesion = String(body.tipo_sesion || 'entrenamiento')
+      sesion_id = body.sesion_id ? Number(body.sesion_id) : null
+      confirm_flag = body.confirm === true
+    } else {
+      // Legacy multipart
+      const fd = await req.formData()
+      const file = fd.get('file') as File | null
+      if (!file) return NextResponse.json({ error: 'Falta archivo' }, { status: 400 })
+      fecha = String(fd.get('fecha') || '')
+      if (!fecha) return NextResponse.json({ error: 'Falta fecha' }, { status: 400 })
+      tipo_sesion = String(fd.get('tipo_sesion') || 'entrenamiento')
+      sesion_id = fd.get('sesion_id') ? Number(fd.get('sesion_id')) : null
+      confirm_flag = fd.get('confirm') === 'true'
+      bytes = new Uint8Array(await file.arrayBuffer())
+      fileName = file.name
+    }
+
+    const isPdf = fileName.toLowerCase().endsWith('.pdf')
 
     let parsedRows: Record<string, any>[]
     try {
@@ -277,7 +305,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'No se encontraron datos válidos. Verificá que sea un reporte de Catapult con el Cuadro Resumen.' }, { status: 400 })
 
     const { matched, unmatched } = await matchPlayers(parsedRows, s.clubId || null)
-    const confirm = fd.get('confirm') === 'true'
+    const confirm = confirm_flag
 
     if (!confirm) {
       return NextResponse.json({
