@@ -3220,9 +3220,10 @@ function ComparativaPanel({ teamData }: { teamData: any[] }) {
             .sort((a,b) => b.avg - a.avg)
           if (!posData.length) return <div style={{padding:24,textAlign:'center',color:'var(--fog)',fontSize:12}}>Sin datos GPS para este período</div>
           const maxV = Math.max(...posData.map(x=>x.avg), 1)
-          const BAR_H = 180
+          const BAR_H = 180   // altura del área de barras
+          const TOP_PAD = 28  // espacio fijo arriba para el valor numérico
+          const BOT_PAD = 52  // espacio fijo abajo para etiquetas
           const yTicks = [1, 0.75, 0.5, 0.25, 0].map(f => Math.round(maxV * f))
-          // Ancho mínimo por barra para que no se compriman con muchas posiciones
           const minBarWidth = 80
           const chartMinWidth = posData.length * (minBarWidth + 20)
           return (
@@ -3231,8 +3232,10 @@ function ComparativaPanel({ teamData }: { teamData: any[] }) {
                 {selVar.label} — promedio por posición
               </div>
               <div style={{ display:'flex', gap:0 }}>
-                {/* Y-axis — fijo a la izquierda */}
-                <div style={{ display:'flex', flexDirection:'column', justifyContent:'space-between', paddingRight:8, height:BAR_H+52, paddingBottom:52, flexShrink:0, width:40 }}>
+                {/* Y-axis — fijo a la izquierda, alineado solo con el área de barras */}
+                <div style={{ display:'flex', flexDirection:'column', justifyContent:'space-between',
+                  paddingRight:8, width:40, flexShrink:0,
+                  height: BAR_H, marginTop: TOP_PAD, marginBottom: BOT_PAD }}>
                   {yTicks.map((t,i)=>(
                     <div key={i} style={{ fontSize:9, color:'var(--fog)', fontFamily:'DM Mono,monospace', textAlign:'right', lineHeight:1 }}>{t}</div>
                   ))}
@@ -3240,18 +3243,25 @@ function ComparativaPanel({ teamData }: { teamData: any[] }) {
                 {/* Chart area — scroll horizontal si hay muchas posiciones */}
                 <div style={{ flex:1, overflowX:'auto', overflowY:'visible' }}>
                   <div style={{ position:'relative', minWidth: chartMinWidth }}>
-                    {/* Grid lines */}
+                    {/* Grid lines — solo dentro del área de barras */}
                     {[0,25,50,75,100].map((p,i)=>(
-                      <div key={i} style={{ position:'absolute', left:0, right:0, bottom:`${(p/100)*BAR_H+52}px`, borderTop:'1px solid rgba(255,255,255,.06)', pointerEvents:'none' }}/>
+                      <div key={i} style={{ position:'absolute', left:0, right:0,
+                        bottom: BOT_PAD + (p/100)*BAR_H,
+                        borderTop:'1px solid rgba(255,255,255,.06)', pointerEvents:'none' }}/>
                     ))}
-                    {/* Bars */}
-                    <div style={{ display:'flex', gap:12, alignItems:'flex-end', height:BAR_H+52, paddingBottom:52, paddingTop:8 }}>
+                    {/* Columnas: paddingTop reserva espacio para el número, paddingBottom para etiquetas */}
+                    <div style={{ display:'flex', gap:12, alignItems:'flex-end',
+                      height: TOP_PAD + BAR_H + BOT_PAD,
+                      paddingTop: TOP_PAD, paddingBottom: BOT_PAD }}>
                       {posData.map((x,i)=>(
-                        <div key={i} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', minWidth:minBarWidth }}>
-                          <div style={{ fontSize:13, color:selVar.color, fontFamily:'DM Mono,monospace', fontWeight:800, marginBottom:5, whiteSpace:'nowrap' }}>{x.avg}</div>
+                        <div key={i} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', minWidth:minBarWidth, height:'100%', justifyContent:'flex-end' }}>
+                          {/* Número encima de la barra — siempre visible */}
+                          <div style={{ fontSize:13, color:selVar.color, fontFamily:'DM Mono,monospace', fontWeight:800, marginBottom:4, whiteSpace:'nowrap' }}>{x.avg}</div>
+                          {/* Barra */}
                           <div style={{ width:'60%', minWidth:28, maxWidth:64, borderRadius:'6px 6px 0 0',
-                            height:`${Math.max((x.avg/maxV)*BAR_H,4)}px`,
-                            background: posColor(x.pos) }} />
+                            height:`${Math.max((x.avg/maxV)*BAR_H, 4)}px`,
+                            background: posColor(x.pos), flexShrink:0 }} />
+                          {/* Etiquetas debajo */}
                           <div style={{ fontSize:10, color:'var(--snow)', fontWeight:700, marginTop:8, textAlign:'center', wordBreak:'break-word', lineHeight:1.3 }}>{x.pos}</div>
                           <div style={{ fontSize:9, color:'var(--silver)', textAlign:'center', marginTop:3 }}>{x.count} jugador{x.count!==1?'es':''}</div>
                         </div>
