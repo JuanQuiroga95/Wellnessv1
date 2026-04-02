@@ -47,32 +47,27 @@ function matchExcelCol(h: string): string | null {
   return null
 }
 
-function parseExcel(bytes: Uint8Array): Record<string, any>[] {
-  const wb = XLSX.read(bytes, { type: 'array' })
-  const sheet = wb.Sheets[wb.SheetNames[0]]
-  const raw: any[][] = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: null })
+function parseRawRows(raw: any[][]): Record<string, any>[] {
   if (raw.length < 2) return []
-  const headers = (raw[0] as string[]).map(h => String(h || ''))
+  const headers = (raw[0] as any[]).map(h => String(h || ''))
   const colMap: (string | null)[] = headers.map(h => {
     const ln = normStr(h)
-    // Strict name column detection — avoid false positives like 'Player Load'
     const isNameCol = (
       ln === 'name' || ln === 'nombre' || ln === 'athlete' || ln === 'player' ||
       ln.includes('first name') || ln.includes('last name') || ln.includes('full name') ||
-      ln.includes('player name') || ln.includes('athlete name') || ln === 'jugador' ||
-      (ln.includes('name') && !ln.includes('last') && !ln.includes('first') ? ln.split(' ').length <= 2 : false)
+      ln.includes('player name') || ln.includes('athlete name') || ln === 'jugador'
     )
     if (isNameCol) return '__name__'
     if (['date','fecha','session','period','device','jersey','shirt','interval','position','pos.'].some(k => ln === k || ln.startsWith(k))) return null
-    if (['time'].some(k => ln === k)) return null
+    if (ln === 'time') return null
     return matchExcelCol(h)
   })
   return raw.slice(1)
-    .filter(row => row.some(c => c !== null && c !== ''))
+    .filter(row => (row as any[]).some((c: any) => c !== null && c !== ''))
     .map(row => {
       let name: string | null = null
       const metricas: Record<string, number> = {}
-      row.forEach((cell, idx) => {
+      ;(row as any[]).forEach((cell: any, idx: number) => {
         const f = colMap[idx]
         if (!f || cell === null || cell === '') return
         if (f === '__name__') { name = String(cell).trim(); return }
@@ -83,6 +78,14 @@ function parseExcel(bytes: Uint8Array): Record<string, any>[] {
       return { nombre_catapult: name, nombre_norm: normalizeName(name), metricas }
     }).filter(Boolean) as any[]
 }
+
+function parseExcel(bytes: Uint8Array): Record<string, any>[] {
+  const wb = XLSX.read(bytes, { type: 'array' })
+  const sheet = wb.Sheets[wb.SheetNames[0]]
+  const raw: any[][] = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: null }) as any[][]
+  return parseRawRows(raw)
+}
+
 
 // ─── PDF PARSER — Catapult columnar format ────────────────────────────────────
 // Catapult PDFs render columns as stacked blocks:
@@ -264,21 +267,31 @@ export async function POST(req: NextRequest) {
     let tipo_sesion: string
     let sesion_id: number | null
     let confirm_flag: boolean
+    let preloadedRows: any[][] | null = null
 
     const contentType = req.headers.get('content-type') || ''
 
     if (contentType.includes('application/json')) {
       const body = await req.json()
-      if (!body.fileBase64 || !body.fecha) return NextResponse.json({ error: 'Falta archivo o fecha' }, { status: 400 })
-      // Decode base64
-      const binaryStr = atob(body.fileBase64)
-      bytes = new Uint8Array(binaryStr.length)
-      for (let i = 0; i < binaryStr.length; i++) bytes[i] = binaryStr.charCodeAt(i)
-      fileName = body.fileName || 'archivo.xlsx'
+      if (!body.fecha) return NextResponse.json({ error: 'Falta fecha' }, { status: 400 })
       fecha = String(body.fecha)
       tipo_sesion = String(body.tipo_sesion || 'entrenamiento')
       sesion_id = body.sesion_id ? Number(body.sesion_id) : null
       confirm_flag = body.confirm === true
+      fileName = String(body.fileName || 'archivo.xlsx')
+
+      if (body.rows && Array.isArray(body.rows)) {
+        // Excel pre-parsed client-side — rows is a 2D array [[headers,...],[row,...],...]
+        preloadedRows = body.rows as any[][]
+        bytes = new Uint8Array(0)
+      } else if (body.fileBase64) {
+        // PDF or fallback: decode base64
+        const binaryStr = atob(body.fileBase64)
+        bytes = new Uint8Array(binaryStr.length)
+        for (let i = 0; i < binaryStr.length; i++) bytes[i] = binaryStr.charCodeAt(i)
+      } else {
+        return NextResponse.json({ error: 'Falta archivo (rows o fileBase64)' }, { status: 400 })
+      }
     } else {
       // Legacy multipart
       const fd = await req.formData()
@@ -297,7 +310,12 @@ export async function POST(req: NextRequest) {
 
     let parsedRows: Record<string, any>[]
     try {
-      parsedRows = isPdf ? await parsePdf(bytes) : parseExcel(bytes)
+      if (preloadedRows) {
+        // Client already parsed the Excel rows — use them directly
+        parsedRows = parseRawRows(preloadedRows)
+      } else {
+        parsedRows = isPdf ? await parsePdf(bytes) : parseExcel(bytes)
+      }
     } catch (e) {
       return NextResponse.json({ error: String(e) }, { status: 400 })
     }

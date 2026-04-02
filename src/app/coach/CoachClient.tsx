@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
+import * as XLSX from 'xlsx'
 import { useRouter } from 'next/navigation'
 import Topbar from '@/components/ui/Topbar'
 import StatusBadge from '@/components/ui/StatusBadge'
@@ -4298,29 +4299,38 @@ function GpsPanel({ teamData }: { teamData: any }) {
       .catch(() => setLoadingHistorial(false))
   }, [result])
 
-  // Read file as base64 to send as JSON (avoids 4MB multipart limit on Vercel)
-  async function readFileBase64(f: File): Promise<string> {
-    return new Promise((resolve, reject) => {
+  // Parse Excel client-side (avoids Vercel 4.5MB body limit)
+  // Only the parsed rows (tiny JSON) are sent to the server
+  async function parseFileClientSide(f: File): Promise<{rows: any[], fileName: string, isPdf: boolean}> {
+    const isPdf = f.name.toLowerCase().endsWith('.pdf')
+    if (isPdf) {
+      // PDF must be sent as base64 to server (pdf-parse runs server-side)
       const reader = new FileReader()
-      reader.onload = () => {
-        const result = reader.result as string
-        // Remove data:...;base64, prefix
-        resolve(result.split(',')[1] || result)
-      }
-      reader.onerror = reject
-      reader.readAsDataURL(f)
-    })
+      const base64 = await new Promise<string>((resolve, reject) => {
+        reader.onload = () => resolve((reader.result as string).split(',')[1] || '')
+        reader.onerror = reject
+        reader.readAsDataURL(f)
+      })
+      return { rows: [], fileName: f.name, isPdf: true, base64 } as any
+    }
+    // Excel/CSV: parse in browser with SheetJS
+    const arrayBuffer = await f.arrayBuffer()
+    const data = new Uint8Array(arrayBuffer)
+    const wb = XLSX.read(data, { type: 'array' })
+    const ws = wb.Sheets[wb.SheetNames[0]]
+    const raw: any[][] = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null }) as any[][]
+    return { rows: raw, fileName: f.name, isPdf: false }
   }
 
   async function handlePreview() {
     if (!file) { setError('Seleccioná un archivo Excel o PDF'); return }
     setLoading(true); setError(''); setPreview(null); setResult(null)
     try {
-      const fileBase64 = await readFileBase64(file)
+      const parsed = await parseFileClientSide(file)
       const body = JSON.stringify({
-        fileBase64,
-        fileName: file.name,
-        fileType: file.type,
+        ...(parsed.isPdf ? { fileBase64: (parsed as any).base64 } : { rows: parsed.rows }),
+        fileName: parsed.fileName,
+        isPdf: parsed.isPdf,
         fecha,
         tipo_sesion: tipoSesion,
         sesion_id: sesionId || null,
@@ -4342,11 +4352,11 @@ function GpsPanel({ teamData }: { teamData: any }) {
     if (!file || !preview) return
     setImporting(true); setError('')
     try {
-      const fileBase64 = await readFileBase64(file)
+      const parsed = await parseFileClientSide(file)
       const body = JSON.stringify({
-        fileBase64,
-        fileName: file.name,
-        fileType: file.type,
+        ...(parsed.isPdf ? { fileBase64: (parsed as any).base64 } : { rows: parsed.rows }),
+        fileName: parsed.fileName,
+        isPdf: parsed.isPdf,
         fecha,
         tipo_sesion: tipoSesion,
         sesion_id: sesionId || null,
