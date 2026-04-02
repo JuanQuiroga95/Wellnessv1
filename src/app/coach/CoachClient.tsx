@@ -5167,41 +5167,46 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
                                 {/* Line overlay (m/min or RPE) */}
                                 {grp.line && players.length >= 1 && (() => {
                                   const n = players.length
-                                  // Map each player to x position (center of their group)
+                                  // Usar viewBox amplio (1000 x BAR_H) para coordenadas estables
+                                  const W = 1000
                                   const pts = lineVals.map((v, i) => {
-                                    const xPct = n === 1 ? 50 : (i / (n-1)) * 100
-                                    return { x: xPct, v }
+                                    const xPct = n === 1 ? 0.5 : (i / (n - 1))
+                                    return { x: xPct * W, y: (1 - (v / maxLine)) * BAR_H, v }
                                   })
-                                  // Use a ref-free approach: calculate pixel positions using known width
-                                  // SVG viewBox trick: use viewBox="0 0 100 BAR_H" so % = numeric
                                   return (
-                                    <svg viewBox={`0 0 100 ${BAR_H}`} preserveAspectRatio="none"
+                                    <svg viewBox={`0 0 ${W} ${BAR_H}`}
+                                      preserveAspectRatio="xMidYMid meet"
                                       style={{ position:'absolute', bottom:28, left:0, right:0, width:'100%', height:`${BAR_H}px`, overflow:'visible', pointerEvents:'none' }}>
                                       {/* Line connecting points */}
                                       {n > 1 && (
                                         <polyline
-                                          points={pts.map(pt=>`${pt.x},${(1-(pt.v/maxLine))*BAR_H}`).join(' ')}
-                                          fill="none" stroke={grp.line.color} strokeWidth="1.5" strokeDasharray="4,3"
+                                          points={pts.map(pt => `${pt.x},${pt.y}`).join(' ')}
+                                          fill="none" stroke={grp.line.color} strokeWidth="2.5"
+                                          strokeDasharray="12,7"
                                           vectorEffect="non-scaling-stroke"
                                         />
                                       )}
-                                      {/* Dots and value labels */}
-                                      {pts.map((pt, i) => {
-                                        const cy = (1-(pt.v/maxLine))*BAR_H
-                                        return (
-                                          <g key={i}>
-                                            <circle cx={pt.x} cy={cy} r="3" fill={grp.line!.color} stroke="var(--ink)" strokeWidth="1"
-                                              vectorEffect="non-scaling-stroke"/>
-                                            {pt.v > 0 && (
-                                              <text x={pt.x} y={Math.max(cy - 5, 8)} textAnchor="middle" fill={grp.line!.color}
-                                                fontSize="10" fontFamily="DM Mono, monospace" fontWeight="bold"
-                                                style={{ dominantBaseline:'auto' }}>
-                                                {pt.v}
-                                              </text>
-                                            )}
-                                          </g>
-                                        )
-                                      })}
+                                      {/* Dots and value labels — vectorEffect para que no se deformen */}
+                                      {pts.map((pt, i) => (
+                                        <g key={i}>
+                                          <circle cx={pt.x} cy={pt.y} r="5" fill={grp.line!.color}
+                                            stroke="#000" strokeWidth="1.5"
+                                            vectorEffect="non-scaling-stroke"/>
+                                          {pt.v > 0 && (
+                                            <text
+                                              x={pt.x}
+                                              y={Math.max(pt.y - 10, 14)}
+                                              textAnchor="middle"
+                                              fill={grp.line!.color}
+                                              fontFamily="DM Mono, monospace"
+                                              fontWeight="bold"
+                                              vectorEffect="non-scaling-stroke"
+                                              style={{ fontSize: `${BAR_H * 0.08}px`, dominantBaseline:'auto' }}>
+                                              {pt.v}
+                                            </text>
+                                          )}
+                                        </g>
+                                      ))}
                                     </svg>
                                   )
                                 })()}
