@@ -4427,13 +4427,17 @@ function GpsPanel({ teamData }: { teamData: any }) {
           <label style={{ display: 'block', fontSize: 11, color: 'var(--fog)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
             Archivo Catapult (.xlsx / .csv / .pdf)
           </label>
-          <div
-            style={{ border: '2px dashed var(--mist)', borderRadius: 12, padding: '28px 20px', textAlign: 'center', cursor: 'pointer', background: file ? 'rgba(200,241,53,.04)' : 'transparent', borderColor: file ? 'var(--lime)' : 'var(--mist)', transition: 'all .2s' }}
-            onClick={() => document.getElementById('gps-file-input')?.click()}
+          <label
+            htmlFor="gps-file-input"
+            style={{ border: '2px dashed var(--mist)', borderRadius: 12, padding: '28px 20px', textAlign: 'center', cursor: 'pointer', background: file ? 'rgba(200,241,53,.04)' : 'transparent', borderColor: file ? 'var(--lime)' : 'var(--mist)', transition: 'all .2s', display: 'block' }}
             onDragOver={e => e.preventDefault()}
             onDrop={e => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) { setFile(f); setPreview(null); setResult(null) } }}
           >
-            <input id="gps-file-input" type="file" accept=".xlsx,.csv,.xls,.pdf" style={{ display: 'none' }} onChange={e => { const f = e.target.files?.[0]; if (f) { setFile(f); setPreview(null); setResult(null) } }} />
+            <input id="gps-file-input" type="file" accept=".xlsx,.csv,.xls,.pdf"
+              style={{ position:'absolute', width:1, height:1, opacity:0, overflow:'hidden' }}
+              onChange={e => { const f = e.target.files?.[0]; if (f) { setFile(f); setPreview(null); setResult(null) } }}
+              onClick={e => { (e.target as HTMLInputElement).value = '' }}
+            />
             {file ? (
               <div>
                 <div style={{ fontSize: 28, marginBottom: 6 }}>{file.name.toLowerCase().endsWith('.pdf') ? '📄' : '📊'}</div>
@@ -4449,7 +4453,7 @@ function GpsPanel({ teamData }: { teamData: any }) {
                 <div style={{ fontSize: 11, color: 'var(--fog)', marginTop: 4 }}>Excel (.xlsx / .csv) o PDF — ambos formatos de Catapult OpenField</div>
               </div>
             )}
-          </div>
+          </label>
         </div>
 
         {error && (
