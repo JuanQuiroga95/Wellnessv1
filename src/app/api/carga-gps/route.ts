@@ -6,7 +6,7 @@ import { getSessionFromRequest } from '@/lib/auth'
 function isAdmin(s: any) { return s?.rol === 'admin' || s?.rol === 'master_admin' }
 
 function sumarMetricasBloques(ejercicios: any[]): Record<string, number> {
-  const t = { distTotal:0, distSprint:0, distMP:0, distAcel:0, distDecel:0, nSprints:0, nAcel:0, nDecel:0, minActivo:0, minPausa:0 }
+  const t = { distTotal:0, distSprint:0, distMP:0, distAcel:0, distDecel:0, nSprints:0, nAcel:0, nDecel:0, nAcel3:0, nDecel3:0, minActivo:0, minPausa:0 }
   if (!Array.isArray(ejercicios)) return t
   for (const bl of ejercicios) {
     const series  = Number(bl.series)  || 0
@@ -42,6 +42,8 @@ function sumarMetricasBloques(ejercicios: any[]): Record<string, number> {
       t.nSprints   += Number(ov.nSprints   ?? 0)
       t.nAcel      += Number(ov.nAcel      ?? 0)
       t.nDecel     += Number(ov.nDecel     ?? 0)
+      t.nAcel3     += Number(ov.nAcel3     ?? 0)
+      t.nDecel3    += Number(ov.nDecel3    ?? 0)
     } else if (series && minutos && jug && largo && ancho) {
       // Calculate from formula
       const densidad   = (largo * ancho) / jug
@@ -54,6 +56,9 @@ function sumarMetricasBloques(ejercicios: any[]): Record<string, number> {
       t.nSprints   += Math.max(0, (0.001  * densidad - 0.046)            * tiempoAct)
       t.nAcel      += Math.max(0, (0.212  * Math.log(densidad) - 0.23)   * tiempoAct)
       t.nDecel     += Math.max(0, (0.1041 * Math.log(densidad) - 0.096)  * tiempoAct)
+      // ACE>3 and DEC>3: ~22% of B2-3 (Casamichana 2013)
+      t.nAcel3     += Math.max(0, (0.212  * Math.log(densidad) - 0.23)   * tiempoAct * 0.22)
+      t.nDecel3    += Math.max(0, (0.1041 * Math.log(densidad) - 0.096)  * tiempoAct * 0.22)
     }
   }
   return Object.fromEntries(Object.entries(t).map(([k,v]) => [k, Math.round(v as number)]))
@@ -104,12 +109,13 @@ export async function GET(req: NextRequest) {
     for (const ses of sesiones as any[]) {
       const m = sumarMetricasBloques(ses.ejercicios || [])
       if (!gpsPorFecha[ses.fecha]) {
-        gpsPorFecha[ses.fecha] = { distTotal:0, distSprint:0, distMP:0, distAcel:0, distDecel:0, nSprints:0, nAcel:0, nDecel:0, minActivo:0, minPausa:0, rpe_objetivo:0 }
+        gpsPorFecha[ses.fecha] = { distTotal:0, distSprint:0, distMP:0, distAcel:0, distDecel:0, nSprints:0, nAcel:0, nDecel:0, nAcel3:0, nDecel3:0, minActivo:0, minPausa:0, rpe_objetivo:0 }
       }
       const g = gpsPorFecha[ses.fecha]
       g.distTotal  += m.distTotal;  g.distSprint += m.distSprint; g.distMP    += m.distMP
       g.distAcel   += m.distAcel;   g.distDecel  += m.distDecel
       g.nSprints   += m.nSprints;   g.nAcel      += m.nAcel;     g.nDecel    += m.nDecel
+      g.nAcel3     += m.nAcel3||0;  g.nDecel3    += m.nDecel3||0
       g.minActivo  += m.minActivo;  g.minPausa   += m.minPausa
       if (Number(ses.rpe_objetivo) > 0) g.rpe_objetivo = Number(ses.rpe_objetivo)
     }
@@ -120,7 +126,7 @@ export async function GET(req: NextRequest) {
       byPlayer[p.jugador_id] = {
         jugador_id: p.jugador_id, nombre: p.nombre, posicion: p.posicion || '—',
         sesiones: 0, total_rpe: 0, total_ua: 0, minActivo: 0,
-        distTotal:0, distSprint:0, distMP:0, distAcel:0, distDecel:0, nSprints:0, nAcel:0, nDecel:0,
+        distTotal:0, distSprint:0, distMP:0, distAcel:0, distDecel:0, nSprints:0, nAcel:0, nDecel:0, nAcel3:0, nDecel3:0,
         diasConGps: 0,
       }
     }
@@ -169,6 +175,8 @@ export async function GET(req: NextRequest) {
           p.nSprints   += gps.nSprints
           p.nAcel      += gps.nAcel
           p.nDecel     += gps.nDecel
+          p.nAcel3     += gps.nAcel3||0
+          p.nDecel3    += gps.nDecel3||0
           p.diasConGps += 1
         }
       }
@@ -192,6 +200,8 @@ export async function GET(req: NextRequest) {
       nSprints:    Math.round(p.nSprints),
       nAcel:       Math.round(p.nAcel),
       nDecel:      Math.round(p.nDecel),
+      nAcel3:      Math.round(p.nAcel3||0),
+      nDecel3:     Math.round(p.nDecel3||0),
       hasGps:      p.distTotal > 0,
     })).sort((a: any, b: any) => a.nombre.localeCompare(b.nombre))
 
@@ -372,6 +382,7 @@ export async function GET(req: NextRequest) {
       distTotal:  avg('distTotal'), distSprint: avg('distSprint'), distMP:    avg('distMP'),
       distAcel:   avg('distAcel'),  distDecel:  avg('distDecel'),
       nSprints:   avg('nSprints'),  nAcel:      avg('nAcel'),     nDecel:    avg('nDecel'),
+      nAcel3:     avg('nAcel3'),    nDecel3:    avg('nDecel3'),
       sesiones:   avg('sesiones'),
     }
 
