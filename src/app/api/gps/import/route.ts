@@ -1,4 +1,7 @@
 export const dynamic = 'force-dynamic'
+export const maxDuration = 60
+// Allow large file uploads (up to 20MB) for GPS Excel files
+export const preferredRegion = 'auto'
 import { NextRequest, NextResponse } from 'next/server'
 import { getDb } from '@/lib/db'
 import { getSessionFromRequest } from '@/lib/auth'
@@ -52,8 +55,16 @@ function parseExcel(bytes: Uint8Array): Record<string, any>[] {
   const headers = (raw[0] as string[]).map(h => String(h || ''))
   const colMap: (string | null)[] = headers.map(h => {
     const ln = normStr(h)
-    if (['first name','name','athlete','player','nombre'].some(k => ln.includes(k))) return '__name__'
-    if (['date','fecha','session','period','device','jersey','shirt'].some(k => ln.includes(k))) return null
+    // Strict name column detection — avoid false positives like 'Player Load'
+    const isNameCol = (
+      ln === 'name' || ln === 'nombre' || ln === 'athlete' || ln === 'player' ||
+      ln.includes('first name') || ln.includes('last name') || ln.includes('full name') ||
+      ln.includes('player name') || ln.includes('athlete name') || ln === 'jugador' ||
+      (ln.includes('name') && !ln.includes('last') && !ln.includes('first') ? ln.split(' ').length <= 2 : false)
+    )
+    if (isNameCol) return '__name__'
+    if (['date','fecha','session','period','device','jersey','shirt','interval','position','pos.'].some(k => ln === k || ln.startsWith(k))) return null
+    if (['time'].some(k => ln === k)) return null
     return matchExcelCol(h)
   })
   return raw.slice(1)

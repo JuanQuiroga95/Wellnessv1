@@ -4298,17 +4298,39 @@ function GpsPanel({ teamData }: { teamData: any }) {
       .catch(() => setLoadingHistorial(false))
   }, [result])
 
+  // Read file as base64 to send as JSON (avoids 4MB multipart limit on Vercel)
+  async function readFileBase64(f: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => {
+        const result = reader.result as string
+        // Remove data:...;base64, prefix
+        resolve(result.split(',')[1] || result)
+      }
+      reader.onerror = reject
+      reader.readAsDataURL(f)
+    })
+  }
+
   async function handlePreview() {
     if (!file) { setError('Seleccioná un archivo Excel o PDF'); return }
     setLoading(true); setError(''); setPreview(null); setResult(null)
     try {
-      const fd = new FormData()
-      fd.append('file', file)
-      fd.append('fecha', fecha)
-      fd.append('tipo_sesion', tipoSesion)
-      if (sesionId) fd.append('sesion_id', String(sesionId))
-      fd.append('confirm', 'false')
-      const r = await fetch('/api/gps/import', { method: 'POST', body: fd })
+      const fileBase64 = await readFileBase64(file)
+      const body = JSON.stringify({
+        fileBase64,
+        fileName: file.name,
+        fileType: file.type,
+        fecha,
+        tipo_sesion: tipoSesion,
+        sesion_id: sesionId || null,
+        confirm: false,
+      })
+      const r = await fetch('/api/gps/import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body,
+      })
       const d = await r.json()
       if (!r.ok) { setError(d.error || 'Error al procesar el archivo'); return }
       setPreview(d)
@@ -4320,13 +4342,21 @@ function GpsPanel({ teamData }: { teamData: any }) {
     if (!file || !preview) return
     setImporting(true); setError('')
     try {
-      const fd = new FormData()
-      fd.append('file', file)
-      fd.append('fecha', fecha)
-      fd.append('tipo_sesion', tipoSesion)
-      if (sesionId) fd.append('sesion_id', String(sesionId))
-      fd.append('confirm', 'true')
-      const r = await fetch('/api/gps/import', { method: 'POST', body: fd })
+      const fileBase64 = await readFileBase64(file)
+      const body = JSON.stringify({
+        fileBase64,
+        fileName: file.name,
+        fileType: file.type,
+        fecha,
+        tipo_sesion: tipoSesion,
+        sesion_id: sesionId || null,
+        confirm: true,
+      })
+      const r = await fetch('/api/gps/import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body,
+      })
       const d = await r.json()
       if (!r.ok) { setError(d.error || 'Error al importar'); return }
       setResult(d); setPreview(null); setFile(null)

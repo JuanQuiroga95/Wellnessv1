@@ -4,10 +4,8 @@ const nextConfig = {
   eslint: { ignoreDuringBuilds: true },
   experimental: {
     serverActions: {
-      bodySizeLimit: '5mb',
+      bodySizeLimit: '20mb',
     },
   },
-  // Note: api.bodyParser only works for Pages Router.
-  // For App Router API routes, body size is handled per-route via route segment config.
 }
 module.exports = nextConfig
