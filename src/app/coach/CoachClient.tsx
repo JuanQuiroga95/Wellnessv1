@@ -3204,11 +3204,9 @@ function ComparativaPanel({ teamData }: { teamData: any[] }) {
             </button>
           ))}
         </div>
-        {/* Single grouped bar chart: one bar per position, grouped by metric */}
-        <div style={{ marginTop:16 }}>
+        {/* Single grouped bar chart: one bar per position */}
         {(() => {
           const selVar = VARS.find(v=>v.key===posMetric) || VARS[0]
-          // Get all unique positions from merged data
           const posGroups: Record<string, number[]> = {}
           merged.forEach((p:any) => {
             const pos = p.posicion || 'Sin pos.'
@@ -3217,46 +3215,49 @@ function ComparativaPanel({ teamData }: { teamData: any[] }) {
             if (v > 0) posGroups[pos].push(v)
           })
           const posData = Object.entries(posGroups)
-            .map(([pos, vals]) => ({
-              pos,
-              avg: Math.round(vals.reduce((s,v)=>s+v,0)/vals.length),
-              count: vals.length,
-            }))
+            .map(([pos, vals]) => ({ pos, avg: Math.round(vals.reduce((s,v)=>s+v,0)/vals.length), count: vals.length }))
             .filter(x => x.avg > 0)
             .sort((a,b) => b.avg - a.avg)
           if (!posData.length) return <div style={{padding:24,textAlign:'center',color:'var(--fog)',fontSize:12}}>Sin datos GPS para este período</div>
           const maxV = Math.max(...posData.map(x=>x.avg), 1)
-          const BAR_H = 160
+          const BAR_H = 180
           const yTicks = [1, 0.75, 0.5, 0.25, 0].map(f => Math.round(maxV * f))
           return (
-            <div style={{ display:'flex', gap:0 }}>
-              {/* Y-axis */}
-              <div style={{ display:'flex', flexDirection:'column', justifyContent:'space-between', paddingRight:8, height:BAR_H+24, paddingBottom:24 }}>
-                {yTicks.map((t,i)=>(
-                  <div key={i} style={{ fontSize:9, color:'var(--fog)', fontFamily:'DM Mono,monospace', textAlign:'right' }}>{t}</div>
-                ))}
+            <div style={{ background:'var(--ink3)', borderRadius:12, padding:16, marginTop:16 }}>
+              <div style={{ fontSize:10, fontWeight:700, color:selVar.color, textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:12 }}>
+                {selVar.label} — promedio por posición
               </div>
-              {/* Bars */}
-              <div style={{ flex:1, position:'relative' }}>
-                {[100,75,50,25,0].map((p,i)=>(
-                  <div key={i} style={{ position:'absolute', left:0, right:0, top:`${(i/4)*BAR_H}px`, borderTop:'1px solid rgba(255,255,255,.05)' }}/>
-                ))}
-                <div style={{ display:'flex', gap:16, alignItems:'flex-end', height:BAR_H+24, paddingBottom:24 }}>
-                  {posData.map((x,i)=>(
-                    <div key={i} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', minWidth:0 }}>
-                      <div style={{ fontSize:13, color:selVar.color, fontFamily:'DM Mono,monospace', fontWeight:800, marginBottom:4 }}>{x.avg}</div>
-                      <div style={{ width:'100%', maxWidth:64, borderRadius:'6px 6px 0 0', height:`${Math.max((x.avg/maxV)*BAR_H,4)}px`,
-                        background: posColor(x.pos), opacity:0.85 }} />
-                      <div style={{ fontSize:11, color:'var(--snow)', fontWeight:600, marginTop:6, textAlign:'center' }}>{x.pos.split(' ')[0]}</div>
-                      <div style={{ fontSize:10, color:'var(--fog)', textAlign:'center' }}>{x.count} jug.</div>
-                    </div>
+              <div style={{ display:'flex', gap:0 }}>
+                {/* Y-axis */}
+                <div style={{ display:'flex', flexDirection:'column', justifyContent:'space-between', paddingRight:8, height:BAR_H+30, paddingBottom:30, flexShrink:0 }}>
+                  {yTicks.map((t,i)=>(
+                    <div key={i} style={{ fontSize:9, color:'var(--fog)', fontFamily:'DM Mono,monospace', textAlign:'right', lineHeight:1 }}>{t}</div>
                   ))}
+                </div>
+                {/* Chart area with overflow hidden */}
+                <div style={{ flex:1, position:'relative', overflow:'hidden' }}>
+                  {/* Grid lines */}
+                  {[0,25,50,75,100].map((p,i)=>(
+                    <div key={i} style={{ position:'absolute', left:0, right:0, bottom:`${(p/100)*BAR_H+30}px`, borderTop:'1px solid rgba(255,255,255,.06)', pointerEvents:'none' }}/>
+                  ))}
+                  {/* Bars */}
+                  <div style={{ display:'flex', gap:20, alignItems:'flex-end', height:BAR_H+30, paddingBottom:30 }}>
+                    {posData.map((x,i)=>(
+                      <div key={i} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', minWidth:0 }}>
+                        <div style={{ fontSize:14, color:selVar.color, fontFamily:'DM Mono,monospace', fontWeight:800, marginBottom:6 }}>{x.avg}</div>
+                        <div style={{ width:'100%', maxWidth:72, borderRadius:'6px 6px 0 0',
+                          height:`${Math.max((x.avg/maxV)*BAR_H,4)}px`,
+                          background: posColor(x.pos) }} />
+                        <div style={{ fontSize:11, color:'var(--snow)', fontWeight:700, marginTop:8, textAlign:'center' }}>{x.pos}</div>
+                        <div style={{ fontSize:10, color:'var(--silver)', textAlign:'center' }}>{x.count} jugador{x.count!==1?'es':''}</div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>
           )
         })()}
-        </div>
       </div>
       </>)}
     </div>
@@ -5086,7 +5087,7 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
                       <div style={{ fontSize:13, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:16 }}>
                         📊 COMPARATIVA ENTRE JUGADORES · {md}
                       </div>
-                      <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:14 }}>
+                      <div style={{ display:'grid', gridTemplateColumns:'1fr', gap:14 }}>
                         {GROUPS.map(grp => {
                           const maxBar = Math.max(...players.flatMap((p:any) => grp.bars.map(b => Number(p[b.key])||0)), 1)
                           const lineVals = grp.line ? players.map((p:any) => Number(p[grp.line!.key])||0) : []
@@ -5748,7 +5749,7 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
                       <div style={{ fontSize:13, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:16 }}>
                         📊 COMPARATIVA GPS · {md}
                       </div>
-                      <div style={{ display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:14 }}>
+                      <div style={{ display:'grid', gridTemplateColumns:'1fr', gap:14 }}>
                         {GPS_CHART_GROUPS.map(grp => {
                           const allVals = mdPlayers.flatMap((p:any)=>grp.bars.map(b=>Number(p[b.key])||0))
                           const maxBar = Math.max(...allVals, 1)
