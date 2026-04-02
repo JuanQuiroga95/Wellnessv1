@@ -3222,36 +3222,41 @@ function ComparativaPanel({ teamData }: { teamData: any[] }) {
           const maxV = Math.max(...posData.map(x=>x.avg), 1)
           const BAR_H = 180
           const yTicks = [1, 0.75, 0.5, 0.25, 0].map(f => Math.round(maxV * f))
+          // Ancho mínimo por barra para que no se compriman con muchas posiciones
+          const minBarWidth = 80
+          const chartMinWidth = posData.length * (minBarWidth + 20)
           return (
             <div style={{ background:'var(--ink3)', borderRadius:12, padding:16, marginTop:16 }}>
               <div style={{ fontSize:10, fontWeight:700, color:selVar.color, textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:12 }}>
                 {selVar.label} — promedio por posición
               </div>
               <div style={{ display:'flex', gap:0 }}>
-                {/* Y-axis */}
-                <div style={{ display:'flex', flexDirection:'column', justifyContent:'space-between', paddingRight:8, height:BAR_H+30, paddingBottom:30, flexShrink:0 }}>
+                {/* Y-axis — fijo a la izquierda */}
+                <div style={{ display:'flex', flexDirection:'column', justifyContent:'space-between', paddingRight:8, height:BAR_H+52, paddingBottom:52, flexShrink:0, width:40 }}>
                   {yTicks.map((t,i)=>(
                     <div key={i} style={{ fontSize:9, color:'var(--fog)', fontFamily:'DM Mono,monospace', textAlign:'right', lineHeight:1 }}>{t}</div>
                   ))}
                 </div>
-                {/* Chart area with overflow hidden */}
-                <div style={{ flex:1, position:'relative', overflow:'hidden' }}>
-                  {/* Grid lines */}
-                  {[0,25,50,75,100].map((p,i)=>(
-                    <div key={i} style={{ position:'absolute', left:0, right:0, bottom:`${(p/100)*BAR_H+30}px`, borderTop:'1px solid rgba(255,255,255,.06)', pointerEvents:'none' }}/>
-                  ))}
-                  {/* Bars */}
-                  <div style={{ display:'flex', gap:20, alignItems:'flex-end', height:BAR_H+30, paddingBottom:30 }}>
-                    {posData.map((x,i)=>(
-                      <div key={i} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', minWidth:0 }}>
-                        <div style={{ fontSize:14, color:selVar.color, fontFamily:'DM Mono,monospace', fontWeight:800, marginBottom:6 }}>{x.avg}</div>
-                        <div style={{ width:'100%', maxWidth:72, borderRadius:'6px 6px 0 0',
-                          height:`${Math.max((x.avg/maxV)*BAR_H,4)}px`,
-                          background: posColor(x.pos) }} />
-                        <div style={{ fontSize:11, color:'var(--snow)', fontWeight:700, marginTop:8, textAlign:'center' }}>{x.pos}</div>
-                        <div style={{ fontSize:10, color:'var(--silver)', textAlign:'center' }}>{x.count} jugador{x.count!==1?'es':''}</div>
-                      </div>
+                {/* Chart area — scroll horizontal si hay muchas posiciones */}
+                <div style={{ flex:1, overflowX:'auto', overflowY:'visible' }}>
+                  <div style={{ position:'relative', minWidth: chartMinWidth }}>
+                    {/* Grid lines */}
+                    {[0,25,50,75,100].map((p,i)=>(
+                      <div key={i} style={{ position:'absolute', left:0, right:0, bottom:`${(p/100)*BAR_H+52}px`, borderTop:'1px solid rgba(255,255,255,.06)', pointerEvents:'none' }}/>
                     ))}
+                    {/* Bars */}
+                    <div style={{ display:'flex', gap:12, alignItems:'flex-end', height:BAR_H+52, paddingBottom:52, paddingTop:8 }}>
+                      {posData.map((x,i)=>(
+                        <div key={i} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', minWidth:minBarWidth }}>
+                          <div style={{ fontSize:13, color:selVar.color, fontFamily:'DM Mono,monospace', fontWeight:800, marginBottom:5, whiteSpace:'nowrap' }}>{x.avg}</div>
+                          <div style={{ width:'60%', minWidth:28, maxWidth:64, borderRadius:'6px 6px 0 0',
+                            height:`${Math.max((x.avg/maxV)*BAR_H,4)}px`,
+                            background: posColor(x.pos) }} />
+                          <div style={{ fontSize:10, color:'var(--snow)', fontWeight:700, marginTop:8, textAlign:'center', wordBreak:'break-word', lineHeight:1.3 }}>{x.pos}</div>
+                          <div style={{ fontSize:9, color:'var(--silver)', textAlign:'center', marginTop:3 }}>{x.count} jugador{x.count!==1?'es':''}</div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
               </div>
