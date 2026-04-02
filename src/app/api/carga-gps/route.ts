@@ -16,8 +16,16 @@ function sumarMetricasBloques(ejercicios: any[]): Record<string, number> {
     const ancho   = Number(bl.ancho)   || 0
     const ov      = bl.overrides || {}
 
-    // Count players from either bl.jugadores or equipo1..4 arrays
-    let jug = Number(bl.jugadores) || 0
+    // Count players: atacantes+defensores+comodines → equipos object → equipo1..4 → jugadores field
+    const autoTotal = (Number(bl.atacantes)||0) + (Number(bl.defensores)||0) + (Number(bl.comodines)||0)
+    let jug = autoTotal > 0 ? autoTotal : (Number(bl.jugadores) || 0)
+    if (!jug && bl.equipos && typeof bl.equipos === 'object') {
+      // Stored as { "1": [id,id], "2": [id], ... }
+      for (const arr of Object.values(bl.equipos as Record<string,any>)) {
+        if (Array.isArray(arr)) jug += arr.length
+        else if (typeof arr === 'number') jug += arr
+      }
+    }
     if (!jug) {
       for (let i = 1; i <= 4; i++) {
         const eq = bl[`equipo${i}`]

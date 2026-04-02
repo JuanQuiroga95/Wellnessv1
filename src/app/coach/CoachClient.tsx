@@ -1012,7 +1012,7 @@ const OBJETIVOS_FISICOS = ['Fuerza','Resistencia','Velocidad','Recuperación-Com
 const OBJETIVOS_SECUNDARIOS = ['Táctico','Técnico','Técnico-Táctico']
 const TITULOS_SESION = ['MD+1','MD+2','MD+3','MD-4','MD-3','MD-2','MD-1','MD']
 const TAREAS_PRINCIPALES = ['Activación en campo','Activación en gimnasio','Gimnasio','Rondo','Trabajo analítico','Juego de posesión','Juego de posición','Partido reducido','Partido modificado','Partido de entrenamiento','Partido amistoso','Partido oficial']
-const SUBTAREAS: Record<string, string[]> = { 'Activación en campo': ['Circuito técnico','Circuito neuromuscular','Pliometría','Movilidad'], 'Activación en gimnasio': ['Isométricos','Pliometría','Movilidad','Excéntricos','Estabilidad','Tracción y empuje'], 'Rondo': ['Rondo 4v2','Rondo 5v2','Rondo 6v2','Rondo 4v1+1','Rondo en movimiento','Rondo conservación','Rondo orientado','Rondo en espacio'] }
+const SUBTAREAS: Record<string, string[]> = { 'Activación en campo': ['Circuito técnico','Circuito neuromuscular','Pliometría','Movilidad','Trabajo Preventivo'], 'Activación en gimnasio': ['Isométricos','Pliometría','Movilidad','Excéntricos','Estabilidad','Tracción y empuje','Trabajo Preventivo'], 'Rondo': ['Rondo 4v2','Rondo 5v2','Rondo 6v2','Rondo 8v2','Rondo 4v1+1','Rondo en movimiento','Rondo conservación','Rondo orientado','Rondo dos espacios'] }
 const TAREAS_CON_ESPACIO = ['Rondo','Trabajo analítico','Juego de posesión','Juego de posición','Partido reducido','Partido modificado','Partido de entrenamiento','Partido amistoso','Partido oficial']
 const TAREAS_CON_EQUIPO = ['Rondo','Trabajo analítico','Juego de posesión','Juego de posición','Partido reducido','Partido modificado','Partido de entrenamiento','Partido amistoso','Partido oficial']
 const TAREAS_PARTIDO_SIMPLE = ['Partido amistoso','Partido oficial','Partido de entrenamiento']
@@ -1093,8 +1093,17 @@ function CalendarioPanel({ teamData }) {
   }
 
   const sesiones: any[] = data?.sesiones || []
-  const partidos: any[] = data?.partidos || []
   const logs: any[] = data?.logs || []
+
+  // Deduplicate partidos (partido_logs) against sesiones_plan partido entries —
+  // if a sesiones_plan entry already exists for the same date with tipo='partido',
+  // don't show the partido_logs entry as a separate event (avoids double entry in calendar)
+  const sesionPartidoFechas = new Set(
+    sesiones.filter((s:any) => s.tipo === 'partido').map((s:any) => s.fecha)
+  )
+  const partidos: any[] = (data?.partidos || []).filter(
+    (p:any) => !sesionPartidoFechas.has(p.fecha)
+  )
 
   function eventosDelDia(fecha: string) {
     return {
@@ -1773,7 +1782,7 @@ function BloqueMetodologia({ bloque, index, onChange, onRemove, teamPlayers = []
     </div>
   )
 }
-function imprimirSesion(f: any, bloques: any[]) {
+function imprimirSesion(f: any, bloques: any[], teamPlayers: any[] = []) {
   const metricKeys = ['distTotal','distSprint','distMP','distAcel','distDecel','nSprints','nAcel','nDecel']
   const metricLabels = ['Dist. total','Sprint >21km/h','Alta pot. >20W/kg','Acel. >2m/s²','Decel. >-2m/s²','Nº sprints','Nº acel. >3m/s²','Nº decel. >-3m/s²']
   const metricUnits = ['m','m','m','m','m','','','']
@@ -1812,10 +1821,15 @@ function imprimirSesion(f: any, bloques: any[]) {
 
     const equiposHtml = TAREAS_CON_EQUIPO.includes(bl.ventana) && bl.equipos
       ? `<div style="margin-top:6px;display:flex;gap:8px;flex-wrap:wrap">${[1,2,3,4].map(n => {
-          const jugs = (bl.equipos[n]||[])
+          const jugs: any[] = (bl.equipos[n]||[])
           if (!jugs.length) return ''
           const cols = ['#16a34a','#2563eb','#d97706','#dc2626']
-          return `<span style="font-size:11px;padding:2px 8px;border-radius:4px;background:${cols[n-1]}20;color:${cols[n-1]};border:1px solid ${cols[n-1]}44">Equipo ${n}: ${jugs.length} jug.</span>`
+          const names = jugs.map((id: any) => {
+            const p = teamPlayers.find((tp: any) => tp.id === id || String(tp.id) === String(id))
+            return p ? (p.nombre || p.name || 'Jug.') : null
+          }).filter(Boolean)
+          const label = names.length > 0 ? names.join(', ') : `${jugs.length} jug.`
+          return `<span style="font-size:11px;padding:2px 8px;border-radius:4px;background:${cols[n-1]}20;color:${cols[n-1]};border:1px solid ${cols[n-1]}44"><strong>Equipo ${n}:</strong> ${label}</span>`
         }).join('')}</div>` : ''
 
     const imgHtml = bl.imagen ? `<img src="${bl.imagen}" style="width:100%;max-height:180px;object-fit:contain;border-radius:6px;margin-top:8px;border:1px solid #ddd" />` : ''
@@ -2124,7 +2138,7 @@ function SesionEditor({ sesion, defaultFecha, onSave, onDelete, onCancel, teamPl
           <button type="button" onClick={onDelete} className="btn-ghost" style={{ fontSize:12, color:'#f87171', borderColor:'rgba(239,68,68,.3)', padding:'10px 16px' }}>🗑 Eliminar</button>
         )}
         <button type="button" onClick={onCancel} className="btn-ghost" style={{ flex:1, fontSize:13 }}>Cancelar</button>
-        <button type="button" onClick={() => imprimirSesion(f, bloques)} className="btn-ghost" style={{ fontSize:12, padding:'10px 14px' }} title="Imprimir machete">🖨️ Imprimir</button>
+        <button type="button" onClick={() => imprimirSesion(f, bloques, teamPlayers)} className="btn-ghost" style={{ fontSize:12, padding:'10px 14px' }} title="Imprimir machete">🖨️ Imprimir</button>
         <button type="button" onClick={submit} disabled={loading||!f.fecha} className="btn-lime" style={{ flex:2, fontSize:13, padding:14 }}>
           {loading ? 'Guardando...' : sesion ? 'Guardar cambios →' : 'Crear sesión →'}
         </button>
@@ -2285,11 +2299,17 @@ function MinutosPanel({ teamData }) {
 
 function AddMatchForm({ teamData, onSuccess, onCancel }) {
   const [form, setForm] = useState({ fecha:new Date().toISOString().split('T')[0], rival:'', tipo_partido:'Oficial', jugador_id:'', minutos:'' })
-  const [bulk, setBulk] = useState(false)
-  const [bulkMins, setBulkMins] = useState({})
+  const [bulk, setBulk] = useState(true)
+  const [bulkMins, setBulkMins] = useState<Record<string,string>>({})
   const [rivalLogo, setRivalLogo] = useState<string|null>(null)
   const [loading, setLoading] = useState(false)
   const set = (k,v) => setForm(p=>({...p,[k]:v}))
+
+  function setAllMins(mins: string) {
+    const all: Record<string,string> = {}
+    teamData.forEach((p:any) => { all[p.jugador_id] = mins })
+    setBulkMins(all)
+  }
 
   async function submit(e) {
     e.preventDefault(); setLoading(true)
@@ -2337,14 +2357,25 @@ function AddMatchForm({ teamData, onSuccess, onCancel }) {
             <div><label style={{ display:'block', fontSize:10, fontWeight:600, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:4 }}>Minutos</label><input type="number" min="0" max="120" className="wp-input" style={{ padding:'8px 12px', fontSize:13 }} value={form.minutos} onChange={e=>set('minutos',e.target.value)} placeholder="ej: 90" required /></div>
           </div>
         ) : (
-          <div style={{ background:'var(--ink3)', border:'1px solid var(--mist)', borderRadius:10, padding:14, marginBottom:12, maxHeight:280, overflowY:'auto' }}>
-            <p style={{ fontSize:10, color:'var(--silver)', marginBottom:10, textTransform:'uppercase', letterSpacing:'0.06em' }}>Minutos por jugador (vacío = no jugó)</p>
-            {teamData.map(p=>(
-              <div key={p.jugador_id} style={{ display:'flex', alignItems:'center', gap:10, marginBottom:6 }}>
-                <span style={{ fontSize:13, color:'var(--silver)', flex:1, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{p.nombre}</span>
-                <input type="number" min="0" max="120" placeholder="min" style={{ width:70, background:'var(--ink2)', border:'1px solid var(--fog)', borderRadius:6, padding:'5px 8px', fontSize:12, color:'var(--snow)', fontFamily:'DM Mono,monospace', outline:'none' }} value={bulkMins[p.jugador_id]||''} onChange={e=>setBulkMins(m=>({...m,[p.jugador_id]:e.target.value}))} />
-              </div>
-            ))}
+          <div style={{ marginBottom:12 }}>
+            <div style={{ display:'flex', gap:8, alignItems:'center', marginBottom:8, flexWrap:'wrap' }}>
+              <span style={{ fontSize:10, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em' }}>Carga rápida:</span>
+              {['90','45','0'].map(m=>(
+                <button key={m} type="button" onClick={()=>setAllMins(m)}
+                  style={{ fontSize:11, padding:'4px 10px', borderRadius:6, cursor:'pointer', background:'var(--ink3)', border:'1px solid var(--fog)', color:'var(--silver)' }}>
+                  {m==='0' ? 'Limpiar' : `Todos ${m} min`}
+                </button>
+              ))}
+            </div>
+            <div style={{ background:'var(--ink3)', border:'1px solid var(--mist)', borderRadius:10, padding:14, maxHeight:280, overflowY:'auto' }}>
+              <p style={{ fontSize:10, color:'var(--silver)', marginBottom:10, textTransform:'uppercase', letterSpacing:'0.06em' }}>Minutos por jugador (vacío = no jugó)</p>
+              {teamData.map((p:any)=>(
+                <div key={p.jugador_id} style={{ display:'flex', alignItems:'center', gap:10, marginBottom:6 }}>
+                  <span style={{ fontSize:13, color:'var(--silver)', flex:1, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{p.nombre}</span>
+                  <input type="number" min="0" max="200" placeholder="min" style={{ width:70, background:'var(--ink2)', border:'1px solid var(--fog)', borderRadius:6, padding:'5px 8px', fontSize:12, color:'var(--snow)', fontFamily:'DM Mono,monospace', outline:'none' }} value={bulkMins[p.jugador_id]||''} onChange={e=>setBulkMins(m=>({...m,[p.jugador_id]:e.target.value}))} />
+                </div>
+              ))}
+            </div>
           </div>
         )}
         <div style={{ display:'flex', gap:10 }}>
@@ -3239,8 +3270,15 @@ function ComparativaPanel({ teamData }: { teamData: any[] }) {
             const v = Number(p[selVar.key]) || 0
             if (v > 0) posGroups[pos].push(v)
           })
+          // Build posData including player names for each position group
+          const posPlayerNames: Record<string, string[]> = {}
+          merged.forEach((p:any) => {
+            const pos = p.posicion || 'Sin pos.'
+            if (!posPlayerNames[pos]) posPlayerNames[pos] = []
+            if (Number(p[selVar.key]) > 0) posPlayerNames[pos].push(p.nombre)
+          })
           const posData = Object.entries(posGroups)
-            .map(([pos, vals]) => ({ pos, avg: Math.round(vals.reduce((s,v)=>s+v,0)/vals.length), count: vals.length }))
+            .map(([pos, vals]) => ({ pos, avg: Math.round(vals.reduce((s,v)=>s+v,0)/vals.length), count: vals.length, names: posPlayerNames[pos]||[] }))
             .filter(x => x.avg > 0)
             .sort((a,b) => b.avg - a.avg)
           if (!posData.length) return <div style={{padding:24,textAlign:'center',color:'var(--fog)',fontSize:12}}>Sin datos GPS para este período</div>
@@ -3288,7 +3326,12 @@ function ComparativaPanel({ teamData }: { teamData: any[] }) {
                           </div>
                           {/* Etiquetas debajo */}
                           <div style={{ fontSize:10, color:'var(--snow)', fontWeight:700, marginTop:8, textAlign:'center', wordBreak:'break-word', lineHeight:1.3 }}>{x.pos}</div>
-                          <div style={{ fontSize:9, color:'var(--silver)', textAlign:'center', marginTop:3 }}>{x.count} jugador{x.count!==1?'es':''}</div>
+                          {x.names.length > 0 && (
+                            <div style={{ fontSize:9, color:'var(--lime)', textAlign:'center', marginTop:2, lineHeight:1.3 }}>
+                              {x.names.map(n=>n.split(' ')[0]).join(', ')}
+                            </div>
+                          )}
+                          <div style={{ fontSize:9, color:'var(--silver)', textAlign:'center', marginTop:2 }}>{x.count} jugador{x.count!==1?'es':''}</div>
                         </div>
                       ))}
                     </div>
@@ -4116,6 +4159,93 @@ function AcumPanel({ teamData }) {
       </div>
 
 
+      {/* ══ ACUMULATIVO GPS (datos reales Catapult) ══════════════════ */}
+      {(() => {
+        const gpsReal: any[] = miciData?.gpsReal || []
+        const GPS_ACC_VARS = [
+          {key:'dist_total',   label:'Tot Dist (m)',   color:'#60a5fa'},
+          {key:'dist_hir',     label:'High Speed (m)', color:'#f59e0b'},
+          {key:'dist_v4',      label:'Vel B4 (m)',     color:'#a78bfa'},
+          {key:'dist_v5',      label:'Vel B6 (m)',     color:'#f97316'},
+          {key:'n_sprints',    label:'Nº Sprints',     color:'#ec4899'},
+          {key:'max_velocity', label:'Vel Máx (km/h)', color:'#ef4444'},
+          {key:'dist_per_min', label:'Mts/min',        color:'#34d399'},
+          {key:'acc2',         label:'ACC B2-3',       color:'#8b5cf6'},
+          {key:'dec2',         label:'DEC B2-3',       color:'#06b6d4'},
+        ]
+        const nGps = gpsReal.length || 1
+        const teamAvgGps: Record<string,number> = {}
+        GPS_ACC_VARS.forEach(v => {
+          const vals = gpsReal.map((p:any)=>Number(p[v.key])||0).filter(x=>x>0)
+          if (vals.length) teamAvgGps[v.key] = v.key === 'max_velocity' || v.key === 'dist_per_min'
+            ? Math.round(vals.reduce((s,x)=>s+x,0)/vals.length*10)/10
+            : Math.round(vals.reduce((s,x)=>s+x,0)/nGps)
+        })
+        return (
+          <div style={{ background:'var(--ink2)', border:'1px solid rgba(96,165,250,.25)', borderRadius:16, overflow:'hidden' }}>
+            <div style={{ padding:'12px 16px', borderBottom:'1px solid var(--mist)', display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:10 }}>
+              <div>
+                <h2 style={{ fontFamily:'Bebas Neue,sans-serif', fontSize:28, color:'var(--snow)', letterSpacing:'0.04em' }}>
+                  📡 ACUMULATIVO GPS
+                </h2>
+                <p style={{ fontSize:11, color:'#60a5fa', fontFamily:'DM Mono,monospace', marginTop:2 }}>
+                  Datos reales importados desde Catapult · {miciDesde} → {miciHasta}
+                </p>
+              </div>
+            </div>
+            {miciLoading ? (
+              <div style={{ padding:32, textAlign:'center', color:'var(--silver)' }}>Cargando GPS...</div>
+            ) : !gpsReal.length ? (
+              <div style={{ padding:32, textAlign:'center', color:'var(--silver)', fontSize:12 }}>
+                Sin datos GPS importados para este período. Importá archivos desde la pestaña 📡 GPS.
+              </div>
+            ) : (
+              <div style={{ overflowX:'auto' }}>
+                <table style={{ width:'100%', borderCollapse:'collapse', fontSize:11 }}>
+                  <thead>
+                    <tr style={{ background:'rgba(96,165,250,.04)' }}>
+                      <th style={{ padding:'8px 14px', textAlign:'left', color:'var(--silver)', fontSize:9, fontWeight:700, textTransform:'uppercase' }}>Jugador</th>
+                      <th style={{ padding:'8px 8px', textAlign:'left', color:'var(--silver)', fontSize:9, fontWeight:700, textTransform:'uppercase' }}>Pos.</th>
+                      <th style={{ padding:'8px 8px', textAlign:'center', color:'var(--silver)', fontSize:9, fontWeight:700, textTransform:'uppercase' }}>Ses.</th>
+                      {GPS_ACC_VARS.map(v=>(
+                        <th key={v.key} style={{ padding:'8px 8px', textAlign:'center', color:v.color, fontSize:9, fontWeight:700, textTransform:'uppercase', whiteSpace:'nowrap' }}>{v.label}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {gpsReal.map((p:any,i:number)=>(
+                      <tr key={i} style={{ borderTop:'1px solid var(--mist)', background:i%2===0?'transparent':'rgba(255,255,255,.015)' }}>
+                        <td style={{ padding:'8px 14px', color:'var(--snow)', fontWeight:500, whiteSpace:'nowrap' }}>{p.nombre}</td>
+                        <td style={{ padding:'8px 8px', color:'var(--fog)', fontSize:10 }}>{p.posicion||'—'}</td>
+                        <td style={{ padding:'8px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', color:'var(--silver)' }}>{p.sesiones_gps||1}</td>
+                        {GPS_ACC_VARS.map(v=>{
+                          const val = p[v.key]
+                          const hasVal = val !== null && val !== undefined && Number(val) !== 0
+                          return (
+                            <td key={v.key} style={{ padding:'8px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', color:hasVal?v.color:'var(--fog)', fontWeight:hasVal?600:400 }}>
+                              {hasVal ? val : '—'}
+                            </td>
+                          )
+                        })}
+                      </tr>
+                    ))}
+                    <tr style={{ borderTop:'2px solid rgba(96,165,250,.4)', background:'rgba(96,165,250,.04)' }}>
+                      <td style={{ padding:'8px 14px', fontWeight:800, color:'#60a5fa', fontSize:10, textTransform:'uppercase' }}>PROM. EQUIPO</td>
+                      <td/><td/>
+                      {GPS_ACC_VARS.map(v=>(
+                        <td key={v.key} style={{ padding:'8px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, color:'#60a5fa' }}>
+                          {teamAvgGps[v.key]||'—'}
+                        </td>
+                      ))}
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )
+      })()}
+
       {/* Photo upload section */}
       <div style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:16, padding:20 }}>
         <p style={{ fontSize:11, fontWeight:600, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:14 }}>Fotos de Perfil</p>
@@ -4885,13 +5015,10 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
           const hasData = existingMdLabels.has(md)
           const SESSION_VARS = [
             {key:'distTotal',  label:'DT (m)',          color:'#f59e0b'},
-            {key:'minActivo',  label:'m/min',           color:'#84cc16'},
             {key:'distSprint', label:'Dist. Sprint (m)',color:'#f97316'},
             {key:'nSprints',   label:'Nº Sprint',       color:'#a78bfa'},
-            {key:'nAcel',      label:'ACE >2 (m)',      color:'#ec4899'},
-            {key:'nDecel',     label:'DEC >2 (m)',      color:'#14b8a6'},
-            {key:'nAcel3',     label:'ACE >3 (n)',      color:'#f43f5e'},
-            {key:'nDecel3',    label:'DEC >3 (n)',      color:'#0ea5e9'},
+            {key:'nAcel',      label:'ACE >2',          color:'#ec4899'},
+            {key:'nDecel',     label:'DEC >2',          color:'#14b8a6'},
             {key:'distMP',     label:'Alta Pot.',       color:'#fbbf24'},
           ]
           return (
@@ -5100,46 +5227,49 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
                                 {/* Line overlay (m/min or RPE) */}
                                 {grp.line && players.length >= 1 && (() => {
                                   const n = players.length
-                                  // Usar viewBox amplio (1000 x BAR_H) para coordenadas estables
                                   const W = 1000
-                                  const pts = lineVals.map((v, i) => {
+                                  const allPts = lineVals.map((v, i) => {
                                     const xPct = n === 1 ? 0.5 : (i / (n - 1))
-                                    return { x: xPct * W, y: (1 - (v / maxLine)) * BAR_H, v }
+                                    return { x: xPct * W, y: v > 0 ? (1 - (v / maxLine)) * BAR_H : null, v }
                                   })
+                                  const validPts = allPts.filter(pt => pt.y !== null) as {x:number,y:number,v:number}[]
                                   return (
                                     <svg viewBox={`0 0 ${W} ${BAR_H}`}
                                       preserveAspectRatio="xMidYMid meet"
                                       style={{ position:'absolute', bottom:28, left:0, right:0, width:'100%', height:`${BAR_H}px`, overflow:'visible', pointerEvents:'none' }}>
-                                      {/* Line connecting points */}
-                                      {n > 1 && (
+                                      {/* Line connecting only players with data */}
+                                      {validPts.length > 1 && (
                                         <polyline
-                                          points={pts.map(pt => `${pt.x},${pt.y}`).join(' ')}
+                                          points={validPts.map(pt => `${pt.x},${pt.y}`).join(' ')}
                                           fill="none" stroke={grp.line.color} strokeWidth="2.5"
                                           strokeDasharray="12,7"
                                           vectorEffect="non-scaling-stroke"
                                         />
                                       )}
-                                      {/* Dots and value labels — vectorEffect para que no se deformen */}
-                                      {pts.map((pt, i) => (
-                                        <g key={i}>
-                                          <circle cx={pt.x} cy={pt.y} r="5" fill={grp.line!.color}
-                                            stroke="#000" strokeWidth="1.5"
-                                            vectorEffect="non-scaling-stroke"/>
-                                          {pt.v > 0 && (
-                                            <text
-                                              x={pt.x}
-                                              y={Math.max(pt.y - 10, 14)}
-                                              textAnchor="middle"
-                                              fill={grp.line!.color}
-                                              fontFamily="DM Mono, monospace"
-                                              fontWeight="bold"
-                                              vectorEffect="non-scaling-stroke"
-                                              style={{ fontSize: `${BAR_H * 0.08}px`, dominantBaseline:'auto' }}>
-                                              {pt.v}
-                                            </text>
-                                          )}
-                                        </g>
-                                      ))}
+                                      {/* Dots and value labels — only for players with data */}
+                                      {allPts.map((pt, i) => {
+                                        if (pt.y === null) return null
+                                        return (
+                                          <g key={i}>
+                                            <circle cx={pt.x} cy={pt.y} r="5" fill={grp.line!.color}
+                                              stroke="#000" strokeWidth="1.5"
+                                              vectorEffect="non-scaling-stroke"/>
+                                            {pt.v > 0 && (
+                                              <text
+                                                x={pt.x}
+                                                y={Math.max(pt.y - 10, 14)}
+                                                textAnchor="middle"
+                                                fill={grp.line!.color}
+                                                fontFamily="DM Mono, monospace"
+                                                fontWeight="bold"
+                                                vectorEffect="non-scaling-stroke"
+                                                style={{ fontSize: `${BAR_H * 0.08}px`, dominantBaseline:'auto' }}>
+                                                {pt.v}
+                                              </text>
+                                            )}
+                                          </g>
+                                        )
+                                      })}
                                     </svg>
                                   )
                                 })()}
@@ -5472,8 +5602,20 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
 // ═══════════════════════════════════════════════════════════════════
 function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
   const today = new Date().toISOString().split('T')[0]
-  const weekStart = (() => { const d=new Date(); d.setDate(d.getDate()-d.getDay()+1); return d.toISOString().split('T')[0] })()
-  const [desde, setDesde] = useState(weekStart)
+  const [microcicloOffset, setMicrocicloOffset] = useState(0)
+
+  const getWeekStart = (offsetWeeks = 0) => {
+    const d = new Date()
+    d.setDate(d.getDate() - d.getDay() + 1 + offsetWeeks * 7)
+    return d.toISOString().split('T')[0]
+  }
+  const getWeekEnd = (offsetWeeks = 0) => {
+    const d = new Date()
+    d.setDate(d.getDate() - d.getDay() + 7 + offsetWeeks * 7)
+    return d.toISOString().split('T')[0]
+  }
+
+  const [desde, setDesde] = useState(() => getWeekStart(0))
   const [hasta, setHasta] = useState(today)
   const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(false)
@@ -5481,6 +5623,13 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
   const [showRefInput, setShowRefInput] = useState(false)
   const [partidos, setPartidos] = useState<any[]>([])
   const [selectedPartidos, setSelectedPartidos] = useState<(any|null)[]>([null,null,null])
+
+  useEffect(() => {
+    const newDesde = getWeekStart(microcicloOffset)
+    const newHasta = microcicloOffset === 0 ? today : getWeekEnd(microcicloOffset)
+    setDesde(newDesde)
+    setHasta(newHasta)
+  }, [microcicloOffset])
 
   useEffect(() => { cargar() }, [desde, hasta])
   useEffect(() => {
@@ -5532,8 +5681,6 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
     {key:'max_velocity', label:'Vel Máx (km/h)', color:'#ef4444'},
     {key:'acc2',         label:'ACC B2-3',       color:'#8b5cf6'},
     {key:'dec2',         label:'DEC B2-3',       color:'#06b6d4'},
-    {key:'acc3',         label:'ACC >3 (n)',     color:'#f43f5e'},
-    {key:'dec3',         label:'DEC >3 (n)',     color:'#0ea5e9'},
   ]
 
   const gpsReal: any[] = data?.gpsReal || []
@@ -5594,6 +5741,14 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
           <p style={{ fontSize:12, color:'var(--silver)' }}>Microciclo · Datos reales importados desde Catapult · individuales por jugador</p>
         </div>
         <div style={{ display:'flex', gap:8, flexWrap:'wrap', alignItems:'flex-end' }}>
+          {/* Microciclo navigation */}
+          <div style={{ display:'flex', alignItems:'center', gap:6, background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:8, padding:'4px 8px' }}>
+            <button onClick={()=>setMicrocicloOffset(o=>o-1)} style={{ background:'none', border:'none', color:'var(--silver)', cursor:'pointer', fontSize:16, padding:'0 4px', lineHeight:1 }}>‹</button>
+            <span style={{ fontSize:11, color:'var(--snow)', fontFamily:'DM Mono,monospace', minWidth:80, textAlign:'center' }}>
+              {microcicloOffset === 0 ? 'Esta semana' : microcicloOffset === -1 ? 'Sem. pasada' : `Sem. ${microcicloOffset < 0 ? microcicloOffset : '+'+microcicloOffset}`}
+            </span>
+            <button onClick={()=>setMicrocicloOffset(o=>Math.min(0, o+1))} style={{ background:'none', border:'none', color: microcicloOffset >= 0 ? 'var(--fog)' : 'var(--silver)', cursor: microcicloOffset >= 0 ? 'default' : 'pointer', fontSize:16, padding:'0 4px', lineHeight:1 }}>›</button>
+          </div>
           <div><label style={{ fontSize:10, color:'var(--fog)', display:'block', marginBottom:3, textTransform:'uppercase' }}>Desde</label><input className="wp-input" type="date" value={desde} onChange={e=>setDesde(e.target.value)} /></div>
           <div><label style={{ fontSize:10, color:'var(--fog)', display:'block', marginBottom:3, textTransform:'uppercase' }}>Hasta</label><input className="wp-input" type="date" value={hasta} onChange={e=>setHasta(e.target.value)} /></div>
           <button onClick={()=>window.print()} style={{ fontSize:11, padding:'8px 14px', borderRadius:8, background:'rgba(96,165,250,.1)', color:'#60a5fa', border:'1px solid rgba(96,165,250,.3)', cursor:'pointer' }}>🖨️ PDF</button>
@@ -5613,6 +5768,60 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
           <p style={{ fontSize:11, fontWeight:700, color:'#60a5fa', textTransform:'uppercase', letterSpacing:'0.08em' }}>CUADRO 1 · GPS REAL POR SESIÓN · MD+1 → MD</p>
           <p style={{ fontSize:10, color:'var(--fog)', marginTop:2 }}>Datos reales individuales por jugador en cada sesión del microciclo</p>
         </div>
+        {/* GPS por fecha (sin sesion_id asignado) — GPS data not linked to a planned session */}
+        {(() => {
+          const mdLabels = new Set(MD_ORDER_LOCAL)
+          const dateKeys = Object.keys(gpsPerMD).filter(k => !mdLabels.has(k)).sort()
+          if (!dateKeys.length) return null
+          return (
+            <div style={{ marginBottom:12 }}>
+              <p style={{ fontSize:10, color:'#f59e0b', fontWeight:700, textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:8 }}>
+                ⚠️ GPS importado sin sesión planificada asignada — mostrando por fecha
+              </p>
+              {dateKeys.map(dateKey => {
+                const datePlayers: any[] = gpsPerMD[dateKey] || []
+                return (
+                  <div key={dateKey} style={{ background:'var(--ink2)', border:'1px solid rgba(245,158,11,.25)', borderRadius:14, overflow:'hidden', marginBottom:10 }}>
+                    <div style={{ padding:'8px 16px', background:'rgba(245,158,11,.06)', borderBottom:'1px solid var(--mist)', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                      <span style={{ fontSize:13, fontWeight:800, color:'#f59e0b', fontFamily:'Bebas Neue,sans-serif', letterSpacing:'0.1em' }}>📅 {dateKey}</span>
+                      <span style={{ fontSize:10, color:'var(--fog)' }}>{datePlayers.length} jugadores</span>
+                    </div>
+                    <div style={{ overflowX:'auto' }}>
+                      <table style={{ width:'100%', borderCollapse:'collapse', fontSize:11 }}>
+                        <thead>
+                          <tr style={{ background:'rgba(255,255,255,.02)' }}>
+                            <th style={{ padding:'5px 14px', textAlign:'left', color:'var(--silver)', fontSize:8, fontWeight:700, textTransform:'uppercase', borderBottom:'1px solid var(--mist)' }}>Jugador</th>
+                            <th style={{ padding:'5px 8px', textAlign:'left', color:'var(--silver)', fontSize:8, fontWeight:700, textTransform:'uppercase', borderBottom:'1px solid var(--mist)' }}>Pos.</th>
+                            {GPS_VARS.map(v=>(
+                              <th key={v.key} style={{ padding:'5px 8px', textAlign:'center', color:v.color, fontSize:8, fontWeight:700, textTransform:'uppercase', whiteSpace:'nowrap', borderBottom:'1px solid var(--mist)' }}>{v.label}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {datePlayers.map((p:any, i:number)=>(
+                            <tr key={i} style={{ borderTop:'1px solid var(--mist)', background:i%2===0?'transparent':'rgba(255,255,255,.01)' }}>
+                              <td style={{ padding:'6px 14px', color:'var(--snow)', fontWeight:500, whiteSpace:'nowrap' }}>{p.nombre}</td>
+                              <td style={{ padding:'6px 8px', color:'var(--fog)', fontSize:10 }}>{p.posicion||'—'}</td>
+                              {GPS_VARS.map(v=>{
+                                const val = p[v.key]
+                                const hasVal = val !== null && val !== undefined && Number(val) !== 0
+                                return (
+                                  <td key={v.key} style={{ padding:'6px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', color:hasVal?v.color:'var(--fog)', fontWeight:hasVal?600:400 }}>
+                                    {hasVal ? val : '—'}
+                                  </td>
+                                )
+                              })}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )
+        })()}
         {mdCols.map((md:string) => {
           const hasData = existingMdLabels.has(md) && (gpsPerMD[md]||[]).length > 0
           const mdPlayers: any[] = gpsPerMD[md] || []
@@ -5742,17 +5951,39 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
                                   })}
                                 </div>
                                 {grp.line && lineVals.length >= 1 && (() => {
-                                  const pts = lineVals.map((v,i)=>({ x: n===1?50:(i/(n-1))*100, v }))
+                                  const W = 1000
+                                  const validPts = lineVals
+                                    .map((v,i)=>({ x: n===1 ? W/2 : (i/(n-1))*W, y: v>0 ? (1-(v/maxLine))*BAR_H : null, v }))
+                                    .filter(pt => pt.y !== null) as {x:number,y:number,v:number}[]
+                                  const allPts = lineVals.map((v,i)=>({ x: n===1 ? W/2 : (i/(n-1))*W, y: v>0 ? (1-(v/maxLine))*BAR_H : null, v }))
                                   return (
-                                    <svg viewBox={`0 0 100 ${BAR_H}`} preserveAspectRatio="none"
+                                    <svg viewBox={`0 0 ${W} ${BAR_H}`}
+                                      preserveAspectRatio="xMidYMid meet"
                                       style={{ position:'absolute', bottom:28, left:0, right:0, width:'100%', height:`${BAR_H}px`, overflow:'visible', pointerEvents:'none' }}>
-                                      {n>1 && <polyline points={pts.map(p=>`${p.x},${(1-(p.v/maxLine))*BAR_H}`).join(' ')} fill="none" stroke={grp.line.color} strokeWidth="1.5" strokeDasharray="4,3" vectorEffect="non-scaling-stroke"/>}
-                                      {pts.map((pt,i)=>{
-                                        const cy=(1-(pt.v/maxLine))*BAR_H
+                                      {validPts.length > 1 && (
+                                        <polyline
+                                          points={validPts.map(p=>`${p.x},${p.y}`).join(' ')}
+                                          fill="none" stroke={grp.line.color} strokeWidth="2.5"
+                                          strokeDasharray="12,7"
+                                          vectorEffect="non-scaling-stroke"
+                                        />
+                                      )}
+                                      {allPts.map((pt,i)=>{
+                                        if (pt.y === null) return null
                                         return (
                                           <g key={i}>
-                                            <circle cx={pt.x} cy={cy} r="3" fill={grp.line!.color} stroke="var(--ink)" strokeWidth="1" vectorEffect="non-scaling-stroke"/>
-                                            {pt.v>0 && <text x={pt.x} y={Math.max(cy-5,8)} textAnchor="middle" fill={grp.line!.color} fontSize="10" fontFamily="DM Mono,monospace" fontWeight="bold">{pt.v}</text>}
+                                            <circle cx={pt.x} cy={pt.y} r="5" fill={grp.line!.color}
+                                              stroke="#000" strokeWidth="1.5"
+                                              vectorEffect="non-scaling-stroke"/>
+                                            {pt.v>0 && (
+                                              <text x={pt.x} y={Math.max(pt.y-10, 14)}
+                                                textAnchor="middle" fill={grp.line!.color}
+                                                fontFamily="DM Mono, monospace" fontWeight="bold"
+                                                vectorEffect="non-scaling-stroke"
+                                                style={{ fontSize:`${BAR_H*0.08}px`, dominantBaseline:'auto' }}>
+                                                {pt.v}
+                                              </text>
+                                            )}
                                           </g>
                                         )
                                       })}
