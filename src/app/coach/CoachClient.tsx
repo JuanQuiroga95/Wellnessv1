@@ -1545,8 +1545,14 @@ function BloqueMetodologia({ bloque, index, onChange, onRemove, teamPlayers = []
   const jugadoresEquipos = Object.values(equipos).flat() as number[]
   const totalJugadoresEquipos = jugadoresEquipos.length
 
-  // For partido types: prefer manual jugadores input; team selector as bonus info
-  const calcJugadores = Number(bloque.jugadores) || (esConEquipo ? totalJugadoresEquipos : 0)
+  // Auto total from atacantes + defensores + comodines
+  const atacantes = Number(bloque.atacantes) || 0
+  const defensores = Number(bloque.defensores) || 0
+  const comodines = Number(bloque.comodines) || 0
+  const autoTotal = atacantes + defensores + comodines
+
+  // For partido types: prefer auto-total > manual jugadores > team selector
+  const calcJugadores = autoTotal > 0 ? autoTotal : (Number(bloque.jugadores) || (esConEquipo ? totalJugadoresEquipos : 0))
   const calc = esConEspacio ? calcularDistancias(calcJugadores, Number(bloque.largo), Number(bloque.ancho), Number(bloque.series), Number(bloque.minutos)) : null
 
   function handleImg(e: any) {
@@ -1612,16 +1618,30 @@ function BloqueMetodologia({ bloque, index, onChange, onRemove, teamPlayers = []
 
       {mostrarForm && (
         <div style={{ marginBottom:8 }}>
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:6, marginBottom:6 }}>
+            <div><label style={{ fontSize:9, fontWeight:700, color:'#f97316', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:2 }}>Atacantes</label>{inp('atacantes','Nº','number')}</div>
+            <div><label style={{ fontSize:9, fontWeight:700, color:'#3b82f6', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:2 }}>Defensores</label>{inp('defensores','Nº','number')}</div>
+            <div><label style={{ fontSize:9, fontWeight:700, color:'#a855f7', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:2 }}>Comodines</label>{inp('comodines','Nº','number')}</div>
+          </div>
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:6, marginBottom:6 }}>
             {/* Jugadores: mostrar siempre — incluso para tipos con equipo (partido amistoso/oficial/entrenamiento) */}
             <div><label style={{ fontSize:9, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:2 }}>
-                Jugadores
-                {teamPlayers.length > 0 && !bloque.jugadores && (
+                Total jugadores
+                {autoTotal > 0 && <span style={{ marginLeft:6, fontSize:8, padding:'1px 5px', borderRadius:3, background:'rgba(200,241,53,.15)', color:'var(--lime)', border:'1px solid rgba(200,241,53,.3)' }}>Auto: {autoTotal}</span>}
+                {autoTotal === 0 && teamPlayers.length > 0 && !bloque.jugadores && (
                   <button type="button" onClick={()=>onChange('jugadores',String(teamPlayers.length))} style={{ marginLeft:6, fontSize:8, padding:'1px 5px', borderRadius:3, background:'rgba(200,241,53,.15)', color:'var(--lime)', border:'1px solid rgba(200,241,53,.3)', cursor:'pointer' }}>
                     Auto ({teamPlayers.length})
                   </button>
                 )}
-              </label>{inp('jugadores','Nº jugadores','number')}</div>
+              </label>
+              {autoTotal > 0
+                ? <div className="wp-input" style={{ padding:'5px 8px', fontSize:12, fontFamily:'DM Mono,monospace', color:'var(--lime)', background:'rgba(200,241,53,.06)', border:'1px solid rgba(200,241,53,.3)', borderRadius:6, display:'flex', alignItems:'center', gap:6 }}>
+                    <span style={{ fontWeight:700 }}>{autoTotal}</span>
+                    <span style={{ fontSize:9, color:'var(--silver)' }}>({atacantes}A + {defensores}D + {comodines}C)</span>
+                  </div>
+                : inp('jugadores','Nº jugadores','number')
+              }
+            </div>
             <div><label style={{ fontSize:9, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:2 }}>Bloques</label>{inp('series','Nº bloques','number')}</div>
             <div><label style={{ fontSize:9, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:2 }}>Min / bloque</label>{inp('minutos','Min','number')}</div>
             <div><label style={{ fontSize:9, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:2 }}>Pausa x bloque (min)</label>{inp('pausa','Min descanso','number')}</div>
@@ -1887,7 +1907,7 @@ function SesionEditor({ sesion, defaultFecha, onSave, onDelete, onCancel, teamPl
   const [saveError, setSaveError] = useState('')
   const set = (k,v) => setF(p=>({...p,[k]:v}))
 
-  function addBloque() { setBloques(b=>[...b, { ventana:'', subtarea:'', jugadores:'', series:'', minutos:'', pausa:'', largo:'', ancho:'', descripcion:'', imagen:'' }]) }
+  function addBloque() { setBloques(b=>[...b, { ventana:'', subtarea:'', jugadores:'', series:'', minutos:'', pausa:'', largo:'', ancho:'', descripcion:'', imagen:'', atacantes:'', defensores:'', comodines:'' }]) }
   function updateBloque(i,k,v) { setBloques(b=>b.map((bl,idx)=>idx===i?{...bl,[k]:v}:bl)) }
   function removeBloque(i) { setBloques(b=>b.filter((_,idx)=>idx!==i)) }
 
@@ -3221,7 +3241,7 @@ function ComparativaPanel({ teamData }: { teamData: any[] }) {
           if (!posData.length) return <div style={{padding:24,textAlign:'center',color:'var(--fog)',fontSize:12}}>Sin datos GPS para este período</div>
           const maxV = Math.max(...posData.map(x=>x.avg), 1)
           const BAR_H = 180   // altura del área de barras
-          const TOP_PAD = 28  // espacio fijo arriba para el valor numérico
+          const TOP_PAD = 0   // valor va dentro de la barra, no necesita espacio arriba
           const BOT_PAD = 52  // espacio fijo abajo para etiquetas
           const yTicks = [1, 0.75, 0.5, 0.25, 0].map(f => Math.round(maxV * f))
           const minBarWidth = 80
@@ -3255,12 +3275,12 @@ function ComparativaPanel({ teamData }: { teamData: any[] }) {
                       paddingTop: TOP_PAD, paddingBottom: BOT_PAD }}>
                       {posData.map((x,i)=>(
                         <div key={i} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', minWidth:minBarWidth, height:'100%', justifyContent:'flex-end' }}>
-                          {/* Número encima de la barra — siempre visible */}
-                          <div style={{ fontSize:13, color:selVar.color, fontFamily:'DM Mono,monospace', fontWeight:800, marginBottom:4, whiteSpace:'nowrap' }}>{x.avg}</div>
-                          {/* Barra */}
-                          <div style={{ width:'60%', minWidth:28, maxWidth:64, borderRadius:'6px 6px 0 0',
-                            height:`${Math.max((x.avg/maxV)*BAR_H, 4)}px`,
-                            background: posColor(x.pos), flexShrink:0 }} />
+                          {/* Barra con valor dentro */}
+                          <div style={{ position:'relative', width:'60%', minWidth:28, maxWidth:64, borderRadius:'6px 6px 0 0',
+                            height:`${Math.max((x.avg/maxV)*BAR_H, 24)}px`,
+                            background: posColor(x.pos), flexShrink:0, display:'flex', alignItems:'center', justifyContent:'center' }}>
+                            <span style={{ fontSize:11, color:'#fff', fontFamily:'DM Mono,monospace', fontWeight:800, whiteSpace:'nowrap', textShadow:'0 1px 3px rgba(0,0,0,.7)' }}>{x.avg}</span>
+                          </div>
                           {/* Etiquetas debajo */}
                           <div style={{ fontSize:10, color:'var(--snow)', fontWeight:700, marginTop:8, textAlign:'center', wordBreak:'break-word', lineHeight:1.3 }}>{x.pos}</div>
                           <div style={{ fontSize:9, color:'var(--silver)', textAlign:'center', marginTop:3 }}>{x.count} jugador{x.count!==1?'es':''}</div>
@@ -3983,9 +4003,6 @@ function ReadinessPanel({ teamData }) {
 
 // ══ ACUM M1 PANEL ════════════════════════════════════════════════════════════
 function AcumPanel({ teamData }) {
-  const [data, setData] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [weeks, setWeeks] = useState(4)
   const [miciData, setMiciData] = useState<any>(null)
   const [miciLoading, setMiciLoading] = useState(false)
   const today = new Date().toISOString().split('T')[0]
@@ -3994,14 +4011,7 @@ function AcumPanel({ teamData }) {
   const [miciHasta, setMiciHasta] = useState(today)
   const [miciNum, setMiciNum] = useState(1)
 
-  useEffect(() => { loadData() }, [weeks])
   useEffect(() => { loadMici() }, [miciDesde, miciHasta])
-
-  async function loadData() {
-    setLoading(true)
-    try { const r = await fetch(`/api/readiness?weeks=${weeks}`); setData(await r.json()) }
-    finally { setLoading(false) }
-  }
 
   async function loadMici() {
     setMiciLoading(true)
@@ -4021,28 +4031,6 @@ function AcumPanel({ teamData }) {
     {key:'nDecel3',    label:'DEC >3 (n)',      color:'#0ea5e9'},
     {key:'distMP',     label:'Alta Pot.',       color:'#fbbf24'},
   ]
-
-  const WK2 = ['avg_fatiga','avg_sueno','avg_dolor','avg_estres','avg_animo']
-  const WL2 = ['Fatiga','Sueño','Dolor','Estrés','Ánimo']
-  const WC2 = ['#c8f135','#22c55e','#eab308','#f97316','#ef4444']
-  const readColor = (t) => !t ? '#555' : t<=12 ? '#c8f135' : t<=18 ? '#f59e0b' : '#ef4444'
-
-  // Group by player, get last N weeks
-  const byPlayer = {}
-  for (const r of (data?.wRows||[])) {
-    if (!byPlayer[r.jugador_id]) byPlayer[r.jugador_id] = { nombre:r.nombre, posicion:r.posicion, foto:r.foto_url, weeks:[] }
-    byPlayer[r.jugador_id].weeks.push(r)
-  }
-  // Sort weeks desc
-  Object.values(byPlayer).forEach(p => p.weeks.sort((a,b)=>b.semana.localeCompare(a.semana)))
-
-  const allWeeks = [...new Set((data?.wRows||[]).map(r=>r.semana))].sort().reverse().slice(0,weeks)
-
-  const rpeMap = {}
-  for (const r of (data?.rpeRows||[])) {
-    const key = `${r.jugador_id}_${r.semana}`
-    rpeMap[key] = r
-  }
 
   const miciPlayers: any[] = miciData?.players || []
   const miciTeamAvg = miciData?.teamAvg || {}
@@ -4122,95 +4110,6 @@ function AcumPanel({ teamData }) {
         )}
       </div>
 
-      {/* ══ WELLNESS SEMANAL (existing content) ═══════════════════════ */}
-      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', flexWrap:'wrap', gap:12 }}>
-        <div>
-          <h2 className="display" style={{ fontSize:36, color:'var(--snow)' }}>WELLNESS ACUMULADO</h2>
-          <p style={{ fontSize:12, color:'var(--silver)', marginTop:2 }}>Promedios semanales por jugador — detección de fatiga acumulada</p>
-        </div>
-        <div style={{ display:'flex', gap:8 }}>
-          {[2,4,8].map(w => (
-            <button key={w} type="button" onClick={()=>setWeeks(w)} style={{ fontSize:12, padding:'7px 14px', borderRadius:8, cursor:'pointer', border:weeks===w?'2px solid var(--lime)':'1px solid var(--fog)', background:weeks===w?'rgba(200,241,53,.1)':'var(--ink3)', color:weeks===w?'var(--lime)':'var(--silver)' }}>{w} semanas</button>
-          ))}
-        </div>
-      </div>
-
-      {loading ? <div style={{ padding:40, textAlign:'center', color:'var(--silver)' }}>Cargando...</div>
-        : Object.keys(byPlayer).length===0 ? <div style={{ padding:40, textAlign:'center', color:'var(--silver)' }}>Sin datos de wellness registrados.</div>
-        : (
-          <div style={{ overflowX:'auto' }}>
-            <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12 }}>
-              <thead>
-                <tr style={{ background:'var(--ink3)' }}>
-                  <th style={{ textAlign:'left', padding:'10px 14px', color:'var(--silver)', fontWeight:600, fontSize:10, textTransform:'uppercase', letterSpacing:'0.06em', whiteSpace:'nowrap' }}>Jugador</th>
-                  {allWeeks.map(w => (
-                    <th key={w} style={{ textAlign:'center', padding:'10px 8px', color:'var(--silver)', fontWeight:600, fontSize:10, textTransform:'uppercase', letterSpacing:'0.04em', whiteSpace:'nowrap' }} colSpan={2}>
-                      {w.slice(5,10)}
-                    </th>
-                  ))}
-                </tr>
-                <tr style={{ background:'var(--ink3)', borderBottom:'1px solid var(--mist)' }}>
-                  <th style={{ padding:'4px 14px' }}></th>
-                  {allWeeks.map(w => (
-                    <>
-                      <th key={`${w}w`} style={{ textAlign:'center', padding:'4px 6px', color:'var(--silver)', fontSize:9, fontWeight:500 }}>TW</th>
-                      <th key={`${w}r`} style={{ textAlign:'center', padding:'4px 6px', color:'#60a5fa', fontSize:9, fontWeight:500 }}>RPE</th>
-                    </>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {Object.values(byPlayer).sort((a,b)=>a.nombre.localeCompare(b.nombre)).map((p, pi) => (
-                  <tr key={p.nombre} style={{ borderBottom:'1px solid var(--mist)', background: pi%2===0?'transparent':'rgba(255,255,255,.015)' }}>
-                    <td style={{ padding:'10px 14px', whiteSpace:'nowrap' }}>
-                      <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-                        <div style={{ width:28, height:28, borderRadius:'50%', overflow:'hidden', background:'var(--ink3)', border:'1px solid var(--fog)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
-                          {p.foto
-                            ? <img src={p.foto} style={{ width:'100%', height:'100%', objectFit:'cover' }} alt=""/>
-                            : <span style={{ fontSize:10, fontWeight:700, color:'var(--silver)' }}>{p.nombre.split(' ').map(w=>w[0]).join('').slice(0,2)}</span>
-                          }
-                        </div>
-                        <div>
-                          <div style={{ fontWeight:500, color:'var(--snow)', fontSize:13 }}>{p.nombre}</div>
-                          <div style={{ fontSize:10, color:'var(--silver)' }}>{p.posicion||'—'}</div>
-                        </div>
-                      </div>
-                    </td>
-                    {allWeeks.map(w => {
-                      const wd = p.weeks.find(x=>x.semana===w)
-                      const rd = rpeMap[`${Object.keys(byPlayer).find(k=>byPlayer[k]===p)}_${w}`]
-                      const t = wd?.total_wellness
-                      const col = readColor(t)
-                      return (
-                        <>
-                          <td key={`${w}tw`} style={{ textAlign:'center', padding:'8px 6px' }}>
-                            {t ? <span style={{ fontFamily:'DM Mono,monospace', fontWeight:700, color:col, fontSize:13 }}>{Number(t).toFixed(0)}</span>
-                              : <span style={{ color:'var(--fog)', fontSize:11 }}>—</span>}
-                          </td>
-                          <td key={`${w}rpe`} style={{ textAlign:'center', padding:'8px 6px' }}>
-                            {rd?.avg_rpe ? <span style={{ fontFamily:'DM Mono,monospace', color:'#60a5fa', fontSize:13 }}>{Number(rd.avg_rpe).toFixed(1)}</span>
-                              : <span style={{ color:'var(--fog)', fontSize:11 }}>—</span>}
-                          </td>
-                        </>
-                      )
-                    })}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )
-      }
-
-      {/* Legend */}
-      <div style={{ display:'flex', gap:16, flexWrap:'wrap' }}>
-        <span style={{ fontSize:11, color:'var(--silver)' }}>TW = Total Wellness (suma 5 indicadores)</span>
-        {[['#c8f135','5–12 Listo'],['#f59e0b','13–18 Atención'],['#ef4444','19–25 Bajar carga']].map(([c,l])=>(
-          <span key={l} style={{ display:'flex', alignItems:'center', gap:5, fontSize:11, color:'var(--silver)' }}>
-            <span style={{ width:8, height:8, borderRadius:'50%', background:c, display:'inline-block' }}/>{l}
-          </span>
-        ))}
-      </div>
 
       {/* Photo upload section */}
       <div style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:16, padding:20 }}>
@@ -4730,8 +4629,18 @@ const MD_ORDER = ['MD+1','MD+2','MD+3','MD-4','MD-3','MD-2','MD-1','MD']
 
 function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
   const today = new Date().toISOString().split('T')[0]
-  const weekStart = (() => { const d=new Date(); d.setDate(d.getDate()-d.getDay()+1); return d.toISOString().split('T')[0] })()
-  const [desde, setDesde] = useState(weekStart)
+  const getWeekStart = (offsetWeeks = 0) => {
+    const d = new Date()
+    d.setDate(d.getDate() - d.getDay() + 1 + offsetWeeks * 7)
+    return d.toISOString().split('T')[0]
+  }
+  const getWeekEnd = (offsetWeeks = 0) => {
+    const d = new Date()
+    d.setDate(d.getDate() - d.getDay() + 7 + offsetWeeks * 7)
+    return d.toISOString().split('T')[0]
+  }
+  const [microcicloOffset, setMicrocicloOffset] = useState(0)
+  const [desde, setDesde] = useState(getWeekStart(0))
   const [hasta, setHasta] = useState(today)
   const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(false)
@@ -4739,6 +4648,14 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
   const [showRefInput, setShowRefInput] = useState(false)
   const [partidos, setPartidos] = useState<any[]>([])
   const [selectedPartidos, setSelectedPartidos] = useState<(any|null)[]>([null,null,null])
+
+  useEffect(() => {
+    // Recalculate date range when microciclo offset changes
+    const newDesde = getWeekStart(microcicloOffset)
+    const newHasta = microcicloOffset === 0 ? today : getWeekEnd(microcicloOffset)
+    setDesde(newDesde)
+    setHasta(newHasta)
+  }, [microcicloOffset])
 
   useEffect(() => { cargar() }, [desde, hasta])
   useEffect(() => {
@@ -4881,7 +4798,7 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
         </div>
         <div style={{ display:'flex', gap:0 }}>
           {/* Y-axis labels */}
-          <div style={{ display:'flex', flexDirection:'column', justifyContent:'space-between', paddingRight:6, height:BAR_H+20, paddingBottom:20 }}>
+          <div style={{ display:'flex', flexDirection:'column', justifyContent:'space-between', paddingRight:6, height:BAR_H+22, paddingBottom:22 }}>
             {yTicks.map((t,i)=>(
               <div key={i} style={{ fontSize:8, color:'var(--fog)', fontFamily:'DM Mono,monospace', textAlign:'right', lineHeight:1 }}>{t}</div>
             ))}
@@ -4891,24 +4808,22 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
             {[100,75,50,25,0].map((p,i)=>(
               <div key={i} style={{ position:'absolute', left:0, right:0, top:`${(i/4)*BAR_H}px`, borderTop:'1px solid rgba(255,255,255,.05)' }}/>
             ))}
-            <div style={{ display:'flex', gap:names.length>6?2:6, alignItems:'flex-end', height:BAR_H+20, paddingBottom:20 }}>
+            <div style={{ display:'flex', gap:names.length>6?2:6, alignItems:'flex-end', height:BAR_H+22, paddingBottom:22 }}>
               {names.map((name:string,ni:number)=>(
                 <div key={ni} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', minWidth:0 }}>
-                  <div style={{ display:'flex', gap:1, marginBottom:3 }}>
-                    {series.map((s,si)=>{
-                      const val = (s.vals[ni] as any)?.val || 0
-                      return val>0 ? <span key={si} style={{ fontSize:9, color:s.color, fontFamily:'DM Mono,monospace', fontWeight:700, lineHeight:1 }}>{val}</span> : null
-                    })}
-                  </div>
                   <div style={{ display:'flex', gap:2, alignItems:'flex-end', height:BAR_H }}>
                     {series.map((s,si)=>{
                       const val = (s.vals[ni] as any)?.val || 0
                       const h = Math.max((val/maxVal)*BAR_H, val>0?3:0)
                       return (
                         <div key={si} title={`${name} - ${s.label}: ${val}`}
-                          style={{ flex:1, maxWidth:18, minWidth:7, height:`${h}px`,
+                          style={{ position:'relative', flex:1, maxWidth:18, minWidth:7, height:`${h}px`,
                             background: val>0 ? s.color : `${s.color}18`,
-                            borderRadius:'3px 3px 0 0' }} />
+                            borderRadius:'3px 3px 0 0', overflow:'visible' }}>
+                          {val>0 && h>=18 && (
+                            <span style={{ position:'absolute', top:'50%', left:'50%', transform:'translate(-50%,-50%) rotate(-90deg)', fontSize:8, color:'#fff', fontFamily:'DM Mono,monospace', fontWeight:700, whiteSpace:'nowrap', textShadow:'0 1px 2px rgba(0,0,0,.9)', pointerEvents:'none' }}>{val}</span>
+                          )}
+                        </div>
                       )
                     })}
                   </div>
@@ -4930,6 +4845,18 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
           <p style={{ fontSize:12, color:'var(--silver)' }}>Microciclo · RPE, UA y carga calculada desde sesiones planificadas</p>
         </div>
         <div style={{ display:'flex', gap:8, flexWrap:'wrap', alignItems:'flex-end' }}>
+          {/* Microciclo navigator */}
+          <div style={{ display:'flex', alignItems:'center', gap:6, background:'var(--ink3)', border:'1px solid var(--mist)', borderRadius:10, padding:'6px 10px' }}>
+            <button onClick={()=>setMicrocicloOffset(o=>o-1)} style={{ width:28, height:28, borderRadius:6, background:'rgba(255,255,255,.07)', border:'1px solid var(--fog)', color:'var(--snow)', cursor:'pointer', fontSize:14, display:'flex', alignItems:'center', justifyContent:'center' }}>‹</button>
+            <div style={{ textAlign:'center', minWidth:90 }}>
+              <div style={{ fontSize:10, fontWeight:700, color:'var(--lime)', textTransform:'uppercase', letterSpacing:'0.08em' }}>
+                {microcicloOffset === 0 ? 'Semana actual' : microcicloOffset > 0 ? `+${microcicloOffset} sem.` : `${microcicloOffset} sem.`}
+              </div>
+              <div style={{ fontSize:9, color:'var(--fog)', fontFamily:'DM Mono,monospace', marginTop:1 }}>{desde} → {hasta}</div>
+            </div>
+            <button onClick={()=>setMicrocicloOffset(o=>o+1)} style={{ width:28, height:28, borderRadius:6, background:'rgba(255,255,255,.07)', border:'1px solid var(--fog)', color:'var(--snow)', cursor:'pointer', fontSize:14, display:'flex', alignItems:'center', justifyContent:'center' }}>›</button>
+            {microcicloOffset !== 0 && <button onClick={()=>setMicrocicloOffset(0)} style={{ fontSize:9, padding:'2px 7px', borderRadius:5, background:'rgba(200,241,53,.1)', color:'var(--lime)', border:'1px solid rgba(200,241,53,.3)', cursor:'pointer' }}>Hoy</button>}
+          </div>
           <div><label style={{ fontSize:10, color:'var(--fog)', display:'block', marginBottom:3, textTransform:'uppercase' }}>Desde</label><input className="wp-input" type="date" value={desde} onChange={e=>setDesde(e.target.value)} /></div>
           <div><label style={{ fontSize:10, color:'var(--fog)', display:'block', marginBottom:3, textTransform:'uppercase' }}>Hasta</label><input className="wp-input" type="date" value={hasta} onChange={e=>setHasta(e.target.value)} /></div>
           <button onClick={()=>window.print()} style={{ fontSize:11, padding:'8px 14px', borderRadius:8, background:'rgba(200,241,53,.1)', color:'var(--lime)', border:'1px solid rgba(200,241,53,.3)', cursor:'pointer' }}>🖨️ PDF</button>
