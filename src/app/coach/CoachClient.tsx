@@ -3032,15 +3032,19 @@ function ComparativaPanel({ teamData }: { teamData: any[] }) {
     })
 
   const VARS = [
-    { key:'rpe',         label:'RPE',        color:'#c8f135', unit:'', src:'rpe' },
-    { key:'ua_total',    label:'UA Total',   color:'#60a5fa', unit:'', src:'rpe' },
-    { key:'sesiones',    label:'Sesiones',   color:'var(--silver)', unit:'', src:'rpe' },
-    { key:'minActivo',   label:'Min Activos',color:'#34d399', unit:'min', src:'rpe' },
-    { key:'dist_total',  label:'Dist. GPS',  color:'#93c5fd', unit:'m', src:'gps' },
-    { key:'dist_hir',    label:'High Speed', color:'#f59e0b', unit:'m', src:'gps' },
-    { key:'max_velocity',label:'Vel. Máx',   color:'#ef4444', unit:'km/h', src:'gps' },
-    { key:'acc2',        label:'Acc B2-3',   color:'#a78bfa', unit:'nº', src:'gps' },
-    { key:'dec2',        label:'Dec B2-3',   color:'#a78bfa', unit:'nº', src:'gps' },
+    { key:'rpe',         label:'RPE',         color:'#c8f135', unit:'',     src:'rpe' },
+    { key:'ua_total',    label:'UA Total',    color:'#60a5fa', unit:'',     src:'rpe' },
+    { key:'sesiones',    label:'Sesiones',    color:'var(--silver)', unit:'', src:'rpe' },
+    { key:'minActivo',   label:'Min Activos', color:'#34d399', unit:'min',  src:'rpe' },
+    { key:'dist_total',  label:'Dist. Total', color:'#93c5fd', unit:'m',    src:'gps' },
+    { key:'dist_per_min',label:'Mts/min',     color:'#84cc16', unit:'m/min',src:'gps' },
+    { key:'dist_hir',    label:'High Speed',  color:'#f59e0b', unit:'m',    src:'gps' },
+    { key:'dist_v4',     label:'Vel B4',      color:'#a78bfa', unit:'m',    src:'gps' },
+    { key:'dist_v5',     label:'Vel B6',      color:'#f97316', unit:'m',    src:'gps' },
+    { key:'n_sprints',   label:'Nº Sprints',  color:'#ec4899', unit:'nº',   src:'gps' },
+    { key:'max_velocity',label:'Vel. Máx',    color:'#ef4444', unit:'km/h', src:'gps' },
+    { key:'acc2',        label:'Acc B2-3',    color:'#8b5cf6', unit:'nº',   src:'gps' },
+    { key:'dec2',        label:'Dec B2-3',    color:'#06b6d4', unit:'nº',   src:'gps' },
   ]
 
   const posColor = (pos: string) => {
@@ -3201,6 +3205,7 @@ function ComparativaPanel({ teamData }: { teamData: any[] }) {
           ))}
         </div>
         {/* Single grouped bar chart: one bar per position, grouped by metric */}
+        <div style={{ marginTop:16 }}>
         {(() => {
           const selVar = VARS.find(v=>v.key===posMetric) || VARS[0]
           // Get all unique positions from merged data
@@ -3251,6 +3256,7 @@ function ComparativaPanel({ teamData }: { teamData: any[] }) {
             </div>
           )
         })()}
+        </div>
       </div>
       </>)}
     </div>
@@ -5277,7 +5283,7 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
         )}
         <div style={{ padding:16, borderTop:'1px solid var(--mist)' }}>
           <p style={{ fontSize:10, fontWeight:700, color:'#60a5fa', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:12 }}>📊 GRÁFICO AGRUPADO · TOTALES POR DÍA DE ENTRENAMIENTO</p>
-          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))', gap:12 }}>
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(260px,1fr))', gap:16 }}>
             {GRUPOS.map(g=>renderGrupoBar(g,'md'))}
           </div>
         </div>
@@ -5319,7 +5325,7 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
           </div>
           <div style={{ padding:16, borderTop:'1px solid var(--mist)' }}>
             <p style={{ fontSize:10, fontWeight:700, color:'#a78bfa', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:12 }}>📊 GRÁFICO AGRUPADO · PROMEDIO POR MD</p>
-            <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))', gap:12 }}>
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(260px,1fr))', gap:16 }}>
               {GRUPOS.map(g=>renderGrupoBar(g,'md'))}
             </div>
           </div>
@@ -5574,15 +5580,16 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
   // GPS Variables definition
   const GPS_VARS = [
     {key:'dist_total',   label:'Tot Dist (m)',   color:'#60a5fa'},
-    {key:'dist_per_min', label:'Mts/min',         color:'#34d399'},
-    {key:'dist_hir',     label:'High Speed (m)',  color:'#f59e0b'},
-    {key:'dist_v4',      label:'Vel B4 (m)',      color:'#a78bfa'},
-    {key:'dist_v5',      label:'Vel B6 (m)',      color:'#f97316'},
-    {key:'max_velocity', label:'Vel Máx (km/h)',  color:'#ef4444'},
-    {key:'acc2',         label:'ACC B2-3 (m)',    color:'#ec4899'},
-    {key:'dec2',         label:'DEC B2-3 (m)',    color:'#14b8a6'},
-    {key:'acc3',         label:'ACC >3 (n)',      color:'#f43f5e'},
-    {key:'dec3',         label:'DEC >3 (n)',      color:'#0ea5e9'},
+    {key:'dist_per_min', label:'Mts/min',        color:'#34d399'},
+    {key:'dist_hir',     label:'High Speed (m)', color:'#f59e0b'},
+    {key:'dist_v4',      label:'Vel B4 (m)',     color:'#a78bfa'},
+    {key:'dist_v5',      label:'Vel B6 (m)',     color:'#f97316'},
+    {key:'n_sprints',    label:'Nº Sprints',     color:'#ec4899'},
+    {key:'max_velocity', label:'Vel Máx (km/h)', color:'#ef4444'},
+    {key:'acc2',         label:'ACC B2-3',       color:'#8b5cf6'},
+    {key:'dec2',         label:'DEC B2-3',       color:'#06b6d4'},
+    {key:'acc3',         label:'ACC >3 (n)',     color:'#f43f5e'},
+    {key:'dec3',         label:'DEC >3 (n)',     color:'#0ea5e9'},
   ]
 
   const gpsReal: any[] = data?.gpsReal || []
@@ -6015,7 +6022,7 @@ function ExpoAIPanel({ teamData }: { teamData: any[] }) {
   const gpsReal: any[] = data?.gpsReal || []
   const gpsPerMD: Record<string,any[]> = data?.gpsPerMD || {}
   const sesionesInfo: any[] = data?.sesionesInfo || []
-  const MD_ORDER_LOCAL = ['MD+1','MD+2','MD+3','MD-4','MD-3','MD-2','MD-1']
+  const MD_ORDER_LOCAL = ['MD+1','MD+2','MD-4','MD-3','MD-2','MD-1']
   const existingMd = new Set(sesionesInfo.map((s:any)=>s.titulo))
 
   // Ref media (avg of selected matches)
