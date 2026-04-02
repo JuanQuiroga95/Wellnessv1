@@ -258,6 +258,7 @@ export async function POST(req: NextRequest) {
     const contentType = req.headers.get('content-type') || ''
     let fecha: string, tipo_sesion: string, sesion_id: number | null, confirm: boolean
     let parsedRows: Record<string, any>[]
+    let isPdf = false
 
     if (contentType.includes('application/json')) {
       // JSON path: Excel rows pre-parsed client-side, or PDF as base64
@@ -274,6 +275,7 @@ export async function POST(req: NextRequest) {
           parsedRows = parseRawRows(body.rows as any[][])
         } else if (body.fileBase64) {
           // PDF as base64
+          isPdf = true
           const binaryStr = atob(body.fileBase64)
           const bytes = new Uint8Array(binaryStr.length)
           for (let i = 0; i < binaryStr.length; i++) bytes[i] = binaryStr.charCodeAt(i)
@@ -293,7 +295,7 @@ export async function POST(req: NextRequest) {
       sesion_id = fd.get('sesion_id') ? Number(fd.get('sesion_id')) : null
       if (!file || !fecha) return NextResponse.json({ error: 'Falta archivo o fecha' }, { status: 400 })
       const bytes = new Uint8Array(await file.arrayBuffer())
-      const isPdf = file.name.toLowerCase().endsWith('.pdf') || file.type === 'application/pdf'
+      isPdf = file.name.toLowerCase().endsWith('.pdf') || file.type === 'application/pdf'
       confirm = fd.get('confirm') === 'true'
       try {
         parsedRows = isPdf ? await parsePdf(bytes) : parseExcel(bytes)
