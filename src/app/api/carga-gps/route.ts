@@ -224,6 +224,82 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    // ── Per-session per-player GPS data ─────────────────────────────────────
+    // Group gps_logs by (sesion_id OR fecha) x jugador_id for Cuadro 1 GPS
+    let gpsPerSessionRaw: any[] = []
+    if (clubId) {
+      try {
+        gpsPerSessionRaw = await sql`
+          SELECT
+            g.jugador_id, u.nombre, j.posicion,
+            g.fecha::text, g.sesion_id,
+            COALESCE(sp.titulo, g.fecha::text) AS md_label,
+            g.dist_total, g.dist_hir, g.dist_v4, g.dist_v5,
+            g.player_load, g.max_velocity,
+            g.acc2, g.dec2, g.acc3, g.dec3, g.dist_per_min,
+            g.metricas
+          FROM gps_logs g
+          JOIN jugadores j ON j.id = g.jugador_id
+          JOIN usuarios u ON u.id = j.usuario_id
+          LEFT JOIN sesiones_plan sp ON sp.id = g.sesion_id
+          WHERE g.club_id = ${clubId}
+            AND g.fecha BETWEEN ${desde} AND ${hasta}
+            AND u.activo = true
+          ORDER BY g.fecha, u.nombre
+        ` as any[]
+      } catch { gpsPerSessionRaw = [] }
+    }
+
+    // Build gpsPerMD: { [md_label]: { [jugador_id]: { nombre, posicion, ...fields } } }
+    const GPS_AVG_FIELDS = new Set(['dist_per_min','max_velocity'])
+    const gpsPerMD: Record<string, Record<number, any>> = {}
+    for (const row of gpsPerSessionRaw as any[]) {
+      const md = row.md_label || row.fecha
+      if (!gpsPerMD[md]) gpsPerMD[md] = {}
+      const jid = row.jugador_id
+      if (!gpsPerMD[md][jid]) {
+        gpsPerMD[md][jid] = {
+          jugador_id: jid, nombre: row.nombre, posicion: row.posicion,
+          _sums:{}, _counts:{}, _maxes:{}, sesiones:0
+        }
+      }
+      const p = gpsPerMD[md][jid]
+      p.sesiones++
+      const fixedRow: Record<string,any> = {
+        dist_total: row.dist_total, dist_hir: row.dist_hir,
+        dist_v4: row.dist_v4, dist_v5: row.dist_v5,
+        player_load: row.player_load, max_velocity: row.max_velocity,
+        acc2: row.acc2, dec2: row.dec2, acc3: row.acc3, dec3: row.dec3,
+        dist_per_min: row.dist_per_min,
+      }
+      const met: Record<string,any> = (typeof row.metricas === 'object' && row.metricas) ? row.metricas : {}
+      const allF = { ...fixedRow, ...met }
+      for (const [k, v] of Object.entries(allF)) {
+        if (v === null || v === undefined) continue
+        const num = Number(v); if (isNaN(num)) continue
+        if (k === 'max_velocity') { p._maxes[k] = Math.max(p._maxes[k]??0, num) }
+        else { p._sums[k] = (p._sums[k]??0)+num; p._counts[k]=(p._counts[k]??0)+1 }
+      }
+    }
+    // Shape: for each MD, array of players with their GPS values
+    const gpsPerMDShaped: Record<string, any[]> = {}
+    for (const [md, players_map] of Object.entries(gpsPerMD)) {
+      gpsPerMDShaped[md] = Object.values(players_map).map((p:any) => {
+        const result: Record<string,any> = {
+          jugador_id:p.jugador_id, nombre:p.nombre, posicion:p.posicion, sesiones:p.sesiones
+        }
+        for (const [k,sum] of Object.entries(p._sums as Record<string,number>)) {
+          result[k] = GPS_AVG_FIELDS.has(k)
+            ? Math.round((sum/(p._counts[k]||1))*10)/10
+            : Math.round(sum)
+        }
+        for (const [k,max] of Object.entries(p._maxes as Record<string,number>)) {
+          result[k] = Math.round(max*100)/100
+        }
+        return result
+      }).sort((a:any,b:any)=>a.nombre.localeCompare(b.nombre))
+    }
+
     // Aggregate rows per player, merging fixed cols + metricas JSON
     const gpsPlayerMap: Record<number, any> = {}
     for (const row of gpsRawRows as any[]) {
@@ -361,6 +437,7 @@ export async function GET(req: NextRequest) {
       allMetricCols,
       sesionesInfo,
       perSession,
+      gpsPerMD: gpsPerMDShaped,
       hasGpsData:    players.some((p: any) => p.hasGps),
       hasRealGps:    (gpsReal as any[]).length > 0,
       sesionesCount: sesiones.length,

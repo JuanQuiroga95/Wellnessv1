@@ -5422,178 +5422,442 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
   const [hasta, setHasta] = useState(today)
   const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(false)
-  const [partidoRef, setPartidoRef] = useState<Record<string,number>>({})
+  const [partidoRefs, setPartidoRefs] = useState<any[]>([{},{},{}])
   const [showRefInput, setShowRefInput] = useState(false)
+  const [partidos, setPartidos] = useState<any[]>([])
+  const [selectedPartidos, setSelectedPartidos] = useState<(any|null)[]>([null,null,null])
 
   useEffect(() => { cargar() }, [desde, hasta])
+  useEffect(() => {
+    const hace1año = new Date(); hace1año.setFullYear(hace1año.getFullYear()-1)
+    fetch(`/api/calendario?desde=${hace1año.toISOString().split('T')[0]}&hasta=${today}`)
+      .then(r=>r.json())
+      .then(d => {
+        const sesPartido = (d.sesiones||[]).filter((s:any) => s.tipo === 'partido')
+        const partidosLog = (d.partidos||[])
+        const all = [
+          ...sesPartido.map((s:any)=>({ fecha:s.fecha, rival:s.rival||'Partido', tipo_partido:s.titulo||'Oficial', _src:'calendar' })),
+          ...partidosLog.map((p:any)=>({ fecha:p.fecha, rival:p.rival, tipo_partido:p.tipo_partido, _src:'log' }))
+        ]
+        const seen = new Set()
+        setPartidos(all.filter((p:any)=>{ const k=`${p.fecha}_${p.rival}`; if(seen.has(k)) return false; seen.add(k); return true }).sort((a:any,b:any)=>b.fecha.localeCompare(a.fecha)))
+      }).catch(()=>{})
+  }, [])
 
   async function cargar() {
     setLoading(true)
-    try {
-      const r = await fetch(`/api/carga-gps?desde=${desde}&hasta=${hasta}&ciclo=microciclo`)
-      const d = await r.json()
-      setData(d)
-    } catch(e){} finally { setLoading(false) }
+    try { const r = await fetch(`/api/carga-gps?desde=${desde}&hasta=${hasta}&ciclo=microciclo`); setData(await r.json()) }
+    catch(e){} finally { setLoading(false) }
   }
 
+  async function selectPartido(slotIdx: number, partido: any) {
+    const updated = [...selectedPartidos]
+    if (!partido) { updated[slotIdx]=null; setSelectedPartidos(updated); const nr=[...partidoRefs]; nr[slotIdx]={}; setPartidoRefs(nr); return }
+    updated[slotIdx] = partido; setSelectedPartidos(updated)
+    try {
+      const r = await fetch(`/api/carga-gps?desde=${partido.fecha}&hasta=${partido.fecha}&ciclo=microciclo`)
+      const d = await r.json()
+      const avg = d?.teamAvgGps || {}
+      const nr = [...partidoRefs]
+      nr[slotIdx] = { dist_total:avg.dist_total||0, dist_per_min:avg.dist_per_min||0, dist_hir:avg.dist_hir||0,
+        dist_v4:avg.dist_v4||0, dist_v5:avg.dist_v5||0, max_velocity:avg.max_velocity||0,
+        acc2:avg.acc2||0, dec2:avg.dec2||0, acc3:avg.acc3||0, dec3:avg.dec3||0 }
+      setPartidoRefs(nr)
+    } catch(e){}
+  }
+
+  // GPS Variables definition
   const GPS_VARS = [
-    {key:'dist_total',label:'Tot Dist (m)',color:'#60a5fa'},
-    {key:'dist_per_min',label:'Mts/min',color:'#34d399'},
-    {key:'dist_hir',label:'High Speed (m)',color:'#f59e0b'},
-    {key:'dist_v4',label:'Vel B4 (m)',color:'#a78bfa'},
-    {key:'dist_v5',label:'Vel B6 (m)',color:'#f97316'},
-    {key:'n_sprints',label:'N Sprints',color:'#ec4899'},
-    {key:'acc2',label:'Acc B2-3',color:'#22c55e'},
-    {key:'dec2',label:'Dec B2-3',color:'#14b8a6'},
-    {key:'max_velocity',label:'Vel Max',color:'#ef4444'},
-    {key:'player_load',label:'Player Load',color:'#8b5cf6'},
+    {key:'dist_total',   label:'Tot Dist (m)',   color:'#60a5fa'},
+    {key:'dist_per_min', label:'Mts/min',         color:'#34d399'},
+    {key:'dist_hir',     label:'High Speed (m)',  color:'#f59e0b'},
+    {key:'dist_v4',      label:'Vel B4 (m)',      color:'#a78bfa'},
+    {key:'dist_v5',      label:'Vel B6 (m)',      color:'#f97316'},
+    {key:'max_velocity', label:'Vel Máx (km/h)',  color:'#ef4444'},
+    {key:'acc2',         label:'ACC B2-3 (m)',    color:'#ec4899'},
+    {key:'dec2',         label:'DEC B2-3 (m)',    color:'#14b8a6'},
+    {key:'acc3',         label:'ACC >3 (n)',      color:'#f43f5e'},
+    {key:'dec3',         label:'DEC >3 (n)',      color:'#0ea5e9'},
   ]
 
   const gpsReal: any[] = data?.gpsReal || []
-  const displayVars = GPS_VARS.filter(v => gpsReal.some((p:any) => p[v.key] && p[v.key] !== 0))
-  const activeVars = displayVars.length > 0 ? displayVars : GPS_VARS
+  const gpsPerMD: Record<string,any[]> = data?.gpsPerMD || {}
+  const sesionesInfo: any[] = data?.sesionesInfo || []
+  const MD_ORDER_LOCAL = ['MD+1','MD+2','MD+3','MD-4','MD-3','MD-2','MD-1','MD']
+  const existingMdLabels = new Set(sesionesInfo.map((s:any) => s.titulo))
+  const mdCols = MD_ORDER_LOCAL
 
-  const n = gpsReal.length || 1
-  const gpsAvg: Record<string,number> = {}
-  for (const v of activeVars) {
-    const vals = gpsReal.map((p:any)=>Number(p[v.key])||0)
-    gpsAvg[v.key] = v.key==='max_velocity' ? Math.round(Math.max(...vals,0)*10)/10 : Math.round(vals.reduce((a:number,b:number)=>a+b,0)/n*10)/10
+  // Ref media (avg of 3 matches)
+  const refMedia: Record<string,number> = {}
+  GPS_VARS.forEach(v => {
+    const vals = partidoRefs.map(r=>Number(r[v.key])||0).filter(x=>x>0)
+    if (vals.length) refMedia[v.key] = Math.round(vals.reduce((s,x)=>s+x,0)/vals.length*10)/10
+  })
+  const pct = (val:number, key:string) => { const ref=refMedia[key]; if(!ref||ref===0) return null; return Math.round((val/ref)*100) }
+  const pctColor = (p:number|null) => p===null?'var(--fog)':p>=85?'#22c55e':p>=65?'#f59e0b':'#ef4444'
+
+  // Team avg GPS for a given MD
+  const mdTeamAvg = (md: string) => {
+    const rows = gpsPerMD[md] || []
+    if (!rows.length) return {}
+    const avg: Record<string,number> = {}
+    GPS_VARS.forEach(v => {
+      const vals = rows.map((p:any)=>Number(p[v.key])||0).filter(x=>x>0)
+      if (!vals.length) return
+      avg[v.key] = v.key==='max_velocity'
+        ? Math.round(Math.max(...vals)*100)/100
+        : Math.round(vals.reduce((s,x)=>s+x,0)/vals.length*10)/10
+    })
+    return avg
   }
 
-  const pct = (val: number, key: string) => {
-    const ref = partidoRef[key]; if (!ref||ref===0) return null
-    return Math.round((val/ref)*100)
-  }
-  const pctColor = (p: number|null) => p===null?'var(--fog)':p>=85?'#22c55e':p>=70?'#f59e0b':'#ef4444'
+  // Chart groups for GPS comparison (real data per player)
+  const GPS_CHART_GROUPS = [
+    { title:'DISTANCIA', color:'#3b82f6',
+      bars:[{key:'dist_total',label:'Tot Dist',color:'#3b82f6'},{key:'dist_hir',label:'High Speed',color:'#f59e0b'}],
+      line:{key:'dist_per_min',label:'Mts/min',color:'#34d399'} },
+    { title:'VELOCIDAD', color:'#ef4444',
+      bars:[{key:'dist_v5',label:'Vel B6',color:'#f97316'},{key:'dist_v4',label:'Vel B4',color:'#a78bfa'}],
+      line:{key:'max_velocity',label:'Vel Máx',color:'#ef4444'} },
+    { title:'ACC / DEC B2-3', color:'#ec4899',
+      bars:[{key:'acc2',label:'ACC B2-3',color:'#ec4899'},{key:'dec2',label:'DEC B2-3',color:'#14b8a6'}],
+      line:null },
+    { title:'ACC / DEC >3', color:'#f43f5e',
+      bars:[{key:'acc3',label:'ACC >3',color:'#f43f5e'},{key:'dec3',label:'DEC >3',color:'#0ea5e9'}],
+      line:null },
+  ]
+
+  const POS_LIST = ['#22c55e','#3b82f6','#f59e0b','#ef4444','#a78bfa','#ec4899','#06b6d4','#fbbf24']
 
   return (
-    <div style={{ padding:'24px 20px', maxWidth:1200, margin:'0 auto' }}>
-      <div style={{ marginBottom:24, display:'flex', justifyContent:'space-between', alignItems:'flex-end', flexWrap:'wrap', gap:12 }}>
+    <div style={{ padding:'24px 20px', maxWidth:1400, margin:'0 auto' }}>
+      {/* Header */}
+      <div style={{ marginBottom:20, display:'flex', justifyContent:'space-between', alignItems:'flex-end', flexWrap:'wrap', gap:12 }}>
         <div>
-          <h2 style={{ fontFamily:'Bebas Neue,sans-serif', fontSize:36, color:'var(--snow)', letterSpacing:'0.04em', marginBottom:4 }}>CONTROL DE CARGA · GPS</h2>
-          <p style={{ fontSize:12, color:'var(--silver)' }}>Microciclo · Datos reales importados desde Catapult</p>
+          <h2 style={{ fontFamily:'Bebas Neue,sans-serif', fontSize:36, color:'var(--snow)', letterSpacing:'0.04em', marginBottom:4 }}>📡 CONTROL DE CARGA · GPS</h2>
+          <p style={{ fontSize:12, color:'var(--silver)' }}>Microciclo · Datos reales importados desde Catapult · individuales por jugador</p>
         </div>
-        <div style={{ display:'flex', gap:10, alignItems:'flex-end', flexWrap:'wrap' }}>
-          <div><label style={{ fontSize:10, color:'var(--fog)', display:'block', marginBottom:4, textTransform:'uppercase' }}>Desde</label><input className="wp-input" type="date" value={desde} onChange={e=>setDesde(e.target.value)} /></div>
-          <div><label style={{ fontSize:10, color:'var(--fog)', display:'block', marginBottom:4, textTransform:'uppercase' }}>Hasta</label><input className="wp-input" type="date" value={hasta} onChange={e=>setHasta(e.target.value)} /></div>
-          <button onClick={()=>window.print()} style={{ fontSize:11, padding:'8px 14px', borderRadius:8, background:'rgba(96,165,250,.1)', color:'#60a5fa', border:'1px solid rgba(96,165,250,.3)', cursor:'pointer' }}>Imprimir PDF</button>
+        <div style={{ display:'flex', gap:8, flexWrap:'wrap', alignItems:'flex-end' }}>
+          <div><label style={{ fontSize:10, color:'var(--fog)', display:'block', marginBottom:3, textTransform:'uppercase' }}>Desde</label><input className="wp-input" type="date" value={desde} onChange={e=>setDesde(e.target.value)} /></div>
+          <div><label style={{ fontSize:10, color:'var(--fog)', display:'block', marginBottom:3, textTransform:'uppercase' }}>Hasta</label><input className="wp-input" type="date" value={hasta} onChange={e=>setHasta(e.target.value)} /></div>
+          <button onClick={()=>window.print()} style={{ fontSize:11, padding:'8px 14px', borderRadius:8, background:'rgba(96,165,250,.1)', color:'#60a5fa', border:'1px solid rgba(96,165,250,.3)', cursor:'pointer' }}>🖨️ PDF</button>
         </div>
       </div>
 
-      {loading ? <div style={{ padding:48, textAlign:'center', color:'var(--silver)' }}>Cargando GPS...</div> : !gpsReal.length ? (
-        <div style={{ padding:48, textAlign:'center', color:'var(--silver)', background:'var(--ink2)', borderRadius:16 }}>Sin datos GPS importados para este período. Importa archivos desde la pestana GPS.</div>
+      {loading ? <div style={{ padding:48, textAlign:'center', color:'var(--silver)' }}>Cargando GPS...</div> :
+      !gpsReal.length ? (
+        <div style={{ padding:48, textAlign:'center', color:'var(--silver)', background:'var(--ink2)', borderRadius:16 }}>
+          Sin datos GPS importados para este período. Importá archivos desde la pestaña 📡 GPS.
+        </div>
       ) : (<>
 
-      {/* CUADROS 1+2+3 */}
+      {/* ══ CUADRO 1: Por MD — datos REALES por jugador ════════════════════ */}
+      <div style={{ marginBottom:20 }}>
+        <div style={{ padding:'10px 0 12px' }}>
+          <p style={{ fontSize:11, fontWeight:700, color:'#60a5fa', textTransform:'uppercase', letterSpacing:'0.08em' }}>CUADRO 1 · GPS REAL POR SESIÓN · MD+1 → MD</p>
+          <p style={{ fontSize:10, color:'var(--fog)', marginTop:2 }}>Datos reales individuales por jugador en cada sesión del microciclo</p>
+        </div>
+        {mdCols.map((md:string) => {
+          const hasData = existingMdLabels.has(md) && (gpsPerMD[md]||[]).length > 0
+          const mdPlayers: any[] = gpsPerMD[md] || []
+          const ses = sesionesInfo.find((s:any) => s.titulo === md)
+          const teamAvgMD = mdTeamAvg(md)
+          const POS_COLS: Record<string,string> = {}
+          mdPlayers.forEach((p:any,i:number) => { POS_COLS[p.nombre] = POS_LIST[i%POS_LIST.length] })
+
+          return (
+            <div key={md} style={{ background:'var(--ink2)', border:`1px solid ${hasData?'rgba(96,165,250,.25)':'var(--mist)'}`, borderRadius:14, overflow:'hidden', marginBottom:12, opacity:hasData?1:0.45 }}>
+              {/* MD Header */}
+              <div style={{ padding:'8px 16px', background:hasData?'rgba(96,165,250,.06)':'rgba(255,255,255,.02)', borderBottom:'1px solid var(--mist)', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                <span style={{ fontSize:13, fontWeight:800, color:hasData?'#60a5fa':'var(--fog)', fontFamily:'Bebas Neue,sans-serif', letterSpacing:'0.1em' }}>{md}</span>
+                {ses ? <span style={{ fontSize:10, color:'var(--fog)', fontFamily:'DM Mono,monospace' }}>{ses.fecha}</span>
+                     : <span style={{ fontSize:10, color:'var(--fog)', fontStyle:'italic' }}>Sin sesión asignada</span>}
+              </div>
+              {hasData ? (
+                <>
+                <div style={{ overflowX:'auto' }}>
+                  <table style={{ width:'100%', borderCollapse:'collapse', fontSize:11 }}>
+                    <thead>
+                      <tr>
+                        <th colSpan={3} style={{ padding:'6px 14px', textAlign:'left', background:'rgba(96,165,250,.06)', color:'#60a5fa', fontSize:9, fontWeight:700, textTransform:'uppercase', letterSpacing:'0.06em', borderBottom:'1px solid var(--mist)' }}>
+                          DATOS REALES GPS — individuales por jugador
+                        </th>
+                        <th colSpan={GPS_VARS.length} style={{ padding:'6px 14px', textAlign:'left', background:'rgba(96,165,250,.04)', color:'#93c5fd', fontSize:9, fontWeight:700, textTransform:'uppercase', letterSpacing:'0.06em', borderBottom:'1px solid var(--mist)' }}>
+                          MÉTRICAS GPS
+                        </th>
+                      </tr>
+                      <tr style={{ background:'rgba(255,255,255,.02)' }}>
+                        <th style={{ padding:'5px 14px', textAlign:'left', color:'var(--silver)', fontSize:8, fontWeight:700, textTransform:'uppercase', borderBottom:'1px solid var(--mist)' }}>Jugador</th>
+                        <th style={{ padding:'5px 8px', textAlign:'left', color:'var(--silver)', fontSize:8, fontWeight:700, textTransform:'uppercase', borderBottom:'1px solid var(--mist)' }}>Pos.</th>
+                        <th style={{ padding:'5px 8px', textAlign:'center', color:'var(--silver)', fontSize:8, fontWeight:700, textTransform:'uppercase', borderBottom:'1px solid var(--mist)' }}>Ses.</th>
+                        {GPS_VARS.map(v=>(
+                          <th key={v.key} style={{ padding:'5px 8px', textAlign:'center', color:v.color, fontSize:8, fontWeight:700, textTransform:'uppercase', whiteSpace:'nowrap', borderBottom:'1px solid var(--mist)', background:'rgba(96,165,250,.03)' }}>{v.label}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {mdPlayers.map((p:any, i:number)=>(
+                        <tr key={i} style={{ borderTop:'1px solid var(--mist)', background:i%2===0?'transparent':'rgba(255,255,255,.01)' }}>
+                          <td style={{ padding:'6px 14px', color:'var(--snow)', fontWeight:500, whiteSpace:'nowrap' }}>{p.nombre}</td>
+                          <td style={{ padding:'6px 8px', color:'var(--fog)', fontSize:10 }}>{p.posicion||'—'}</td>
+                          <td style={{ padding:'6px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', color:'var(--silver)' }}>{p.sesiones||1}</td>
+                          {GPS_VARS.map(v=>{
+                            const val = p[v.key]
+                            const hasVal = val !== null && val !== undefined && Number(val) !== 0
+                            return (
+                              <td key={v.key} style={{ padding:'6px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', color:hasVal?v.color:'var(--fog)', fontWeight:hasVal?600:400, background:'rgba(96,165,250,.02)' }}>
+                                {hasVal ? val : '—'}
+                              </td>
+                            )
+                          })}
+                        </tr>
+                      ))}
+                      {/* Team avg row */}
+                      <tr style={{ borderTop:'2px solid rgba(96,165,250,.35)', background:'rgba(96,165,250,.05)' }}>
+                        <td style={{ padding:'6px 14px', fontWeight:800, color:'#60a5fa', fontSize:10, textTransform:'uppercase' }}>PROM. EQUIPO</td>
+                        <td/><td/>
+                        {GPS_VARS.map(v=>{
+                          const val = teamAvgMD[v.key]
+                          return (
+                            <td key={v.key} style={{ padding:'6px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, color:val?v.color:'var(--fog)', background:'rgba(96,165,250,.04)' }}>
+                              {val||'—'}
+                            </td>
+                          )
+                        })}
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+                {/* Charts: real GPS per player */}
+                {(() => {
+                  const BAR_H = 180
+                  return (
+                    <div style={{ padding:'16px', borderTop:'2px solid rgba(96,165,250,.15)', background:'rgba(0,0,0,.2)' }}>
+                      <div style={{ fontSize:13, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:16 }}>
+                        📊 COMPARATIVA GPS · {md}
+                      </div>
+                      <div style={{ display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:14 }}>
+                        {GPS_CHART_GROUPS.map(grp => {
+                          const allVals = mdPlayers.flatMap((p:any)=>grp.bars.map(b=>Number(p[b.key])||0))
+                          const maxBar = Math.max(...allVals, 1)
+                          const lineVals = grp.line ? mdPlayers.map((p:any)=>Number(p[grp.line!.key])||0) : []
+                          const maxLine = Math.max(...lineVals, 1)
+                          const n = mdPlayers.length
+
+                          return (
+                            <div key={grp.title} style={{ background:'var(--ink2)', borderRadius:12, padding:14, border:`1px solid ${grp.color}30` }}>
+                              <div style={{ fontSize:13, fontWeight:800, color:grp.color, textTransform:'uppercase', letterSpacing:'0.08em', textAlign:'center', marginBottom:4, borderBottom:`1px solid ${grp.color}30`, paddingBottom:6 }}>{grp.title}</div>
+                              <div style={{ display:'flex', flexWrap:'wrap', gap:6, justifyContent:'center', marginBottom:10 }}>
+                                {grp.bars.map(b=>(
+                                  <span key={b.key} style={{ display:'flex', alignItems:'center', gap:3, fontSize:11, color:'var(--silver)' }}>
+                                    <span style={{ width:10, height:10, borderRadius:2, background:b.color, display:'inline-block' }}/>{b.label}
+                                  </span>
+                                ))}
+                                {grp.line && (
+                                  <span style={{ display:'flex', alignItems:'center', gap:3, fontSize:11, color:'var(--silver)' }}>
+                                    <svg width="16" height="8"><line x1="0" y1="4" x2="16" y2="4" stroke={grp.line.color} strokeWidth="2" strokeDasharray="4,2"/><circle cx="8" cy="4" r="2.5" fill={grp.line.color}/></svg>
+                                    {grp.line.label}
+                                  </span>
+                                )}
+                              </div>
+                              <div style={{ position:'relative', height:`${BAR_H+36}px` }}>
+                                {[0,25,50,75,100].map(p=>(
+                                  <div key={p} style={{ position:'absolute', left:0, right:0, bottom:`${(p/100)*BAR_H+28}px`, borderTop:'1px solid rgba(255,255,255,.04)' }}/>
+                                ))}
+                                <div style={{ position:'absolute', bottom:28, left:0, right:0, display:'flex', alignItems:'flex-end', gap:8, padding:'0 4px' }}>
+                                  {mdPlayers.map((p:any, pi:number)=>{
+                                    const nameColor = POS_COLS[p.nombre]||'#888'
+                                    return (
+                                      <div key={pi} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', minWidth:0 }}>
+                                        <div style={{ display:'flex', gap:1, marginBottom:3 }}>
+                                          {grp.bars.map((b,bi)=>{
+                                            const val = Number(p[b.key])||0
+                                            return <span key={bi} style={{ fontSize:11, color:b.color, fontFamily:'DM Mono,monospace', fontWeight:700, lineHeight:1 }}>{val>0?val:''}</span>
+                                          })}
+                                        </div>
+                                        <div style={{ display:'flex', gap:2, alignItems:'flex-end', width:'100%', justifyContent:'center' }}>
+                                          {grp.bars.map((b,bi)=>{
+                                            const val = Number(p[b.key])||0
+                                            const h = Math.max((val/maxBar)*BAR_H, val>0?4:2)
+                                            return <div key={bi} title={`${p.nombre}: ${val} ${b.label}`}
+                                              style={{ flex:1, maxWidth:20, height:`${h}px`, background:val>0?b.color:`${b.color}18`, borderRadius:'3px 3px 0 0', minWidth:6 }}/>
+                                          })}
+                                        </div>
+                                      </div>
+                                    )
+                                  })}
+                                </div>
+                                {grp.line && lineVals.length >= 1 && (() => {
+                                  const pts = lineVals.map((v,i)=>({ x: n===1?50:(i/(n-1))*100, v }))
+                                  return (
+                                    <svg viewBox={`0 0 100 ${BAR_H}`} preserveAspectRatio="none"
+                                      style={{ position:'absolute', bottom:28, left:0, right:0, width:'100%', height:`${BAR_H}px`, overflow:'visible', pointerEvents:'none' }}>
+                                      {n>1 && <polyline points={pts.map(p=>`${p.x},${(1-(p.v/maxLine))*BAR_H}`).join(' ')} fill="none" stroke={grp.line.color} strokeWidth="1.5" strokeDasharray="4,3" vectorEffect="non-scaling-stroke"/>}
+                                      {pts.map((pt,i)=>{
+                                        const cy=(1-(pt.v/maxLine))*BAR_H
+                                        return (
+                                          <g key={i}>
+                                            <circle cx={pt.x} cy={cy} r="3" fill={grp.line!.color} stroke="var(--ink)" strokeWidth="1" vectorEffect="non-scaling-stroke"/>
+                                            {pt.v>0 && <text x={pt.x} y={Math.max(cy-5,8)} textAnchor="middle" fill={grp.line!.color} fontSize="10" fontFamily="DM Mono,monospace" fontWeight="bold">{pt.v}</text>}
+                                          </g>
+                                        )
+                                      })}
+                                    </svg>
+                                  )
+                                })()}
+                                <div style={{ position:'absolute', bottom:0, left:0, right:0, display:'flex', gap:8, padding:'0 4px' }}>
+                                  {mdPlayers.map((p:any,pi:number)=>(
+                                    <div key={pi} style={{ flex:1, textAlign:'center', minWidth:0 }}>
+                                      <div style={{ fontSize:11, color:POS_COLS[p.nombre]||'#888', fontWeight:700, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{p.nombre.split(' ')[0]}</div>
+                                      <div style={{ fontSize:10, color:'var(--fog)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{(p.posicion||'').split(' ')[0]}</div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )
+                })()}
+                </>
+              ) : (
+                <div style={{ padding:'10px 16px', color:'var(--fog)', fontSize:11, fontStyle:'italic' }}>Sin datos GPS importados para {md}</div>
+              )}
+            </div>
+          )
+        })}
+      </div>
+
+      {/* ══ CUADRO 2: Totales por MD (GPS) ══════════════════════════════════ */}
       <div style={{ background:'var(--ink2)', border:'1px solid rgba(96,165,250,.2)', borderRadius:16, overflow:'hidden', marginBottom:20 }}>
-        <div style={{ padding:'12px 18px', borderBottom:'1px solid var(--mist)' }}>
-          <p style={{ fontSize:11, fontWeight:700, color:'#60a5fa', textTransform:'uppercase', letterSpacing:'0.08em' }}>CUADRO 1 · DATOS GPS POR JUGADOR</p>
-          <p style={{ fontSize:10, color:'var(--fog)', marginTop:2 }}>Variables GPS reales del microciclo · {activeVars.length} variables detectadas</p>
+        <div style={{ padding:'10px 16px', borderBottom:'1px solid var(--mist)' }}>
+          <p style={{ fontSize:11, fontWeight:700, color:'#60a5fa', textTransform:'uppercase', letterSpacing:'0.08em' }}>CUADRO 2 · PROMEDIO EQUIPO POR MD (GPS REAL)</p>
+          <p style={{ fontSize:10, color:'var(--fog)', marginTop:2 }}>Promedio del equipo en cada sesión · MD+1 → MD</p>
         </div>
         <div style={{ overflowX:'auto' }}>
           <table style={{ width:'100%', borderCollapse:'collapse', fontSize:11 }}>
             <thead>
-              <tr style={{ background:'rgba(96,165,250,.04)' }}>
-                <th style={{ padding:'8px 14px', textAlign:'left', color:'var(--silver)', fontSize:9, fontWeight:600, textTransform:'uppercase', whiteSpace:'nowrap' }}>Jugador</th>
-                <th style={{ padding:'8px 8px', textAlign:'left', color:'var(--silver)', fontSize:9, fontWeight:600, textTransform:'uppercase' }}>Pos</th>
-                <th style={{ padding:'8px 10px', textAlign:'center', color:'var(--silver)', fontSize:9, fontWeight:600 }}>Ses.</th>
-                {activeVars.map(v=><th key={v.key} style={{ padding:'8px 10px', textAlign:'center', color:v.color, fontSize:9, fontWeight:600, textTransform:'uppercase', whiteSpace:'nowrap' }}>{v.label}</th>)}
+              <tr style={{ background:'rgba(96,165,250,.05)' }}>
+                <th style={{ padding:'8px 14px', textAlign:'left', color:'var(--silver)', fontSize:9, fontWeight:700, textTransform:'uppercase' }}>Métrica</th>
+                {mdCols.map(md=>(
+                  <th key={md} style={{ padding:'8px 10px', textAlign:'center', color:existingMdLabels.has(md)&&(gpsPerMD[md]||[]).length>0?'#60a5fa':'var(--fog)', fontSize:10, fontWeight:700, whiteSpace:'nowrap', opacity:existingMdLabels.has(md)&&(gpsPerMD[md]||[]).length>0?1:0.5 }}>{md}</th>
+                ))}
+                <th style={{ padding:'8px 10px', textAlign:'center', color:'#34d399', fontSize:9, fontWeight:700 }}>TOTAL</th>
               </tr>
             </thead>
             <tbody>
-              {gpsReal.map((p:any,i:number)=>(
-                <tr key={i} style={{ borderTop:'1px solid var(--mist)', background:i%2===0?'transparent':'rgba(255,255,255,.015)' }}>
-                  <td style={{ padding:'8px 14px', color:'var(--snow)', fontWeight:500, whiteSpace:'nowrap' }}>{p.nombre}</td>
-                  <td style={{ padding:'8px 8px', color:'var(--fog)', fontSize:10 }}>{p.posicion||'—'}</td>
-                  <td style={{ padding:'8px 10px', textAlign:'center', fontFamily:'DM Mono,monospace', color:'var(--silver)' }}>{p.sesiones_gps||'—'}</td>
-                  {activeVars.map(v=><td key={v.key} style={{ padding:'8px 10px', textAlign:'center', fontFamily:'DM Mono,monospace', color:p[v.key]?v.color:'var(--fog)' }}>{p[v.key]||'—'}</td>)}
-                </tr>
-              ))}
-              <tr style={{ borderTop:'2px solid rgba(200,241,53,.4)', background:'rgba(200,241,53,.05)' }}>
-                <td colSpan={3} style={{ padding:'9px 14px', fontWeight:800, color:'var(--lime)', fontSize:10, textTransform:'uppercase' }}>CUADRO 2 · TOTAL</td>
-                {activeVars.map(v=>{ const t=gpsReal.reduce((s:number,p:any)=>s+(Number(p[v.key])||0),0); return <td key={v.key} style={{ padding:'9px 10px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, color:v.color }}>{v.key==='max_velocity'?'—':Math.round(t)||'—'}</td> })}
-              </tr>
-              <tr style={{ borderTop:'1px solid rgba(96,165,250,.3)', background:'rgba(96,165,250,.04)' }}>
-                <td colSpan={3} style={{ padding:'9px 14px', fontWeight:800, color:'#60a5fa', fontSize:10, textTransform:'uppercase' }}>CUADRO 3 · PROMEDIO</td>
-                {activeVars.map(v=><td key={v.key} style={{ padding:'9px 10px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, color:'#60a5fa' }}>{gpsAvg[v.key]||'—'}</td>)}
-              </tr>
+              {GPS_VARS.map((v,i)=>{
+                const vals = mdCols.map(md => mdTeamAvg(md)[v.key] || 0)
+                const total = Math.round(vals.reduce((s,x)=>s+x,0)*10)/10
+                return (
+                  <tr key={v.key} style={{ borderTop:'1px solid var(--mist)', background:i%2===0?'transparent':'rgba(255,255,255,.015)' }}>
+                    <td style={{ padding:'7px 14px', color:v.color, fontWeight:600, fontSize:11 }}>{v.label}</td>
+                    {vals.map((val,j)=>(
+                      <td key={j} style={{ padding:'7px 10px', textAlign:'center', fontFamily:'DM Mono,monospace', color:val>0?v.color:'var(--fog)', fontWeight:val>0?600:400 }}>{val>0?val:'—'}</td>
+                    ))}
+                    <td style={{ padding:'7px 10px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, color:'#34d399' }}>{total>0?total:'—'}</td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         </div>
       </div>
 
-      {/* CUADRO 4: % sobre partido GPS */}
-      <div style={{ background:'var(--ink2)', border:'1px solid rgba(168,85,247,.2)', borderRadius:16, overflow:'hidden', marginBottom:20 }}>
-        <div style={{ padding:'12px 18px', borderBottom:'1px solid var(--mist)', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+      {/* ══ CUADRO 4: % sobre el partido (GPS) ═════════════════════════════ */}
+      <div style={{ background:'var(--ink2)', border:'1px solid rgba(239,68,68,.2)', borderRadius:16, overflow:'hidden', marginBottom:8 }}>
+        <div style={{ padding:'10px 16px', borderBottom:'1px solid var(--mist)', display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:8 }}>
           <div>
-            <p style={{ fontSize:11, fontWeight:700, color:'#a78bfa', textTransform:'uppercase', letterSpacing:'0.08em' }}>CUADRO 4 · % SOBRE EL PARTIDO GPS (= 100%)</p>
-            <p style={{ fontSize:10, color:'var(--fog)', marginTop:2 }}>Carga los valores del partido de referencia para calcular porcentajes</p>
+            <p style={{ fontSize:11, fontWeight:700, color:'#f87171', textTransform:'uppercase', letterSpacing:'0.08em' }}>CUADRO 4 · % SOBRE EL PARTIDO GPS (= 100%)</p>
+            <p style={{ fontSize:10, color:'var(--fog)', marginTop:2 }}>Media de 3 partidos de referencia · objetivo 100% por variable</p>
           </div>
-          <button onClick={()=>setShowRefInput(!showRefInput)} style={{ fontSize:11, padding:'6px 14px', borderRadius:8, background:'rgba(168,85,247,.1)', color:'#a78bfa', border:'1px solid rgba(168,85,247,.3)', cursor:'pointer' }}>{showRefInput?'Ocultar':'Editar referencia'}</button>
+          <button onClick={()=>setShowRefInput(!showRefInput)} style={{ fontSize:11, padding:'6px 14px', borderRadius:8, background:'rgba(239,68,68,.1)', color:'#f87171', border:'1px solid rgba(239,68,68,.3)', cursor:'pointer' }}>
+            {showRefInput?'▲ Ocultar':'▼ Ingresar partidos'}
+          </button>
         </div>
         {showRefInput && (
-          <div style={{ padding:16, borderBottom:'1px solid var(--mist)', display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(130px,1fr))', gap:8 }}>
-            {activeVars.map(v=>(
-              <div key={v.key}>
-                <label style={{ fontSize:9, color:v.color, display:'block', marginBottom:3, textTransform:'uppercase', fontWeight:600 }}>{v.label} (partido)</label>
-                <input className="wp-input" type="number" placeholder="Valor ref." style={{ padding:'5px 8px', fontSize:11, width:'100%' }} value={partidoRef[v.key]||''} onChange={e=>setPartidoRef((r:any)=>({...r,[v.key]:Number(e.target.value)}))} />
-              </div>
-            ))}
-          </div>
-        )}
-        <div style={{ overflowX:'auto' }}>
-          <table style={{ width:'100%', borderCollapse:'collapse', fontSize:11 }}>
-            <thead>
-              <tr style={{ background:'rgba(168,85,247,.04)' }}>
-                <th style={{ padding:'8px 14px', textAlign:'left', color:'var(--silver)', fontSize:9, fontWeight:600, textTransform:'uppercase' }}>Jugador</th>
-                {activeVars.map(v=><th key={v.key} style={{ padding:'8px 10px', textAlign:'center', color:v.color, fontSize:9, fontWeight:600, textTransform:'uppercase', whiteSpace:'nowrap' }}>{v.label}</th>)}
-              </tr>
-            </thead>
-            <tbody>
-              {gpsReal.map((p:any,i:number)=>(
-                <tr key={i} style={{ borderTop:'1px solid var(--mist)' }}>
-                  <td style={{ padding:'8px 14px', color:'var(--snow)', fontWeight:500 }}>{p.nombre}</td>
-                  {activeVars.map(v=>{ const pv=pct(Number(p[v.key])||0,v.key); return <td key={v.key} style={{ padding:'8px 10px', textAlign:'center', fontFamily:'DM Mono,monospace', color:pctColor(pv), fontWeight:pv?600:400 }}>{pv!==null?`${pv}%`:Object.keys(partidoRef).length?'—':<span style={{color:'var(--fog)',fontSize:9}}>sin ref.</span>}</td> })}
-                </tr>
-              ))}
-              <tr style={{ borderTop:'2px solid rgba(168,85,247,.3)', background:'rgba(168,85,247,.04)' }}>
-                <td style={{ padding:'9px 14px', fontWeight:800, color:'#a78bfa', fontSize:10, textTransform:'uppercase' }}>Promedio</td>
-                {activeVars.map(v=>{ const av=pct(gpsAvg[v.key]||0,v.key); return <td key={v.key} style={{ padding:'9px 10px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, color:pctColor(av) }}>{av!==null?`${av}%`:'—'}</td> })}
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Graficos GPS */}
-      <div>
-        <p style={{ fontSize:11, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:16 }}>GRAFICOS · COMPORTAMIENTO GPS POR VARIABLE</p>
-        <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))', gap:12 }}>
-          {activeVars.map(v => {
-            const vals = gpsReal.map((p:any)=>({ nombre:p.nombre.split(' ')[0], val:Number(p[v.key])||0 }))
-            const maxVal = Math.max(...vals.map((x:any)=>x.val), 1)
-            return (
-              <div key={v.key} style={{ background:'var(--ink2)', borderRadius:12, padding:16, border:'1px solid var(--mist)' }}>
-                <div style={{ fontSize:11, fontWeight:700, color:v.color, textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:12 }}>{v.label}</div>
-                <div style={{ display:'flex', alignItems:'flex-end', gap:3, height:80 }}>
-                  {vals.map((item:any,i:number)=>(
-                    <div key={i} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', gap:2 }}>
-                      <div style={{ fontSize:8, color:'var(--fog)', fontFamily:'DM Mono,monospace' }}>{item.val>0?item.val:''}</div>
-                      <div style={{ width:'100%', borderRadius:'3px 3px 0 0', minHeight:2, height:`${Math.max((item.val/maxVal)*64,item.val>0?2:0)}px`, background:item.val>0?v.color:`${v.color}22` }} />
-                      <div style={{ fontSize:7, color:'var(--fog)', whiteSpace:'nowrap', overflow:'hidden', maxWidth:28, textOverflow:'ellipsis' }}>{item.nombre}</div>
+          <div style={{ padding:16, borderBottom:'1px solid var(--mist)', background:'rgba(239,68,68,.03)' }}>
+            <p style={{ fontSize:10, color:'var(--fog)', marginBottom:14 }}>Seleccioná hasta 3 partidos del Calendario — los datos GPS se cargan automáticamente:</p>
+            {[0,1,2].map(ri=>(
+              <div key={ri} style={{ marginBottom:16, background:'var(--ink3)', borderRadius:10, padding:12, border:'1px solid rgba(239,68,68,.15)' }}>
+                <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:10, flexWrap:'wrap' }}>
+                  <span style={{ fontSize:10, fontWeight:700, color:'#f87171' }}>🏆 Partido {ri+1}</span>
+                  <select className="wp-input" style={{ flex:1, minWidth:200, appearance:'none', fontSize:11, padding:'5px 10px' }}
+                    value={selectedPartidos[ri]?.fecha+'_'+selectedPartidos[ri]?.rival||''}
+                    onChange={e=>{ const val=e.target.value; if(!val){selectPartido(ri,null);return}; const p=partidos.find((x:any)=>`${x.fecha}_${x.rival}`===val); if(p) selectPartido(ri,p) }}>
+                    <option value="">— Seleccionar partido —</option>
+                    {partidos.map((p:any)=>(
+                      <option key={`${p.fecha}_${p.rival}`} value={`${p.fecha}_${p.rival}`} style={{ background:'var(--ink2)' }}>
+                        {p.fecha} · vs {p.rival||'Partido'} {p._src==='calendar'?'📅':'📋'}
+                      </option>
+                    ))}
+                  </select>
+                  {selectedPartidos[ri] && <button onClick={()=>selectPartido(ri,null)} style={{ fontSize:10, padding:'4px 8px', borderRadius:6, background:'rgba(239,68,68,.1)', color:'#f87171', border:'1px solid rgba(239,68,68,.2)', cursor:'pointer' }}>✕</button>}
+                </div>
+                <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(100px,1fr))', gap:6 }}>
+                  {GPS_VARS.map(v=>(
+                    <div key={v.key}>
+                      <label style={{ fontSize:9, color:v.color, display:'block', marginBottom:2, textTransform:'uppercase', fontWeight:600 }}>{v.label}</label>
+                      <input className="wp-input" type="number" placeholder="—" style={{ padding:'4px 7px', fontSize:11, width:'100%', background:partidoRefs[ri]?.[v.key]?'rgba(239,68,68,.08)':'transparent' }}
+                        value={partidoRefs[ri]?.[v.key]||''}
+                        onChange={e=>{ const nr=[...partidoRefs]; nr[ri]={...nr[ri],[v.key]:Number(e.target.value)||''}; setPartidoRefs(nr) }}
+                      />
                     </div>
                   ))}
                 </div>
-                <div style={{ fontSize:9, color:'var(--fog)', marginTop:8, textAlign:'right', borderTop:'1px solid var(--mist)', paddingTop:4 }}>Prom: <span style={{ color:v.color, fontFamily:'DM Mono,monospace' }}>{gpsAvg[v.key]||'—'}</span></div>
               </div>
-            )
-          })}
-        </div>
+            ))}
+            {Object.keys(refMedia).length>0 && (
+              <div style={{ padding:'8px 12px', background:'rgba(239,68,68,.08)', borderRadius:8, display:'flex', flexWrap:'wrap', gap:10 }}>
+                <span style={{ fontSize:10, color:'#f87171', fontWeight:700 }}>📊 Media referencia:</span>
+                {GPS_VARS.filter(v=>refMedia[v.key]).map(v=>(
+                  <span key={v.key} style={{ fontSize:11, color:v.color, fontFamily:'DM Mono,monospace' }}>{v.label}: <strong>{refMedia[v.key]}</strong></span>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+        {Object.keys(refMedia).length===0 ? (
+          <div style={{ padding:24, textAlign:'center', color:'var(--fog)', fontSize:12 }}>Ingresá los valores de 3 partidos de referencia para ver los porcentajes.</div>
+        ) : (
+          <div style={{ overflowX:'auto' }}>
+            <table style={{ width:'100%', borderCollapse:'collapse', fontSize:11 }}>
+              <thead>
+                <tr style={{ background:'rgba(239,68,68,.04)' }}>
+                  <th style={{ padding:'7px 14px', textAlign:'left', color:'var(--silver)', fontSize:9, fontWeight:700, textTransform:'uppercase' }}>Jugador / MD</th>
+                  {GPS_VARS.filter(v=>refMedia[v.key]).map(v=>(
+                    <th key={v.key} style={{ padding:'7px 8px', textAlign:'center', color:v.color, fontSize:9, fontWeight:700, textTransform:'uppercase', whiteSpace:'nowrap' }}>
+                      {v.label}<div style={{ fontSize:8, color:'var(--fog)', fontWeight:400 }}>ref:{refMedia[v.key]}</div>
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {gpsReal.map((p:any,i:number)=>(
+                  <tr key={i} style={{ borderTop:'1px solid var(--mist)', background:i%2===0?'transparent':'rgba(255,255,255,.015)' }}>
+                    <td style={{ padding:'7px 14px', color:'var(--snow)', fontWeight:500, whiteSpace:'nowrap' }}>{p.nombre}</td>
+                    {GPS_VARS.filter(v=>refMedia[v.key]).map(v=>{ const pv=pct(Number(p[v.key])||0,v.key); return <td key={v.key} style={{ padding:'7px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:pv?600:400, color:pctColor(pv) }}>{pv!==null?`${pv}%`:'—'}</td> })}
+                  </tr>
+                ))}
+                {mdCols.filter(md=>existingMdLabels.has(md)&&(gpsPerMD[md]||[]).length>0).map(md=>(
+                  <tr key={md} style={{ borderTop:'1px solid rgba(239,68,68,.15)', background:'rgba(239,68,68,.03)' }}>
+                    <td style={{ padding:'7px 14px', color:'#f87171', fontWeight:700, fontSize:10 }}>{md} (prom)</td>
+                    {GPS_VARS.filter(v=>refMedia[v.key]).map(v=>{ const val=mdTeamAvg(md)[v.key]||0; const pv=pct(val,v.key); return <td key={v.key} style={{ padding:'7px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:pv?600:400, color:pctColor(pv) }}>{pv!==null?`${pv}%`:'—'}</td> })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
       </>)}
     </div>
   )
 }
+
+
 
 
 // ═══════════════════════════════════════════════════════════════════
