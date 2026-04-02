@@ -1825,7 +1825,10 @@ function imprimirSesion(f: any, bloques: any[], teamPlayers: any[] = []) {
           if (!jugs.length) return ''
           const cols = ['#16a34a','#2563eb','#d97706','#dc2626']
           const names = jugs.map((id: any) => {
-            const p = teamPlayers.find((tp: any) => tp.id === id || String(tp.id) === String(id))
+            const p = teamPlayers.find((tp: any) =>
+              tp.jugador_id === id || String(tp.jugador_id) === String(id) ||
+              tp.id === id || String(tp.id) === String(id)
+            )
             return p ? (p.nombre || p.name || 'Jug.') : null
           }).filter(Boolean)
           const label = names.length > 0 ? names.join(', ') : `${jugs.length} jug.`
@@ -4054,10 +4057,29 @@ function AcumPanel({ teamData }) {
   const [miciData, setMiciData] = useState<any>(null)
   const [miciLoading, setMiciLoading] = useState(false)
   const today = new Date().toISOString().split('T')[0]
-  const weekStart = (() => { const d=new Date(); d.setDate(d.getDate()-d.getDay()+1); return d.toISOString().split('T')[0] })()
-  const [miciDesde, setMiciDesde] = useState(weekStart)
+  const [miciOffset, setMiciOffset] = useState(0)
+
+  const getMiciStart = (offset = 0) => {
+    const d = new Date()
+    d.setDate(d.getDate() - d.getDay() + 1 + offset * 7)
+    return d.toISOString().split('T')[0]
+  }
+  const getMiciEnd = (offset = 0) => {
+    const d = new Date()
+    d.setDate(d.getDate() - d.getDay() + 7 + offset * 7)
+    return d.toISOString().split('T')[0]
+  }
+
+  const [miciDesde, setMiciDesde] = useState(() => getMiciStart(0))
   const [miciHasta, setMiciHasta] = useState(today)
   const [miciNum, setMiciNum] = useState(1)
+
+  useEffect(() => {
+    const newDesde = getMiciStart(miciOffset)
+    const newHasta = miciOffset === 0 ? today : getMiciEnd(miciOffset)
+    setMiciDesde(newDesde)
+    setMiciHasta(newHasta)
+  }, [miciOffset])
 
   useEffect(() => { loadMici() }, [miciDesde, miciHasta])
 
@@ -4104,6 +4126,14 @@ function AcumPanel({ teamData }) {
             </p>
           </div>
           <div style={{ display:'flex', gap:8, alignItems:'flex-end', flexWrap:'wrap' }}>
+            {/* Microciclo navigation */}
+            <div style={{ display:'flex', alignItems:'center', gap:6, background:'var(--ink3)', border:'1px solid var(--mist)', borderRadius:8, padding:'4px 8px' }}>
+              <button onClick={()=>setMiciOffset(o=>o-1)} style={{ background:'none', border:'none', color:'var(--silver)', cursor:'pointer', fontSize:16, padding:'0 4px', lineHeight:1 }}>‹</button>
+              <span style={{ fontSize:11, color:'var(--snow)', fontFamily:'DM Mono,monospace', minWidth:80, textAlign:'center' }}>
+                {miciOffset === 0 ? 'Esta semana' : miciOffset === -1 ? 'Sem. pasada' : `Sem. ${miciOffset < 0 ? miciOffset : '+'+miciOffset}`}
+              </span>
+              <button onClick={()=>setMiciOffset(o=>Math.min(0, o+1))} style={{ background:'none', border:'none', color:miciOffset >= 0 ? 'var(--fog)' : 'var(--silver)', cursor:miciOffset >= 0 ? 'default' : 'pointer', fontSize:16, padding:'0 4px', lineHeight:1 }}>›</button>
+            </div>
             <div>
               <label style={{ fontSize:9, color:'var(--fog)', display:'block', marginBottom:3, textTransform:'uppercase' }}>Desde</label>
               <input className="wp-input" type="date" value={miciDesde} onChange={e=>setMiciDesde(e.target.value)} />
