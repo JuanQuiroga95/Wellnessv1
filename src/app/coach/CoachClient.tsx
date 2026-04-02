@@ -931,18 +931,22 @@ function CambioCargaPanel() {
                 </p>
                 <div style={{ display:'flex', alignItems:'flex-end', gap:4, height:140, overflowX:'auto', paddingBottom:4 }}>
                   {rowsWithPct.map((row: any, i: number) => {
-                    const h = Math.round((row._val / maxUA) * 110)
+                    const h = Math.max(Math.round((row._val / maxUA) * 110), row._val > 0 ? 24 : 4)
                     const col = pctColor(row._pct)
+                    const pctLabel = row._pct !== null ? `${row._pct > 0 ? '+' : ''}${row._pct}%` : ''
                     const label = view === 'diario'
                       ? row.fecha.slice(5) // MM-DD
                       : row.semana.replace(/\d{4}-/, '') // S01
                     return (
                       <div key={i} style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:3, minWidth:view==='diario'?28:48, flex:'1 0 auto' }}>
-                        <span style={{ fontSize:9, color:col, fontFamily:'DM Mono,monospace', fontWeight:700, whiteSpace:'nowrap' }}>
-                          {row._pct !== null ? `${row._pct > 0 ? '+' : ''}${row._pct}%` : ''}
-                        </span>
-                        <div title={`${row._val} ${CHART_VARS.find(v=>v.key===chartVar)?.label}${row._pct !== null ? ` (${row._pct > 0 ? '+' : ''}${row._pct}%)` : ''}`}
-                          style={{ width:'100%', height:h, background:chartColor, borderRadius:'4px 4px 0 0', opacity:.85, minHeight:4, transition:'height .2s' }} />
+                        <div title={`${row._val} ${CHART_VARS.find(v=>v.key===chartVar)?.label}${row._pct !== null ? ` (${pctLabel})` : ''}`}
+                          style={{ position:'relative', width:'100%', height:h, background:chartColor, borderRadius:'4px 4px 0 0', opacity:.85, minHeight:4, transition:'height .2s', display:'flex', alignItems:'center', justifyContent:'center' }}>
+                          {pctLabel && h >= 18 && (
+                            <span style={{ position:'absolute', top:'50%', left:'50%', transform:'translate(-50%,-50%)', fontSize:9, color:'#fff', fontFamily:'DM Mono,monospace', fontWeight:700, whiteSpace:'nowrap', textShadow:`0 1px 3px rgba(0,0,0,.8)` }}>
+                              {pctLabel}
+                            </span>
+                          )}
+                        </div>
                         <span style={{ fontSize:8, color:'var(--fog)', fontFamily:'DM Mono,monospace', whiteSpace:'nowrap', transform:'rotate(-35deg)', transformOrigin:'top center', marginTop:4 }}>{label}</span>
                       </div>
                     )
@@ -3099,9 +3103,10 @@ function ComparativaPanel({ teamData }: { teamData: any[] }) {
         <div style={{ display:'flex', alignItems:'flex-end', gap:6, height:64 }}>
           {posAvgs.map((x,i)=>(
             <div key={i} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', gap:2, minWidth:0 }}>
-              <div style={{ fontSize:8, color:'var(--fog)', fontFamily:'DM Mono,monospace' }}>{x.avg}</div>
-              <div style={{ width:'100%', borderRadius:'3px 3px 0 0', height:`${Math.max((x.avg/maxV)*52,4)}px`,
-                background:posColor(x.pos), opacity:0.8 }} />
+              <div style={{ position:'relative', width:'100%', borderRadius:'3px 3px 0 0', height:`${Math.max((x.avg/maxV)*52,14)}px`,
+                background:posColor(x.pos), opacity:0.8, display:'flex', alignItems:'center', justifyContent:'center' }}>
+                <span style={{ position:'absolute', top:'50%', left:'50%', transform:'translate(-50%,-50%)', fontSize:8, color:'#fff', fontFamily:'DM Mono,monospace', fontWeight:700, whiteSpace:'nowrap', textShadow:'0 1px 2px rgba(0,0,0,.8)' }}>{x.avg}</span>
+              </div>
               <div style={{ fontSize:7, color:'var(--fog)', whiteSpace:'nowrap', overflow:'hidden', maxWidth:36, textOverflow:'ellipsis', textAlign:'center' }}>{x.pos}</div>
             </div>
           ))}
@@ -5071,28 +5076,19 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
                                     const nameColor = POS_COLS[p.nombre] || '#888'
                                     return (
                                       <div key={pi} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', minWidth:0 }}>
-                                        {/* Value labels on top */}
-                                        <div style={{ display:'flex', gap:1, marginBottom:3 }}>
-                                          {grp.bars.map((b, bi) => {
-                                            const val = Number(p[b.key])||0
-                                            return (
-                                              <span key={bi} style={{ fontSize:11, color:b.color, fontFamily:'DM Mono,monospace', fontWeight:700, lineHeight:1 }}>
-                                                {val > 0 ? val : ''}
-                                              </span>
-                                            )
-                                          })}
-                                        </div>
-                                        {/* Grouped bars */}
+                                        {/* Grouped bars with values inside */}
                                         <div style={{ display:'flex', gap:2, alignItems:'flex-end', width:'100%', justifyContent:'center' }}>
                                           {grp.bars.map((b, bi) => {
                                             const val = Number(p[b.key])||0
                                             const h = Math.max((val/maxBar)*BAR_H, val>0?4:2)
                                             return (
                                               <div key={bi} title={`${p.nombre}: ${val} ${b.label}`}
-                                                style={{ flex:1, maxWidth:20, height:`${h}px`,
+                                                style={{ position:'relative', flex:1, maxWidth:20, height:`${h}px`,
                                                   background: val > 0 ? b.color : `${b.color}18`,
                                                   borderRadius:'3px 3px 0 0', minWidth:6,
-                                                  transition:'height .3s' }} />
+                                                  transition:'height .3s', overflow:'visible' }}>
+                                                {val>0 && h>=16 && <span style={{ position:'absolute', top:'50%', left:'50%', transform:'translate(-50%,-50%) rotate(-90deg)', fontSize:8, color:'#fff', fontFamily:'DM Mono,monospace', fontWeight:700, whiteSpace:'nowrap', textShadow:'0 1px 2px rgba(0,0,0,.9)', pointerEvents:'none' }}>{val}</span>}
+                                              </div>
                                             )
                                           })}
                                         </div>
@@ -5729,18 +5725,16 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
                                     const nameColor = POS_COLS[p.nombre]||'#888'
                                     return (
                                       <div key={pi} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', minWidth:0 }}>
-                                        <div style={{ display:'flex', gap:1, marginBottom:3 }}>
-                                          {grp.bars.map((b,bi)=>{
-                                            const val = Number(p[b.key])||0
-                                            return <span key={bi} style={{ fontSize:11, color:b.color, fontFamily:'DM Mono,monospace', fontWeight:700, lineHeight:1 }}>{val>0?val:''}</span>
-                                          })}
-                                        </div>
                                         <div style={{ display:'flex', gap:2, alignItems:'flex-end', width:'100%', justifyContent:'center' }}>
                                           {grp.bars.map((b,bi)=>{
                                             const val = Number(p[b.key])||0
                                             const h = Math.max((val/maxBar)*BAR_H, val>0?4:2)
-                                            return <div key={bi} title={`${p.nombre}: ${val} ${b.label}`}
-                                              style={{ flex:1, maxWidth:20, height:`${h}px`, background:val>0?b.color:`${b.color}18`, borderRadius:'3px 3px 0 0', minWidth:6 }}/>
+                                            return (
+                                              <div key={bi} title={`${p.nombre}: ${val} ${b.label}`}
+                                                style={{ position:'relative', flex:1, maxWidth:20, height:`${h}px`, background:val>0?b.color:`${b.color}18`, borderRadius:'3px 3px 0 0', minWidth:6, overflow:'visible' }}>
+                                                {val>0 && h>=16 && <span style={{ position:'absolute', top:'50%', left:'50%', transform:'translate(-50%,-50%) rotate(-90deg)', fontSize:8, color:'#fff', fontFamily:'DM Mono,monospace', fontWeight:700, whiteSpace:'nowrap', textShadow:'0 1px 2px rgba(0,0,0,.9)', pointerEvents:'none' }}>{val}</span>}
+                                              </div>
+                                            )
                                           })}
                                         </div>
                                       </div>
