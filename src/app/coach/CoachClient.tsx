@@ -2306,6 +2306,7 @@ function AddMatchForm({ teamData, onSuccess, onCancel }) {
   const [selectedMatch, setSelectedMatch] = useState<any>(null)
   const [bulkMins, setBulkMins] = useState<Record<string,string>>({})
   const [loading, setLoading] = useState(false)
+  const [extraFoto, setExtraFoto] = useState<string|null>(null)
 
   useEffect(() => {
     // Load last ~8 weeks of calendar to find partidos
@@ -2331,26 +2332,58 @@ function AddMatchForm({ teamData, onSuccess, onCancel }) {
     setBulkMins(all)
   }
 
+  function handleFotoUpload(e: any) {
+    const file = e.target.files?.[0]; if (!file) return
+    const reader = new FileReader()
+    reader.onload = () => {
+      const img = new Image()
+      img.onload = () => {
+        const canvas = document.createElement('canvas')
+        const MAX = 120
+        const scale = Math.min(MAX / img.width, MAX / img.height, 1)
+        canvas.width = Math.round(img.width * scale)
+        canvas.height = Math.round(img.height * scale)
+        canvas.getContext('2d')!.drawImage(img, 0, 0, canvas.width, canvas.height)
+        setExtraFoto(canvas.toDataURL('image/jpeg', 0.75))
+      }
+      img.src = reader.result as string
+    }
+    reader.readAsDataURL(file)
+  }
+
   async function submit(e: any) {
     e.preventDefault()
     if (!selectedMatch) return
     setLoading(true)
     try {
-      const entries = Object.entries(bulkMins).filter(([,m]) => m && Number(m) > 0)
-      await Promise.all(entries.map(([jid, m]) =>
-        fetch('/api/partidos', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            jugador_id: Number(jid),
-            fecha: selectedMatch.fecha,
-            rival: selectedMatch.rival || '',
-            tipo_partido: selectedMatch.titulo || 'Oficial',
-            minutos: Number(m),
-            rival_foto: selectedMatch.rival_foto || null,
-          })
+      const fotoToUse = extraFoto || selectedMatch.rival_foto || null
+      const entries = Object.entries(bulkMins)
+        .filter(([,m]) => m && Number(m) > 0)
+        .map(([jid, m]) => ({ jugador_id: Number(jid), minutos: Number(m) }))
+      if (entries.length === 0) return
+
+      // Single bulk request — avoids concurrent Neon connection failures
+      const res = await fetch('/api/partidos/bulk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          entries,
+          fecha: selectedMatch.fecha,
+          rival: selectedMatch.rival || '',
+          tipo_partido: selectedMatch.titulo || 'Oficial',
+          rival_foto: fotoToUse,
         })
-      ))
+      })
+      if (!res.ok) { alert('Error al guardar los minutos'); return }
+
+      // If a new foto was uploaded, also update the sesiones_plan entry
+      if (extraFoto && selectedMatch.id) {
+        await fetch('/api/calendario', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: selectedMatch.id, rival_foto: extraFoto })
+        })
+      }
       onSuccess()
     } finally { setLoading(false) }
   }
@@ -2378,7 +2411,7 @@ function AddMatchForm({ teamData, onSuccess, onCancel }) {
             {calPartidos.map((p: any) => {
               const isSelected = selectedMatch?.id === p.id
               return (
-                <button key={p.id} type="button" onClick={() => setSelectedMatch(isSelected ? null : p)}
+                <button key={p.id} type="button" onClick={() => { setSelectedMatch(isSelected ? null : p); setExtraFoto(null) }}
                   style={{ display:'flex', alignItems:'center', gap:12, padding:'10px 14px', borderRadius:10, cursor:'pointer', textAlign:'left', border:`2px solid ${isSelected ? 'var(--lime)' : 'var(--mist)'}`, background:isSelected ? 'rgba(200,241,53,.08)' : 'var(--ink3)', transition:'all .15s' }}>
                   <div style={{ width:40, height:40, borderRadius:8, background:'rgba(96,165,250,.15)', border:'1px solid rgba(96,165,250,.3)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
                     {p.rival_foto
@@ -2408,6 +2441,24 @@ function AddMatchForm({ teamData, onSuccess, onCancel }) {
           <p style={{ fontSize:10, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:8 }}>
             Paso 2 — Minutos por jugador · vs. {selectedMatch.rival || 'Rival'}
           </p>
+
+          {/* Escudo upload — show if no photo yet or to replace */}
+          <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:10, padding:'8px 10px', background:'var(--ink3)', borderRadius:8, border:'1px solid var(--mist)' }}>
+            <div style={{ width:36, height:36, borderRadius:6, background:'rgba(96,165,250,.15)', border:'1px solid rgba(96,165,250,.3)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, overflow:'hidden' }}>
+              {(extraFoto || selectedMatch.rival_foto)
+                ? <img src={extraFoto || selectedMatch.rival_foto} style={{ width:32, height:32, objectFit:'contain' }} alt="" />
+                : <span style={{ fontSize:16, fontWeight:700, color:'#60a5fa' }}>{(selectedMatch.rival||'?').charAt(0).toUpperCase()}</span>
+              }
+            </div>
+            <label style={{ flex:1, cursor:'pointer' }}>
+              <span style={{ fontSize:11, color: extraFoto ? 'var(--lime)' : (selectedMatch.rival_foto ? 'var(--silver)' : 'var(--fog)') }}>
+                {extraFoto ? '✓ Escudo cargado' : (selectedMatch.rival_foto ? 'Escudo OK · Click para cambiar' : '📁 Subir escudo del rival (opcional)')}
+              </span>
+              <input type="file" accept="image/*" style={{ display:'none' }} onChange={handleFotoUpload} />
+            </label>
+            {extraFoto && <button type="button" onClick={()=>setExtraFoto(null)} style={{ fontSize:10, padding:'3px 8px', borderRadius:5, background:'rgba(239,68,68,.1)', color:'#f87171', border:'1px solid rgba(239,68,68,.2)', cursor:'pointer' }}>✕</button>}
+          </div>
+
           <div style={{ display:'flex', gap:8, alignItems:'center', marginBottom:8, flexWrap:'wrap' }}>
             <span style={{ fontSize:10, color:'var(--fog)' }}>Carga rápida:</span>
             {['90','45','0'].map(m=>(
@@ -4111,29 +4162,31 @@ function AcumPanel({ teamData }) {
   const [miciData, setMiciData] = useState<any>(null)
   const [miciLoading, setMiciLoading] = useState(false)
   const today = new Date().toISOString().split('T')[0]
-  const [miciOffset, setMiciOffset] = useState(0)
+  const [miciNum, setMiciNum] = useState(1)
 
-  const getMiciStart = (offset = 0) => {
+  // miciNum 1 = this week (offset 0), 2 = last week (offset -1), etc.
+  const getMiciOffset = (num: number) => -(num - 1)
+
+  const getMiciStart = (num: number) => {
+    const offset = getMiciOffset(num)
     const d = new Date()
     d.setDate(d.getDate() - d.getDay() + 1 + offset * 7)
     return d.toISOString().split('T')[0]
   }
-  const getMiciEnd = (offset = 0) => {
+  const getMiciEnd = (num: number) => {
+    const offset = getMiciOffset(num)
     const d = new Date()
     d.setDate(d.getDate() - d.getDay() + 7 + offset * 7)
     return d.toISOString().split('T')[0]
   }
 
-  const [miciDesde, setMiciDesde] = useState(() => getMiciStart(0))
+  const [miciDesde, setMiciDesde] = useState(() => getMiciStart(1))
   const [miciHasta, setMiciHasta] = useState(today)
-  const [miciNum, setMiciNum] = useState(1)
 
   useEffect(() => {
-    const newDesde = getMiciStart(miciOffset)
-    const newHasta = miciOffset === 0 ? today : getMiciEnd(miciOffset)
-    setMiciDesde(newDesde)
-    setMiciHasta(newHasta)
-  }, [miciOffset])
+    setMiciDesde(getMiciStart(miciNum))
+    setMiciHasta(miciNum === 1 ? today : getMiciEnd(miciNum))
+  }, [miciNum])
 
   useEffect(() => { loadMici() }, [miciDesde, miciHasta])
 
@@ -4171,8 +4224,10 @@ function AcumPanel({ teamData }) {
                 ACUMULATIVO MICROCICLO {miciNum}
               </h2>
               <div style={{ display:'flex', gap:4 }}>
-                <button onClick={()=>setMiciNum(n=>Math.max(1,n-1))} style={{ width:24, height:24, borderRadius:6, background:'var(--ink3)', border:'1px solid var(--mist)', color:'var(--silver)', cursor:'pointer', fontSize:12 }}>−</button>
-                <button onClick={()=>setMiciNum(n=>n+1)} style={{ width:24, height:24, borderRadius:6, background:'var(--ink3)', border:'1px solid var(--mist)', color:'var(--silver)', cursor:'pointer', fontSize:12 }}>+</button>
+                <button onClick={()=>setMiciNum(n=>Math.max(1,n-1))} disabled={miciNum<=1}
+                  style={{ width:28, height:28, borderRadius:6, background:'var(--ink3)', border:'1px solid var(--mist)', color: miciNum<=1?'var(--fog)':'var(--silver)', cursor:miciNum<=1?'default':'pointer', fontSize:14, fontWeight:700 }}>−</button>
+                <button onClick={()=>setMiciNum(n=>n+1)}
+                  style={{ width:28, height:28, borderRadius:6, background:'var(--ink3)', border:'1px solid var(--mist)', color:'var(--silver)', cursor:'pointer', fontSize:14, fontWeight:700 }}>+</button>
               </div>
             </div>
             <p style={{ fontSize:11, color:'var(--lime)', fontFamily:'DM Mono,monospace', marginTop:2 }}>
@@ -4180,14 +4235,6 @@ function AcumPanel({ teamData }) {
             </p>
           </div>
           <div style={{ display:'flex', gap:8, alignItems:'flex-end', flexWrap:'wrap' }}>
-            {/* Microciclo navigation */}
-            <div style={{ display:'flex', alignItems:'center', gap:6, background:'var(--ink3)', border:'1px solid var(--mist)', borderRadius:8, padding:'4px 8px' }}>
-              <button onClick={()=>setMiciOffset(o=>o-1)} style={{ background:'none', border:'none', color:'var(--silver)', cursor:'pointer', fontSize:16, padding:'0 4px', lineHeight:1 }}>‹</button>
-              <span style={{ fontSize:11, color:'var(--snow)', fontFamily:'DM Mono,monospace', minWidth:80, textAlign:'center' }}>
-                {miciOffset === 0 ? 'Esta semana' : miciOffset === -1 ? 'Sem. pasada' : `Sem. ${miciOffset < 0 ? miciOffset : '+'+miciOffset}`}
-              </span>
-              <button onClick={()=>setMiciOffset(o=>Math.min(0, o+1))} style={{ background:'none', border:'none', color:miciOffset >= 0 ? 'var(--fog)' : 'var(--silver)', cursor:miciOffset >= 0 ? 'default' : 'pointer', fontSize:16, padding:'0 4px', lineHeight:1 }}>›</button>
-            </div>
             <div>
               <label style={{ fontSize:9, color:'var(--fog)', display:'block', marginBottom:3, textTransform:'uppercase' }}>Desde</label>
               <input className="wp-input" type="date" value={miciDesde} onChange={e=>setMiciDesde(e.target.value)} />

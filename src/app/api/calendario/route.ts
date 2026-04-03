@@ -126,11 +126,13 @@ export async function PATCH(req: NextRequest) {
         objetivo           = COALESCE(${objetivo ?? null}, objetivo),
         objetivo_secundario= COALESCE(${objetivo_secundario ?? null}, objetivo_secundario),
         descripcion        = COALESCE(${descripcion ?? null}, descripcion),
-        ejercicios         = ${JSON.stringify(ejercicios ?? [])}::jsonb,
+        ejercicios         = CASE WHEN ${ejercicios !== undefined ? 'y' : 'n'} = 'y'
+                               THEN ${JSON.stringify(ejercicios ?? [])}::jsonb
+                               ELSE ejercicios END,
         rpe_objetivo       = COALESCE(${rpe_objetivo ?? null}, rpe_objetivo),
         notas              = COALESCE(${notas ?? null}, notas),
-        rival              = ${rival ?? null},
-        rival_foto         = ${rival_foto ?? null}
+        rival              = CASE WHEN ${rival !== undefined ? 'y' : 'n'} = 'y' THEN ${rival ?? null} ELSE rival END,
+        rival_foto         = CASE WHEN ${rival_foto !== undefined ? 'y' : 'n'} = 'y' THEN ${rival_foto ?? null} ELSE rival_foto END
       WHERE id = ${id} AND admin_id = ${s.userId}`
     return NextResponse.json({ ok: true })
   } catch (err) {
