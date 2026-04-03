@@ -5,10 +5,18 @@ import { getSessionFromRequest } from '@/lib/auth'
 
 function isMaster(s: any) { return s?.rol === 'master_admin' }
 
+// Ensure pais column exists (safe migration run once)
+async function ensurePaisColumn(sql: any) {
+  try {
+    await sql`ALTER TABLE clubs ADD COLUMN IF NOT EXISTS pais VARCHAR(100)`
+  } catch(_) {}
+}
+
 export async function GET(req: NextRequest) {
   const s = await getSessionFromRequest(req)
   if (!s || !isMaster(s)) return NextResponse.json({error:'No autorizado'},{status:403})
   const sql = getDb()
+  await ensurePaisColumn(sql)
   const clubs = await sql`
     SELECT c.id, c.nombre, c.logo_url, c.pais, c.created_at::text,
            COUNT(DISTINCT CASE WHEN u.rol='admin' THEN u.id END)::int AS coaches,
@@ -25,6 +33,7 @@ export async function POST(req: NextRequest) {
   const { nombre, logo_url, pais } = await req.json()
   if (!nombre) return NextResponse.json({error:'Nombre requerido'},{status:400})
   const sql = getDb()
+  await ensurePaisColumn(sql)
   const [club] = await sql`INSERT INTO clubs(nombre,logo_url,pais) VALUES(${nombre},${logo_url||null},${pais||null}) RETURNING id,nombre,logo_url,pais`
   return NextResponse.json(club)
 }
@@ -35,10 +44,7 @@ export async function PATCH(req: NextRequest) {
   const { id, nombre, logo_url, pais } = await req.json()
   if (!id) return NextResponse.json({error:'id requerido'},{status:400})
   const sql = getDb()
-  try {
-    // Ensure pais column exists (safe migration)
-    await sql`ALTER TABLE clubs ADD COLUMN IF NOT EXISTS pais VARCHAR(100)`
-  } catch(_) {}
+  await ensurePaisColumn(sql)
   try {
     if (nombre !== undefined) await sql`UPDATE clubs SET nombre=${nombre} WHERE id=${id}`
     if (logo_url !== undefined) await sql`UPDATE clubs SET logo_url=${logo_url||null} WHERE id=${id}`

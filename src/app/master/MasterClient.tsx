@@ -11,11 +11,18 @@ export default function MasterClient({ session, clubs: initialClubs, coaches: in
   const router = useRouter()
 
   async function reload() {
-    const [c1, c2] = await Promise.all([
-      fetch('/api/clubs').then(r=>r.json()),
-      fetch('/api/master/coaches').then(r=>r.json()),
-    ])
-    setClubs(c1); setCoaches(c2)
+    try {
+      const [r1, r2] = await Promise.all([
+        fetch('/api/clubs'),
+        fetch('/api/master/coaches'),
+      ])
+      if (!r1.ok || !r2.ok) { console.error('Error recargando datos'); return }
+      const [c1, c2] = await Promise.all([r1.json(), r2.json()])
+      if (Array.isArray(c1)) setClubs(c1)
+      if (Array.isArray(c2)) setCoaches(c2)
+    } catch(e) {
+      console.error('Error en reload:', e)
+    }
   }
 
   async function logout() {
@@ -203,7 +210,7 @@ function ClubCard({ club, coaches, onRefresh }) {
     setSaving(true)
     const payload: any = { id: club.id }
     if (nombre !== club.nombre) payload.nombre = nombre
-    if (pais !== (club.pais || '')) payload.pais = pais || null
+    payload.pais = pais || null  // always send pais to ensure it persists
     if (logoUrl !== (club.logo_url || '')) payload.logo_url = logoUrl || null
     const res = await fetch('/api/clubs', { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) })
     const data = await res.json()
