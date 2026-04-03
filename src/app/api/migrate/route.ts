@@ -83,6 +83,13 @@ export async function POST(req: NextRequest) {
       created_at TIMESTAMPTZ DEFAULT NOW()
     )`, 'biblioteca_tareas table'],
     [`ALTER TABLE clubs ADD COLUMN IF NOT EXISTS pais VARCHAR(100)`, 'clubs.pais'],
+    // Cleanup orphan logs (jugadores/logs sin usuario activo)
+    [`DELETE FROM wellness_logs WHERE jugador_id IN (SELECT j.id FROM jugadores j LEFT JOIN usuarios u ON u.id=j.usuario_id WHERE u.id IS NULL)`, 'cleanup orphan wellness_logs'],
+    [`DELETE FROM entrenamiento_logs WHERE jugador_id IN (SELECT j.id FROM jugadores j LEFT JOIN usuarios u ON u.id=j.usuario_id WHERE u.id IS NULL)`, 'cleanup orphan entrenamiento_logs'],
+    [`DELETE FROM partido_logs WHERE jugador_id IN (SELECT j.id FROM jugadores j LEFT JOIN usuarios u ON u.id=j.usuario_id WHERE u.id IS NULL)`, 'cleanup orphan partido_logs'],
+    [`DELETE FROM lesiones WHERE jugador_id IN (SELECT j.id FROM jugadores j LEFT JOIN usuarios u ON u.id=j.usuario_id WHERE u.id IS NULL)`, 'cleanup orphan lesiones'],
+    [`DELETE FROM gps_logs WHERE jugador_id IN (SELECT j.id FROM jugadores j LEFT JOIN usuarios u ON u.id=j.usuario_id WHERE u.id IS NULL)`, 'cleanup orphan gps_logs'],
+    [`DELETE FROM jugadores WHERE usuario_id NOT IN (SELECT id FROM usuarios)`, 'cleanup orphan jugadores'],
   ]
 
   for (const [sql_stmt, label] of migrations) {

@@ -84,6 +84,18 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
     return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
   }
 
+  // Get jugador_id first for cascading deletes (in case FK constraints aren't active in prod)
+  const jugRows = await sql`SELECT id FROM jugadores WHERE usuario_id = ${userId} LIMIT 1`
+  const jugadorId = jugRows[0]?.id
+
+  if (jugadorId) {
+    await sql`DELETE FROM wellness_logs WHERE jugador_id = ${jugadorId}`
+    await sql`DELETE FROM entrenamiento_logs WHERE jugador_id = ${jugadorId}`
+    await sql`DELETE FROM partido_logs WHERE jugador_id = ${jugadorId}`
+    await sql`DELETE FROM lesiones WHERE jugador_id = ${jugadorId}`
+    await sql`DELETE FROM gps_logs WHERE jugador_id = ${jugadorId}`
+    await sql`DELETE FROM jugadores WHERE id = ${jugadorId}`
+  }
   await sql`DELETE FROM usuarios WHERE id = ${userId} AND rol = 'jugador' AND club_id = ${s.clubId ?? null}`
   return NextResponse.json({ ok: true })
 }
