@@ -155,20 +155,46 @@ function BodyMap({ onSelect, selected }) {
         {/* SVG Body */}
         <div style={{ flexShrink:0 }}>
           <svg viewBox="0 0 200 400" width="150" style={{ cursor:'crosshair', display:'block' }} onClick={handleSVGClick}>
-            {/* Body outline */}
-            <ellipse cx="100" cy="24" rx="17" ry="20" fill="#1c1c1c" stroke="#3a3a3a" strokeWidth="1.5"/>
-            <rect x="78" y="44" width="44" height="7" rx="3.5" fill="#1c1c1c" stroke="#3a3a3a" strokeWidth="1"/>
-            {/* Torso */}
-            {side === 'front'
-              ? <path d="M72,51 L67,51 C57,54 46,64 42,90 L38,165 C38,168 41,170 44,170 L50,170 L50,130 L50,195 L62,195 L62,365 L80,365 L80,195 L100,195 L120,195 L120,365 L138,365 L138,195 L150,195 L150,130 L150,170 L156,170 C159,170 162,168 162,165 L158,90 C154,64 143,54 133,51 L128,51 Z" fill="#1c1c1c" stroke="#3a3a3a" strokeWidth="1.5"/>
-              : <path d="M72,51 L67,51 C57,54 46,64 42,90 L38,165 C38,168 41,170 44,170 L50,170 L50,130 L50,195 L62,195 L62,365 L80,365 L80,195 L100,195 L120,195 L120,365 L138,365 L138,195 L150,195 L150,130 L150,170 L156,170 C159,170 162,168 162,165 L158,90 C154,64 143,54 133,51 L128,51 Z" fill="#1c1c1c" stroke="#3a3a3a" strokeWidth="1.5"/>
-            }
-            {/* Feet base */}
-            {side === 'front'
-              ? <><ellipse cx="74" cy="385" rx="12" ry="6" fill="#1c1c1c" stroke="#3a3a3a" strokeWidth="1"/><ellipse cx="126" cy="385" rx="12" ry="6" fill="#1c1c1c" stroke="#3a3a3a" strokeWidth="1"/></>
-              : <><ellipse cx="74" cy="385" rx="12" ry="6" fill="#1c1c1c" stroke="#3a3a3a" strokeWidth="1"/><ellipse cx="126" cy="385" rx="12" ry="6" fill="#1c1c1c" stroke="#3a3a3a" strokeWidth="1"/></>
-            }
-            {/* Clickable zones */}
+            {/* ── Athletic body ── */}
+
+            {/* Head */}
+            <ellipse cx="100" cy="23" rx="16" ry="19" fill="#1c1c1c" stroke="#3a3a3a" strokeWidth="1.5"/>
+            {/* Neck */}
+            <rect x="91" y="41" width="18" height="13" rx="4" fill="#1c1c1c" stroke="#3a3a3a" strokeWidth="1.5"/>
+
+            {/* Torso — wide shoulders, V-taper waist, slight hip */}
+            <path d="M90,54 L64,57 C58,63 57,78 59,96 L63,138 C64,155 68,168 76,178 L84,188 L100,190 L116,188 L124,178 C132,168 136,155 137,138 L141,96 C143,78 142,63 136,57 L110,54 Z"
+              fill="#1c1c1c" stroke="#3a3a3a" strokeWidth="1.5"/>
+
+            {/* Left arm (character's left) — tapered with slight forearm */}
+            <path d="M64,57 C56,62 46,76 40,100 L37,150 C36,162 41,170 49,170 C57,170 62,163 62,152 L63,118 C64,98 65,80 68,66 Z"
+              fill="#1c1c1c" stroke="#3a3a3a" strokeWidth="1.5"/>
+            {/* Right arm */}
+            <path d="M136,57 C144,62 154,76 160,100 L163,150 C164,162 159,170 151,170 C143,170 138,163 138,152 L137,118 C136,98 135,80 132,66 Z"
+              fill="#1c1c1c" stroke="#3a3a3a" strokeWidth="1.5"/>
+
+            {/* Left leg — thigh wider, tapers to ankle */}
+            <path d="M84,188 L81,268 C80,283 79,295 78,322 L75,358 L67,388 L79,390 L84,358 L88,322 L91,290 L93,190 Z"
+              fill="#1c1c1c" stroke="#3a3a3a" strokeWidth="1.5"/>
+            {/* Right leg */}
+            <path d="M116,188 L119,268 C120,283 121,295 122,322 L125,358 L133,388 L121,390 L116,358 L112,322 L109,290 L107,190 Z"
+              fill="#1c1c1c" stroke="#3a3a3a" strokeWidth="1.5"/>
+
+            {/* Feet */}
+            <ellipse cx="73" cy="391" rx="12" ry="5" fill="#1c1c1c" stroke="#3a3a3a" strokeWidth="1"/>
+            <ellipse cx="127" cy="391" rx="12" ry="5" fill="#1c1c1c" stroke="#3a3a3a" strokeWidth="1"/>
+
+            {/* Front detail: subtle pec/abs lines */}
+            {side === 'front' && <>
+              <line x1="100" y1="80" x2="100" y2="176" stroke="#2e2e2e" strokeWidth="1" opacity="0.7"/>
+              <line x1="72" y1="108" x2="128" y2="108" stroke="#2e2e2e" strokeWidth="0.8" opacity="0.5"/>
+              <line x1="74" y1="132" x2="126" y2="132" stroke="#2e2e2e" strokeWidth="0.8" opacity="0.4"/>
+            </>}
+            {/* Back detail: spine line */}
+            {side === 'back' && <>
+              <line x1="100" y1="56" x2="100" y2="178" stroke="#2e2e2e" strokeWidth="1.2" opacity="0.7"/>
+            </>}
+            {/* ── Clickable zones ── */}
             {zones.map(z => {
               const isSel = selected === z.label
               return (

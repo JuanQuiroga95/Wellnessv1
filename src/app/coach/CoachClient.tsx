@@ -1230,6 +1230,10 @@ function CalendarioPanel({ teamData }) {
               const hasEvents = ses.length > 0 || parts.length > 0
               const recupAlert = hasEvents && recup !== null && recup < 48
 
+              // Find rival logo for blurred background (prefer sesion_plan partido, fallback to partido_log)
+              const rivalFoto = ses.find((s:any) => s.tipo === 'partido' && s.rival_foto)?.rival_foto
+                || parts.find((p:any) => p.rival_foto)?.rival_foto || null
+
               return (
                 <div key={fecha}
                   onClick={() => { setSelectedDay(selectedDay===fecha?null:fecha) }}
@@ -1238,12 +1242,22 @@ function CalendarioPanel({ teamData }) {
                     padding:6, cursor:'pointer', transition:'background .12s',
                     background: selectedDay===fecha ? 'rgba(200,241,53,.06)' : isWeekend ? 'rgba(255,255,255,.01)' : 'transparent',
                     border: isToday ? '2px solid var(--lime)' : undefined,
-                    position:'relative',
+                    position:'relative', overflow:'hidden',
                   }}
                   onMouseEnter={e=>(e.currentTarget as HTMLElement).style.background='rgba(255,255,255,.04)'}
                   onMouseLeave={e=>(e.currentTarget as HTMLElement).style.background=selectedDay===fecha?'rgba(200,241,53,.06)':isWeekend?'rgba(255,255,255,.01)':'transparent'}
                 >
-                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:4 }}>
+                  {/* Rival logo blurred background */}
+                  {rivalFoto && (
+                    <div style={{
+                      position:'absolute', inset:0, zIndex:0, pointerEvents:'none',
+                      backgroundImage:`url(${rivalFoto})`,
+                      backgroundSize:'60% auto', backgroundRepeat:'no-repeat', backgroundPosition:'center 55%',
+                      filter:'blur(6px)',
+                      opacity:0.18,
+                    }} />
+                  )}
+                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:4, position:'relative', zIndex:1 }}>
                     <span style={{ fontSize:13, fontWeight:isToday?700:500, color:isToday?'var(--lime)':'var(--snow)', fontFamily:'DM Mono,monospace' }}>{dayNum}</span>
                     {recupAlert && recup !== null && (
                       <span title={`${recup}h de recuperación`} style={{ fontSize:9, background: recup<24?'rgba(239,68,68,.15)':'rgba(245,158,11,.15)', color:recup<24?'#f87171':'#fbbf24', border:`1px solid ${recup<24?'rgba(239,68,68,.4)':'rgba(245,158,11,.4)'}`, borderRadius:4, padding:'1px 4px', fontWeight:700 }}>
@@ -1251,10 +1265,14 @@ function CalendarioPanel({ teamData }) {
                       </span>
                     )}
                   </div>
-                  <div style={{ display:'flex', flexDirection:'column', gap:2 }}>
+                  <div style={{ display:'flex', flexDirection:'column', gap:2, position:'relative', zIndex:1 }}>
                     {ses.map(s=>(
-                      <div key={s.id} onClick={e=>{e.stopPropagation();setEditSesion(s);setShowEditor(true)}} style={{ fontSize:10, padding:'2px 5px', borderRadius:4, background:`${TIPO_COLORES[s.tipo]||'#888'}22`, color:TIPO_COLORES[s.tipo]||'#888', border:`1px solid ${TIPO_COLORES[s.tipo]||'#888'}44`, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', cursor:'pointer' }}>
-                        {TIPO_ICONOS[s.tipo]} {s.titulo||s.tipo}
+                      <div key={s.id} onClick={e=>{e.stopPropagation();setEditSesion(s);setShowEditor(true)}} style={{ display:'flex', alignItems:'center', gap:3, fontSize:10, padding:'2px 5px', borderRadius:4, background:`${TIPO_COLORES[s.tipo]||'#888'}22`, color:TIPO_COLORES[s.tipo]||'#888', border:`1px solid ${TIPO_COLORES[s.tipo]||'#888'}44`, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', cursor:'pointer' }}>
+                        {s.tipo==='partido' && s.rival_foto && <img src={s.rival_foto} style={{ width:14, height:14, objectFit:'contain', borderRadius:2, flexShrink:0 }} alt="" />}
+                        {s.tipo==='partido'
+                          ? <span>{TIPO_ICONOS[s.tipo]} {s.rival ? `vs ${s.rival}` : (s.titulo||'Partido')}</span>
+                          : <span>{TIPO_ICONOS[s.tipo]} {s.titulo||s.tipo}</span>
+                        }
                       </div>
                     ))}
                     {parts.map((p,i)=>(
@@ -3949,7 +3967,7 @@ function ManageRow({ player, last, onRefresh }) {
                 <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:10, padding:'7px 10px', background:'var(--ink2)', borderRadius:7, border:'1px solid var(--mist)', maxWidth:280 }}>
                   <span style={{ fontSize:10, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', flexShrink:0 }}>🔑</span>
                   <span style={{ flex:1, fontSize:12, fontFamily:'DM Mono,monospace', color: currentPass ? 'var(--lime)' : 'var(--fog)', letterSpacing: showPass ? '0.05em' : '0.18em', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-                    {currentPass ? (showPass ? currentPass : '••••••••') : '— no registrada —'}
+                    {currentPass ? (showPass ? currentPass : '••••••••') : '— cambiala para registrarla —'}
                   </span>
                   {currentPass && (
                     <button type="button" onClick={()=>setShowPass(v=>!v)}

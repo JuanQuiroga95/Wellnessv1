@@ -261,7 +261,7 @@ function CoachRow({ coach, clubs, last, onRefresh }) {
               <label style={{ display:'block', fontSize:10, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:6 }}>Contraseña actual</label>
               <div style={{ display:'flex', gap:8, marginBottom:8 }}>
                 <div style={{ flex:1, background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:8, padding:'8px 12px', fontSize:13, fontFamily:'DM Mono,monospace', color: currentPass ? 'var(--lime)' : 'var(--fog)', letterSpacing: showPass ? '0.05em' : '0.2em' }}>
-                  {currentPass ? (showPass ? currentPass : '••••••••') : '— no registrada —'}
+                  {currentPass ? (showPass ? currentPass : '••••••••') : '— cambiala para registrarla —'}
                 </div>
                 {currentPass && (
                   <button type="button" onClick={()=>setShowPass(v=>!v)}
