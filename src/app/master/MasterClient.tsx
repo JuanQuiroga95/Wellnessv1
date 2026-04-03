@@ -140,7 +140,51 @@ const PAISES = [
   {code:'AU',name:'Australia',flag:'🇦🇺'},{code:'ZA',name:'Sudáfrica',flag:'🇿🇦'},
 ]
 
-// ── Club Card ──────────────────────────────────────────────────────────────────
+// ── Selector de país custom con banderas ──────────────────────────────────────
+function PaisSelector({ value, onChange }: { value: string, onChange: (v: string) => void }) {
+  const [open, setOpen] = useState(false)
+  const selected = PAISES.find(p => p.name === value)
+
+  return (
+    <div style={{ position:'relative' }}>
+      <button type="button" onClick={() => setOpen(o => !o)}
+        style={{ width:'100%', padding:'8px 12px', borderRadius:8, background:'var(--ink3)', border:'1px solid var(--fog)',
+          color: selected ? 'var(--snow)' : 'var(--fog)', fontSize:13, cursor:'pointer',
+          display:'flex', alignItems:'center', gap:8, textAlign:'left' }}>
+        {selected ? (
+          <><span style={{ fontSize:18, lineHeight:1 }}>{selected.flag}</span><span>{selected.name}</span></>
+        ) : (
+          <span>— Sin país —</span>
+        )}
+        <span style={{ marginLeft:'auto', color:'var(--fog)', fontSize:11 }}>▾</span>
+      </button>
+      {open && (
+        <div style={{ position:'absolute', top:'calc(100% + 4px)', left:0, right:0, zIndex:100,
+          background:'var(--ink2)', border:'1px solid var(--fog)', borderRadius:10,
+          maxHeight:220, overflowY:'auto', boxShadow:'0 8px 24px rgba(0,0,0,.5)' }}>
+          <div onClick={() => { onChange(''); setOpen(false) }}
+            style={{ padding:'8px 12px', cursor:'pointer', color:'var(--fog)', fontSize:12,
+              borderBottom:'1px solid var(--mist)' }}
+            onMouseEnter={e=>(e.currentTarget as HTMLElement).style.background='var(--ink3)'}
+            onMouseLeave={e=>(e.currentTarget as HTMLElement).style.background='transparent'}>
+            — Sin país —
+          </div>
+          {PAISES.map(p => (
+            <div key={p.code + p.name} onClick={() => { onChange(p.name); setOpen(false) }}
+              style={{ padding:'7px 12px', cursor:'pointer', display:'flex', alignItems:'center', gap:8,
+                background: value === p.name ? 'rgba(200,241,53,.08)' : 'transparent',
+                color: value === p.name ? 'var(--lime)' : 'var(--snow)', fontSize:13 }}
+              onMouseEnter={e=>(e.currentTarget as HTMLElement).style.background='var(--ink3)'}
+              onMouseLeave={e=>(e.currentTarget as HTMLElement).style.background= value === p.name ? 'rgba(200,241,53,.08)' : 'transparent'}>
+              <span style={{ fontSize:18, lineHeight:1 }}>{p.flag}</span>
+              <span>{p.name}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
 function ClubCard({ club, coaches, onRefresh }) {
   const [editing, setEditing] = useState(false)
   const [nombre, setNombre] = useState(club.nombre)
@@ -185,13 +229,7 @@ function ClubCard({ club, coaches, onRefresh }) {
           {/* País */}
           <div style={{ marginBottom:10 }}>
             <label style={{ fontSize:9, color:'var(--fog)', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:4 }}>País</label>
-            <select className="wp-input" value={pais} onChange={e=>setPais(e.target.value)}
-              style={{ width:'100%', padding:'7px 12px', fontSize:13, appearance:'none' }}>
-              <option value="" style={{ background:'var(--ink2)' }}>— Sin país —</option>
-              {PAISES.map(p=>(
-                <option key={p.code+p.name} value={p.name} style={{ background:'var(--ink2)' }}>{p.flag} {p.name}</option>
-              ))}
-            </select>
+            <PaisSelector value={pais} onChange={setPais} />
           </div>
           {/* Escudo */}
           <div>
