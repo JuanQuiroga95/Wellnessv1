@@ -9,11 +9,12 @@ export default async function MasterPage() {
   if (!session || session.rol !== 'master_admin') redirect('/login')
   const sql = getDb()
 
-  // Ensure password_plain column exists before querying it
+  // Ensure columns exist before querying
   try { await sql`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS password_plain TEXT` } catch {}
+  try { await sql`ALTER TABLE clubs ADD COLUMN IF NOT EXISTS pais VARCHAR(100)` } catch {}
 
   const [clubs, coaches] = await Promise.all([
-    sql`SELECT c.id, c.nombre, c.logo_url, c.created_at::text,
+    sql`SELECT c.id, c.nombre, c.logo_url, c.pais, c.created_at::text,
                COUNT(DISTINCT CASE WHEN u.rol='admin' AND u.activo=true THEN u.id END)::int AS coaches,
                COUNT(DISTINCT CASE WHEN u.rol='jugador' AND u.activo=true THEN u.id END)::int AS jugadores
         FROM clubs c
