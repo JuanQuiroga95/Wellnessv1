@@ -4284,15 +4284,26 @@ function AcumBarChart({ players, vars, accentColor = '#c8f135' }: { players: any
                 <div key={i} style={{ position:'absolute', left:0, right:0, bottom: BOT_PAD + (p/100)*BAR_H, borderTop:'1px solid rgba(255,255,255,.05)', pointerEvents:'none' }}/>
               ))}
               <div style={{ display:'flex', gap:8, alignItems:'flex-end', height:TOP_PAD+BAR_H+BOT_PAD, paddingTop:TOP_PAD, paddingBottom:BOT_PAD }}>
-                {data.map((d, i) => (
+                {data.map((d, i) => {
+                  const barH = Math.max((d.val/maxVal)*BAR_H, 4)
+                  const showInside = barH > 28
+                  return (
                   <div key={i} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', minWidth:52, height:'100%', justifyContent:'flex-end' }}>
-                    <div style={{ fontSize:11, color:selVar.color, fontFamily:'DM Mono,monospace', fontWeight:800, marginBottom:3, whiteSpace:'nowrap' }}>{d.val}</div>
+                    {!showInside && <div style={{ fontSize:11, color:selVar.color, fontFamily:'DM Mono,monospace', fontWeight:800, marginBottom:3, whiteSpace:'nowrap' }}>{d.val}</div>}
                     <div style={{ width:'55%', minWidth:20, maxWidth:48, borderRadius:'5px 5px 0 0',
-                      height:`${Math.max((d.val/maxVal)*BAR_H, 4)}px`,
-                      background: selVar.color, flexShrink:0, opacity:0.85 }} />
+                      height:`${barH}px`, position:'relative',
+                      background: selVar.color, flexShrink:0, opacity:0.85,
+                      display:'flex', alignItems:'center', justifyContent:'center' }}>
+                      {showInside && (
+                        <span style={{ fontSize:10, color:'#fff', fontFamily:'DM Mono,monospace', fontWeight:800,
+                          textShadow:'0 1px 3px rgba(0,0,0,.6)', whiteSpace:'nowrap', userSelect:'none' }}>
+                          {d.val}
+                        </span>
+                      )}
+                    </div>
                     <div style={{ fontSize:9, color:'var(--snow)', fontWeight:600, marginTop:6, textAlign:'center', wordBreak:'break-word', lineHeight:1.2 }}>{d.nombre}</div>
                   </div>
-                ))}
+                )})}
               </div>
             </div>
           </div>
