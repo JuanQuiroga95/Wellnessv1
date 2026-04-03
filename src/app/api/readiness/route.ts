@@ -29,6 +29,8 @@ export async function GET(req: NextRequest) {
     JOIN usuarios u ON u.id=j.usuario_id
     WHERE w.fecha >= CURRENT_DATE - (${weeks}*7)
       AND w.fatiga IS NOT NULL
+      AND u.activo = true
+      AND u.rol = 'jugador'
       AND (${isMaster}::boolean OR u.club_id = ${clubId})
     GROUP BY j.id, u.nombre, j.posicion, j.foto_url, DATE_TRUNC('week',w.fecha)
     ORDER BY semana DESC, u.nombre`
@@ -43,6 +45,8 @@ export async function GET(req: NextRequest) {
     JOIN jugadores j ON j.id=el.jugador_id
     JOIN usuarios u ON u.id=j.usuario_id
     WHERE el.fecha >= CURRENT_DATE - (${weeks}*7)
+      AND u.activo = true
+      AND u.rol = 'jugador'
       AND (${isMaster}::boolean OR u.club_id = ${clubId})
     GROUP BY el.jugador_id, DATE_TRUNC('week',el.fecha)
     ORDER BY semana DESC`
