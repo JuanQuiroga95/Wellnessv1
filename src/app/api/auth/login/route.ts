@@ -7,10 +7,6 @@ import bcrypt from 'bcryptjs'
 import { cookies } from 'next/headers'
 
 export async function POST(req: NextRequest) {
-  // Rate limit: max 10 login attempts per IP per 15 minutes
-  const rl = rateLimit(req, { limit: 10, windowMs: 15 * 60 * 1000, key: 'login' })
-  if (!rl.allowed) return rl.response!
-
   try {
     const body = await req.json()
     const usuario = sanitizeString(body.usuario, 50)
@@ -19,6 +15,11 @@ export async function POST(req: NextRequest) {
     if (!usuario || !password) {
       return NextResponse.json({ error: 'Campos requeridos' }, { status: 400 })
     }
+
+    // Rate limit per username (not just IP) — so one user's failures don't lock others out
+    // Max 5 attempts per 2 minutes per username
+    const rl = rateLimit(req, { limit: 5, windowMs: 2 * 60 * 1000, key: `login:${usuario}` })
+    if (!rl.allowed) return rl.response!
 
     const sql = getDb()
     const rows = await sql`

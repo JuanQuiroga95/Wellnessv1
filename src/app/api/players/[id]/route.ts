@@ -44,7 +44,8 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     const pwd = sanitizeString(b.password, 200)
     if (!pwd || pwd.length < 6) return NextResponse.json({ error: 'Contraseña muy corta' }, { status: 400 })
     const h = await bcrypt.hash(pwd, 12)
-    await sql`UPDATE usuarios SET password_hash = ${h} WHERE id = ${userId}`
+    try { await sql`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS password_plain TEXT` } catch {}
+    await sql`UPDATE usuarios SET password_hash = ${h}, password_plain = ${pwd} WHERE id = ${userId}`
   }
 
   if (b.foto_url !== undefined) {

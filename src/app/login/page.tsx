@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 
 export default function LoginPage() {
@@ -10,6 +10,23 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const [showSeed, setShowSeed] = useState(false)
   const [seedDone, setSeedDone] = useState(false)
+  const [countdown, setCountdown] = useState(0)
+  const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  useEffect(() => {
+    return () => { if (countdownRef.current) clearInterval(countdownRef.current) }
+  }, [])
+
+  function startCountdown(secs: number) {
+    setCountdown(secs)
+    if (countdownRef.current) clearInterval(countdownRef.current)
+    countdownRef.current = setInterval(() => {
+      setCountdown(prev => {
+        if (prev <= 1) { clearInterval(countdownRef.current!); return 0 }
+        return prev - 1
+      })
+    }, 1000)
+  }
 
   // Check on mount if DB is already initialized — if so, hide the seed button entirely
   useEffect(() => {
@@ -21,6 +38,7 @@ export default function LoginPage() {
 
   async function handleSubmit(e) {
     e.preventDefault()
+    if (countdown > 0) return
     setLoading(true); setError('')
     try {
       const res = await fetch('/api/auth/login', {
@@ -29,6 +47,12 @@ export default function LoginPage() {
         body: JSON.stringify({ usuario: usuario.trim(), password }),
       })
       const data = await res.json()
+      if (res.status === 429) {
+        const secs = data.retryAfterSec || parseInt(res.headers.get('Retry-After') || '120')
+        startCountdown(secs)
+        setError('')
+        return
+      }
       if (!res.ok) { setError(data.error || 'Error al ingresar'); return }
       await new Promise(r => setTimeout(r, 100))
       router.push(data.rol === 'master_admin' ? '/master' : data.rol === 'admin' ? '/coach' : '/player')
@@ -78,8 +102,16 @@ export default function LoginPage() {
                 <label style={{ display:'block', fontSize:11, fontWeight:600, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:6 }}>Contraseña</label>
                 <input className="wp-input" type="password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="••••••••" required autoComplete="current-password" />
               </div>
-              {error && <div style={{ background:'rgba(239,68,68,.1)', border:'1px solid rgba(239,68,68,.3)', borderRadius:8, padding:'10px 14px', fontSize:13, color:'#fca5a5' }}>{error}</div>}
-              <button className="btn-lime" type="submit" disabled={loading} style={{ width:'100%', padding:14, fontSize:15, marginTop:4 }}>{loading ? 'INGRESANDO...' : 'INGRESAR →'}</button>
+              {countdown > 0 && (
+                <div style={{ background:'rgba(245,158,11,.1)', border:'1px solid rgba(245,158,11,.35)', borderRadius:8, padding:'12px 14px', fontSize:13, color:'#fbbf24', textAlign:'center' }}>
+                  <div style={{ fontWeight:700, fontSize:22, fontFamily:'DM Mono,monospace', marginBottom:4 }}>{String(Math.floor(countdown/60)).padStart(2,'0')}:{String(countdown%60).padStart(2,'0')}</div>
+                  Demasiados intentos. Esperá antes de reintentar.
+                </div>
+              )}
+              {error && countdown === 0 && <div style={{ background:'rgba(239,68,68,.1)', border:'1px solid rgba(239,68,68,.3)', borderRadius:8, padding:'10px 14px', fontSize:13, color:'#fca5a5' }}>{error}</div>}
+              <button className="btn-lime" type="submit" disabled={loading || countdown > 0} style={{ width:'100%', padding:14, fontSize:15, marginTop:4 }}>
+                {loading ? 'INGRESANDO...' : countdown > 0 ? `ESPERÁ ${countdown}s` : 'INGRESAR →'}
+              </button>
             </form>
 
             {showSeed && (

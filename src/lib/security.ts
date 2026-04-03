@@ -24,14 +24,18 @@ export function rateLimit(
   entry.count++
 
   if (entry.count > opts.limit) {
+    const retryAfterSec = Math.ceil((entry.resetAt - now) / 1000)
     return {
       allowed: false,
       response: NextResponse.json(
-        { error: 'Demasiadas solicitudes. Intentá más tarde.' },
+        {
+          error: 'Demasiadas solicitudes. Esperá antes de intentar de nuevo.',
+          retryAfterSec,
+        },
         {
           status: 429,
           headers: {
-            'Retry-After': String(Math.ceil((entry.resetAt - now) / 1000)),
+            'Retry-After': String(retryAfterSec),
             'X-RateLimit-Limit': String(opts.limit),
             'X-RateLimit-Remaining': '0',
           },

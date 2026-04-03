@@ -199,6 +199,8 @@ function CoachRow({ coach, clubs, last, onRefresh }) {
   const [clubId, setClubId] = useState(String(coach.club_id||''))
   const [saving, setSaving] = useState(false)
   const [newPass, setNewPass] = useState('')
+  const [showPass, setShowPass] = useState(false)
+  const [currentPass, setCurrentPass] = useState(coach.password_plain || null)
 
   async function assignClub() {
     setSaving(true)
@@ -214,7 +216,7 @@ function CoachRow({ coach, clubs, last, onRefresh }) {
   async function changePassword() {
     if (!newPass || newPass.length < 6) return
     await fetch('/api/master/coaches',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:coach.id,password:newPass})})
-    setNewPass(''); alert('Contraseña actualizada ✓')
+    setCurrentPass(newPass); setNewPass(''); alert('Contraseña actualizada ✓')
   }
 
   return (
@@ -253,11 +255,25 @@ function CoachRow({ coach, clubs, last, onRefresh }) {
               </div>
             </div>
 
-            {/* Change password */}
+            {/* Password section */}
             <div>
-              <label style={{ display:'block', fontSize:10, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:6 }}>Nueva contraseña</label>
+              {/* Current password reveal */}
+              <label style={{ display:'block', fontSize:10, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:6 }}>Contraseña actual</label>
+              <div style={{ display:'flex', gap:8, marginBottom:8 }}>
+                <div style={{ flex:1, background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:8, padding:'8px 12px', fontSize:13, fontFamily:'DM Mono,monospace', color: currentPass ? 'var(--lime)' : 'var(--fog)', letterSpacing: showPass ? '0.05em' : '0.2em' }}>
+                  {currentPass ? (showPass ? currentPass : '••••••••') : '— no registrada —'}
+                </div>
+                {currentPass && (
+                  <button type="button" onClick={()=>setShowPass(v=>!v)}
+                    style={{ padding:'8px 12px', borderRadius:8, border:'1px solid var(--mist)', background:'var(--ink2)', color:'var(--silver)', cursor:'pointer', fontSize:15 }}>
+                    {showPass ? '🙈' : '👁'}
+                  </button>
+                )}
+              </div>
+              {/* Change password */}
+              <label style={{ display:'block', fontSize:10, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:6 }}>Cambiar contraseña</label>
               <div style={{ display:'flex', gap:8 }}>
-                <input className="wp-input" type="password" value={newPass} onChange={e=>setNewPass(e.target.value)} placeholder="Mín. 6 caracteres" style={{ flex:1, padding:'8px 12px', fontSize:13 }} />
+                <input className="wp-input" type="text" value={newPass} onChange={e=>setNewPass(e.target.value)} placeholder="Mín. 6 caracteres" style={{ flex:1, padding:'8px 12px', fontSize:13 }} />
                 <button onClick={changePassword} disabled={newPass.length<6} className="btn-ghost" style={{ fontSize:12, padding:'8px 14px' }}>Cambiar</button>
               </div>
             </div>

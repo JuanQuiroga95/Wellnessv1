@@ -3845,6 +3845,8 @@ function ManageRow({ player, last, onRefresh }) {
   const [editSaving, setEditSaving] = useState(false)
   const [editError, setEditError] = useState('')
   const [editOk, setEditOk] = useState(false)
+  const [showPass, setShowPass] = useState(false)
+  const [currentPass, setCurrentPass] = useState(player.password_plain || null)
   const [ef, setEf] = useState({
     nombre: player.nombre||'',
     posicion: player.posicion||'',
@@ -3879,10 +3881,12 @@ function ManageRow({ player, last, onRefresh }) {
         fecha_nacimiento: ef.fecha_nacimiento||null,
         hora_recordatorio: ef.hora_recordatorio||null,
       }
-      if (ef.nueva_password.trim()) body.password = ef.nueva_password.trim()
+      const newPwd = ef.nueva_password.trim()
+      if (newPwd) { body.password = newPwd }
       const r = await fetch(`/api/players/${player.id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
       const d = await r.json()
       if (!r.ok) { setEditError(d.error||'Error al guardar'); return }
+      if (newPwd) setCurrentPass(newPwd)
       setEditOk(true); setEditing(false); onRefresh()
     } catch { setEditError('Error de conexión') }
     finally { setEditSaving(false) }
@@ -3940,6 +3944,19 @@ function ManageRow({ player, last, onRefresh }) {
                   {player.fecha_nacimiento&&<span>📅 Nac: {player.fecha_nacimiento}</span>}
                   {player.email&&<span>📧 {player.email}</span>}
                   {player.hora_recordatorio&&<span>⏰ {player.hora_recordatorio}</span>}
+                </div>
+                {/* Password reveal */}
+                <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:10, padding:'7px 10px', background:'var(--ink2)', borderRadius:7, border:'1px solid var(--mist)', maxWidth:280 }}>
+                  <span style={{ fontSize:10, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', flexShrink:0 }}>🔑</span>
+                  <span style={{ flex:1, fontSize:12, fontFamily:'DM Mono,monospace', color: currentPass ? 'var(--lime)' : 'var(--fog)', letterSpacing: showPass ? '0.05em' : '0.18em', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                    {currentPass ? (showPass ? currentPass : '••••••••') : '— no registrada —'}
+                  </span>
+                  {currentPass && (
+                    <button type="button" onClick={()=>setShowPass(v=>!v)}
+                      style={{ background:'transparent', border:'none', cursor:'pointer', fontSize:14, padding:'2px 4px', color:'var(--silver)', flexShrink:0 }}>
+                      {showPass ? '🙈' : '👁'}
+                    </button>
+                  )}
                 </div>
                 <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
                   <button onClick={()=>{ setEditing(true); setEditOk(false); setEditError('') }} className="btn-ghost" style={{ fontSize:12, padding:'7px 14px' }}>
@@ -4002,7 +4019,7 @@ function ManageRow({ player, last, onRefresh }) {
                 </div>
                 <div>
                   <label style={{ display:'block', fontSize:10, fontWeight:600, color:'#f59e0b', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:4 }}>🔑 Nueva contraseña (opcional)</label>
-                  <input className="wp-input" type="password" value={ef.nueva_password} onChange={e=>setE('nueva_password',e.target.value)} placeholder="Dejar vacío para no cambiar" />
+                  <input className="wp-input" type="text" value={ef.nueva_password} onChange={e=>setE('nueva_password',e.target.value)} placeholder="Dejar vacío para no cambiar" autoComplete="off" />
                 </div>
               </div>
               {editError && <p style={{ fontSize:12, color:'#f87171', marginBottom:10 }}>{editError}</p>}
