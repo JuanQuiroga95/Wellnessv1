@@ -565,7 +565,7 @@ function PlayerDetail({ player:p, logs, wellness, loading, onBack, ciclo, onCicl
         <div style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:16, padding:20 }}>
           <p style={{ fontSize:11, fontWeight:600, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:16 }}>RPE — Últimas sesiones</p>
           <div style={{ display:'flex', alignItems:'flex-end', gap:6, height:90 }}>
-            {[...logs].slice(0,12).reverse().map((log,i) => {
+            {[...logs].slice(-12).map((log,i) => {
               const rpeVal = Number(log.rpe) || 0
               const uaVal = Number(log.carga_ua) || 0
               const pct = (rpeVal / 10) * 100
@@ -600,7 +600,7 @@ function PlayerDetail({ player:p, logs, wellness, loading, onBack, ciclo, onCicl
       {logs.length>0 && (
         <div style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:16, padding:20 }}>
           <p style={{ fontSize:11, fontWeight:600, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:14 }}>Últimas sesiones <span style={{ fontSize:10, color:'var(--fog)', fontWeight:400, textTransform:'none' }}>— click en ✏️ para editar minutos y recalcular UA</span></p>
-          {[...logs].slice(0,8).reverse().map((l,i)=>(<CoachSessionRow key={i} log={l} />))}
+          {[...logs].slice(-8).reverse().map((l,i)=>(<CoachSessionRow key={i} log={l} />))}
         </div>
       )}
       <HistorialLesivo jugadorId={p.jugador_id || p.id} />
@@ -3905,6 +3905,8 @@ function ManageRow({ player, last, onRefresh }) {
   const [editOk, setEditOk] = useState(false)
   const [showPass, setShowPass] = useState(false)
   const [currentPass, setCurrentPass] = useState(player.password_plain || null)
+  // Sync password when player data refreshes (e.g. after saving a new password)
+  useEffect(() => { setCurrentPass(player.password_plain || null) }, [player.password_plain])
   const [ef, setEf] = useState({
     nombre: player.nombre||'',
     posicion: player.posicion||'',

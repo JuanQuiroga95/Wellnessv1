@@ -107,26 +107,7 @@ export default function MasterClient({ session, clubs: initialClubs, coaches: in
 
         {/* COACHES TAB */}
         {tab === 'coaches' && (
-          <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
-            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-              <div>
-                <h2 className="display" style={{ fontSize:40, color:'var(--snow)' }}>PROFESORES</h2>
-                <p style={{ fontSize:12, color:'var(--silver)', marginTop:2 }}>Asigná cada profesor a su club</p>
-              </div>
-              <button onClick={()=>setShowNewCoach(true)} className="btn-lime" style={{ fontSize:12, padding:'10px 18px' }}>+ Nuevo profesor</button>
-            </div>
-
-            {showNewCoach && <NewCoachForm clubs={clubs} onSuccess={()=>{ setShowNewCoach(false); reload() }} onCancel={()=>setShowNewCoach(false)} />}
-
-            <div style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:16, overflow:'hidden' }}>
-              {coaches.length === 0
-                ? <div style={{ padding:40, textAlign:'center', color:'var(--silver)' }}>Sin profesores aún.</div>
-                : coaches.map((coach,i)=>(
-                    <CoachRow key={coach.id} coach={coach} clubs={clubs} last={i===coaches.length-1} onRefresh={reload} />
-                  ))
-              }
-            </div>
-          </div>
+          <CoachesTab coaches={coaches} clubs={clubs} showNewCoach={showNewCoach} setShowNewCoach={setShowNewCoach} reload={reload} />
         )}
       </main>
     </div>
@@ -324,6 +305,60 @@ function ClubCard({ club, coaches, onRefresh }) {
 }
 
 // ── Coach Row ──────────────────────────────────────────────────────────────────
+function CoachesTab({ coaches, clubs, showNewCoach, setShowNewCoach, reload }) {
+  const [search, setSearch] = useState('')
+  const filtered = coaches.filter(c =>
+    c.nombre.toLowerCase().includes(search.toLowerCase()) ||
+    c.usuario.toLowerCase().includes(search.toLowerCase()) ||
+    (c.club_nombre || '').toLowerCase().includes(search.toLowerCase())
+  )
+  return (
+    <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+        <div>
+          <h2 className="display" style={{ fontSize:40, color:'var(--snow)' }}>PROFESORES</h2>
+          <p style={{ fontSize:12, color:'var(--silver)', marginTop:2 }}>Asigná cada profesor a su club</p>
+        </div>
+        <button onClick={()=>setShowNewCoach(true)} className="btn-lime" style={{ fontSize:12, padding:'10px 18px' }}>+ Nuevo profesor</button>
+      </div>
+
+      {showNewCoach && <NewCoachForm clubs={clubs} onSuccess={()=>{ setShowNewCoach(false); reload() }} onCancel={()=>setShowNewCoach(false)} />}
+
+      {/* Buscador */}
+      <div style={{ position:'relative' }}>
+        <span style={{ position:'absolute', left:12, top:'50%', transform:'translateY(-50%)', fontSize:14, color:'var(--fog)', pointerEvents:'none' }}>🔍</span>
+        <input
+          className="wp-input"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          placeholder="Buscar por nombre, usuario o club..."
+          style={{ width:'100%', padding:'9px 12px 9px 36px', fontSize:13, boxSizing:'border-box' }}
+        />
+        {search && (
+          <button onClick={() => setSearch('')}
+            style={{ position:'absolute', right:10, top:'50%', transform:'translateY(-50%)', background:'none', border:'none', color:'var(--fog)', cursor:'pointer', fontSize:16, lineHeight:1, padding:0 }}>✕</button>
+        )}
+      </div>
+
+      <div style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:16, overflow:'hidden' }}>
+        {coaches.length === 0
+          ? <div style={{ padding:40, textAlign:'center', color:'var(--silver)' }}>Sin profesores aún.</div>
+          : filtered.length === 0
+            ? <div style={{ padding:32, textAlign:'center', color:'var(--fog)', fontSize:13 }}>Sin resultados para "{search}"</div>
+            : filtered.map((coach, i) => (
+                <CoachRow key={coach.id} coach={coach} clubs={clubs} last={i===filtered.length-1} onRefresh={reload} />
+              ))
+        }
+      </div>
+      {search && filtered.length > 0 && (
+        <p style={{ fontSize:11, color:'var(--fog)', textAlign:'right', marginTop:-8 }}>
+          {filtered.length} de {coaches.length} profesores
+        </p>
+      )}
+    </div>
+  )
+}
+
 function CoachRow({ coach, clubs, last, onRefresh }) {
   const [open, setOpen] = useState(false)
   const [clubId, setClubId] = useState(String(coach.club_id||''))
@@ -331,6 +366,8 @@ function CoachRow({ coach, clubs, last, onRefresh }) {
   const [newPass, setNewPass] = useState('')
   const [showPass, setShowPass] = useState(false)
   const [currentPass, setCurrentPass] = useState(coach.password_plain || null)
+  // Sync when coach data refreshes
+  useEffect(() => { setCurrentPass(coach.password_plain || null) }, [coach.password_plain])
 
   async function assignClub() {
     setSaving(true)
@@ -360,10 +397,18 @@ function CoachRow({ coach, clubs, last, onRefresh }) {
           <div style={{ fontWeight:600, fontSize:14, color:'var(--snow)' }}>{coach.nombre}</div>
           <div style={{ fontSize:11, color:'var(--silver)', marginTop:1 }}>@{coach.usuario}</div>
         </div>
-        {coach.club_nombre
-          ? <span style={{ fontSize:11, padding:'3px 10px', borderRadius:20, background:'rgba(96,165,250,.12)', color:'#93c5fd', border:'1px solid rgba(96,165,250,.25)', fontWeight:600 }}>🏟️ {coach.club_nombre}</span>
-          : <span style={{ fontSize:11, padding:'3px 10px', borderRadius:20, background:'rgba(245,158,11,.1)', color:'#fbbf24', border:'1px solid rgba(245,158,11,.25)', fontWeight:600 }}>⚠ Sin club</span>
-        }
+        {(() => {
+          const clubObj = clubs.find((c: any) => c.id === coach.club_id)
+          return coach.club_nombre
+            ? <span style={{ display:'flex', alignItems:'center', gap:6, fontSize:11, padding:'3px 10px 3px 6px', borderRadius:20, background:'rgba(96,165,250,.12)', color:'#93c5fd', border:'1px solid rgba(96,165,250,.25)', fontWeight:600 }}>
+                {clubObj?.logo_url
+                  ? <img src={clubObj.logo_url} style={{ width:20, height:20, objectFit:'contain', borderRadius:4, flexShrink:0 }} alt="" />
+                  : <span style={{ fontSize:13 }}>🏟️</span>
+                }
+                {coach.club_nombre}
+              </span>
+            : <span style={{ fontSize:11, padding:'3px 10px', borderRadius:20, background:'rgba(245,158,11,.1)', color:'#fbbf24', border:'1px solid rgba(245,158,11,.25)', fontWeight:600 }}>⚠ Sin club</span>
+        })()}
         <span style={{ color:'var(--fog)', fontSize:14, transition:'transform .2s', display:'inline-block', transform:open?'rotate(90deg)':'none' }}>›</span>
       </button>
 
