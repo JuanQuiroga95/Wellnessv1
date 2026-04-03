@@ -30,11 +30,16 @@ export async function GET(req: NextRequest) {
   }
 
   const r = await sql`
-    SELECT id, fecha::text, carga_ua::int, rpe::int, duracion_min::int, tipo_sesion
-    FROM entrenamiento_logs
-    WHERE jugador_id = ${jid}
-      AND fecha >= CURRENT_DATE - ${days}::int
-    ORDER BY fecha ASC`
+    SELECT el.id, el.fecha::text, el.carga_ua::int, el.rpe::int, el.duracion_min::int, el.tipo_sesion,
+           sp.titulo AS md_label
+    FROM entrenamiento_logs el
+    LEFT JOIN sesiones_plan sp
+      ON sp.fecha = el.fecha AND sp.club_id = (
+        SELECT club_id FROM jugadores WHERE id = ${jid} LIMIT 1
+      )
+    WHERE el.jugador_id = ${jid}
+      AND el.fecha >= CURRENT_DATE - ${days}::int
+    ORDER BY el.fecha ASC`
   return NextResponse.json(r)
 }
 

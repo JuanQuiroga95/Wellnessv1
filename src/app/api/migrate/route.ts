@@ -82,6 +82,7 @@ export async function POST(req: NextRequest) {
       veces_usada INTEGER DEFAULT 1,
       created_at TIMESTAMPTZ DEFAULT NOW()
     )`, 'biblioteca_tareas table'],
+    [`ALTER TABLE clubs ADD COLUMN IF NOT EXISTS pais VARCHAR(100)`, 'clubs.pais'],
   ]
 
   for (const [sql_stmt, label] of migrations) {

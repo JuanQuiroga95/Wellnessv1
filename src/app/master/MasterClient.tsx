@@ -121,16 +121,46 @@ export default function MasterClient({ session, clubs: initialClubs, coaches: in
   )
 }
 
+// ── Lista de países con código de bandera emoji ────────────────────────────────
+const PAISES = [
+  {code:'AR',name:'Argentina',flag:'🇦🇷'},{code:'ES',name:'España',flag:'🇪🇸'},
+  {code:'BR',name:'Brasil',flag:'🇧🇷'},{code:'MX',name:'México',flag:'🇲🇽'},
+  {code:'CO',name:'Colombia',flag:'🇨🇴'},{code:'CL',name:'Chile',flag:'🇨🇱'},
+  {code:'UY',name:'Uruguay',flag:'🇺🇾'},{code:'PY',name:'Paraguay',flag:'🇵🇾'},
+  {code:'PE',name:'Perú',flag:'🇵🇪'},{code:'BO',name:'Bolivia',flag:'🇧🇴'},
+  {code:'VE',name:'Venezuela',flag:'🇻🇪'},{code:'EC',name:'Ecuador',flag:'🇪🇨'},
+  {code:'US',name:'Estados Unidos',flag:'🇺🇸'},{code:'PT',name:'Portugal',flag:'🇵🇹'},
+  {code:'IT',name:'Italia',flag:'🇮🇹'},{code:'FR',name:'Francia',flag:'🇫🇷'},
+  {code:'DE',name:'Alemania',flag:'🇩🇪'},{code:'GB',name:'Reino Unido',flag:'🇬🇧'},
+  {code:'NL',name:'Países Bajos',flag:'🇳🇱'},{code:'BE',name:'Bélgica',flag:'🇧🇪'},
+  {code:'CR',name:'Costa Rica',flag:'🇨🇷'},{code:'PA',name:'Panamá',flag:'🇵🇦'},
+  {code:'GT',name:'Guatemala',flag:'🇬🇹'},{code:'MX',name:'México',flag:'🇲🇽'},
+  {code:'SA',name:'Arabia Saudita',flag:'🇸🇦'},{code:'AE',name:'Emiratos Árabes',flag:'🇦🇪'},
+  {code:'JP',name:'Japón',flag:'🇯🇵'},{code:'CN',name:'China',flag:'🇨🇳'},
+  {code:'AU',name:'Australia',flag:'🇦🇺'},{code:'ZA',name:'Sudáfrica',flag:'🇿🇦'},
+]
+
 // ── Club Card ──────────────────────────────────────────────────────────────────
 function ClubCard({ club, coaches, onRefresh }) {
   const [editing, setEditing] = useState(false)
   const [nombre, setNombre] = useState(club.nombre)
+  const [pais, setPais] = useState(club.pais || '')
+  const [logoUrl, setLogoUrl] = useState(club.logo_url || '')
+  const [logoPreview, setLogoPreview] = useState(club.logo_url || '')
   const [saving, setSaving] = useState(false)
 
   async function saveClub() {
     setSaving(true)
-    await fetch('/api/clubs',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:club.id,nombre})})
+    await fetch('/api/clubs',{method:'PATCH',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({id:club.id, nombre, pais:pais||null, logo_url:logoUrl||null})})
     setSaving(false); setEditing(false); onRefresh()
+  }
+
+  async function handleLogo(e: any) {
+    const file = e.target.files?.[0]; if (!file) return
+    const reader = new FileReader()
+    reader.onload = () => { setLogoUrl(reader.result as string); setLogoPreview(reader.result as string) }
+    reader.readAsDataURL(file)
   }
 
   async function deleteClub() {
@@ -139,24 +169,62 @@ function ClubCard({ club, coaches, onRefresh }) {
     onRefresh()
   }
 
+  const paisObj = PAISES.find(p => p.name === pais || p.code === pais)
+
   return (
     <div style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:16, padding:20 }}>
       {editing ? (
-        <div style={{ display:'flex', gap:8, marginBottom:14 }}>
-          <input className="wp-input" value={nombre} onChange={e=>setNombre(e.target.value)} style={{ flex:1, padding:'7px 12px', fontSize:13 }} autoFocus />
-          <button onClick={saveClub} disabled={saving} style={{ fontSize:12, padding:'7px 12px', borderRadius:8, background:'var(--lime)', color:'var(--ink)', border:'none', cursor:'pointer', fontWeight:700 }}>✓</button>
-          <button onClick={()=>setEditing(false)} style={{ fontSize:12, padding:'7px 10px', borderRadius:8, background:'var(--ink3)', color:'var(--silver)', border:'1px solid var(--fog)', cursor:'pointer' }}>✕</button>
+        <div style={{ marginBottom:14 }}>
+          {/* Nombre */}
+          <div style={{ display:'flex', gap:8, marginBottom:10 }}>
+            <input className="wp-input" value={nombre} onChange={e=>setNombre(e.target.value)}
+              style={{ flex:1, padding:'7px 12px', fontSize:13 }} autoFocus placeholder="Nombre del club" />
+            <button onClick={saveClub} disabled={saving} style={{ fontSize:12, padding:'7px 12px', borderRadius:8, background:'var(--lime)', color:'var(--ink)', border:'none', cursor:'pointer', fontWeight:700 }}>{saving?'...':'✓'}</button>
+            <button onClick={()=>setEditing(false)} style={{ fontSize:12, padding:'7px 10px', borderRadius:8, background:'var(--ink3)', color:'var(--silver)', border:'1px solid var(--fog)', cursor:'pointer' }}>✕</button>
+          </div>
+          {/* País */}
+          <div style={{ marginBottom:10 }}>
+            <label style={{ fontSize:9, color:'var(--fog)', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:4 }}>País</label>
+            <select className="wp-input" value={pais} onChange={e=>setPais(e.target.value)}
+              style={{ width:'100%', padding:'7px 12px', fontSize:13, appearance:'none' }}>
+              <option value="" style={{ background:'var(--ink2)' }}>— Sin país —</option>
+              {PAISES.map(p=>(
+                <option key={p.code+p.name} value={p.name} style={{ background:'var(--ink2)' }}>{p.flag} {p.name}</option>
+              ))}
+            </select>
+          </div>
+          {/* Escudo */}
+          <div>
+            <label style={{ fontSize:9, color:'var(--fog)', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:4 }}>Escudo del club</label>
+            <div style={{ display:'flex', gap:10, alignItems:'center' }}>
+              <div style={{ width:48, height:48, borderRadius:8, background:'var(--ink3)', border:'1px solid var(--fog)', display:'flex', alignItems:'center', justifyContent:'center', overflow:'hidden', flexShrink:0 }}>
+                {logoPreview ? <img src={logoPreview} style={{ width:'100%', height:'100%', objectFit:'contain', padding:4 }} alt=""/> : <span style={{ fontSize:22 }}>🏟️</span>}
+              </div>
+              <label style={{ cursor:'pointer', fontSize:12, padding:'6px 14px', borderRadius:8, background:'var(--ink3)', color:'var(--silver)', border:'1px solid var(--fog)', whiteSpace:'nowrap' }}>
+                📁 Subir escudo
+                <input type="file" accept="image/*" onChange={handleLogo} style={{ display:'none' }} />
+              </label>
+              {logoPreview && (
+                <button onClick={()=>{ setLogoUrl(''); setLogoPreview('') }} style={{ fontSize:11, padding:'6px 10px', borderRadius:8, background:'rgba(239,68,68,.1)', color:'#f87171', border:'1px solid rgba(239,68,68,.25)', cursor:'pointer' }}>✕ Quitar</button>
+              )}
+            </div>
+          </div>
         </div>
       ) : (
         <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', marginBottom:14 }}>
           <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-            {club.logo_url
-              ? <img src={club.logo_url} style={{ width:40, height:40, objectFit:'contain', borderRadius:8 }} alt="logo"/>
-              : <div style={{ width:40, height:40, borderRadius:8, background:'var(--ink3)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:20 }}>🏟️</div>
-            }
+            <div style={{ width:44, height:44, borderRadius:8, background:'var(--ink3)', display:'flex', alignItems:'center', justifyContent:'center', overflow:'hidden', flexShrink:0 }}>
+              {club.logo_url
+                ? <img src={club.logo_url} style={{ width:'100%', height:'100%', objectFit:'contain', padding:3 }} alt="logo"/>
+                : <span style={{ fontSize:22 }}>🏟️</span>
+              }
+            </div>
             <div>
               <p style={{ fontSize:15, fontWeight:700, color:'var(--snow)' }}>{club.nombre}</p>
-              <p style={{ fontSize:10, color:'var(--fog)', fontFamily:'DM Mono,monospace' }}>ID: {club.id}</p>
+              <p style={{ fontSize:11, color:'var(--silver)', marginTop:1 }}>
+                {paisObj ? `${paisObj.flag} ${paisObj.name}` : (club.pais || '')}
+              </p>
+              <p style={{ fontSize:9, color:'var(--fog)', fontFamily:'DM Mono,monospace', marginTop:1 }}>ID: {club.id}</p>
             </div>
           </div>
           <div style={{ display:'flex', gap:6 }}>

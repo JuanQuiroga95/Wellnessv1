@@ -81,7 +81,7 @@ function compressImage(dataUrl: string, maxSize = 400, quality = 0.7): Promise<s
   })
 }
 
-const TABS = [{id:'team',label:'Equipo'},{id:'calendario',label:'📅 Calendario'},{id:'analytics',label:'Analytics'},{id:'minutos',label:'Minutaje'},{id:'carga-externa',label:'Carga Externa'},{id:'control-carga-calc',label:'🏋️ Ctrl. Carga Calc'},{id:'control-carga-gps',label:'📡 Ctrl. Carga GPS'},{id:'acumulado',label:'📈 Acumulado Ind.'},{id:'cambio-carga',label:'Cambio de Carga'},{id:'expo-ai',label:'⚡ Expo. AI'},{id:'evaluaciones',label:'📋 Evaluaciones'},{id:'comparativa',label:'⚖️ Comparativa'},{id:'lesiones',label:'Lesiones'},{id:'gps',label:'📡 GPS'},{id:'players',label:'Jugadores'},{id:'biblioteca',label:'📚 Biblioteca'}]
+const TABS = [{id:'team',label:'Equipo'},{id:'calendario',label:'📅 Calendario'},{id:'analytics',label:'Analytics'},{id:'minutos',label:'Minutaje'},{id:'control-carga-calc',label:'🏋️ Ctrl. Carga Calc'},{id:'control-carga-gps',label:'📡 Ctrl. Carga GPS'},{id:'acumulado',label:'📈 Acumulado Ind.'},{id:'cambio-carga',label:'Cambio de Carga'},{id:'expo-ai',label:'⚡ Expo. AI'},{id:'evaluaciones',label:'📋 Evaluaciones'},{id:'comparativa',label:'⚖️ Comparativa'},{id:'lesiones',label:'Lesiones'},{id:'gps',label:'📡 GPS'},{id:'players',label:'Jugadores'},{id:'biblioteca',label:'📚 Biblioteca'}]
 const SC = {optimo:'#22c55e',precaucion:'#f59e0b',peligro:'#ef4444',sin_datos:'#555'}
 const SL = {optimo:'ÓPTIMO',precaucion:'PRECAUCIÓN',peligro:'RIESGO',sin_datos:'—'}
 const WK = ['fatiga','calidad_sueno','dolor_muscular','nivel_estres','estado_animo']
@@ -565,7 +565,7 @@ function PlayerDetail({ player:p, logs, wellness, loading, onBack, ciclo, onCicl
         <div style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:16, padding:20 }}>
           <p style={{ fontSize:11, fontWeight:600, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:16 }}>RPE — Últimas sesiones</p>
           <div style={{ display:'flex', alignItems:'flex-end', gap:6, height:90 }}>
-            {[...logs].reverse().slice(0,12).map((log,i) => {
+            {[...logs].slice(0,12).reverse().map((log,i) => {
               const rpeVal = Number(log.rpe) || 0
               const uaVal = Number(log.carga_ua) || 0
               const pct = (rpeVal / 10) * 100
@@ -579,6 +579,11 @@ function PlayerDetail({ player:p, logs, wellness, loading, onBack, ciclo, onCicl
                   <div style={{ fontSize:8, color:'var(--fog)', textAlign:'center', lineHeight:1.2 }}>
                     {log.fecha ? String(log.fecha).slice(5) : ''}
                   </div>
+                  {log.md_label && (
+                    <div style={{ fontSize:7, color:'var(--lime)', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, lineHeight:1, marginTop:1 }}>
+                      {log.md_label}
+                    </div>
+                  )}
                 </div>
               )
             })}
@@ -595,7 +600,7 @@ function PlayerDetail({ player:p, logs, wellness, loading, onBack, ciclo, onCicl
       {logs.length>0 && (
         <div style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:16, padding:20 }}>
           <p style={{ fontSize:11, fontWeight:600, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:14 }}>Últimas sesiones <span style={{ fontSize:10, color:'var(--fog)', fontWeight:400, textTransform:'none' }}>— click en ✏️ para editar minutos y recalcular UA</span></p>
-          {[...logs].reverse().slice(0,8).map((l,i)=>(<CoachSessionRow key={i} log={l} />))}
+          {[...logs].slice(0,8).reverse().map((l,i)=>(<CoachSessionRow key={i} log={l} />))}
         </div>
       )}
       <HistorialLesivo jugadorId={p.jugador_id || p.id} />
@@ -1253,8 +1258,8 @@ function CalendarioPanel({ teamData }) {
                       position:'absolute', inset:0, zIndex:0, pointerEvents:'none',
                       backgroundImage:`url(${rivalFoto})`,
                       backgroundSize:'60% auto', backgroundRepeat:'no-repeat', backgroundPosition:'center 55%',
-                      filter:'blur(6px)',
-                      opacity:0.18,
+                      filter:'blur(3px)',
+                      opacity:0.35,
                     }} />
                   )}
                   <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:4, position:'relative', zIndex:1 }}>
@@ -2543,7 +2548,10 @@ function CoachSessionRow({ log }) {
 
   return (
     <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'8px 0', borderBottom:'1px solid var(--mist)', fontSize:13, gap:8, flexWrap:'wrap' }}>
-      <span className="mono" style={{ fontSize:11, color:'var(--silver)', minWidth:80 }}>{String(log.fecha)}</span>
+      <span className="mono" style={{ fontSize:11, color:'var(--silver)', minWidth:80 }}>
+        {String(log.fecha)}
+        {log.md_label && <span style={{ marginLeft:5, fontSize:10, color:'var(--lime)', fontWeight:700 }}>{log.md_label}</span>}
+      </span>
       <span>RPE <strong style={{ color:'var(--snow)' }}>{log.rpe}</strong></span>
       {editing ? (
         <div style={{ display:'flex', gap:6, alignItems:'center', flexWrap:'wrap' }}>
@@ -4193,6 +4201,75 @@ function ReadinessPanel({ teamData }) {
 }
 
 // ══ ACUM M1 PANEL ════════════════════════════════════════════════════════════
+// ── Gráfico de barras para Acumulativo Indiv ──────────────────────────────────
+function AcumBarChart({ players, vars, accentColor = '#c8f135' }: { players: any[], vars: {key:string,label:string,color:string}[], accentColor?: string }) {
+  const [selKey, setSelKey] = useState(vars[0]?.key || '')
+  const selVar = vars.find(v => v.key === selKey) || vars[0]
+  if (!selVar) return null
+
+  const data = players
+    .map((p: any) => ({ nombre: (p.nombre || '').split(' ')[0], val: Number(p[selVar.key]) || 0 }))
+    .filter(d => d.val > 0)
+    .sort((a, b) => b.val - a.val)
+
+  const maxVal = Math.max(...data.map(d => d.val), 1)
+  const BAR_H = 140
+  const TOP_PAD = 24
+  const BOT_PAD = 44
+
+  return (
+    <div style={{ padding:'14px 16px', borderTop:'1px solid var(--mist)' }}>
+      {/* Selector de métrica */}
+      <div style={{ display:'flex', flexWrap:'wrap', gap:5, marginBottom:14 }}>
+        {vars.map(v => (
+          <button key={v.key} onClick={() => setSelKey(v.key)}
+            style={{ fontSize:10, padding:'4px 10px', borderRadius:6, cursor:'pointer', border: selKey === v.key ? `2px solid ${v.color}` : '1px solid var(--mist)',
+              background: selKey === v.key ? `${v.color}18` : 'var(--ink3)',
+              color: selKey === v.key ? v.color : 'var(--fog)',
+              fontWeight: selKey === v.key ? 700 : 400 }}>
+            {v.label}
+          </button>
+        ))}
+      </div>
+
+      {data.length === 0 ? (
+        <div style={{ padding:'12px 0', textAlign:'center', color:'var(--fog)', fontSize:11 }}>Sin datos para esta métrica</div>
+      ) : (
+        <div style={{ display:'flex', gap:0 }}>
+          {/* Y-axis */}
+          <div style={{ display:'flex', flexDirection:'column', justifyContent:'space-between',
+            paddingRight:8, width:38, flexShrink:0, height:BAR_H, marginTop:TOP_PAD, marginBottom:BOT_PAD }}>
+            {[1,0.75,0.5,0.25,0].map((f,i) => (
+              <div key={i} style={{ fontSize:8, color:'var(--fog)', fontFamily:'DM Mono,monospace', textAlign:'right', lineHeight:1 }}>
+                {Math.round(maxVal * f)}
+              </div>
+            ))}
+          </div>
+          {/* Barras */}
+          <div style={{ flex:1, overflowX:'auto', overflowY:'visible' }}>
+            <div style={{ position:'relative', minWidth: data.length * 60 }}>
+              {[0,25,50,75,100].map((p,i) => (
+                <div key={i} style={{ position:'absolute', left:0, right:0, bottom: BOT_PAD + (p/100)*BAR_H, borderTop:'1px solid rgba(255,255,255,.05)', pointerEvents:'none' }}/>
+              ))}
+              <div style={{ display:'flex', gap:8, alignItems:'flex-end', height:TOP_PAD+BAR_H+BOT_PAD, paddingTop:TOP_PAD, paddingBottom:BOT_PAD }}>
+                {data.map((d, i) => (
+                  <div key={i} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', minWidth:52, height:'100%', justifyContent:'flex-end' }}>
+                    <div style={{ fontSize:11, color:selVar.color, fontFamily:'DM Mono,monospace', fontWeight:800, marginBottom:3, whiteSpace:'nowrap' }}>{d.val}</div>
+                    <div style={{ width:'55%', minWidth:20, maxWidth:48, borderRadius:'5px 5px 0 0',
+                      height:`${Math.max((d.val/maxVal)*BAR_H, 4)}px`,
+                      background: selVar.color, flexShrink:0, opacity:0.85 }} />
+                    <div style={{ fontSize:9, color:'var(--snow)', fontWeight:600, marginTop:6, textAlign:'center', wordBreak:'break-word', lineHeight:1.2 }}>{d.nombre}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function AcumPanel({ teamData }) {
   const [miciData, setMiciData] = useState<any>(null)
   const [miciLoading, setMiciLoading] = useState(false)
@@ -4321,11 +4398,10 @@ function AcumPanel({ teamData }) {
               </tbody>
             </table>
           </div>
+          {/* ── Gráfico por métrica ── */}
+          {miciPlayers.length > 0 && <AcumBarChart players={miciPlayers} vars={MICI_VARS} />}
         )}
       </div>
-
-
-      {/* ══ ACUMULATIVO GPS (datos reales Catapult) ══════════════════ */}
       {(() => {
         const gpsReal: any[] = miciData?.gpsReal || []
         const GPS_ACC_VARS = [
@@ -4407,6 +4483,8 @@ function AcumPanel({ teamData }) {
                   </tbody>
                 </table>
               </div>
+              {/* ── Gráfico por métrica GPS ── */}
+              {gpsReal.length > 0 && <AcumBarChart players={gpsReal} vars={GPS_ACC_VARS} accentColor="#60a5fa" />}
             )}
           </div>
         )
