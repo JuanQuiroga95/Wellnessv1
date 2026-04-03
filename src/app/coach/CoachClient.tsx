@@ -4398,9 +4398,9 @@ function AcumPanel({ teamData }) {
               </tbody>
             </table>
           </div>
-          {/* ── Gráfico por métrica ── */}
-          {miciPlayers.length > 0 && <AcumBarChart players={miciPlayers} vars={MICI_VARS} />}
         )}
+        {/* ── Gráfico por métrica ── */}
+        {!miciLoading && miciPlayers.length > 0 && <AcumBarChart players={miciPlayers} vars={MICI_VARS} />}
       </div>
       {(() => {
         const gpsReal: any[] = miciData?.gpsReal || []
@@ -4483,9 +4483,9 @@ function AcumPanel({ teamData }) {
                   </tbody>
                 </table>
               </div>
-              {/* ── Gráfico por métrica GPS ── */}
-              {gpsReal.length > 0 && <AcumBarChart players={gpsReal} vars={GPS_ACC_VARS} accentColor="#60a5fa" />}
             )}
+            {/* ── Gráfico por métrica GPS ── */}
+            {!miciLoading && gpsReal.length > 0 && <AcumBarChart players={gpsReal} vars={GPS_ACC_VARS} accentColor="#60a5fa" />}
           </div>
         )
       })()}
