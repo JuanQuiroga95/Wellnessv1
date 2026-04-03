@@ -16,13 +16,16 @@ export default async function CoachPage() {
   const clubId = session.clubId ?? null
   const isMaster = session.rol === 'master_admin'
 
+  // Ensure password_plain column exists before querying it
+  try { await sql`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS password_plain TEXT` } catch {}
+
   const [players, lesionesRows] = await Promise.all([
     isMaster
-      ? sql`SELECT u.id, u.nombre, u.usuario, u.activo, j.id AS jugador_id, j.posicion, j.edad,
+      ? sql`SELECT u.id, u.nombre, u.usuario, u.activo, u.password_plain, j.id AS jugador_id, j.posicion, j.edad,
                    j.peso_kg::text AS peso_kg, j.estatura_cm, j.pie_habil, j.foto_url
             FROM usuarios u JOIN jugadores j ON j.usuario_id=u.id
             WHERE u.rol='jugador' ORDER BY u.nombre`
-      : sql`SELECT u.id, u.nombre, u.usuario, u.activo, j.id AS jugador_id, j.posicion, j.edad,
+      : sql`SELECT u.id, u.nombre, u.usuario, u.activo, u.password_plain, j.id AS jugador_id, j.posicion, j.edad,
                    j.peso_kg::text AS peso_kg, j.estatura_cm, j.pie_habil, j.foto_url
             FROM usuarios u JOIN jugadores j ON j.usuario_id=u.id
             WHERE u.rol='jugador' AND u.club_id=${clubId} ORDER BY u.nombre`,
