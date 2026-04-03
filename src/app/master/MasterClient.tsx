@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 
 export default function MasterClient({ session, clubs: initialClubs, coaches: initialCoaches }) {
@@ -24,6 +24,11 @@ export default function MasterClient({ session, clubs: initialClubs, coaches: in
       console.error('Error en reload:', e)
     }
   }
+
+  // Run migration on mount to ensure pais column exists in production DB
+  useEffect(() => {
+    fetch('/api/migrate', { method: 'POST' }).catch(() => {})
+  }, [])
 
   async function logout() {
     await fetch('/api/auth/logout', {method:'POST'})

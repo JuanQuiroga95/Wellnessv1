@@ -33,6 +33,7 @@ export const SCHEMA_STATEMENTS = [
   `ALTER TABLE wellness_logs ADD COLUMN IF NOT EXISTS dolor_eva SMALLINT`,
   // Multitenancy — clubs & master_admin
   `CREATE TABLE IF NOT EXISTS clubs (id SERIAL PRIMARY KEY, nombre VARCHAR(100) NOT NULL, logo_url TEXT, created_at TIMESTAMPTZ DEFAULT NOW())`,
+  `ALTER TABLE clubs ADD COLUMN IF NOT EXISTS pais VARCHAR(100)`,
   `ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS club_id INTEGER REFERENCES clubs(id)`,
   `ALTER TABLE jugadores ADD COLUMN IF NOT EXISTS club_id INTEGER REFERENCES clubs(id)`,
   `ALTER TABLE entrenamiento_logs ADD COLUMN IF NOT EXISTS club_id INTEGER`,

@@ -5,11 +5,8 @@ import { getSessionFromRequest } from '@/lib/auth'
 
 function isMaster(s: any) { return s?.rol === 'master_admin' }
 
-// Ensure pais column exists (safe migration run once)
 async function ensurePaisColumn(sql: any) {
-  try {
-    await sql`ALTER TABLE clubs ADD COLUMN IF NOT EXISTS pais VARCHAR(100)`
-  } catch(_) {}
+  try { await sql`ALTER TABLE clubs ADD COLUMN IF NOT EXISTS pais VARCHAR(100)` } catch(_) {}
 }
 
 export async function GET(req: NextRequest) {
@@ -17,14 +14,18 @@ export async function GET(req: NextRequest) {
   if (!s || !isMaster(s)) return NextResponse.json({error:'No autorizado'},{status:403})
   const sql = getDb()
   await ensurePaisColumn(sql)
-  const clubs = await sql`
-    SELECT c.id, c.nombre, c.logo_url, c.pais, c.created_at::text,
-           COUNT(DISTINCT CASE WHEN u.rol='admin' THEN u.id END)::int AS coaches,
-           COUNT(DISTINCT CASE WHEN u.rol='jugador' THEN u.id END)::int AS jugadores
-    FROM clubs c
-    LEFT JOIN usuarios u ON u.club_id=c.id AND u.activo=true
-    GROUP BY c.id ORDER BY c.nombre`
-  return NextResponse.json(clubs)
+  try {
+    const clubs = await sql`
+      SELECT c.id, c.nombre, c.logo_url, c.pais, c.created_at::text,
+             COUNT(DISTINCT CASE WHEN u.rol='admin' THEN u.id END)::int AS coaches,
+             COUNT(DISTINCT CASE WHEN u.rol='jugador' THEN u.id END)::int AS jugadores
+      FROM clubs c
+      LEFT JOIN usuarios u ON u.club_id=c.id AND u.activo=true
+      GROUP BY c.id ORDER BY c.nombre`
+    return NextResponse.json(clubs)
+  } catch(e: any) {
+    return NextResponse.json({error: String(e)}, {status:500})
+  }
 }
 
 export async function POST(req: NextRequest) {
@@ -34,7 +35,10 @@ export async function POST(req: NextRequest) {
   if (!nombre) return NextResponse.json({error:'Nombre requerido'},{status:400})
   const sql = getDb()
   await ensurePaisColumn(sql)
-  const [club] = await sql`INSERT INTO clubs(nombre,logo_url,pais) VALUES(${nombre},${logo_url||null},${pais||null}) RETURNING id,nombre,logo_url,pais`
+  const [club] = await sql`
+    INSERT INTO clubs(nombre,logo_url,pais)
+    VALUES(${nombre},${logo_url||null},${pais||null})
+    RETURNING id,nombre,logo_url,pais`
   return NextResponse.json(club)
 }
 
