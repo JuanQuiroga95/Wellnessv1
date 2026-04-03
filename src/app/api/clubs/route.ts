@@ -35,7 +35,10 @@ export async function PATCH(req: NextRequest) {
   const { id, nombre, logo_url, pais } = await req.json()
   if (!id) return NextResponse.json({error:'id requerido'},{status:400})
   const sql = getDb()
-  await sql`UPDATE clubs SET nombre=COALESCE(${nombre??null},nombre), logo_url=COALESCE(${logo_url??null},logo_url), pais=COALESCE(${pais??null},pais) WHERE id=${id}`
+  // Update each field only if explicitly provided in the payload
+  if (nombre !== undefined) await sql`UPDATE clubs SET nombre=${nombre} WHERE id=${id}`
+  if (logo_url !== undefined) await sql`UPDATE clubs SET logo_url=${logo_url||null} WHERE id=${id}`
+  if (pais !== undefined) await sql`UPDATE clubs SET pais=${pais||null} WHERE id=${id}`
   return NextResponse.json({ok:true})
 }
 

@@ -1235,9 +1235,10 @@ function CalendarioPanel({ teamData }) {
               const hasEvents = ses.length > 0 || parts.length > 0
               const recupAlert = hasEvents && recup !== null && recup < 48
 
-              // Find rival logo for blurred background (prefer sesion_plan partido, fallback to partido_log)
+              // Find rival logo for partido display
               const rivalFoto = ses.find((s:any) => s.tipo === 'partido' && s.rival_foto)?.rival_foto
                 || parts.find((p:any) => p.rival_foto)?.rival_foto || null
+              const isPartidoDay = rivalFoto || ses.some((s:any) => s.tipo === 'partido') || parts.length > 0
 
               return (
                 <div key={fecha}
@@ -1252,17 +1253,7 @@ function CalendarioPanel({ teamData }) {
                   onMouseEnter={e=>(e.currentTarget as HTMLElement).style.background='rgba(255,255,255,.04)'}
                   onMouseLeave={e=>(e.currentTarget as HTMLElement).style.background=selectedDay===fecha?'rgba(200,241,53,.06)':isWeekend?'rgba(255,255,255,.01)':'transparent'}
                 >
-                  {/* Rival logo blurred background */}
-                  {rivalFoto && (
-                    <div style={{
-                      position:'absolute', inset:0, zIndex:0, pointerEvents:'none',
-                      backgroundImage:`url(${rivalFoto})`,
-                      backgroundSize:'60% auto', backgroundRepeat:'no-repeat', backgroundPosition:'center 55%',
-                      filter:'blur(3px)',
-                      opacity:0.35,
-                    }} />
-                  )}
-                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:4, position:'relative', zIndex:1 }}>
+                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:4 }}>
                     <span style={{ fontSize:13, fontWeight:isToday?700:500, color:isToday?'var(--lime)':'var(--snow)', fontFamily:'DM Mono,monospace' }}>{dayNum}</span>
                     {recupAlert && recup !== null && (
                       <span title={`${recup}h de recuperación`} style={{ fontSize:9, background: recup<24?'rgba(239,68,68,.15)':'rgba(245,158,11,.15)', color:recup<24?'#f87171':'#fbbf24', border:`1px solid ${recup<24?'rgba(239,68,68,.4)':'rgba(245,158,11,.4)'}`, borderRadius:4, padding:'1px 4px', fontWeight:700 }}>
@@ -1270,31 +1261,72 @@ function CalendarioPanel({ teamData }) {
                       </span>
                     )}
                   </div>
-                  <div style={{ display:'flex', flexDirection:'column', gap:2, position:'relative', zIndex:1 }}>
-                    {ses.map(s=>(
-                      <div key={s.id} onClick={e=>{e.stopPropagation();setEditSesion(s);setShowEditor(true)}} style={{ display:'flex', alignItems:'center', gap:3, fontSize:10, padding:'2px 5px', borderRadius:4, background:`${TIPO_COLORES[s.tipo]||'#888'}22`, color:TIPO_COLORES[s.tipo]||'#888', border:`1px solid ${TIPO_COLORES[s.tipo]||'#888'}44`, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', cursor:'pointer' }}>
-                        {s.tipo==='partido' && s.rival_foto && <img src={s.rival_foto} style={{ width:14, height:14, objectFit:'contain', borderRadius:2, flexShrink:0 }} alt="" />}
-                        {s.tipo==='partido'
-                          ? <span>{TIPO_ICONOS[s.tipo]} {s.rival ? `vs ${s.rival}` : (s.titulo||'Partido')}</span>
-                          : <span>{TIPO_ICONOS[s.tipo]} {s.titulo||s.tipo}</span>
-                        }
+
+                  {/* Si hay partido con escudo: layout horizontal escudo + eventos */}
+                  {isPartidoDay && rivalFoto ? (
+                    <div style={{ display:'flex', gap:5, alignItems:'flex-start' }}>
+                      {/* Escudo rival grande */}
+                      <div style={{ width:38, height:38, flexShrink:0, display:'flex', alignItems:'center', justifyContent:'center',
+                        background:'rgba(59,130,246,.08)', borderRadius:6, border:'1px solid rgba(59,130,246,.2)', padding:2 }}>
+                        <img src={rivalFoto} style={{ width:'100%', height:'100%', objectFit:'contain' }} alt="" />
                       </div>
-                    ))}
-                    {parts.map((p,i)=>(
-                      <div key={i} style={{ fontSize:10, padding:'2px 5px', borderRadius:4, background:'rgba(59,130,246,.2)', color:'#60a5fa', border:'1px solid rgba(59,130,246,.35)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-                        🏆 {p.rival||'Partido'}
+                      {/* Texto del partido y demás eventos */}
+                      <div style={{ flex:1, display:'flex', flexDirection:'column', gap:2, minWidth:0 }}>
+                        {ses.map(s=>(
+                          <div key={s.id} onClick={e=>{e.stopPropagation();setEditSesion(s);setShowEditor(true)}}
+                            style={{ display:'flex', alignItems:'center', gap:3, fontSize:10, padding:'2px 5px', borderRadius:4,
+                              background:`${TIPO_COLORES[s.tipo]||'#888'}22`, color:TIPO_COLORES[s.tipo]||'#888',
+                              border:`1px solid ${TIPO_COLORES[s.tipo]||'#888'}44`, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', cursor:'pointer' }}>
+                            {s.tipo==='partido'
+                              ? <span>{TIPO_ICONOS[s.tipo]} {s.rival ? `vs ${s.rival}` : (s.titulo||'Partido')}</span>
+                              : <span>{TIPO_ICONOS[s.tipo]} {s.titulo||s.tipo}</span>
+                            }
+                          </div>
+                        ))}
+                        {parts.map((p,i)=>(
+                          <div key={i} style={{ fontSize:10, padding:'2px 5px', borderRadius:4, background:'rgba(59,130,246,.2)', color:'#60a5fa', border:'1px solid rgba(59,130,246,.35)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                            🏆 {p.rival||'Partido'}
+                          </div>
+                        ))}
+                        {log && (() => {
+                          const rpe = Number(log.avg_rpe || log.max_rpe) || 0
+                          const borgCol = rpe <= 2 ? '#22c55e' : rpe <= 4 ? '#a3e635' : rpe <= 6 ? '#eab308' : rpe <= 8 ? '#f97316' : '#ef4444'
+                          return rpe > 0 ? (
+                            <div style={{ display:'flex', alignItems:'center', gap:3, fontSize:9, padding:'1px 5px', borderRadius:3, background:`${borgCol}20`, color:borgCol, border:`1px solid ${borgCol}44`, fontWeight:700 }}>
+                              RPE <span style={{ fontSize:11 }}>{rpe % 1 === 0 ? rpe : rpe.toFixed(1)}</span>
+                            </div>
+                          ) : null
+                        })()}
                       </div>
-                    ))}
-                    {log && (() => {
-                      const rpe = Number(log.avg_rpe || log.max_rpe) || 0
-                      const borgCol = rpe <= 2 ? '#22c55e' : rpe <= 4 ? '#a3e635' : rpe <= 6 ? '#eab308' : rpe <= 8 ? '#f97316' : '#ef4444'
-                      return rpe > 0 ? (
-                        <div style={{ display:'flex', alignItems:'center', gap:3, fontSize:9, padding:'1px 5px', borderRadius:3, background:`${borgCol}20`, color:borgCol, border:`1px solid ${borgCol}44`, fontWeight:700 }}>
-                          RPE <span style={{ fontSize:11 }}>{rpe % 1 === 0 ? rpe : rpe.toFixed(1)}</span>
+                    </div>
+                  ) : (
+                    /* Layout normal sin partido */
+                    <div style={{ display:'flex', flexDirection:'column', gap:2 }}>
+                      {ses.map(s=>(
+                        <div key={s.id} onClick={e=>{e.stopPropagation();setEditSesion(s);setShowEditor(true)}} style={{ display:'flex', alignItems:'center', gap:3, fontSize:10, padding:'2px 5px', borderRadius:4, background:`${TIPO_COLORES[s.tipo]||'#888'}22`, color:TIPO_COLORES[s.tipo]||'#888', border:`1px solid ${TIPO_COLORES[s.tipo]||'#888'}44`, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', cursor:'pointer' }}>
+                          {s.tipo==='partido' && s.rival_foto && <img src={s.rival_foto} style={{ width:14, height:14, objectFit:'contain', borderRadius:2, flexShrink:0 }} alt="" />}
+                          {s.tipo==='partido'
+                            ? <span>{TIPO_ICONOS[s.tipo]} {s.rival ? `vs ${s.rival}` : (s.titulo||'Partido')}</span>
+                            : <span>{TIPO_ICONOS[s.tipo]} {s.titulo||s.tipo}</span>
+                          }
                         </div>
-                      ) : null
-                    })()}
-                  </div>
+                      ))}
+                      {parts.map((p,i)=>(
+                        <div key={i} style={{ fontSize:10, padding:'2px 5px', borderRadius:4, background:'rgba(59,130,246,.2)', color:'#60a5fa', border:'1px solid rgba(59,130,246,.35)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                          🏆 {p.rival||'Partido'}
+                        </div>
+                      ))}
+                      {log && (() => {
+                        const rpe = Number(log.avg_rpe || log.max_rpe) || 0
+                        const borgCol = rpe <= 2 ? '#22c55e' : rpe <= 4 ? '#a3e635' : rpe <= 6 ? '#eab308' : rpe <= 8 ? '#f97316' : '#ef4444'
+                        return rpe > 0 ? (
+                          <div style={{ display:'flex', alignItems:'center', gap:3, fontSize:9, padding:'1px 5px', borderRadius:3, background:`${borgCol}20`, color:borgCol, border:`1px solid ${borgCol}44`, fontWeight:700 }}>
+                            RPE <span style={{ fontSize:11 }}>{rpe % 1 === 0 ? rpe : rpe.toFixed(1)}</span>
+                          </div>
+                        ) : null
+                      })()}
+                    </div>
+                  )}
                 </div>
               )
             })}

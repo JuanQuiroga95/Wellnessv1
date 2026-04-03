@@ -121,26 +121,32 @@ export default function MasterClient({ session, clubs: initialClubs, coaches: in
   )
 }
 
-// ── Lista de países con código de bandera emoji ────────────────────────────────
+// ── Lista de países con código ISO para bandera ───────────────────────────────
 const PAISES = [
-  {code:'AR',name:'Argentina',flag:'🇦🇷'},{code:'ES',name:'España',flag:'🇪🇸'},
-  {code:'BR',name:'Brasil',flag:'🇧🇷'},{code:'MX',name:'México',flag:'🇲🇽'},
-  {code:'CO',name:'Colombia',flag:'🇨🇴'},{code:'CL',name:'Chile',flag:'🇨🇱'},
-  {code:'UY',name:'Uruguay',flag:'🇺🇾'},{code:'PY',name:'Paraguay',flag:'🇵🇾'},
-  {code:'PE',name:'Perú',flag:'🇵🇪'},{code:'BO',name:'Bolivia',flag:'🇧🇴'},
-  {code:'VE',name:'Venezuela',flag:'🇻🇪'},{code:'EC',name:'Ecuador',flag:'🇪🇨'},
-  {code:'US',name:'Estados Unidos',flag:'🇺🇸'},{code:'PT',name:'Portugal',flag:'🇵🇹'},
-  {code:'IT',name:'Italia',flag:'🇮🇹'},{code:'FR',name:'Francia',flag:'🇫🇷'},
-  {code:'DE',name:'Alemania',flag:'🇩🇪'},{code:'GB',name:'Reino Unido',flag:'🇬🇧'},
-  {code:'NL',name:'Países Bajos',flag:'🇳🇱'},{code:'BE',name:'Bélgica',flag:'🇧🇪'},
-  {code:'CR',name:'Costa Rica',flag:'🇨🇷'},{code:'PA',name:'Panamá',flag:'🇵🇦'},
-  {code:'GT',name:'Guatemala',flag:'🇬🇹'},{code:'MX',name:'México',flag:'🇲🇽'},
-  {code:'SA',name:'Arabia Saudita',flag:'🇸🇦'},{code:'AE',name:'Emiratos Árabes',flag:'🇦🇪'},
-  {code:'JP',name:'Japón',flag:'🇯🇵'},{code:'CN',name:'China',flag:'🇨🇳'},
-  {code:'AU',name:'Australia',flag:'🇦🇺'},{code:'ZA',name:'Sudáfrica',flag:'🇿🇦'},
+  {code:'ar',name:'Argentina'},{code:'es',name:'España'},
+  {code:'br',name:'Brasil'},{code:'mx',name:'México'},
+  {code:'co',name:'Colombia'},{code:'cl',name:'Chile'},
+  {code:'uy',name:'Uruguay'},{code:'py',name:'Paraguay'},
+  {code:'pe',name:'Perú'},{code:'bo',name:'Bolivia'},
+  {code:'ve',name:'Venezuela'},{code:'ec',name:'Ecuador'},
+  {code:'us',name:'Estados Unidos'},{code:'pt',name:'Portugal'},
+  {code:'it',name:'Italia'},{code:'fr',name:'Francia'},
+  {code:'de',name:'Alemania'},{code:'gb',name:'Reino Unido'},
+  {code:'nl',name:'Países Bajos'},{code:'be',name:'Bélgica'},
+  {code:'cr',name:'Costa Rica'},{code:'pa',name:'Panamá'},
+  {code:'gt',name:'Guatemala'},{code:'sa',name:'Arabia Saudita'},
+  {code:'ae',name:'Emiratos Árabes'},{code:'jp',name:'Japón'},
+  {code:'cn',name:'China'},{code:'au',name:'Australia'},
+  {code:'za',name:'Sudáfrica'},{code:'tr',name:'Turquía'},
+  {code:'ma',name:'Marruecos'},{code:'eg',name:'Egipto'},
 ]
 
-// ── Selector de país custom con banderas ──────────────────────────────────────
+function FlagImg({ code, size=20 }: { code: string, size?: number }) {
+  return <img src={`https://flagcdn.com/w40/${code}.png`} width={size} height={Math.round(size*0.67)}
+    style={{ objectFit:'cover', borderRadius:2, flexShrink:0 }} alt={code} />
+}
+
+// ── Selector de país custom con banderas reales ────────────────────────────────
 function PaisSelector({ value, onChange }: { value: string, onChange: (v: string) => void }) {
   const [open, setOpen] = useState(false)
   const selected = PAISES.find(p => p.name === value)
@@ -152,16 +158,16 @@ function PaisSelector({ value, onChange }: { value: string, onChange: (v: string
           color: selected ? 'var(--snow)' : 'var(--fog)', fontSize:13, cursor:'pointer',
           display:'flex', alignItems:'center', gap:8, textAlign:'left' }}>
         {selected ? (
-          <><span style={{ fontSize:18, lineHeight:1 }}>{selected.flag}</span><span>{selected.name}</span></>
+          <><FlagImg code={selected.code} size={20} /><span>{selected.name}</span></>
         ) : (
           <span>— Sin país —</span>
         )}
         <span style={{ marginLeft:'auto', color:'var(--fog)', fontSize:11 }}>▾</span>
       </button>
       {open && (
-        <div style={{ position:'absolute', top:'calc(100% + 4px)', left:0, right:0, zIndex:100,
+        <div style={{ position:'absolute', top:'calc(100% + 4px)', left:0, right:0, zIndex:200,
           background:'var(--ink2)', border:'1px solid var(--fog)', borderRadius:10,
-          maxHeight:220, overflowY:'auto', boxShadow:'0 8px 24px rgba(0,0,0,.5)' }}>
+          maxHeight:240, overflowY:'auto', boxShadow:'0 8px 24px rgba(0,0,0,.6)' }}>
           <div onClick={() => { onChange(''); setOpen(false) }}
             style={{ padding:'8px 12px', cursor:'pointer', color:'var(--fog)', fontSize:12,
               borderBottom:'1px solid var(--mist)' }}
@@ -170,13 +176,13 @@ function PaisSelector({ value, onChange }: { value: string, onChange: (v: string
             — Sin país —
           </div>
           {PAISES.map(p => (
-            <div key={p.code + p.name} onClick={() => { onChange(p.name); setOpen(false) }}
-              style={{ padding:'7px 12px', cursor:'pointer', display:'flex', alignItems:'center', gap:8,
+            <div key={p.code} onClick={() => { onChange(p.name); setOpen(false) }}
+              style={{ padding:'7px 12px', cursor:'pointer', display:'flex', alignItems:'center', gap:10,
                 background: value === p.name ? 'rgba(200,241,53,.08)' : 'transparent',
                 color: value === p.name ? 'var(--lime)' : 'var(--snow)', fontSize:13 }}
               onMouseEnter={e=>(e.currentTarget as HTMLElement).style.background='var(--ink3)'}
               onMouseLeave={e=>(e.currentTarget as HTMLElement).style.background= value === p.name ? 'rgba(200,241,53,.08)' : 'transparent'}>
-              <span style={{ fontSize:18, lineHeight:1 }}>{p.flag}</span>
+              <FlagImg code={p.code} size={22} />
               <span>{p.name}</span>
             </div>
           ))}
@@ -259,8 +265,9 @@ function ClubCard({ club, coaches, onRefresh }) {
             </div>
             <div>
               <p style={{ fontSize:15, fontWeight:700, color:'var(--snow)' }}>{club.nombre}</p>
-              <p style={{ fontSize:11, color:'var(--silver)', marginTop:1 }}>
-                {paisObj ? `${paisObj.flag} ${paisObj.name}` : (club.pais || '')}
+              <p style={{ fontSize:11, color:'var(--silver)', marginTop:1, display:'flex', alignItems:'center', gap:5 }}>
+                {paisObj && <FlagImg code={paisObj.code} size={16} />}
+                {paisObj ? paisObj.name : (club.pais || '')}
               </p>
               <p style={{ fontSize:9, color:'var(--fog)', fontFamily:'DM Mono,monospace', marginTop:1 }}>ID: {club.id}</p>
             </div>
