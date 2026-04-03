@@ -54,6 +54,7 @@ export default async function CoachPage() {
     const respondedToday = lastW?.fecha === today
     return {
       id:p.id, nombre:String(p.nombre), usuario:String(p.usuario), activo:Boolean(p.activo),
+      password_plain:p.password_plain?String(p.password_plain):null,
       jugador_id:p.jugador_id, posicion:String(p.posicion||''), edad:Number(p.edad)||null,
       peso_kg:String(p.peso_kg||''), estatura_cm:Number(p.estatura_cm)||null, pie_habil:String(p.pie_habil||''),
       foto_url:p.foto_url?String(p.foto_url):null,
