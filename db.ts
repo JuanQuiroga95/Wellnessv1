@@ -1,55 +1,49 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { getDb } from '@/lib/db'
-import { sendReminderEmail, sendBirthdayEmail } from '@/lib/email'
-import { getSessionFromRequest } from '@/lib/auth'
+import { SignJWT, jwtVerify } from 'jose'
+import { NextRequest } from 'next/server'
 
-export const dynamic = 'force-dynamic'
-function isAdmin(s: any) { return s?.rol === 'admin' || s?.rol === 'master_admin' }
+function getSecret(): Uint8Array {
+  const s = process.env.JWT_SECRET
+  if (!s) throw new Error('JWT_SECRET environment variable is required. Set it in Vercel → Settings → Environment Variables.')
+  return new TextEncoder().encode(s)
+}
 
-// Manual test endpoint — only accessible by admin
-// GET /api/notifications/test?type=reminder   → sends reminder to all players with email
-// GET /api/notifications/test?type=birthday   → sends birthday test to admin
-export async function GET(req: NextRequest) {
-  const s = await getSessionFromRequest(req)
-  if (!s || !isAdmin(s)) return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
+export interface Session {
+  userId: number
+  usuario: string
+  nombre: string
+  rol: string
+  jugadorId?: number
+  clubId?: number
+  clubNombre?: string
+  iat?: number
+  exp?: number
+}
 
-  const type = req.nextUrl.searchParams.get('type') || 'reminder'
-  const sql = getDb()
-  const results: any[] = []
+export async function createToken(p: Session) {
+  return new SignJWT({ ...p })
+    .setProtectedHeader({ alg: 'HS256' })
+    .setIssuedAt()
+    .setExpirationTime('7d')
+    .sign(getSecret())
+}
 
-  if (type === 'reminder') {
-    const players = await sql`
-      SELECT u.nombre, COALESCE(j.email, u.email) AS email, j.hora_recordatorio
-      FROM jugadores j
-      JOIN usuarios u ON u.id = j.usuario_id
-      WHERE u.activo = true
-        AND COALESCE(j.email, u.email) IS NOT NULL
-        AND COALESCE(j.email, u.email) <> ''
-    `
-    for (const p of players as any[]) {
-      const r = await sendReminderEmail(String(p.email), String(p.nombre))
-      results.push({ nombre: p.nombre, email: p.email, ...r })
-    }
+export async function verifyToken(token: string): Promise<Session | null> {
+  try {
+    const { payload } = await jwtVerify(token, getSecret(), { algorithms: ['HS256'] })
+    return payload as any
+  } catch {
+    return null
   }
+}
 
-  if (type === 'birthday') {
-    const admins = await sql`
-      SELECT nombre, email FROM usuarios WHERE rol = 'admin' AND activo = true AND email IS NOT NULL AND email <> ''
-    `
-    for (const a of admins as any[]) {
-      const r = await sendBirthdayEmail(String(a.email), String(a.nombre), 'Jugador de Prueba', 25)
-      results.push({ to: a.email, ...r })
-    }
-  }
+// Lazy import of cookies() to avoid tainting API routes at module load time
+export async function getSession(): Promise<Session | null> {
+  const { cookies } = await import('next/headers')
+  const t = cookies().get('wp_token')?.value
+  return t ? verifyToken(t) : null
+}
 
-  return NextResponse.json({
-    ok: true,
-    type,
-    env: {
-      GMAIL_USER: process.env.GMAIL_USER || '✗ FALTA — configurá en Vercel',
-      GMAIL_PASS: process.env.GMAIL_PASS ? '✓ configurado' : '✗ FALTA — configurá en Vercel',
-      NEXTAUTH_URL: process.env.NEXTAUTH_URL || '(no configurado)',
-    },
-    results,
-  })
+export async function getSessionFromRequest(req: NextRequest): Promise<Session | null> {
+  const t = req.cookies.get('wp_token')?.value
+  return t ? verifyToken(t) : null
 }

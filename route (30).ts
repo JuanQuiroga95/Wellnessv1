@@ -2,97 +2,58 @@ export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { getDb } from '@/lib/db'
 import { getSessionFromRequest } from '@/lib/auth'
-function isAdmin(s: any) { return s?.rol === 'admin' || s?.rol === 'master_admin' }
+import bcrypt from 'bcryptjs'
+
+function isMaster(s: any) { return s?.rol === 'master_admin' }
+
+async function ensurePasswordPlainCol(sql: any) {
+  try { await sql`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS password_plain TEXT` } catch {}
+}
+
 export async function GET(req: NextRequest) {
-  const s = await getSessionFromRequest(req); if(!s||!isAdmin(s)) return NextResponse.json({error:'No autorizado'},{status:403})
-  const {searchParams} = new URL(req.url)
-  const activas = searchParams.get('activas')!=='false'
-  const jugadorId = searchParams.get('jugador_id') ? Number(searchParams.get('jugador_id')) : null
-  const historialResumen = searchParams.get('historial_resumen') === 'true'
-  const clubId = s.clubId ?? null
-  const isMaster = s.rol === 'master_admin'
+  const s = await getSessionFromRequest(req)
+  if (!s || !isMaster(s)) return NextResponse.json({error:'No autorizado'},{status:403})
   const sql = getDb()
-
-  // Resumen acumulativo por jugador (para tabla de historial en enfermería)
-  if (historialResumen) {
-    const rows = await sql`
-      SELECT
-        j.id AS jugador_id,
-        u.nombre,
-        COUNT(l.id)::int AS total_lesiones,
-        COALESCE(SUM(
-          (COALESCE(l.fecha_alta::date, CURRENT_DATE) - l.fecha_inicio::date)
-        ), 0)::int AS dias_totales,
-        MAX(l.fecha_inicio)::text AS ultima_lesion
-      FROM jugadores j
-      JOIN usuarios u ON u.id = j.usuario_id
-      LEFT JOIN lesiones l ON l.jugador_id = j.id
-      WHERE (${isMaster}::boolean OR u.club_id = ${clubId})
-        AND u.activo = true
-      GROUP BY j.id, u.nombre
-      HAVING COUNT(l.id) > 0
-      ORDER BY dias_totales DESC
-    `
-    return NextResponse.json(rows)
-  }
-
-  // Historial de un jugador específico (todos sus registros, activos o no)
-  if (jugadorId) {
-    const r = await sql`SELECT l.id,l.jugador_id::int,l.fecha_inicio::text,l.fecha_alta::text,l.tipo_lesion,l.zona,
-                               l.descripcion,l.eta_dias::int,l.estado,l.activa,u.nombre AS jugador_nombre,j.posicion
-                        FROM lesiones l JOIN jugadores j ON j.id=l.jugador_id JOIN usuarios u ON u.id=j.usuario_id
-                        WHERE l.jugador_id=${jugadorId} AND (${isMaster}::boolean OR u.club_id=${clubId})
-                        ORDER BY l.fecha_inicio DESC`
-    return NextResponse.json(r)
-  }
-
-  const r = activas
-    ? await sql`SELECT l.id,l.jugador_id::int,l.fecha_inicio::text,l.fecha_alta::text,l.tipo_lesion,l.zona,
-                       l.descripcion,l.eta_dias::int,l.estado,l.activa,u.nombre AS jugador_nombre,j.posicion
-                FROM lesiones l JOIN jugadores j ON j.id=l.jugador_id JOIN usuarios u ON u.id=j.usuario_id
-                WHERE l.activa=true AND (${isMaster}::boolean OR u.club_id=${clubId}) ORDER BY l.fecha_inicio DESC`
-    : await sql`SELECT l.id,l.jugador_id::int,l.fecha_inicio::text,l.fecha_alta::text,l.tipo_lesion,l.zona,
-                       l.descripcion,l.eta_dias::int,l.estado,l.activa,u.nombre AS jugador_nombre,j.posicion
-                FROM lesiones l JOIN jugadores j ON j.id=l.jugador_id JOIN usuarios u ON u.id=j.usuario_id
-                WHERE u.club_id=${clubId} ORDER BY l.fecha_inicio DESC`
-  return NextResponse.json(r)
+  await ensurePasswordPlainCol(sql)
+  const coaches = await sql`
+    SELECT u.id, u.nombre, u.usuario, u.activo, u.club_id, c.nombre AS club_nombre,
+           u.created_at::text, u.password_plain
+    FROM usuarios u
+    LEFT JOIN clubs c ON c.id=u.club_id
+    WHERE u.rol='admin'
+    ORDER BY u.nombre`
+  return NextResponse.json(coaches)
 }
+
 export async function POST(req: NextRequest) {
-  const s = await getSessionFromRequest(req); if(!s||!isAdmin(s)) return NextResponse.json({error:'No autorizado'},{status:403})
-  const {jugador_id,fecha_inicio,tipo_lesion,zona,descripcion,eta_dias,estado} = await req.json()
-  const sql = getDb(); const d = fecha_inicio||new Date().toISOString().split('T')[0]
-  const [r] = await sql`INSERT INTO lesiones(jugador_id,fecha_inicio,tipo_lesion,zona,descripcion,eta_dias,estado,activa,club_id)
-    VALUES(${jugador_id},${d},${tipo_lesion||null},${zona||null},${descripcion||null},${eta_dias||null},${estado||'Tratamiento'},true,${s.clubId??null})
+  const s = await getSessionFromRequest(req)
+  if (!s || !isMaster(s)) return NextResponse.json({error:'No autorizado'},{status:403})
+  const { nombre, usuario, password, club_id } = await req.json()
+  if (!nombre||!usuario||!password) return NextResponse.json({error:'Nombre, usuario y contraseña requeridos'},{status:400})
+  const sql = getDb()
+  await ensurePasswordPlainCol(sql)
+  const ex = await sql`SELECT id FROM usuarios WHERE usuario=${usuario} LIMIT 1`
+  if (ex.length) return NextResponse.json({error:'Usuario ya existe'},{status:409})
+  const h = await bcrypt.hash(password, 12)
+  const [u] = await sql`
+    INSERT INTO usuarios(nombre,usuario,password_hash,password_plain,rol,club_id)
+    VALUES(${nombre},${usuario},${h},${password},'admin',${club_id||null})
     RETURNING id`
-  return NextResponse.json(r)
+  return NextResponse.json({ok:true, id:(u as any).id})
 }
+
 export async function PATCH(req: NextRequest) {
   const s = await getSessionFromRequest(req)
-  if (!s || !isAdmin(s)) return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
-  const { id, estado, activa, fecha_alta, eta_dias } = await req.json()
+  if (!s || !isMaster(s)) return NextResponse.json({error:'No autorizado'},{status:403})
+  const { id, club_id, activo, password } = await req.json()
+  if (!id) return NextResponse.json({error:'id requerido'},{status:400})
   const sql = getDb()
-
-  try {
-    if (estado !== undefined) {
-      await sql`UPDATE lesiones SET estado = ${estado} WHERE id = ${id}`
-    }
-
-    if (activa !== undefined) {
-      if (activa === false) {
-        const alta = fecha_alta || new Date().toISOString().split('T')[0]
-        await sql`UPDATE lesiones SET activa = false, fecha_alta = ${alta}, estado = 'Alta' WHERE id = ${id}`
-      } else {
-        await sql`UPDATE lesiones SET activa = true, fecha_alta = null, estado = 'Tratamiento' WHERE id = ${id}`
-      }
-    }
-
-    if (eta_dias !== undefined) {
-      await sql`UPDATE lesiones SET eta_dias = ${eta_dias} WHERE id = ${id}`
-    }
-
-    return NextResponse.json({ ok: true })
-  } catch (e: any) {
-    console.error('PATCH lesiones error:', e)
-    return NextResponse.json({ error: String(e) }, { status: 500 })
+  await ensurePasswordPlainCol(sql)
+  if (club_id !== undefined) await sql`UPDATE usuarios SET club_id=${club_id} WHERE id=${id} AND rol='admin'`
+  if (activo !== undefined) await sql`UPDATE usuarios SET activo=${activo} WHERE id=${id} AND rol='admin'`
+  if (password) {
+    const h = await bcrypt.hash(password, 12)
+    await sql`UPDATE usuarios SET password_hash=${h}, password_plain=${password} WHERE id=${id} AND rol='admin'`
   }
+  return NextResponse.json({ok:true})
 }
