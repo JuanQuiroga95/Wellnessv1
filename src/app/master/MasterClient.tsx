@@ -201,8 +201,13 @@ function ClubCard({ club, coaches, onRefresh }) {
 
   async function saveClub() {
     setSaving(true)
-    await fetch('/api/clubs',{method:'PATCH',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({id:club.id, nombre, pais:pais||null, logo_url:logoUrl||null})})
+    const payload: any = { id: club.id }
+    if (nombre !== club.nombre) payload.nombre = nombre
+    if (pais !== (club.pais || '')) payload.pais = pais || null
+    if (logoUrl !== (club.logo_url || '')) payload.logo_url = logoUrl || null
+    const res = await fetch('/api/clubs', { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) })
+    const data = await res.json()
+    if (data.error) { alert('Error al guardar: ' + data.error); setSaving(false); return }
     setSaving(false); setEditing(false); onRefresh()
   }
 

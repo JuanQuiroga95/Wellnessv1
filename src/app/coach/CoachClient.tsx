@@ -1267,7 +1267,7 @@ function CalendarioPanel({ teamData }) {
                     <div style={{ display:'flex', flexDirection:'column', gap:3, alignItems:'flex-start' }}>
                       {/* Escudo rival centrado arriba */}
                       <div style={{ width:'100%', display:'flex', justifyContent:'center', marginBottom:2 }}>
-                        <div style={{ width:44, height:44, display:'flex', alignItems:'center', justifyContent:'center',
+                        <div style={{ width:58, height:58, display:'flex', alignItems:'center', justifyContent:'center',
                           background:'rgba(59,130,246,.08)', borderRadius:8, border:'1px solid rgba(59,130,246,.2)', padding:3 }}>
                           <img src={rivalFoto} style={{ width:'100%', height:'100%', objectFit:'contain' }} alt="" />
                         </div>
