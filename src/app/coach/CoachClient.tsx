@@ -1016,7 +1016,7 @@ function CambioCargaPanel() {
 const OBJETIVOS_FISICOS = ['Fuerza','Resistencia','Velocidad','Recuperación-Compensación','Recuperación','Competición']
 const OBJETIVOS_SECUNDARIOS = ['Táctico','Técnico','Técnico-Táctico']
 const TITULOS_SESION = ['MD+1','MD+2','MD+3','MD-4','MD-3','MD-2','MD-1','MD']
-const TAREAS_PRINCIPALES = ['Activación en campo','Activación en gimnasio','Gimnasio','Rondo','Trabajo analítico','Juego de posesión','Juego de posición','Partido reducido','Partido modificado','Partido de entrenamiento','Partido amistoso','Partido oficial']
+const TAREAS_PRINCIPALES = ['Activación en campo','Activación en gimnasio','Gimnasio','Rondo','Trabajo analítico','Juego de posesión','Juego de posición','Transiciones','Partido reducido','Partido modificado','Partido de entrenamiento','Partido amistoso','Partido oficial']
 const SUBTAREAS: Record<string, string[]> = { 'Activación en campo': ['Circuito técnico','Circuito neuromuscular','Pliometría','Movilidad','Trabajo Preventivo'], 'Activación en gimnasio': ['Isométricos','Pliometría','Movilidad','Excéntricos','Estabilidad','Tracción y empuje','Trabajo Preventivo'], 'Rondo': ['Rondo 4v2','Rondo 5v2','Rondo 6v2','Rondo 8v2','Rondo 4v1+1','Rondo en movimiento','Rondo conservación','Rondo orientado','Rondo dos espacios'] }
 const TAREAS_CON_ESPACIO = ['Rondo','Trabajo analítico','Juego de posesión','Juego de posición','Partido reducido','Partido modificado','Partido de entrenamiento','Partido amistoso','Partido oficial']
 const TAREAS_CON_EQUIPO = ['Rondo','Trabajo analítico','Juego de posesión','Juego de posición','Partido reducido','Partido modificado','Partido de entrenamiento','Partido amistoso','Partido oficial']
@@ -1524,42 +1524,62 @@ function CalendarioPanel({ teamData }) {
 }
 
 function getCuadrante(densidad: number, jugadores?: number) {
-  // Castellano y Casamichana (2016) — objetivos según m²/jugador y nº jugadores
-  // Tabla: filas = m²/jug (<50, 50-100, 100-200, >200) × cols = jugadores (1<2, 3<4, 5<7, 8<10)
-  // Objetivo dominante según zona:
-  // Fuerza: <100 m²/jug + pocos jug (1-4)
-  // Resistencia: 50-200 m²/jug + muchos jug (5+)
-  // Activación: <100 m²/jug + muchos jug (5+)
-  // Velocidad: >100 m²/jug + muchos jug (5+)
+  // Sangnier et al (2018) — tabla m²/jugador × nº jugadores
+  // Cols: 1-2 jug | 3-4 jug | 5-7 jug | 8-10 jug
+  // Filas: <50 | 50-100 | 100-200 | >200 m²/jug
+  //
+  // Fuerza Neuromuscular (prioridad 1º):
+  //   <50:   1-2 jug(1º), 3-4 jug(2º), 5-7 jug(2º), 8-10 jug(4º)  → domina con pocos jug
+  //   50-100: 1-2 jug(3º), 3-4 jug(4º), 5-7 jug(1º), 8-10 jug(3º) → domina con 5-7 jug
+  //   100-200: 1-2 jug(2º), 3-4 jug(4º), 5-7 jug(4º), 8-10 jug(2º)
+  //   >200:  1-2 jug(1º), 3-4 jug(3º), 5-7 jug(3º), 8-10 jug(1º)
+  //
+  // Activación/Recuperación: complementario de Fuerza (2º-3º en mayoría de celdas)
+  // Resistencia (FC): <50 con 5-7(Acc=2,Res=1), <200 con 5-7(Acc=1,Res=2) → espacio medio-grande
+  // Velocidad (HSR/VHSR): >200 m²/jug con 5-10 jug
   const jug = jugadores || 0
+
+  // Banda de jugadores según tabla
+  const banda = jug <= 2 ? 'A' : jug <= 4 ? 'B' : jug <= 7 ? 'C' : 'D'
+
   let objetivo = 'Resistencia'
-  let color = '#f59e0b'  // naranja
+  let color = '#f59e0b'
   let bg = 'rgba(245,158,11,.1)'
   let border = 'rgba(245,158,11,.3)'
 
   if (densidad < 50) {
-    if (jug >= 5) {
+    // <50 m²/jug: Fuerza domina en bandas A,B,C; Activación en D (8-10 jug)
+    if (banda === 'D') {
       objetivo = 'Activación'; color = '#22c55e'; bg = 'rgba(34,197,94,.1)'; border = 'rgba(34,197,94,.3)'
     } else {
       objetivo = 'Fuerza'; color = '#a855f7'; bg = 'rgba(168,85,247,.1)'; border = 'rgba(168,85,247,.3)'
     }
   } else if (densidad < 100) {
-    if (jug >= 5) {
-      objetivo = 'Activación'; color = '#22c55e'; bg = 'rgba(34,197,94,.1)'; border = 'rgba(34,197,94,.3)'
-    } else {
+    // 50-100 m²/jug: Fuerza domina con 5-7 jug (banda C); Activación con pocos jug; Resistencia con 8-10
+    if (banda === 'C') {
       objetivo = 'Fuerza'; color = '#a855f7'; bg = 'rgba(168,85,247,.1)'; border = 'rgba(168,85,247,.3)'
-    }
-  } else if (densidad < 200) {
-    if (jug >= 5) {
+    } else if (banda === 'D') {
       objetivo = 'Resistencia'; color = '#f59e0b'; bg = 'rgba(245,158,11,.1)'; border = 'rgba(245,158,11,.3)'
     } else {
-      objetivo = 'Fuerza'; color = '#a855f7'; bg = 'rgba(168,85,247,.1)'; border = 'rgba(168,85,247,.3)'
+      objetivo = 'Activación'; color = '#22c55e'; bg = 'rgba(34,197,94,.1)'; border = 'rgba(34,197,94,.3)'
     }
-  } else {
-    if (jug >= 5) {
+  } else if (densidad < 200) {
+    // 100-200 m²/jug: Resistencia domina con bandas C,D; Fuerza con A; Velocidad con B
+    if (banda === 'A') {
+      objetivo = 'Fuerza'; color = '#a855f7'; bg = 'rgba(168,85,247,.1)'; border = 'rgba(168,85,247,.3)'
+    } else if (banda === 'B') {
       objetivo = 'Velocidad'; color = '#3b82f6'; bg = 'rgba(59,130,246,.1)'; border = 'rgba(59,130,246,.3)'
     } else {
       objetivo = 'Resistencia'; color = '#f59e0b'; bg = 'rgba(245,158,11,.1)'; border = 'rgba(245,158,11,.3)'
+    }
+  } else {
+    // >200 m²/jug: Velocidad con 5+ jug; Fuerza con 1-2; Resistencia con 3-4
+    if (banda === 'A') {
+      objetivo = 'Fuerza'; color = '#a855f7'; bg = 'rgba(168,85,247,.1)'; border = 'rgba(168,85,247,.3)'
+    } else if (banda === 'B') {
+      objetivo = 'Resistencia'; color = '#f59e0b'; bg = 'rgba(245,158,11,.1)'; border = 'rgba(245,158,11,.3)'
+    } else {
+      objetivo = 'Velocidad'; color = '#3b82f6'; bg = 'rgba(59,130,246,.1)'; border = 'rgba(59,130,246,.3)'
     }
   }
 
@@ -1769,7 +1789,7 @@ function BloqueMetodologia({ bloque, index, onChange, onRemove, teamPlayers = []
       </div>
 
       {esConEspacio && calc && (() => {
-        const cuad = getCuadrante(calc.densidad, calcJugadores)
+        const cuad = getCuadrante(calc.densidad, atacantes || calcJugadores)
         const OBJCOLORS: Record<string,string> = { 'Fuerza':'#a855f7', 'Resistencia':'#f59e0b', 'Activación':'#22c55e', 'Velocidad':'#3b82f6' }
         const objColor = OBJCOLORS[cuad.objetivo] || '#888'
         return (
@@ -1871,7 +1891,7 @@ function imprimirSesion(f: any, bloques: any[], teamPlayers: any[] = []) {
       ? (Object.values(bl.equipos||{}).flat().length || Number(bl.jugadores) || 0)
       : Number(bl.jugadores)
     const calc = TAREAS_CON_ESPACIO.includes(bl.ventana) ? calcularDistancias(jugN, Number(bl.largo), Number(bl.ancho), Number(bl.series), Number(bl.minutos)) : null
-    const cuad = calc ? getCuadrante(calc.densidad, jugN) : null
+    const cuad = calc ? getCuadrante(calc.densidad, Number(bl.atacantes) || jugN) : null
     const objColor = cuad ? (OBJCOLORS[cuad.objetivo] || '#555') : '#555'
 
     const equiposHtml = TAREAS_CON_EQUIPO.includes(bl.ventana) && bl.equipos

@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getDb } from '@/lib/db'
 import { getSessionFromRequest } from '@/lib/auth'
 function isAdmin(s: any) { return s?.rol === 'admin' || s?.rol === 'master_admin' }
- 
+
 export async function GET(req: NextRequest) {
   const s = await getSessionFromRequest(req)
   if (!s || !isAdmin(s)) return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
   const clubId = s.clubId ?? null
   const isMaster = s.rol === 'master_admin'
   const sql = getDb()
- 
+
   const wellnessWeekly = await sql`
     SELECT j.id AS jugador_id, u.nombre, j.posicion, j.foto_url,
            TO_CHAR(DATE_TRUNC('week', w.fecha), 'YYYY-MM-DD') AS semana,
@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
     WHERE u.rol='jugador' AND u.activo=true AND (${isMaster}::boolean OR u.club_id=${clubId})
     GROUP BY j.id, u.nombre, j.posicion, j.foto_url, DATE_TRUNC('week', w.fecha)
     ORDER BY u.nombre, semana`
- 
+
   const rpeWeekly = await sql`
     SELECT el.jugador_id::int,
            TO_CHAR(DATE_TRUNC('week', el.fecha), 'YYYY-MM-DD') AS semana,
@@ -41,7 +41,7 @@ export async function GET(req: NextRequest) {
     WHERE el.fecha>=CURRENT_DATE-(${weeks}*7) AND (${isMaster}::boolean OR u.club_id=${clubId})
     GROUP BY el.jugador_id, DATE_TRUNC('week', el.fecha)
     ORDER BY el.jugador_id, semana`
- 
+
   const readinessToday = await sql`
     SELECT j.id AS jugador_id, u.nombre, j.posicion, j.foto_url,
            w.fecha::text, w.fatiga::int, w.calidad_sueno::int, w.dolor_muscular::int,
@@ -51,7 +51,7 @@ export async function GET(req: NextRequest) {
     LEFT JOIN wellness_logs w ON w.jugador_id=j.id AND w.fecha=CURRENT_DATE
     WHERE u.rol='jugador' AND u.activo=true AND (${isMaster}::boolean OR u.club_id=${clubId})
     ORDER BY total_wellness DESC NULLS LAST`
- 
+
   return NextResponse.json({
     wellnessWeekly: wellnessWeekly.map(r => ({ ...r, semana:String(r.semana||''), avg_fatiga:Number(r.avg_fatiga)||0, avg_sueno:Number(r.avg_sueno)||0, avg_dolor:Number(r.avg_dolor)||0, avg_estres:Number(r.avg_estres)||0, avg_animo:Number(r.avg_animo)||0, total_wellness:Number(r.total_wellness)||0 })),
     rpeWeekly: rpeWeekly.map(r => ({ ...r, semana:String(r.semana||''), avg_rpe:Number(r.avg_rpe)||0, avg_duracion:Number(r.avg_duracion)||0 })),
