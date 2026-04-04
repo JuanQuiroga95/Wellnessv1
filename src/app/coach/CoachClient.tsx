@@ -1612,6 +1612,16 @@ function getCuadrante(densidad: number, jugadores?: number) {
   return { label: espacioLabel, objetivo, color, bg, border, desc: descs[objetivo] }
 }
 
+function getJugadoresBloque(bl: any, esConEquipo: boolean): number {
+  const atacantes = Number(bl.atacantes) || 0
+  const defensores = Number(bl.defensores) || 0
+  const comodines = Number(bl.comodines) || 0
+  const autoTotal = atacantes + defensores + comodines
+  if (autoTotal > 0) return autoTotal
+  if (esConEquipo) return Object.values(bl.equipos||{}).flat().length || Number(bl.jugadores) || 0
+  return Number(bl.jugadores) || 0
+}
+
 function calcularDistancias(jugadores: number, largo: number, ancho: number, series: number, minutos: number) {
   if (!jugadores || !largo || !ancho || !series || !minutos) return null
   const espacioM2 = largo * ancho
@@ -1877,9 +1887,7 @@ function imprimirSesion(f: any, bloques: any[], teamPlayers: any[] = []) {
   let hasCarga = false
   bloques.forEach(bl => {
     if (!TAREAS_CON_ESPACIO.includes(bl.ventana)) return
-    const jugN = TAREAS_CON_EQUIPO.includes(bl.ventana)
-      ? (Object.values(bl.equipos||{}).flat().length || Number(bl.jugadores) || 0)
-      : Number(bl.jugadores)
+    const jugN = getJugadoresBloque(bl, TAREAS_CON_EQUIPO.includes(bl.ventana))
     const calc = calcularDistancias(jugN, Number(bl.largo), Number(bl.ancho), Number(bl.series), Number(bl.minutos))
     if (!calc) return
     hasCarga = true
@@ -1898,9 +1906,7 @@ function imprimirSesion(f: any, bloques: any[], teamPlayers: any[] = []) {
   const OBJCOLORS: Record<string,string> = { 'Fuerza':'#7c3aed','Resistencia':'#d97706','Activación':'#16a34a','Velocidad':'#2563eb' }
 
   const tareasHtml = bloques.map((bl, i) => {
-    const jugN = TAREAS_CON_EQUIPO.includes(bl.ventana)
-      ? (Object.values(bl.equipos||{}).flat().length || Number(bl.jugadores) || 0)
-      : Number(bl.jugadores)
+    const jugN = getJugadoresBloque(bl, TAREAS_CON_EQUIPO.includes(bl.ventana))
     const calc = TAREAS_CON_ESPACIO.includes(bl.ventana) ? calcularDistancias(jugN, Number(bl.largo), Number(bl.ancho), Number(bl.series), Number(bl.minutos)) : null
     const cuad = calc ? getCuadrante(calc.densidad, Number(bl.atacantes) || jugN) : null
     const objColor = cuad ? (OBJCOLORS[cuad.objetivo] || '#555') : '#555'
@@ -2187,9 +2193,7 @@ function SesionEditor({ sesion, defaultFecha, onSave, onDelete, onCancel, teamPl
         let hasCarga = false
         bloques.forEach(bl => {
           if (!TAREAS_CON_ESPACIO.includes(bl.ventana)) return
-          const jugN = TAREAS_CON_EQUIPO.includes(bl.ventana)
-            ? (Object.values(bl.equipos||{}).flat().length || Number(bl.jugadores) || 0)
-            : Number(bl.jugadores)
+          const jugN = getJugadoresBloque(bl, TAREAS_CON_EQUIPO.includes(bl.ventana))
           const calc = calcularDistancias(jugN, Number(bl.largo), Number(bl.ancho), Number(bl.series), Number(bl.minutos))
           if (!calc) return
           hasCarga = true
