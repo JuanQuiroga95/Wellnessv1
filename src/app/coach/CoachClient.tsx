@@ -81,7 +81,7 @@ function compressImage(dataUrl: string, maxSize = 400, quality = 0.7): Promise<s
   })
 }
 
-const TABS = [{id:'team',label:'Equipo'},{id:'calendario',label:'📅 Calendario'},{id:'analytics',label:'Analytics'},{id:'minutos',label:'Minutaje'},{id:'control-carga-calc',label:'🏋️ Ctrl. Carga Calc'},{id:'control-carga-gps',label:'📡 Ctrl. Carga GPS'},{id:'acumulado',label:'📈 Acumulado Ind.'},{id:'cambio-carga',label:'Cambio de Carga'},{id:'expo-ai',label:'⚡ Expo. AI'},{id:'evaluaciones',label:'📋 Evaluaciones'},{id:'comparativa',label:'⚖️ Comparativa'},{id:'lesiones',label:'Lesiones'},{id:'gps',label:'📡 GPS'},{id:'players',label:'Jugadores'},{id:'biblioteca',label:'📚 Biblioteca'}]
+const TABS = [{id:'team',label:'Equipo'},{id:'calendario',label:'📅 Calendario'},{id:'analytics',label:'Analytics'},{id:'minutos',label:'Minutaje'},{id:'control-carga-calc',label:'🏋️ Ctrl. Carga Calc'},{id:'control-carga-gps',label:'📡 Ctrl. Carga GPS'},{id:'acumulado',label:'📈 Acumulado Ind.'},{id:'cambio-carga',label:'Cambio de Carga'},{id:'expo-ai',label:'⚡ Expo. AI'},{id:'evaluaciones',label:'📋 Evaluaciones'},{id:'comparativa',label:'⚖️ Comparativa'},{id:'lesiones',label:'Lesiones'},{id:'gps',label:'📡 GPS'},{id:'players',label:'Jugadores'},{id:'biblioteca',label:'📚 Biblioteca'},{id:'manual',label:'📖 Manual'}]
 const SC = {optimo:'#22c55e',precaucion:'#f59e0b',peligro:'#ef4444',sin_datos:'#555'}
 const SL = {optimo:'ÓPTIMO',precaucion:'PRECAUCIÓN',peligro:'RIESGO',sin_datos:'—'}
 const WK = ['fatiga','calidad_sueno','dolor_muscular','nivel_estres','estado_animo']
@@ -325,6 +325,8 @@ export default function CoachClient({ session, teamData, today }) {
         {tab==='comparativa' && <ComparativaPanel teamData={teamData} />}
         {tab==='lesiones' && <LesionesPanel teamData={teamData} onRefresh={()=>router.refresh()} />}
         {tab==='gps' && <GpsPanel teamData={teamData} />}
+
+        {tab==='manual' && <ManualPanel />}
 
         {tab==='players' && (
           <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
@@ -6901,6 +6903,439 @@ function EvaluacionesPanel({ teamData }: { teamData: any[] }) {
           </div>
         </div>
       )}
+    </div>
+  )
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// MANUAL DE USUARIO
+// ═══════════════════════════════════════════════════════════════════
+function ManualPanel() {
+  const [seccion, setSeccion] = useState<string>('inicio')
+
+  const SECCIONES = [
+    { id:'inicio',         label:'Inicio',               icon:'🏠' },
+    { id:'equipo',         label:'Equipo',               icon:'👥' },
+    { id:'calendario',     label:'Calendario',           icon:'📅' },
+    { id:'analytics',      label:'Analytics',            icon:'📊' },
+    { id:'minutaje',       label:'Minutaje',             icon:'⏱' },
+    { id:'ctrl-calc',      label:'Ctrl. Carga Calc',     icon:'🏋️' },
+    { id:'ctrl-gps',       label:'Ctrl. Carga GPS',      icon:'📡' },
+    { id:'acumulado',      label:'Acumulado Individual', icon:'📈' },
+    { id:'cambio-carga',   label:'Cambio de Carga',      icon:'🔄' },
+    { id:'expo-ai',        label:'Expo. Alta Intensidad',icon:'⚡' },
+    { id:'evaluaciones',   label:'Evaluaciones',         icon:'📋' },
+    { id:'comparativa',    label:'Comparativa GPS',      icon:'⚖️' },
+    { id:'lesiones',       label:'Lesiones',             icon:'🏥' },
+    { id:'gps',            label:'Importar GPS',         icon:'🛰️' },
+    { id:'jugadores',      label:'Jugadores',            icon:'🗂️' },
+    { id:'biblioteca',     label:'Biblioteca de Tareas', icon:'📚' },
+  ]
+
+  const s: Record<string, React.ReactNode> = {
+
+    inicio: (
+      <div>
+        <h2 style={{ fontFamily:'Bebas Neue,sans-serif', fontSize:38, color:'var(--lime)', marginBottom:6, letterSpacing:'0.04em' }}>Bienvenido a W&P</h2>
+        <p style={{ fontSize:13, color:'var(--silver)', lineHeight:1.7, marginBottom:20, maxWidth:680 }}>
+          W&P es una plataforma de monitoreo y planificación de carga para fútbol. Integra el control del bienestar del jugador (wellness), la planificación de sesiones, el análisis de carga interna y externa, y el seguimiento de lesiones en un solo lugar.
+        </p>
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(260px,1fr))', gap:12, marginBottom:24 }}>
+          {[
+            { icon:'👥', title:'Paso 1 — Cargá tu plantel', desc:'Andá a la pestaña "Jugadores" y creá cada jugador con su nombre, posición y correo. El correo es clave: es lo que usan para identificarse y completar el wellness diario.' },
+            { icon:'📅', title:'Paso 2 — Planificá tu semana', desc:'Usá "Calendario" para crear sesiones y partidos. Dentro de cada sesión podés armar bloques de tareas y ver la estimación de carga para cada una.' },
+            { icon:'💊', title:'Paso 3 — Monitoreá el wellness', desc:'Cada jugador completa su formulario diario desde la vista de jugador. En la pestaña "Equipo" ves en tiempo real quién respondió, y el ACWR de cada uno.' },
+            { icon:'📡', title:'Paso 4 — Importá GPS (opcional)', desc:'Si usás Catapult, exportá el Session Summary y subilo desde "GPS". El sistema detecta automáticamente a los jugadores y las variables disponibles.' },
+          ].map(item => (
+            <div key={item.title} style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:14, padding:18 }}>
+              <div style={{ fontSize:24, marginBottom:8 }}>{item.icon}</div>
+              <div style={{ fontSize:13, fontWeight:700, color:'var(--snow)', marginBottom:6 }}>{item.title}</div>
+              <div style={{ fontSize:12, color:'var(--silver)', lineHeight:1.65 }}>{item.desc}</div>
+            </div>
+          ))}
+        </div>
+        <div style={{ background:'rgba(200,241,53,.05)', border:'1px solid rgba(200,241,53,.15)', borderRadius:12, padding:16 }}>
+          <p style={{ fontSize:12, fontWeight:700, color:'var(--lime)', marginBottom:6 }}>💡 Tip de navegación</p>
+          <p style={{ fontSize:12, color:'var(--silver)', lineHeight:1.65 }}>Usá las pestañas de arriba para moverte entre secciones. Este manual está siempre disponible en la última pestaña <strong style={{ color:'var(--snow)' }}>📖 Manual</strong>. Hacé clic en cualquier sección del índice de la izquierda para ir directo al tema que necesitás.</p>
+        </div>
+      </div>
+    ),
+
+    equipo: (
+      <div>
+        <h2 style={{ fontFamily:'Bebas Neue,sans-serif', fontSize:34, color:'var(--snow)', marginBottom:4, letterSpacing:'0.04em' }}>👥 Equipo</h2>
+        <p style={{ fontSize:12, color:'var(--silver)', marginBottom:20, lineHeight:1.65 }}>Es la pantalla principal. Al entrar, ves el resumen del plantel y el estado del día. Es la primera vista que aparece al iniciar sesión.</p>
+
+        <ManualSection title="Panel de resumen superior">
+          <ManualRow label="Plantel"  desc="Número total de jugadores registrados, con desglose de disponibles, diferenciados y lesionados." />
+          <ManualRow label="Wellness Hoy" desc="Cuántos jugadores completaron el formulario de bienestar hoy. La barra de progreso se actualiza en tiempo real. Los jugadores pendientes se muestran en rojo." />
+          <ManualRow label="EN RIESGO / PRECAUCIÓN / ÓPTIMOS" desc="Cantidad de jugadores en cada categoría de ACWR (ratio carga aguda:crónica). Verde = óptimo (0.8–1.3), amarillo = precaución (1.3–1.5), rojo = riesgo (&gt;1.5 o &lt;0.8)." />
+        </ManualSection>
+
+        <ManualSection title="Lista de jugadores">
+          <ManualRow label="Punto de color" desc="Verde si el jugador completó el wellness hoy, rojo si no lo hizo todavía." />
+          <ManualRow label="Barras de wellness" desc="Las 5 barras pequeñas representan (de izquierda a derecha): Fatiga, Sueño, Dolor, Estrés y Ánimo del último registro. A más alta la barra, mayor el valor en escala 1–5." />
+          <ManualRow label="Indicador de recuperación" desc="Si la última sesión fue hace menos de 48h, aparece una etiqueta de advertencia (&lt;24h en rojo, ~48h en amarillo)." />
+          <ManualRow label="ACWR" desc="Número en grande a la derecha: es el ratio carga aguda/crónica. El color indica el estado: verde (óptimo), amarillo (precaución), rojo (riesgo)." />
+          <ManualRow label="GYM" desc="Badge verde que aparece si el jugador marcó que fue al gimnasio en su último wellness." />
+        </ManualSection>
+
+        <ManualSection title="Detalle individual">
+          <p style={{ fontSize:12, color:'var(--silver)', lineHeight:1.65, marginBottom:10 }}>Al hacer clic en un jugador, se abre su vista detallada. En la parte superior podés cambiar el ciclo de análisis entre Microciclo (7 días), Mesociclo (28 días) y Macrociclo (temporada).</p>
+          <ManualRow label="Gráfico ACWR" desc="Evolución del ratio a lo largo del ciclo seleccionado. La banda verde sombreada representa la zona óptima (0.8–1.3)." />
+          <ManualRow label="Tabla de carga" desc="Historial día a día con la carga UA de cada sesión, el ACWR calculado y el estado resultante." />
+          <ManualRow label="Último Wellness" desc="Detalle completo del último registro: barras de cada parámetro, TQR (calidad de recuperación), zona de dolor si la indicó, y si fue al gimnasio." />
+          <ManualRow label="Tendencia Wellness" desc="Gráfico de evolución de los parámetros de wellness a lo largo del tiempo." />
+          <ManualRow label="RPE — Últimas sesiones" desc="Gráfico de barras con el RPE de las últimas 12 sesiones. El color de cada barra indica la intensidad percibida." />
+        </ManualSection>
+
+        <ManualSection title="Escudo y nombre del equipo">
+          <p style={{ fontSize:12, color:'var(--silver)', lineHeight:1.65 }}>Hacé clic en el escudo para subir la imagen de tu club. Hacé clic en el nombre del equipo (ícono ✏️) para editarlo. Ambos se guardan automáticamente.</p>
+        </ManualSection>
+      </div>
+    ),
+
+    calendario: (
+      <div>
+        <h2 style={{ fontFamily:'Bebas Neue,sans-serif', fontSize:34, color:'var(--snow)', marginBottom:4, letterSpacing:'0.04em' }}>📅 Calendario</h2>
+        <p style={{ fontSize:12, color:'var(--silver)', marginBottom:20, lineHeight:1.65 }}>Permite planificar y visualizar todas las sesiones y partidos del equipo. Es el punto de partida para el control de carga: lo que planeás aquí alimenta los paneles de Ctrl. Carga Calc y Comparativa GPS.</p>
+
+        <ManualSection title="Vistas disponibles">
+          <ManualRow label="Vista Mes" desc="Muestra el mes completo en formato grilla. Cada día con eventos muestra una pastilla de color según el tipo de sesión." />
+          <ManualRow label="Vista Semana" desc="Muestra los 7 días de la semana seleccionada con más detalle por día. Ideal para revisar la distribución de cargas en el microciclo." />
+        </ManualSection>
+
+        <ManualSection title="Tipos de evento y colores">
+          <ManualRow label="⚽ Verde (Entrenamiento)" desc="Sesión de entrenamiento normal." />
+          <ManualRow label="🏆 Azul (Partido)" desc="Partido amistoso u oficial." />
+          <ManualRow label="🔄 Amarillo (Recuperación)" desc="Sesión de recuperación activa o regenerativa." />
+          <ManualRow label="😴 Gris (Descanso)" desc="Día libre sin actividad programada." />
+          <ManualRow label="⚠ Rojo (&lt;24h)" desc="Alerta automática cuando hay menos de 24 horas entre el final de un evento y el inicio del siguiente." />
+        </ManualSection>
+
+        <ManualSection title="Crear o editar una sesión">
+          <p style={{ fontSize:12, color:'var(--silver)', lineHeight:1.65, marginBottom:10 }}>Usá el botón <strong style={{ color:'var(--lime)' }}>+ Nueva sesión</strong> o hacé clic en cualquier día del calendario. Campos principales:</p>
+          <ManualRow label="Fecha / Hora" desc="Fecha de la sesión y hora de inicio/fin para calcular recuperación entre sesiones." />
+          <ManualRow label="Tipo" desc="Entrenamiento, Partido, Recuperación o Descanso." />
+          <ManualRow label="Título (MD)" desc="Etiqueta del microciclo: MD+1, MD+2, MD-4, MD-3, MD-2, MD-1, MD. Fundamental para el análisis de carga por MD." />
+          <ManualRow label="Objetivos" desc="Objetivo físico principal (Fuerza, Resistencia, Velocidad, etc.) y objetivo secundario (Táctico, Técnico, etc.)." />
+          <ManualRow label="Bloques de tareas" desc="Podés agregar múltiples tareas dentro de una sesión. Cada bloque tiene su propio tipo, series, minutos, espacio y jugadores." />
+        </ManualSection>
+
+        <ManualSection title="Calculadora de carga en bloques de tarea">
+          <p style={{ fontSize:12, color:'var(--silver)', lineHeight:1.65, marginBottom:10 }}>Cuando una tarea tiene dimensiones de espacio (Rondo, Partido reducido, Juego de posición, etc.), la calculadora se activa automáticamente y muestra:</p>
+          <ManualRow label="Objetivo de la tarea + Número" desc="Categoría según la tabla de Sangnier et al. (2018): Fuerza, Activación, Resistencia o Velocidad. El número circular (1–4) indica la intensidad dentro de esa categoría: 1 es la más intensa, 4 la menos intensa." />
+          <ManualRow label="Estimación de carga GPS" desc="Distancia total, sprint (&gt;21 km/h), alta potencia (&gt;20 W/kg), aceleraciones, deceleraciones y número de sprints, calculados en base a la densidad (m²/jugador) y el tiempo activo." />
+          <ManualRow label="✏️ Editar GPS" desc="Podés sobrescribir manualmente cualquier métrica calculada ingresando el dato real de GPS. Los valores editados se muestran en azul." />
+          <ManualRow label="Imagen de la tarea" desc="Opción para subir una foto o diagrama de la tarea. Se guarda junto a la sesión y aparece en la vista de impresión." />
+        </ManualSection>
+      </div>
+    ),
+
+    analytics: (
+      <div>
+        <h2 style={{ fontFamily:'Bebas Neue,sans-serif', fontSize:34, color:'var(--snow)', marginBottom:4, letterSpacing:'0.04em' }}>📊 Analytics</h2>
+        <p style={{ fontSize:12, color:'var(--silver)', marginBottom:20, lineHeight:1.65 }}>Panel de análisis de carga colectiva del equipo. Muestra la evolución de la carga a lo largo del tiempo para detectar tendencias, picos y períodos de descarga.</p>
+        <ManualSection title="Cómo usarlo">
+          <ManualRow label="Período" desc="Elegí el rango de fechas a analizar con los filtros Desde / Hasta." />
+          <ManualRow label="Variable" desc="Seleccioná qué métrica visualizar: UA (carga interna por RPE), RPE, o métricas GPS como distancia total, sprints, aceleraciones, etc." />
+          <ManualRow label="Vista diaria vs semanal" desc="La vista diaria muestra cada sesión. La vista semanal agrupa por semana para ver la tendencia macro." />
+          <ManualRow label="Barras del gráfico" desc="Cada barra representa el promedio del equipo para esa sesión o semana." />
+          <ManualRow label="% de cambio" desc="La columna de la derecha en la tabla muestra la variación porcentual respecto al período anterior. Verde = cambio normal (−5% a +15%), rojo = aumento alto (&gt;+15%), azul = reducción notable (&lt;−5%)." />
+        </ManualSection>
+      </div>
+    ),
+
+    minutaje: (
+      <div>
+        <h2 style={{ fontFamily:'Bebas Neue,sans-serif', fontSize:34, color:'var(--snow)', marginBottom:4, letterSpacing:'0.04em' }}>⏱ Minutaje</h2>
+        <p style={{ fontSize:12, color:'var(--silver)', marginBottom:20, lineHeight:1.65 }}>Registro acumulado de minutos jugados y entrenados por cada jugador. Permite controlar la carga por tiempo de exposición.</p>
+        <ManualSection title="Qué muestra">
+          <ManualRow label="Minutos de entrenamiento" desc="Suma de minutos participados en sesiones de entrenamiento dentro del período seleccionado." />
+          <ManualRow label="Minutos de partido" desc="Suma de minutos disputados en partidos dentro del período." />
+          <ManualRow label="Total" desc="Suma de ambas categorías. El color cambia a rojo si el total supera un umbral de alerta configurable." />
+        </ManualSection>
+        <ManualSection title="Cómo se registran los minutos">
+          <p style={{ fontSize:12, color:'var(--silver)', lineHeight:1.65 }}>Los minutos de entrenamiento se extraen de las sesiones del Calendario (series × minutos por bloque). Los minutos de partido se registran por separado desde la vista de partidos. Para que los datos sean precisos, es importante que las sesiones en Calendario tengan los tiempos correctamente cargados.</p>
+        </ManualSection>
+      </div>
+    ),
+
+    'ctrl-calc': (
+      <div>
+        <h2 style={{ fontFamily:'Bebas Neue,sans-serif', fontSize:34, color:'var(--snow)', marginBottom:4, letterSpacing:'0.04em' }}>🏋️ Control de Carga Calc</h2>
+        <p style={{ fontSize:12, color:'var(--silver)', marginBottom:20, lineHeight:1.65 }}>Muestra la carga interna del equipo calculada a partir del RPE que reporta cada jugador y de la calculadora de tareas del Calendario. No requiere GPS.</p>
+
+        <ManualSection title="Navegación por microciclo">
+          <p style={{ fontSize:12, color:'var(--silver)', lineHeight:1.65 }}>Usá las flechas ‹ › para moverte entre semanas. La semana actual aparece por defecto. Podés ver semanas pasadas para comparar.</p>
+        </ManualSection>
+
+        <ManualSection title="Cuadros que muestra">
+          <ManualRow label="Cuadro 1 — RPE individual" desc="Tabla con el RPE declarado por cada jugador en cada día del microciclo (MD+1 a MD). Las celdas en verde son valores registrados, gris = sin dato." />
+          <ManualRow label="Cuadro 2 — UA (Unidades de Carga)" desc="Carga interna calculada: RPE × minutos de sesión. Es el indicador estándar de carga interna (Foster, 1998)." />
+          <ManualRow label="Cuadro 3 — Datos de la calculadora" desc="Estimación de carga GPS calculada desde los bloques de tareas del Calendario: distancia total, sprints, aceleraciones/deceleraciones. Son los mismos valores que calcula la Calculadora de Diseño de Tareas." />
+          <ManualRow label="Cuadro 4 — % sobre el partido" desc="Compara la carga de cada sesión con la media de 3 partidos de referencia (= 100%). Para activarlo, hacé clic en 'Ingresar partidos' y seleccioná hasta 3 partidos del Calendario. Los valores GPS se cargan automáticamente." />
+        </ManualSection>
+
+        <ManualSection title="Cómo interpretar el % sobre partido">
+          <ManualRow label="Verde (&gt;80%)" desc="El entrenamiento tuvo una demanda cercana o superior a la del partido. Sesión de alta exigencia." />
+          <ManualRow label="Amarillo (50–80%)" desc="Demanda moderada respecto al partido." />
+          <ManualRow label="Rojo (&lt;50%)" desc="Entrenamiento de baja exigencia relativa. Normal en días de recuperación o MD-1." />
+        </ManualSection>
+      </div>
+    ),
+
+    'ctrl-gps': (
+      <div>
+        <h2 style={{ fontFamily:'Bebas Neue,sans-serif', fontSize:34, color:'var(--snow)', marginBottom:4, letterSpacing:'0.04em' }}>📡 Control de Carga GPS</h2>
+        <p style={{ fontSize:12, color:'var(--silver)', marginBottom:20, lineHeight:1.65 }}>Muestra los datos GPS reales de cada jugador, organizados por MD (microciclo). Requiere haber importado datos desde la pestaña "GPS". Es el complemento del Ctrl. Carga Calc con datos reales de dispositivo.</p>
+
+        <ManualSection title="Estructura de la vista">
+          <ManualRow label="Columnas MD" desc="Cada columna corresponde a un día del microciclo etiquetado (MD+1, MD+2, MD-4, MD-3, MD-2, MD-1, MD). Solo se muestran las columnas con datos importados." />
+          <ManualRow label="Filas de jugadores" desc="Cada fila es un jugador. Si no tiene datos GPS para ese MD, la celda aparece con —." />
+          <ManualRow label="Métricas disponibles" desc="Distancia total, Dist/min, High Speed Running, Vel. máxima, Nº sprints, Aceleraciones y Deceleraciones por bandas de intensidad, FC media y máxima, Zonas de FC, Player Load, Potencia Metabólica." />
+        </ManualSection>
+
+        <ManualSection title="Comparativa vs partido (Cuadro 4)">
+          <p style={{ fontSize:12, color:'var(--silver)', lineHeight:1.65, marginBottom:8 }}>Igual que en Ctrl. Carga Calc: seleccioná hasta 3 partidos de referencia para ver cada MD como porcentaje de esa demanda. El partido = 100%. Permite saber si los entrenamientos están replicando la demanda del partido.</p>
+          <ManualRow label="Color verde" desc="El valor del entrenamiento supera o iguala el del partido." />
+          <ManualRow label="Color rojo" desc="El entrenamiento está por debajo de la demanda del partido para esa variable." />
+        </ManualSection>
+
+        <ManualSection title="Gráficos de comparativa GPS">
+          <p style={{ fontSize:12, color:'var(--silver)', lineHeight:1.65 }}>Al expandir un MD, aparecen gráficos de barras agrupados por jugador mostrando las métricas más relevantes: distancias por banda de velocidad, aceleraciones/deceleraciones, y velocidad máxima como línea punteada superpuesta.</p>
+        </ManualSection>
+      </div>
+    ),
+
+    acumulado: (
+      <div>
+        <h2 style={{ fontFamily:'Bebas Neue,sans-serif', fontSize:34, color:'var(--snow)', marginBottom:4, letterSpacing:'0.04em' }}>📈 Acumulado Individual</h2>
+        <p style={{ fontSize:12, color:'var(--silver)', marginBottom:20, lineHeight:1.65 }}>Permite ver la carga acumulada de un jugador a lo largo del tiempo, comparando diferentes microciclos o períodos. Útil para detectar jugadores con subcarga crónica o sobreexposición.</p>
+        <ManualSection title="Cómo usarlo">
+          <ManualRow label="Selección de jugador" desc="Elegí el jugador desde el selector superior. Los datos se cargan automáticamente." />
+          <ManualRow label="Período" desc="Ajustá el rango de fechas para ver la evolución en distintos marcos de tiempo." />
+          <ManualRow label="Gráfico de carga acumulada" desc="Línea que muestra la suma de UA a lo largo de las sesiones del período seleccionado." />
+          <ManualRow label="ACWR individual" desc="Curva del ratio agudo:crónico del jugador, con la zona óptima sombreada en verde (0.8–1.3)." />
+        </ManualSection>
+      </div>
+    ),
+
+    'cambio-carga': (
+      <div>
+        <h2 style={{ fontFamily:'Bebas Neue,sans-serif', fontSize:34, color:'var(--snow)', marginBottom:4, letterSpacing:'0.04em' }}>🔄 Cambio de Carga</h2>
+        <p style={{ fontSize:12, color:'var(--silver)', marginBottom:20, lineHeight:1.65 }}>Muestra la variación porcentual de cualquier variable de carga (UA, RPE, o métricas GPS) de una sesión a la siguiente, o de una semana a la siguiente. Permite detectar saltos de carga peligrosos.</p>
+
+        <ManualSection title="Filtros">
+          <ManualRow label="Desde / Hasta" desc="Rango de fechas a analizar." />
+          <ManualRow label="Min. Entrenamiento" desc="Solo se incluyen jugadores que hayan participado al menos estos minutos en entrenamientos." />
+          <ManualRow label="Min. Partido" desc="Mínimo de minutos en partidos para ser incluido en el análisis." />
+          <ManualRow label="Variable" desc="Seleccioná qué métrica comparar: UA, RPE, Distancia Total, Sprints, Aceleraciones, Deceleraciones, Alta Potencia, Velocidad Máxima, Dist/min." />
+        </ManualSection>
+
+        <ManualSection title="Interpretación del % de cambio">
+          <ManualRow label="🟢 −5% a +15%" desc="Variación normal. Rango de progresión sostenible." />
+          <ManualRow label="🔴 &gt; +15%" desc="Aumento alto de carga. Riesgo de lesión si se mantiene. Revisá si hay acumulación de sesiones exigentes." />
+          <ManualRow label="🔵 &lt; −5%" desc="Reducción notable. Posible descarga planificada o ausencias. Normal en semanas post-partido o antes de competición importante." />
+        </ManualSection>
+      </div>
+    ),
+
+    'expo-ai': (
+      <div>
+        <h2 style={{ fontFamily:'Bebas Neue,sans-serif', fontSize:34, color:'var(--snow)', marginBottom:4, letterSpacing:'0.04em' }}>⚡ Exposiciones a Alta Intensidad</h2>
+        <p style={{ fontSize:12, color:'var(--silver)', marginBottom:20, lineHeight:1.65 }}>Analiza cuántas veces por semana cada jugador alcanzó umbrales de alta intensidad: velocidad máxima (≥80% de la VM en partido), High Speed Running (HSR), y aceleraciones/deceleraciones de alta intensidad. Basado en evidencia que indica que los jugadores deben exponerse al menos 3 veces por semana a estas demandas para estar preparados para el partido.</p>
+
+        <ManualSection title="Tablas disponibles">
+          <ManualRow label="Velocidad Máxima" desc="Para cada jugador, muestra la velocidad máxima alcanzada en cada MD. El umbral de referencia es el 80% de la VM promedio de partido. Si en ese MD superó el umbral, la celda se marca en verde. El objetivo semanal es alcanzar ese umbral en al menos 3 de los 5 MD de entrenamiento." />
+          <ManualRow label="High Speed Running (HSR)" desc="Suma semanal de metros recorridos a alta velocidad. Se compara con el promedio de los partidos de referencia. El ratio resultante (suma semanal / promedio partido) se interpreta como: &lt;1 = bajo, 1–1.5 = normal, &gt;1.5 = alto." />
+          <ManualRow label="Aceleraciones y Deceleraciones" desc="Tablas similares para ACC y DEC de alta intensidad (&gt;3 m/s²). Misma lógica: suma semanal vs promedio de partido." />
+        </ManualSection>
+
+        <ManualSection title="Partidos de referencia">
+          <p style={{ fontSize:12, color:'var(--silver)', lineHeight:1.65 }}>Hacé clic en <strong style={{ color:'var(--snow)' }}>🏆 Partidos referencia</strong> y seleccioná hasta 3 partidos del Calendario. El sistema carga automáticamente los datos GPS de esos partidos y calcula el promedio que se usa como referencia (= 100%). Sin partidos de referencia, las columnas de porcentaje y objetivos no están disponibles.</p>
+        </ManualSection>
+      </div>
+    ),
+
+    evaluaciones: (
+      <div>
+        <h2 style={{ fontFamily:'Bebas Neue,sans-serif', fontSize:34, color:'var(--snow)', marginBottom:4, letterSpacing:'0.04em' }}>📋 Evaluaciones</h2>
+        <p style={{ fontSize:12, color:'var(--silver)', marginBottom:20, lineHeight:1.65 }}>Registro de tests físicos individuales. Permite llevar un historial de las evaluaciones de cada jugador a lo largo de la temporada.</p>
+
+        <ManualSection title="Tests disponibles">
+          {[
+            ['PFV','Pico de Fuerza Vertical (N o kg). Test de salto con plataforma de fuerza.'],
+            ['DSI','Dynamic Strength Index. Ratio entre fuerza dinámica y fuerza isométrica máxima.'],
+            ['CMJ','Countermovement Jump (cm). Altura de salto con contramovimiento.'],
+            ['RSI','Reactive Strength Index. Índice de fuerza reactiva en saltos continuos.'],
+            ['I/Q','Ratio isquiotibiales/cuádriceps. Evaluación de equilibrio muscular.'],
+            ['Aduc. ISO','Fuerza isométrica de aductores (kg). Relacionado con prevención de lesión inguinal.'],
+            ['FMS','Functional Movement Screen. Puntuación de calidad de movimiento (máx. 21).'],
+            ['Vel. Lineal','Velocidad lineal en sprint (segundos en distancia fija).'],
+            ['Vel. Fuerza','Test de velocidad-fuerza.'],
+            ['YO-YO','Test YO-YO de resistencia intermitente. Nivel y metros alcanzados.'],
+          ].map(([t, d]) => <ManualRow key={t} label={t} desc={d} />)}
+        </ManualSection>
+
+        <ManualSection title="Cómo registrar una evaluación">
+          <p style={{ fontSize:12, color:'var(--silver)', lineHeight:1.65 }}>Hacé clic en <strong style={{ color:'var(--lime)' }}>+ Nueva Evaluación</strong>, seleccioná el jugador, la fecha, completá los tests que correspondan (no es necesario completar todos) y guardá. Cada evaluación queda registrada en la tabla histórica.</p>
+        </ManualSection>
+      </div>
+    ),
+
+    comparativa: (
+      <div>
+        <h2 style={{ fontFamily:'Bebas Neue,sans-serif', fontSize:34, color:'var(--snow)', marginBottom:4, letterSpacing:'0.04em' }}>⚖️ Comparativa GPS</h2>
+        <p style={{ fontSize:12, color:'var(--silver)', marginBottom:20, lineHeight:1.65 }}>Compara lado a lado los datos GPS reales de todos los jugadores para una sesión específica (MD). Ideal para revisar diferencias individuales dentro del mismo entrenamiento.</p>
+
+        <ManualSection title="Cómo usarlo">
+          <ManualRow label="Selección de MD" desc="Elegí el MD que querés comparar (MD-3, MD-2, etc.). Solo aparecen los MDs con datos GPS importados." />
+          <ManualRow label="Gráficos de barras por jugador" desc="Cada grupo de barras representa un jugador. Los colores corresponden a diferentes métricas GPS (distancias, aceleraciones, etc.). La línea punteada superpuesta muestra la velocidad máxima de cada jugador." />
+          <ManualRow label="Tabla de datos" desc="Debajo del gráfico, una tabla con todos los valores numéricos por jugador y por variable." />
+        </ManualSection>
+
+        <ManualSection title="Para qué sirve">
+          <p style={{ fontSize:12, color:'var(--silver)', lineHeight:1.65 }}>Permite identificar jugadores que recibieron una carga significativamente diferente al resto del grupo en la misma sesión, ya sea por mayor o menor exposición. Útil para ajustar cargas individuales en la planificación siguiente.</p>
+        </ManualSection>
+      </div>
+    ),
+
+    lesiones: (
+      <div>
+        <h2 style={{ fontFamily:'Bebas Neue,sans-serif', fontSize:34, color:'var(--snow)', marginBottom:4, letterSpacing:'0.04em' }}>🏥 Lesiones</h2>
+        <p style={{ fontSize:12, color:'var(--silver)', marginBottom:20, lineHeight:1.65 }}>Registro y seguimiento de lesiones del plantel. Los jugadores con lesión activa aparecen diferenciados en la vista Equipo con el ícono 🏥.</p>
+
+        <ManualSection title="Campos de una lesión">
+          <ManualRow label="Tipo de lesión" desc="Muscular, Articular, Ósea, Ligamentosa, Tendinosa, Contusión, Sobrecarga u Otra." />
+          <ManualRow label="Zona / Músculo" desc="Descripción de la zona anatómica afectada." />
+          <ManualRow label="Estado" desc="Cuatro etapas: Tratamiento → Readaptación → Campo → Alta. El color de la etiqueta cambia según el estado (rojo, amarillo, verde, gris)." />
+          <ManualRow label="ETA (días estimados)" desc="Estimación de días hasta el alta. Aparece en la tarjeta del jugador en la vista Equipo." />
+          <ManualRow label="Notas" desc="Campo libre para observaciones del médico o kinesiólogo." />
+        </ManualSection>
+
+        <ManualSection title="Flujo de trabajo">
+          <p style={{ fontSize:12, color:'var(--silver)', lineHeight:1.65 }}>Al registrar una lesión, el jugador se mueve automáticamente a la sección "Lesionados" de la vista Equipo. A medida que avanza en la recuperación, actualizá el estado desde esta pantalla. Al marcarlo como "Alta", vuelve a la lista de jugadores disponibles.</p>
+        </ManualSection>
+      </div>
+    ),
+
+    gps: (
+      <div>
+        <h2 style={{ fontFamily:'Bebas Neue,sans-serif', fontSize:34, color:'var(--snow)', marginBottom:4, letterSpacing:'0.04em' }}>🛰️ Importar GPS</h2>
+        <p style={{ fontSize:12, color:'var(--silver)', marginBottom:20, lineHeight:1.65 }}>Permite importar datos GPS desde Catapult OpenField en formato Excel (.xlsx) o PDF. Una vez importados, los datos están disponibles en Ctrl. Carga GPS, Expo. AI y Comparativa.</p>
+
+        <ManualSection title="Cómo exportar desde Catapult">
+          <p style={{ fontSize:12, color:'var(--silver)', lineHeight:1.65, marginBottom:8 }}>
+            En Catapult OpenField: <strong style={{ color:'var(--snow)' }}>Reports → Session Summary → Export</strong>. Podés exportar como Excel o PDF. W&P acepta ambos formatos.
+          </p>
+        </ManualSection>
+
+        <ManualSection title="Proceso de importación">
+          <ManualRow label="1. Subir archivo" desc="Arrastrá o seleccioná el archivo exportado desde Catapult." />
+          <ManualRow label="2. Vista previa" desc="El sistema detecta automáticamente los jugadores y las variables disponibles. Muestra una tabla previa con todos los datos antes de confirmar." />
+          <ManualRow label="3. Matching de jugadores" desc="W&P intenta asociar automáticamente cada nombre del archivo GPS con los jugadores del plantel. Los que no encuentre aparecen en amarillo como 'sin match'. Si esto ocurre, verificá que el nombre en Catapult coincida (o sea similar) al nombre cargado en W&P." />
+          <ManualRow label="4. Confirmar" desc="Al confirmar, los datos quedan guardados asociados a la fecha y tipo de sesión. Si ya había GPS para esa fecha y tipo, se sobreescribe." />
+          <ManualRow label="Sin vest / sin datos" desc="Los jugadores con distancia = 0 (no usaron chaleco GPS) se marcan como 'sin vest' y se omiten de la importación." />
+        </ManualSection>
+
+        <ManualSection title="Variables que se importan">
+          <p style={{ fontSize:12, color:'var(--silver)', lineHeight:1.65 }}>Distancia total, distancia por banda de velocidad (B1–B5/B6), Dist/min, High Speed Running, Velocidad máxima, Nº sprints, Aceleraciones y Deceleraciones por banda (B1–B4 y totales), Player Load, Potencia Metabólica media, Distancia equivalente, FC media/máxima y Zonas de FC.</p>
+        </ManualSection>
+      </div>
+    ),
+
+    jugadores: (
+      <div>
+        <h2 style={{ fontFamily:'Bebas Neue,sans-serif', fontSize:34, color:'var(--snow)', marginBottom:4, letterSpacing:'0.04em' }}>🗂️ Jugadores</h2>
+        <p style={{ fontSize:12, color:'var(--silver)', marginBottom:20, lineHeight:1.65 }}>Gestión del plantel: altas, bajas y edición de jugadores. Es la primera sección que debés completar antes de usar el resto de la plataforma.</p>
+
+        <ManualSection title="Crear un jugador">
+          <ManualRow label="Nombre completo" desc="Nombre con el que aparecerá en todos los paneles." />
+          <ManualRow label="Correo electrónico" desc="Imprescindible. Es la identificación del jugador para completar el wellness diario y el RPE post-sesión." />
+          <ManualRow label="Posición" desc="Portero, Defensa Central, Lateral, Mediocentro, Volante, Extremo o Delantero. Define el grupo en la vista Equipo." />
+          <ManualRow label="Foto" desc="Opcional. Podés subir una foto del jugador." />
+        </ManualSection>
+
+        <ManualSection title="Configuración de email del coach">
+          <p style={{ fontSize:12, color:'var(--silver)', lineHeight:1.65 }}>En la pestaña Jugadores también podés configurar el correo desde el que se envían las notificaciones y recordatorios a los jugadores. Es necesario configurarlo para que funcione el sistema de alertas.</p>
+        </ManualSection>
+
+        <ManualSection title="Editar o dar de baja">
+          <p style={{ fontSize:12, color:'var(--silver)', lineHeight:1.65 }}>Cada jugador tiene opciones para editar sus datos o eliminarlo del plantel. Al eliminar un jugador, sus datos históricos se conservan pero ya no aparece activo en los paneles.</p>
+        </ManualSection>
+      </div>
+    ),
+
+    biblioteca: (
+      <div>
+        <h2 style={{ fontFamily:'Bebas Neue,sans-serif', fontSize:34, color:'var(--snow)', marginBottom:4, letterSpacing:'0.04em' }}>📚 Biblioteca de Tareas</h2>
+        <p style={{ fontSize:12, color:'var(--silver)', marginBottom:20, lineHeight:1.65 }}>Permite guardar tareas para reutilizarlas fácilmente en futuras sesiones. Funciona como un catálogo de ejercicios del equipo.</p>
+
+        <ManualSection title="Guardar una tarea">
+          <p style={{ fontSize:12, color:'var(--silver)', lineHeight:1.65, marginBottom:8 }}>Hacé clic en <strong style={{ color:'var(--lime)' }}>+ Guardar Tarea</strong> y completá el nombre, tipo, jugadores, series, minutos/serie, pausa, dimensiones del espacio y descripción. El nombre es el único campo obligatorio.</p>
+        </ManualSection>
+
+        <ManualSection title="Buscar y filtrar">
+          <ManualRow label="Búsqueda por texto" desc="Filtra por nombre de tarea o tipo." />
+          <ManualRow label="Filtro por tipo" desc="Filtra por la ventana/tipo de tarea (Rondo, Juego de posesión, Partido reducido, etc.)." />
+          <ManualRow label="Ordenar" desc="Por más usadas (las que más se repitieron en sesiones) o por más recientes." />
+        </ManualSection>
+
+        <ManualSection title="Usar una tarea en sesión">
+          <p style={{ fontSize:12, color:'var(--silver)', lineHeight:1.65 }}>Hacé clic en <strong style={{ color:'var(--lime)' }}>+ Usar en sesión</strong>. Esto copia todos los datos de la tarea directamente en el formulario de sesión activo del Calendario. El contador de "veces usada" se incrementa automáticamente.</p>
+        </ManualSection>
+      </div>
+    ),
+  }
+
+  return (
+    <div style={{ display:'flex', gap:0, minHeight:600 }}>
+      {/* Sidebar */}
+      <div style={{ width:220, flexShrink:0, background:'var(--ink2)', borderRadius:16, padding:12, marginRight:20, alignSelf:'flex-start', position:'sticky', top:20 }}>
+        <p style={{ fontSize:9, fontWeight:700, color:'var(--fog)', textTransform:'uppercase', letterSpacing:'0.1em', marginBottom:10, paddingLeft:6 }}>Índice</p>
+        {SECCIONES.map(sec => (
+          <button key={sec.id} onClick={() => setSeccion(sec.id)}
+            style={{ width:'100%', display:'flex', alignItems:'center', gap:8, padding:'8px 10px', borderRadius:8, border:'none', cursor:'pointer', textAlign:'left',
+              background: seccion === sec.id ? 'rgba(200,241,53,.12)' : 'transparent',
+              color: seccion === sec.id ? 'var(--lime)' : 'var(--silver)',
+              fontSize: 12, fontWeight: seccion === sec.id ? 700 : 400,
+              borderLeft: seccion === sec.id ? '2px solid var(--lime)' : '2px solid transparent',
+              transition: 'all .1s',
+            }}
+            onMouseEnter={e => { if (seccion !== sec.id) e.currentTarget.style.background = 'rgba(255,255,255,.04)' }}
+            onMouseLeave={e => { if (seccion !== sec.id) e.currentTarget.style.background = 'transparent' }}
+          >
+            <span style={{ fontSize:14, flexShrink:0 }}>{sec.icon}</span>
+            <span style={{ lineHeight:1.3 }}>{sec.label}</span>
+          </button>
+        ))}
+      </div>
+
+      {/* Content */}
+      <div style={{ flex:1, minWidth:0, background:'var(--ink2)', borderRadius:16, padding:28 }}>
+        {s[seccion] || (
+          <div style={{ color:'var(--fog)', fontSize:14, padding:40, textAlign:'center' }}>Seleccioná una sección del índice.</div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function ManualSection({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div style={{ marginBottom:20 }}>
+      <div style={{ fontSize:11, fontWeight:700, color:'var(--lime)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:10, paddingBottom:6, borderBottom:'1px solid rgba(200,241,53,.15)' }}>{title}</div>
+      <div style={{ display:'flex', flexDirection:'column', gap:0 }}>{children}</div>
+    </div>
+  )
+}
+
+function ManualRow({ label, desc }: { label: string; desc: string }) {
+  return (
+    <div style={{ display:'flex', gap:12, padding:'8px 0', borderBottom:'1px solid rgba(255,255,255,.04)', alignItems:'flex-start' }}>
+      <span style={{ fontSize:12, fontWeight:700, color:'var(--snow)', minWidth:140, flexShrink:0 }}>{label}</span>
+      <span style={{ fontSize:12, color:'var(--silver)', lineHeight:1.65 }}>{desc}</span>
     </div>
   )
 }
