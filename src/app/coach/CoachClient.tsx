@@ -1547,15 +1547,17 @@ function getCuadrante(densidad: number, jugadores?: number) {
   let bg = 'rgba(245,158,11,.1)'
   let border = 'rgba(245,158,11,.3)'
 
-  if (densidad < 50) {
-    // <50 m²/jug: Fuerza domina en bandas A,B,C; Activación en D (8-10 jug)
+  // Clasificación según Sangnier et al (2018)
+  // Fila ≤50 incluye el límite exacto 50
+  if (densidad <= 50) {
+    // ≤50 m²/jug: Fuerza domina en A,B,C; Activación en D
     if (banda === 'D') {
       objetivo = 'Activación'; color = '#22c55e'; bg = 'rgba(34,197,94,.1)'; border = 'rgba(34,197,94,.3)'
     } else {
       objetivo = 'Fuerza'; color = '#a855f7'; bg = 'rgba(168,85,247,.1)'; border = 'rgba(168,85,247,.3)'
     }
-  } else if (densidad < 100) {
-    // 50-100 m²/jug: Fuerza domina con 5-7 jug (banda C); Activación con pocos jug; Resistencia con 8-10
+  } else if (densidad <= 100) {
+    // 50-100 m²/jug: Fuerza domina con C; Resistencia con D; Activación con A,B
     if (banda === 'C') {
       objetivo = 'Fuerza'; color = '#a855f7'; bg = 'rgba(168,85,247,.1)'; border = 'rgba(168,85,247,.3)'
     } else if (banda === 'D') {
@@ -1563,17 +1565,17 @@ function getCuadrante(densidad: number, jugadores?: number) {
     } else {
       objetivo = 'Activación'; color = '#22c55e'; bg = 'rgba(34,197,94,.1)'; border = 'rgba(34,197,94,.3)'
     }
-  } else if (densidad < 200) {
-    // 100-200 m²/jug: Resistencia domina con bandas C,D; Fuerza con A; Velocidad con B
+  } else if (densidad <= 200) {
+    // 100-200 m²/jug: Velocidad con C,D; Fuerza con A; Resistencia con B
     if (banda === 'A') {
       objetivo = 'Fuerza'; color = '#a855f7'; bg = 'rgba(168,85,247,.1)'; border = 'rgba(168,85,247,.3)'
     } else if (banda === 'B') {
-      objetivo = 'Velocidad'; color = '#3b82f6'; bg = 'rgba(59,130,246,.1)'; border = 'rgba(59,130,246,.3)'
-    } else {
       objetivo = 'Resistencia'; color = '#f59e0b'; bg = 'rgba(245,158,11,.1)'; border = 'rgba(245,158,11,.3)'
+    } else {
+      objetivo = 'Velocidad'; color = '#3b82f6'; bg = 'rgba(59,130,246,.1)'; border = 'rgba(59,130,246,.3)'
     }
   } else {
-    // >200 m²/jug: Velocidad con 5+ jug; Fuerza con 1-2; Resistencia con 3-4
+    // >200 m²/jug: Velocidad con C,D; Fuerza con A; Resistencia con B
     if (banda === 'A') {
       objetivo = 'Fuerza'; color = '#a855f7'; bg = 'rgba(168,85,247,.1)'; border = 'rgba(168,85,247,.3)'
     } else if (banda === 'B') {
@@ -1583,19 +1585,28 @@ function getCuadrante(densidad: number, jugadores?: number) {
     }
   }
 
-  // Espacio label
+  // Espacio label — depende de la banda de jugadores (Sangnier et al 2018)
+  // Banda D (8-10): Reducido <100, Medio 100-200, Grande >200
+  // Banda C (5-7):  Reducido <70,  Medio 70-125, Grande >125
+  // Banda B (3-4):  Reducido <50,  Medio 50-70,  Grande >70
+  // Banda A (1-2):  Reducido <50,  Medio 50-100, Grande >100
   let espacioLabel = ''
-  if (densidad < 50) espacioLabel = 'Espacio Reducido'
-  else if (densidad < 100) espacioLabel = 'Espacio Reducido'
-  else if (densidad < 200) espacioLabel = 'Espacio Medio'
-  else espacioLabel = 'Espacio Grande'
+  if (banda === 'D') {
+    espacioLabel = densidad < 100 ? 'Espacio Reducido' : densidad <= 200 ? 'Espacio Medio' : 'Espacio Grande'
+  } else if (banda === 'C') {
+    espacioLabel = densidad < 70 ? 'Espacio Reducido' : densidad <= 125 ? 'Espacio Medio' : 'Espacio Grande'
+  } else if (banda === 'B') {
+    espacioLabel = densidad < 50 ? 'Espacio Reducido' : densidad <= 70 ? 'Espacio Medio' : 'Espacio Grande'
+  } else {
+    espacioLabel = densidad < 50 ? 'Espacio Reducido' : densidad <= 100 ? 'Espacio Medio' : 'Espacio Grande'
+  }
 
-  // Description by objetivo
+  // Descripciones correctas por objetivo
   const descs: Record<string,string> = {
-    'Fuerza': 'Alta intensidad neuromuscular · Contactos frecuentes · Espacio muy limitado',
-    'Resistencia': 'Alta demanda aeróbica · Balance técnico-táctico · Densidad moderada',
-    'Activación': 'Activación neuromuscular · Reacciones rápidas · SSG de alta densidad',
-    'Velocidad': 'Sprints frecuentes · Distancias largas · Demanda aeróbica alta',
+    'Fuerza': 'Acciones neuromusculares · Contactos frecuentes · Espacio limitado',
+    'Resistencia': 'Alta demanda aeróbica (FC) · Balance técnico-táctico · Densidad moderada',
+    'Activación': 'Activación y recuperación · Baja exigencia · SSG de alta densidad',
+    'Velocidad': 'Demanda HSR y VHSR · Sprints frecuentes · Espacios amplios',
   }
 
   return { label: espacioLabel, objetivo, color, bg, border, desc: descs[objetivo] }
