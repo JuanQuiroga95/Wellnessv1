@@ -1538,20 +1538,37 @@ function getCuadrante(densidad: number, jugadores?: number) {
   const d = densidad
   const n = jugadores || 0
 
+  // Tabla completa incluyendo número de intensidad (Sangnier et al 2018)
+  // densidad\jug  | <=4              | <=8              | <=14             | <=20
+  // <50           | Fuerza 1         | Fuerza 2         | Act./Rec. 2      | Act./Rec. 4
+  // 50-100        | Fuerza 3         | Fuerza 4         | Act./Rec. 1      | Act./Rec. 3
+  // 100-200       | Resistencia 2    | Resistencia 4    | Velocidad 4      | Velocidad 2
+  // >=200         | Resistencia 1    | Resistencia 3    | Velocidad 3      | Velocidad 1
+  // Número: 1 = más intenso, 4 = menos intenso (dentro de su categoría)
+
   let objetivo = 'Resistencia'
+  let intensidad = 1
 
   if (d < 50) {
-    if (n <= 8) objetivo = 'Fuerza'
-    else objetivo = 'Activación'
+    if (n <= 4)       { objetivo = 'Fuerza';     intensidad = 1 }
+    else if (n <= 8)  { objetivo = 'Fuerza';     intensidad = 2 }
+    else if (n <= 14) { objetivo = 'Activación'; intensidad = 2 }
+    else              { objetivo = 'Activación'; intensidad = 4 }
   } else if (d < 100) {
-    if (n <= 8) objetivo = 'Fuerza'
-    else objetivo = 'Activación'
+    if (n <= 4)       { objetivo = 'Fuerza';     intensidad = 3 }
+    else if (n <= 8)  { objetivo = 'Fuerza';     intensidad = 4 }
+    else if (n <= 14) { objetivo = 'Activación'; intensidad = 1 }
+    else              { objetivo = 'Activación'; intensidad = 3 }
   } else if (d < 200) {
-    if (n <= 8) objetivo = 'Resistencia'
-    else objetivo = 'Velocidad'
+    if (n <= 4)       { objetivo = 'Resistencia'; intensidad = 2 }
+    else if (n <= 8)  { objetivo = 'Resistencia'; intensidad = 4 }
+    else if (n <= 14) { objetivo = 'Velocidad';   intensidad = 4 }
+    else              { objetivo = 'Velocidad';   intensidad = 2 }
   } else {
-    if (n <= 8) objetivo = 'Resistencia'
-    else objetivo = 'Velocidad'
+    if (n <= 4)       { objetivo = 'Resistencia'; intensidad = 1 }
+    else if (n <= 8)  { objetivo = 'Resistencia'; intensidad = 3 }
+    else if (n <= 14) { objetivo = 'Velocidad';   intensidad = 3 }
+    else              { objetivo = 'Velocidad';   intensidad = 1 }
   }
 
   const colorMap: Record<string,{color:string,bg:string,border:string}> = {
@@ -1572,7 +1589,7 @@ function getCuadrante(densidad: number, jugadores?: number) {
     'Velocidad':   'Demanda HSR y VHSR · Sprints frecuentes · Espacios amplios',
   }
 
-  return { label: espacioLabel, objetivo, color, bg, border, desc: descs[objetivo] }
+  return { label: espacioLabel, objetivo, intensidad, color, bg, border, desc: descs[objetivo] }
 }
 
 function getJugadoresBloque(bl: any, esConEquipo: boolean): number {
@@ -1786,6 +1803,7 @@ function BloqueMetodologia({ bloque, index, onChange, onRemove, teamPlayers = []
               <div style={{ display:'flex', alignItems:'center', gap:8, padding:'5px 8px', background:`${objColor}25`, borderRadius:6, marginBottom:4 }}>
                 <span style={{ fontSize:11, color:'var(--silver)' }}>Objetivo de la tarea:</span>
                 <span style={{ fontSize:13, fontWeight:800, color:objColor, textTransform:'uppercase', letterSpacing:'0.05em' }}>{cuad.objetivo}</span>
+                <span style={{ marginLeft:'auto', display:'flex', alignItems:'center', justifyContent:'center', width:28, height:28, borderRadius:'50%', background:objColor, color:'#fff', fontSize:15, fontWeight:900, fontFamily:'DM Mono,monospace', flexShrink:0 }} title="Intensidad (1=más intenso, 4=menos intenso)">{cuad.intensidad}</span>
               </div>
               <p style={{ fontSize:10, color:objColor, opacity:.85, margin:0, fontStyle:'italic' }}>{cuad.desc}</p>
             </div>
@@ -1896,7 +1914,7 @@ function imprimirSesion(f: any, bloques: any[], teamPlayers: any[] = []) {
       <div style="margin-top:8px;background:${objColor}15;border:1px solid ${objColor}33;border-radius:6px;padding:8px">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
           <strong style="color:${objColor};font-size:11px;text-transform:uppercase">${cuad!.label} · ${calc.densidad.toFixed(1)} m²/jug</strong>
-          <span style="font-size:12px;font-weight:800;color:${objColor};text-transform:uppercase">🎯 ${cuad!.objetivo}</span>
+          <span style="font-size:12px;font-weight:800;color:${objColor};text-transform:uppercase">🎯 ${cuad!.objetivo} <span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:${objColor};color:#fff;font-size:12px;font-weight:900;vertical-align:middle;margin-left:4px">${cuad!.intensidad}</span></span>
         </div>
         <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-top:6px">
           ${metricKeys.map((k,mi) => {
