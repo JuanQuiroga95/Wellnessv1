@@ -385,6 +385,16 @@ async function parsePdf(bytes: Uint8Array): Promise<Record<string, any>[]> {
 }
 
 // ─── PLAYER MATCHING ──────────────────────────────────────────────────────────
+function levenshtein(a: string, b: string): number {
+  const m = a.length, n = b.length
+  const dp: number[][] = Array.from({length: m+1}, (_, i) =>
+    Array.from({length: n+1}, (_, j) => i === 0 ? j : j === 0 ? i : 0))
+  for (let i = 1; i <= m; i++)
+    for (let j = 1; j <= n; j++)
+      dp[i][j] = a[i-1] === b[j-1] ? dp[i-1][j-1] : 1 + Math.min(dp[i-1][j], dp[i][j-1], dp[i-1][j-1])
+  return dp[m][n]
+}
+
 async function matchPlayers(rows: Record<string,any>[], clubId: number|null) {
   const sql = getDb()
   const jugadores = clubId ? await sql`
@@ -393,43 +403,45 @@ async function matchPlayers(rows: Record<string,any>[], clubId: number|null) {
     WHERE u.club_id = ${clubId} AND u.activo = true
   ` : []
 
+  // Build lookup maps: full name, first name (>= 3 chars), last name (>= 3 chars)
   const byNorm = new Map<string, any>()
+  const allJugadores: Array<{j: any, full: string, parts: string[]}> = []
+
   for (const j of jugadores as any[]) {
     const full = normalizeName(j.nombre)
     byNorm.set(full, j)
     const parts = full.split(' ')
-    // Only index by first/last name if >= 3 chars — avoids single-initial false matches
+    // Only index by word if >= 3 chars — single initials cause too many false matches
     if (parts[0].length >= 3 && !byNorm.has(parts[0])) byNorm.set(parts[0], j)
     if (parts.length > 1 && parts[parts.length-1].length >= 3 && !byNorm.has(parts[parts.length-1]))
       byNorm.set(parts[parts.length-1], j)
+    allJugadores.push({ j, full, parts })
   }
 
   const matched: any[] = [], unmatched: string[] = []
   for (const row of rows) {
-    // Skip rows with very short extracted names (likely parsing artifacts like "L" or "A")
+    // Skip rows with very short extracted names (parsing artifacts like lone initials)
     if (row.nombre_norm.length < 3) { unmatched.push(row.nombre_catapult); continue }
 
     let jug = null, method = null
+    const rowParts = row.nombre_norm.split(' ')
+    const rowSurname = rowParts[rowParts.length - 1]   // last word = surname
+    const rowFirst   = rowParts[0]                      // first word = initial or first name
 
     // 1. Exact full-name match
     if (byNorm.has(row.nombre_norm)) { jug = byNorm.get(row.nombre_norm); method = 'nombre' }
 
-    // 2. First-name match — only if first name >= 3 chars (avoids "M" matching any M* player)
-    if (!jug) {
-      const fn = row.nombre_norm.split(' ')[0]
-      if (fn.length >= 3 && byNorm.has(fn)) { jug = byNorm.get(fn); method = 'primer_nombre' }
+    // 2. Exact surname match (last word of catapult name vs any word in roster name)
+    if (!jug && rowSurname.length >= 3) {
+      if (byNorm.has(rowSurname)) { jug = byNorm.get(rowSurname); method = 'apellido' }
     }
 
-    // 3. Last-name match — only if last name >= 3 chars
-    if (!jug) {
-      const parts = row.nombre_norm.split(' ')
-      if (parts.length > 1) {
-        const ln = parts[parts.length - 1]
-        if (ln.length >= 3 && byNorm.has(ln)) { jug = byNorm.get(ln); method = 'apellido' }
-      }
+    // 3. Exact first-name match — only if first token >= 3 chars (not a single initial)
+    if (!jug && rowFirst.length >= 3) {
+      if (byNorm.has(rowFirst)) { jug = byNorm.get(rowFirst); method = 'primer_nombre' }
     }
 
-    // 4. Partial match — both key and row name must be >= 4 chars to avoid noise
+    // 4. Substring match — both strings must be >= 4 chars
     if (!jug) {
       for (const [k, v] of Array.from(byNorm)) {
         if (k.length >= 4 && row.nombre_norm.length >= 4 &&
@@ -437,6 +449,26 @@ async function matchPlayers(rows: Record<string,any>[], clubId: number|null) {
           jug = v; method = 'parcial'; break
         }
       }
+    }
+
+    // 5. Fuzzy surname match (Levenshtein) — for transliteration differences
+    //    e.g. "Doshi" vs "Doshy", "Cherif" vs "Chariff", "Meghren" vs "Magren"
+    //    Threshold: distance <= 2 for surnames >= 5 chars; distance <= 1 for 4-char surnames
+    if (!jug && rowSurname.length >= 4) {
+      let bestDist = 999, bestJ = null
+      for (const {j: candidate, full, parts} of allJugadores) {
+        // Compare row surname against every word in roster player's name
+        for (const word of parts) {
+          if (word.length < 4) continue
+          const dist = levenshtein(rowSurname, word)
+          const threshold = rowSurname.length >= 5 ? 2 : 1
+          if (dist <= threshold && dist < bestDist) {
+            bestDist = dist
+            bestJ = candidate
+          }
+        }
+      }
+      if (bestJ) { jug = bestJ; method = 'fuzzy' }
     }
 
     if (jug) matched.push({ ...row, jugador_id: jug.id, jugador_nombre: jug.nombre, match_method: method })
