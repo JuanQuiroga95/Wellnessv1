@@ -149,7 +149,21 @@ function parsePdfRowFormat(lines: string[]): Record<string, any>[] | null {
 
   const results: Record<string, any>[] = []
 
-  for (const line of lines) {
+  // Pre-merge lines: pdf-parse sometimes splits "L Luvannor ST 4685..." into
+  // "L" on one line and "Luvannor ST 4685..." on the next.
+  // Merge any orphan initial (1-2 char line) with the following line.
+  const mergedLines: string[] = []
+  for (let i = 0; i < lines.length; i++) {
+    const cur = lines[i].trim()
+    if (cur.length <= 2 && /^[A-Z]$/.test(cur) && i + 1 < lines.length) {
+      mergedLines.push(cur + ' ' + lines[i + 1].trim())
+      i++ // skip next line since we merged it
+    } else {
+      mergedLines.push(cur)
+    }
+  }
+
+  for (const line of mergedLines) {
     if (!line.trim() || !posDetect.test(line)) continue
 
     // ── Strategy 1: space-separated (ideal pdf-parse output) ──
@@ -171,6 +185,9 @@ function parsePdfRowFormat(lines: string[]): Record<string, any>[] | null {
     }
 
     if (!name || !rest) continue
+
+    // Skip rows where name is only 1-2 chars (orphan initial that wasn't merged, or artifact)
+    if (name.replace(/\s/g, '').length < 3) continue
 
     // Skip summary rows (Total, Moyenne, etc.)
     const nameNorm = name.toLowerCase().replace(/[^a-z]/g, '')
@@ -381,24 +398,47 @@ async function matchPlayers(rows: Record<string,any>[], clubId: number|null) {
     const full = normalizeName(j.nombre)
     byNorm.set(full, j)
     const parts = full.split(' ')
-    if (!byNorm.has(parts[0])) byNorm.set(parts[0], j)
-    if (parts.length > 1 && !byNorm.has(parts[parts.length-1]))
+    // Only index by first/last name if >= 3 chars — avoids single-initial false matches
+    if (parts[0].length >= 3 && !byNorm.has(parts[0])) byNorm.set(parts[0], j)
+    if (parts.length > 1 && parts[parts.length-1].length >= 3 && !byNorm.has(parts[parts.length-1]))
       byNorm.set(parts[parts.length-1], j)
   }
 
   const matched: any[] = [], unmatched: string[] = []
   for (const row of rows) {
+    // Skip rows with very short extracted names (likely parsing artifacts like "L" or "A")
+    if (row.nombre_norm.length < 3) { unmatched.push(row.nombre_catapult); continue }
+
     let jug = null, method = null
+
+    // 1. Exact full-name match
     if (byNorm.has(row.nombre_norm)) { jug = byNorm.get(row.nombre_norm); method = 'nombre' }
+
+    // 2. First-name match — only if first name >= 3 chars (avoids "M" matching any M* player)
     if (!jug) {
       const fn = row.nombre_norm.split(' ')[0]
-      if (byNorm.has(fn)) { jug = byNorm.get(fn); method = 'primer_nombre' }
+      if (fn.length >= 3 && byNorm.has(fn)) { jug = byNorm.get(fn); method = 'primer_nombre' }
     }
+
+    // 3. Last-name match — only if last name >= 3 chars
     if (!jug) {
-      for (const [k, v] of Array.from(byNorm)) {
-        if (k.includes(row.nombre_norm) || row.nombre_norm.includes(k)) { jug = v; method = 'parcial'; break }
+      const parts = row.nombre_norm.split(' ')
+      if (parts.length > 1) {
+        const ln = parts[parts.length - 1]
+        if (ln.length >= 3 && byNorm.has(ln)) { jug = byNorm.get(ln); method = 'apellido' }
       }
     }
+
+    // 4. Partial match — both key and row name must be >= 4 chars to avoid noise
+    if (!jug) {
+      for (const [k, v] of Array.from(byNorm)) {
+        if (k.length >= 4 && row.nombre_norm.length >= 4 &&
+            (k.includes(row.nombre_norm) || row.nombre_norm.includes(k))) {
+          jug = v; method = 'parcial'; break
+        }
+      }
+    }
+
     if (jug) matched.push({ ...row, jugador_id: jug.id, jugador_nombre: jug.nombre, match_method: method })
     else unmatched.push(row.nombre_catapult)
   }
