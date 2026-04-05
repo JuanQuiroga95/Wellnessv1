@@ -92,6 +92,25 @@ const CATAPULT_COL_ORDER = [
   'n_sprints','acc2','dec2','max_velocity',
 ]
 
+// Row-format column headers (Catapult "DATA BASE" / OpenField report style)
+// Columns: Name, Position, TotDist, MeteragePerMin, 15-20km/h, 20/25km/h, SprintDist, NumSprints, HSR(>19.7), AccB2-3, DecelB2-3, TotPL, TotDur, MaxVel
+const ROW_COL_ORDER = [
+  null,          // Name (extracted separately)
+  null,          // Position (skip)
+  'dist_total',
+  'dist_per_min',
+  'dist_v4',     // 15-20 km/h
+  'dist_hir',    // 20/25 km/h  
+  'dist_v5',     // Sprint distance
+  'n_sprints',
+  null,          // HSR (>19.7) — same as dist_hir, skip to avoid overwrite
+  'acc2',
+  'dec2',
+  'player_load',
+  null,          // Duration (HH:MM:SS, skip)
+  'max_velocity',
+]
+
 function cleanCatapultName(raw: string): string {
   // "ALBERTO RUBIO ALBERTO R." → "ALBERTO RUBIO"
   // "KIKO KIKO" → "KIKO"
@@ -110,133 +129,241 @@ function cleanCatapultName(raw: string): string {
   return raw.trim()
 }
 
+// ── Row-based parser: handles Catapult "DATA BASE RAPPORT OPENFIELD" format ──
+// This format has one row per player: Name Pos TotDist MeterPerMin 15-20 20-25 SprintDist NumSprints HSR Acc Dec PL Duration MaxVel
+// pdf-parse may or may not preserve spaces between fields.
+function parsePdfRowFormat(lines: string[]): Record<string, any>[] | null {
+  const POS_CODES = ['CAM','CDM','LB','RB','LW','RW','WB','CB','CM','ST','FB','GK','CF','AM','DM','LM','RM','W']
+  const posPattern = new RegExp(`(?:^|\\s)(${POS_CODES.join('|')})(?=\\d|\\s)`)
+  const posDetect  = new RegExp(POS_CODES.join('|'))
+
+  // Space-separated fields after position code:
+  // [0] TotDist  [1] MeterPerMin  [2] 15-20km/h  [3] 20/25km/h
+  // [4] SprintDist  [5] NumSprints  [6] HSR(>19.7)
+  // [7] AccB2-3  [8] DecelB2-3  [9] TotPL  [10] Duration(HH:MM:SS)  [11] MaxVel
+  const FIELD_MAP = [
+    'dist_total', 'dist_per_min', 'dist_v4', 'dist_hir',
+    'dist_v5', 'n_sprints', null,
+    'acc2', 'dec2', 'player_load', null, 'max_velocity'
+  ]
+
+  const results: Record<string, any>[] = []
+
+  for (const line of lines) {
+    if (!line.trim() || !posDetect.test(line)) continue
+
+    // ── Strategy 1: space-separated (ideal pdf-parse output) ──
+    const parts = line.trim().split(/\s+/)
+    let posIdx = parts.findIndex(p => POS_CODES.includes(p))
+
+    // ── Strategy 2: position code is glued to name (e.g. "R SilvaCB5563...") ──
+    let name = ''
+    let rest = ''
+    if (posIdx >= 0) {
+      name = parts.slice(0, posIdx).join(' ')
+      rest = parts.slice(posIdx + 1).join(' ')
+    } else {
+      // Find position code embedded in a token
+      const m = line.match(new RegExp(`^(.+?)(${POS_CODES.join('|')})(.+)$`))
+      if (!m) continue
+      name = m[1].trim()
+      rest = m[3].trim()
+    }
+
+    if (!name || !rest) continue
+
+    // Skip summary rows (Total, Moyenne, etc.)
+    const nameNorm = name.toLowerCase().replace(/[^a-z]/g, '')
+    if (['total','moyenne','average','promedio'].includes(nameNorm)) continue
+
+    // ── Parse values from rest ──
+    // rest may be space-separated or fully merged
+    const spaceParts = rest.trim().split(/\s+/)
+    // A valid row has at least 10+ numeric-ish tokens
+    const metricas: Record<string, number> = {}
+
+    if (spaceParts.length >= 10) {
+      // Space-separated: straightforward mapping
+      for (let i = 0; i < spaceParts.length && i < FIELD_MAP.length; i++) {
+        const field = FIELD_MAP[i]
+        if (!field) continue
+        // Skip duration field (HH:MM:SS)
+        if (/^\d{1,2}:\d{2}:\d{2}$/.test(spaceParts[i])) continue
+        const val = parseFloat(spaceParts[i].replace(',', '.'))
+        if (!isNaN(val)) metricas[field] = val
+      }
+    } else {
+      // Merged: use structural parsing
+      // Remove spaces and parse by known structure from both ends
+      const merged = rest.replace(/\s/g, '')
+      // TotDist is 4 digits, MeterPerMin is XX.XX
+      const structM = merged.match(/^(\d{4})(\d{2}\.\d{2})(.+?)(\d{2}:\d{2}:\d{2}|\d{2}:\d{2})(\d{2})$/)
+      if (!structM) continue
+
+      metricas['dist_total']   = parseInt(structM[1], 10)
+      metricas['dist_per_min'] = parseFloat(structM[2])
+      metricas['max_velocity'] = parseInt(structM[5], 10)
+
+      const mid = structM[3]
+      // From right: player_load(3) + dec(1-2) + acc(2) + hsr(1-3) = variable
+      // Reliable fixed suffix: player_load is always 3 digits (100-999 range in this dataset)
+      // acc is always 2 digits (10-99), dec can be 1-2 digits
+      // Try pl(3)+dec(2)+acc(2) = 7 from right first, then check if it makes sense
+      if (mid.length >= 7) {
+        const pl  = parseInt(mid.slice(-3), 10)
+        const dec = parseInt(mid.slice(-5, -3), 10)
+        const acc = parseInt(mid.slice(-7, -5), 10)
+        const front = mid.slice(0, -7) // dist_v4(3) + dist_hir(1-3) + sprint fields
+
+        if (!isNaN(pl) && pl >= 100 && pl <= 999 &&
+            !isNaN(acc) && acc >= 5 && acc <= 99 &&
+            !isNaN(dec) && dec >= 0) {
+          metricas['player_load'] = pl
+          metricas['dec2'] = dec
+          metricas['acc2'] = acc
+
+          // front: dist_v4(3) + dist_hir(variable) + sprintDist(var) + numSprints(var) + hsr(var)
+          // dist_v4 is always 3 digits (100-999m for active players)
+          if (front.length >= 3) {
+            metricas['dist_v4'] = parseInt(front.slice(0, 3), 10)
+            // remaining: dist_hir + sprint fields + hsr(2-3 digits before acc)
+            // hsr is the value right before acc in the column, but here we've already consumed acc
+            // Actually looking at column order: ...HSR, Acc, Dec, PL
+            // So hsr IS the 3 chars before acc (already in the remaining -7 slice)
+            // Let me re-examine: mid ends with hsr(3)+acc(2)+dec(2)+pl(3)?
+            // No! Column order: HSR | Acc | Dec | PL
+            // So from RIGHT: pl(3) dec(2) acc(2) hsr(1-3) = variable
+            // But I put pl,dec,acc together... hsr is BEFORE acc
+            // Let me reparse: rightmost 3=PL, next 2=Dec, next 2=Acc
+            // That leaves: dist_v4(3) + dist_hir(var) + sprintDist(var) + numSprints(var) + hsr(var)
+            // front = everything before the last 7 chars
+            // front contains: dist_v4 + dist_hir + sprintDist + numSprints + hsr
+            // We can't reliably split these without knowing individual widths
+            // Best effort: dist_v4 is first 3, then try to find hsr at the end
+            const afterV4 = front.slice(3)
+            // hsr + sprintDist + numSprints are the remaining fields
+            // In this dataset, numSprints is always 0 or 1 digit (0-6)
+            // sprintDist is 0-51m
+            // hsr is 0-209m
+            // These can't be unambiguously split when merged
+            // Best effort: leave dist_hir, dist_v5, n_sprints out for merged format
+          }
+        }
+      }
+    }
+
+    if (Object.values(metricas).some((v: number) => v > 0)) {
+      const cleanName = cleanCatapultName(name)
+      results.push({ nombre_catapult: cleanName, nombre_norm: normalizeName(cleanName), metricas })
+    }
+  }
+
+  return results.length > 0 ? results : null
+}
+
 async function parsePdf(bytes: Uint8Array): Promise<Record<string, any>[]> {
+  // Use pdf-parse (pure Node.js, works in Vercel serverless)
   const pdfParse = (await import('pdf-parse')).default
   const data = await pdfParse(Buffer.from(bytes))
   const rawText: string = data.text
 
-  // ── APPROACH 1: Row-based (pypdf / newer pdf-parse) ──────────────────────────
-  // Each player on one line: "R Silva CB 5563 73.06 505 113 0 0 133 65 48 649 01:16:08 24"
-  const tryRowBased = (): Record<string, any>[] => {
-    const lines = rawText.split('\n').map((l: string) => l.trim()).filter(Boolean)
-    const SKIP = ['total', 'moyenne', 'average', 'promedio', 'media',
-                  'page', 'data', 'rapport', 'position', 'cuadro', 'md']
-    const out: Record<string, any>[] = []
-    for (const line of lines) {
-      const parts = line.split(/\s+/)
-      if (parts.length < 8) continue
-      const firstNorm = normStr(parts[0])
-      if (SKIP.some((p: string) => firstNorm.startsWith(p))) continue
-      if (/^\d+$/.test(parts[0]) || /^\d{2}\/\d{2}\/\d{4}/.test(parts[0])) continue
-      // Find position abbrev (all-caps 1-5 chars) within first 5 words
-      let posIdx = -1
-      for (let i = 1; i < Math.min(6, parts.length); i++) {
-        if (/^[A-Z]{1,5}$/.test(parts[i])) { posIdx = i; break }
-      }
-      if (posIdx === -1) continue
-      const name = parts.slice(0, posIdx).join(' ')
-      if (!name || normStr(name).length < 2) continue
-      // Numbers after position, skip HH:MM:SS
-      const numStrs = parts.slice(posIdx + 1).filter((p: string) => !/^\d{1,2}:\d{2}/.test(p))
-      const nums = numStrs.map((p: string) => parseFloat(p.replace(',', '.'))).filter((n: number) => !isNaN(n))
-      if (nums.length < 8) continue
-      const set = (k: string, v: number | undefined) => { if (v !== undefined && !isNaN(v)) metricas[k] = v }
-      const metricas: Record<string, number> = {}
-      set('dist_total',   nums[0])
-      set('dist_per_min', nums[1])
-      set('dist_v4',      nums[2])
-      set('dist_v5',      nums[4])
-      set('n_sprints',    nums[5])
-      set('dist_hir',     nums[6])
-      set('acc2',         nums[7])
-      set('dec2',         nums[8])
-      set('player_load',  nums[9])
-      set('max_velocity', nums[10])
-      if (Object.values(metricas).some(v => v > 0))
-        out.push({ nombre_catapult: name, nombre_norm: normalizeName(name), metricas })
-    }
-    return out
-  }
-
-  // ── APPROACH 2: Columnar-based (classic pdf-parse extraction) ─────────────────
-  // All names stacked first, then summary rows (Total/Moyenne/Promedio), then data blocks
-  const tryColumnar = (): Record<string, any>[] => {
-    let pageText = rawText
-    if (rawText.includes('\f')) {
-      const pages = rawText.split('\f')
-      for (const p of pages) {
-        const ln = normStr(p)
-        if (ln.includes('cuadro resumen') || ln.includes('data base') ||
-            ln.includes('tot dist') || ln.includes('meterage per')) { pageText = p; break }
+  // Find the section containing the Cuadro Resumen
+  let pageText = rawText
+  // If multiple pages, find the one with the data table
+  if (rawText.includes('\f')) {
+    const pages = rawText.split('\f')
+    for (const p of pages) {
+      const ln = normStr(p)
+      if (ln.includes('cuadro resumen') || ln.includes('tot dist') || ln.includes('meterage per') || ln.includes('data base')) {
+        pageText = p; break
       }
     }
-    const lines = pageText.split('\n').map((l: string) => l.trim()).filter(Boolean)
-    const SUMMARY = ['promedio', 'moyenne', 'total', 'average', 'media']
-    const names: string[] = []
-    let summaryIdx = -1
-    for (let i = 0; i < lines.length; i++) {
-      const s = lines[i].trim()
-      if (SUMMARY.includes(normStr(s))) { summaryIdx = i; break }
-      if (/^PAGE \d+/i.test(s) || /^\d{2}\/\d{2}\/\d{4}/.test(s)) continue
-      // Skip header words (no digits, short lines with known column header terms)
-      const ln = normStr(s)
-      if (['position','pos','cb','cm','fb','st','w','gk','lm','rm'].includes(ln)) continue
-      if (s) names.push(s)
-    }
-    if (summaryIdx === -1 || names.length === 0) return []
-    const nPlayers = names.length
-    const nTotalPerCol = nPlayers + 2
-    type Token = { type: 'text' | 'num'; val: any }
-    const tokens: Token[] = []
-    for (let i = summaryIdx + 1; i < lines.length; i++) {
-      const line = lines[i].trim()
-      if (!line) continue
-      const ln = normStr(line)
-      if (['md','cuadro resumen','data base'].includes(ln)) continue
-      if (/^\d{2}\/\d{2}\/\d{4}/.test(line) || /^page\s+\d+/i.test(ln)) continue
-      const m = line.match(/^(.*?)(\d[\d,.]*)$/)
-      if (m) {
-        const txt = m[1].trim()
-        const num = parseFloat(m[2].replace(',', '.'))
-        if (txt) tokens.push({ type: 'text', val: txt })
-        tokens.push({ type: 'num', val: num })
-      } else { tokens.push({ type: 'text', val: line }) }
-    }
-    const blocks: Array<{ label: string; values: number[] }> = []
-    let curLabel = '', curValues: number[] = []
-    const flush = () => { if (curValues.length > 0) blocks.push({ label: curLabel.trim(), values: [...curValues] }); curLabel = ''; curValues = [] }
-    for (const tok of tokens) {
-      if (tok.type === 'text') { if (curValues.length > 0) flush(); curLabel = (curLabel + ' ' + tok.val).trim() }
-      else { curValues.push(tok.val); if (curValues.length === nTotalPerCol) flush() }
-    }
-    flush()
-    if (blocks.length === 0) return []
-    const COL_ORDER = ['dist_total','dist_per_min','dist_v4','dist_hir','dist_v5','n_sprints','acc2','dec2','max_velocity']
-    const out: Record<string, any>[] = []
-    for (let pi = 0; pi < nPlayers; pi++) {
-      const cleanName = cleanCatapultName(names[pi])
-      const metricas: Record<string, number> = {}
-      for (let bi = 0; bi < blocks.length; bi++) {
-        const field = bi < COL_ORDER.length ? COL_ORDER[bi] : `col_${bi}`
-        const val = blocks[bi].values[pi]
-        if (val !== undefined && !isNaN(val)) metricas[field] = val
-      }
-      if (Object.values(metricas).some(v => v > 0))
-        out.push({ nombre_catapult: cleanName, nombre_norm: normalizeName(cleanName), metricas })
-    }
-    return out
   }
 
-  // Try row-based first, fall back to columnar
-  let results = tryRowBased()
-  if (results.length === 0) results = tryColumnar()
+  const lines = pageText.split('\n').map((l: string) => l.trim()).filter(Boolean)
 
-  if (results.length === 0) {
-    // Include first 500 chars of extracted text to help debugging
-    const preview = rawText.replace(/\n/g, ' | ').slice(0, 500)
-    throw new Error(`No se encontraron jugadores en el PDF. Verificá que sea el Cuadro Resumen de Catapult. [DEBUG texto: ${preview}]`)
+  // ── Try row-based format first (DATA BASE / OpenField style) ──
+  const rowResults = parsePdfRowFormat(lines)
+  if (rowResults && rowResults.length > 0) return rowResults
+
+  // ── Fall back to columnar format (standard Cuadro Resumen) ──
+  // Extract player names (lines before "Promedio")
+  const names: string[] = []
+  let promedio_idx = -1
+  for (let i = 0; i < lines.length; i++) {
+    const s = lines[i].trim()
+    if (normStr(s) === 'promedio') { promedio_idx = i; break }
+    if (/^PAGE \d+/i.test(s) || /^\d{2}\/\d{2}\/\d{4}/.test(s)) continue
+    if (s) names.push(s)
   }
 
+  if (promedio_idx === -1 || names.length === 0)
+    throw new Error('No se encontraron jugadores en el PDF. Verificá que sea el Cuadro Resumen de Catapult. [DEBUG texto: ' + lines.slice(0, 30).join(' | ') + ']')
+
+  const nPlayers = names.length
+  const nTotalPerCol = nPlayers + 2 // players + Promedio + Max
+
+  // ── Tokenize data section (after "Promedio") ──
+  type Token = { type: 'text' | 'num'; val: any }
+  const tokens: Token[] = []
+
+  for (let i = promedio_idx + 1; i < lines.length; i++) {
+    const line = lines[i].trim()
+    if (!line) continue
+    const ln = normStr(line)
+    if (ln === 'md' || ln === 'cuadro resumen') continue
+    if (/^\d{2}\/\d{2}\/\d{4}/.test(line)) continue
+    if (/^j\d+\s+vs\s+/i.test(ln)) continue
+    if (/^page\s+\d+/i.test(ln)) continue
+
+    const m = line.match(/^(.*?)(\d[\d,.]*)$/)
+    if (m) {
+      const txt = m[1].trim()
+      const num = parseFloat(m[2].replace(',', '.'))
+      if (txt) tokens.push({ type: 'text', val: txt })
+      tokens.push({ type: 'num', val: num })
+    } else {
+      tokens.push({ type: 'text', val: line })
+    }
+  }
+
+  // ── Group into blocks (text_label + nTotalPerCol numbers) ──
+  const blocks: Array<{ label: string; values: number[] }> = []
+  let curLabel = ''
+  let curValues: number[] = []
+
+  const flush = () => {
+    if (curValues.length > 0) blocks.push({ label: curLabel.trim(), values: [...curValues] })
+    curLabel = ''; curValues = []
+  }
+
+  for (const tok of tokens) {
+    if (tok.type === 'text') {
+      if (curValues.length > 0) flush()
+      curLabel = (curLabel + ' ' + tok.val).trim()
+    } else {
+      curValues.push(tok.val)
+      if (curValues.length === nTotalPerCol) flush()
+    }
+  }
+  flush()
+
+  if (blocks.length === 0)
+    throw new Error('No se encontraron datos numéricos en el PDF.')
+
+  // ── Map blocks to fields (col order: block[i].values = CATAPULT_COL_ORDER[i]) ──
+  const results: Record<string, any>[] = []
+  for (let pi = 0; pi < nPlayers; pi++) {
+    const cleanName = cleanCatapultName(names[pi])
+    const metricas: Record<string, number> = {}
+    for (let bi = 0; bi < blocks.length; bi++) {
+      const field = bi < CATAPULT_COL_ORDER.length ? CATAPULT_COL_ORDER[bi] : `col_${bi}`
+      const val = blocks[bi].values[pi]
+      if (val !== undefined && !isNaN(val)) metricas[field] = val
+    }
+    if (Object.values(metricas).some(v => v > 0))
+      results.push({ nombre_catapult: cleanName, nombre_norm: normalizeName(cleanName), metricas })
+  }
   return results
 }
 
