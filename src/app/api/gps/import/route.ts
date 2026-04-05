@@ -111,68 +111,131 @@ function cleanCatapultName(raw: string): string {
 }
 
 async function parsePdf(bytes: Uint8Array): Promise<Record<string, any>[]> {
-  // Use pdf-parse (pure Node.js, works in Vercel serverless)
   const pdfParse = (await import('pdf-parse')).default
   const data = await pdfParse(Buffer.from(bytes))
   const rawText: string = data.text
 
-  // pdf-parse extracts Catapult PDFs row-by-row. Each player appears on one line:
-  // "R Silva CB 5563 73.06 505 113 0 0 133 65 48 649 01:16:08 24"
-  // Columns after Name+Position: TotDist, MetPerMin, 15-20km/h, 20-25km/h,
-  //   SprintDist, NumSprints, HSR(>19.7), AccB2-3, DecelB2-3, TotPL, TotDur, MaxVel
-  const lines = rawText.split('\n').map((l: string) => l.trim()).filter(Boolean)
-
-  const SKIP_STARTS = ['total', 'moyenne', 'average', 'promedio', 'media',
-                       'page', 'data', 'rapport', 'position', 'cuadro', 'md']
-
-  const results: Record<string, any>[] = []
-
-  for (const line of lines) {
-    const parts = line.split(/\s+/)
-    if (parts.length < 6) continue
-
-    const firstNorm = normStr(parts[0])
-    if (SKIP_STARTS.some((p: string) => firstNorm.startsWith(p))) continue
-    // Skip pure-number lines and date lines
-    if (/^\d+$/.test(parts[0]) || /^\d{2}\/\d{2}\/\d{4}/.test(parts[0])) continue
-
-    // Find position abbreviation (all-uppercase, 1-5 chars) within first 4 words
-    let posIdx = -1
-    for (let i = 1; i < Math.min(5, parts.length); i++) {
-      if (/^[A-Z]{1,5}$/.test(parts[i])) { posIdx = i; break }
+  // ── APPROACH 1: Row-based (pypdf / newer pdf-parse) ──────────────────────────
+  // Each player on one line: "R Silva CB 5563 73.06 505 113 0 0 133 65 48 649 01:16:08 24"
+  const tryRowBased = (): Record<string, any>[] => {
+    const lines = rawText.split('\n').map((l: string) => l.trim()).filter(Boolean)
+    const SKIP = ['total', 'moyenne', 'average', 'promedio', 'media',
+                  'page', 'data', 'rapport', 'position', 'cuadro', 'md']
+    const out: Record<string, any>[] = []
+    for (const line of lines) {
+      const parts = line.split(/\s+/)
+      if (parts.length < 8) continue
+      const firstNorm = normStr(parts[0])
+      if (SKIP.some((p: string) => firstNorm.startsWith(p))) continue
+      if (/^\d+$/.test(parts[0]) || /^\d{2}\/\d{2}\/\d{4}/.test(parts[0])) continue
+      // Find position abbrev (all-caps 1-5 chars) within first 5 words
+      let posIdx = -1
+      for (let i = 1; i < Math.min(6, parts.length); i++) {
+        if (/^[A-Z]{1,5}$/.test(parts[i])) { posIdx = i; break }
+      }
+      if (posIdx === -1) continue
+      const name = parts.slice(0, posIdx).join(' ')
+      if (!name || normStr(name).length < 2) continue
+      // Numbers after position, skip HH:MM:SS
+      const numStrs = parts.slice(posIdx + 1).filter((p: string) => !/^\d{1,2}:\d{2}/.test(p))
+      const nums = numStrs.map((p: string) => parseFloat(p.replace(',', '.'))).filter((n: number) => !isNaN(n))
+      if (nums.length < 8) continue
+      const set = (k: string, v: number | undefined) => { if (v !== undefined && !isNaN(v)) metricas[k] = v }
+      const metricas: Record<string, number> = {}
+      set('dist_total',   nums[0])
+      set('dist_per_min', nums[1])
+      set('dist_v4',      nums[2])
+      set('dist_v5',      nums[4])
+      set('n_sprints',    nums[5])
+      set('dist_hir',     nums[6])
+      set('acc2',         nums[7])
+      set('dec2',         nums[8])
+      set('player_load',  nums[9])
+      set('max_velocity', nums[10])
+      if (Object.values(metricas).some(v => v > 0))
+        out.push({ nombre_catapult: name, nombre_norm: normalizeName(name), metricas })
     }
-    if (posIdx === -1) continue
-
-    const name = parts.slice(0, posIdx).join(' ')
-    if (!name || normStr(name).length < 2) continue
-
-    // Extract numbers after position; skip time strings like "01:16:08"
-    const numStrs = parts.slice(posIdx + 1).filter((p: string) => !/^\d{1,2}:\d{2}/.test(p))
-    const nums = numStrs.map((p: string) => parseFloat(p.replace(',', '.'))).filter((n: number) => !isNaN(n))
-    if (nums.length < 5) continue
-
-    // Map to DB fields:
-    // [0]=TotDist [1]=MetPerMin [2]=15-20km/h [3]=20-25km/h [4]=SprintDist
-    // [5]=NumSprints [6]=HSR>19.7 [7]=AccB2-3 [8]=DecelB2-3 [9]=TotPL [10]=MaxVel
-    const metricas: Record<string, number> = {}
-    const set = (k: string, v: number | undefined) => { if (v !== undefined && !isNaN(v)) metricas[k] = v }
-    set('dist_total',   nums[0])
-    set('dist_per_min', nums[1])
-    set('dist_v4',      nums[2])   // 15-20 km/h band
-    set('dist_v5',      nums[4])   // Sprint distance
-    set('n_sprints',    nums[5])
-    set('dist_hir',     nums[6])   // High Speed Running >19.7 km/h
-    set('acc2',         nums[7])
-    set('dec2',         nums[8])
-    set('player_load',  nums[9])
-    set('max_velocity', nums[10])  // MaxVel (TotDur filtered out above)
-
-    if (Object.values(metricas).some(v => v > 0))
-      results.push({ nombre_catapult: name, nombre_norm: normalizeName(name), metricas })
+    return out
   }
 
-  if (results.length === 0)
-    throw new Error('No se encontraron jugadores en el PDF. Verificá que sea el Cuadro Resumen de Catapult.')
+  // ── APPROACH 2: Columnar-based (classic pdf-parse extraction) ─────────────────
+  // All names stacked first, then summary rows (Total/Moyenne/Promedio), then data blocks
+  const tryColumnar = (): Record<string, any>[] => {
+    let pageText = rawText
+    if (rawText.includes('\f')) {
+      const pages = rawText.split('\f')
+      for (const p of pages) {
+        const ln = normStr(p)
+        if (ln.includes('cuadro resumen') || ln.includes('data base') ||
+            ln.includes('tot dist') || ln.includes('meterage per')) { pageText = p; break }
+      }
+    }
+    const lines = pageText.split('\n').map((l: string) => l.trim()).filter(Boolean)
+    const SUMMARY = ['promedio', 'moyenne', 'total', 'average', 'media']
+    const names: string[] = []
+    let summaryIdx = -1
+    for (let i = 0; i < lines.length; i++) {
+      const s = lines[i].trim()
+      if (SUMMARY.includes(normStr(s))) { summaryIdx = i; break }
+      if (/^PAGE \d+/i.test(s) || /^\d{2}\/\d{2}\/\d{4}/.test(s)) continue
+      // Skip header words (no digits, short lines with known column header terms)
+      const ln = normStr(s)
+      if (['position','pos','cb','cm','fb','st','w','gk','lm','rm'].includes(ln)) continue
+      if (s) names.push(s)
+    }
+    if (summaryIdx === -1 || names.length === 0) return []
+    const nPlayers = names.length
+    const nTotalPerCol = nPlayers + 2
+    type Token = { type: 'text' | 'num'; val: any }
+    const tokens: Token[] = []
+    for (let i = summaryIdx + 1; i < lines.length; i++) {
+      const line = lines[i].trim()
+      if (!line) continue
+      const ln = normStr(line)
+      if (['md','cuadro resumen','data base'].includes(ln)) continue
+      if (/^\d{2}\/\d{2}\/\d{4}/.test(line) || /^page\s+\d+/i.test(ln)) continue
+      const m = line.match(/^(.*?)(\d[\d,.]*)$/)
+      if (m) {
+        const txt = m[1].trim()
+        const num = parseFloat(m[2].replace(',', '.'))
+        if (txt) tokens.push({ type: 'text', val: txt })
+        tokens.push({ type: 'num', val: num })
+      } else { tokens.push({ type: 'text', val: line }) }
+    }
+    const blocks: Array<{ label: string; values: number[] }> = []
+    let curLabel = '', curValues: number[] = []
+    const flush = () => { if (curValues.length > 0) blocks.push({ label: curLabel.trim(), values: [...curValues] }); curLabel = ''; curValues = [] }
+    for (const tok of tokens) {
+      if (tok.type === 'text') { if (curValues.length > 0) flush(); curLabel = (curLabel + ' ' + tok.val).trim() }
+      else { curValues.push(tok.val); if (curValues.length === nTotalPerCol) flush() }
+    }
+    flush()
+    if (blocks.length === 0) return []
+    const COL_ORDER = ['dist_total','dist_per_min','dist_v4','dist_hir','dist_v5','n_sprints','acc2','dec2','max_velocity']
+    const out: Record<string, any>[] = []
+    for (let pi = 0; pi < nPlayers; pi++) {
+      const cleanName = cleanCatapultName(names[pi])
+      const metricas: Record<string, number> = {}
+      for (let bi = 0; bi < blocks.length; bi++) {
+        const field = bi < COL_ORDER.length ? COL_ORDER[bi] : `col_${bi}`
+        const val = blocks[bi].values[pi]
+        if (val !== undefined && !isNaN(val)) metricas[field] = val
+      }
+      if (Object.values(metricas).some(v => v > 0))
+        out.push({ nombre_catapult: cleanName, nombre_norm: normalizeName(cleanName), metricas })
+    }
+    return out
+  }
+
+  // Try row-based first, fall back to columnar
+  let results = tryRowBased()
+  if (results.length === 0) results = tryColumnar()
+
+  if (results.length === 0) {
+    // Include first 500 chars of extracted text to help debugging
+    const preview = rawText.replace(/\n/g, ' | ').slice(0, 500)
+    throw new Error(`No se encontraron jugadores en el PDF. Verificá que sea el Cuadro Resumen de Catapult. [DEBUG texto: ${preview}]`)
+  }
 
   return results
 }
