@@ -123,7 +123,8 @@ async function parsePdf(bytes: Uint8Array): Promise<Record<string, any>[]> {
     const pages = rawText.split('\f')
     for (const p of pages) {
       const ln = normStr(p)
-      if (ln.includes('cuadro resumen') || ln.includes('tot dist') || ln.includes('meterage per')) {
+      if (ln.includes('cuadro resumen') || ln.includes('data base') || ln.includes('rapport openfield') ||
+          ln.includes('tot dist') || ln.includes('meterage per')) {
         pageText = p; break
       }
     }
@@ -131,12 +132,13 @@ async function parsePdf(bytes: Uint8Array): Promise<Record<string, any>[]> {
 
   const lines = pageText.split('\n').map((l: string) => l.trim()).filter(Boolean)
 
-  // ── Extract player names (lines before "Promedio") ──
+  // ── Extract player names (lines before the summary row: "Promedio"/"Moyenne"/"Total"/"Average") ──
+  const SUMMARY_MARKERS = ['promedio', 'moyenne', 'total', 'average', 'media']
   const names: string[] = []
   let promedio_idx = -1
   for (let i = 0; i < lines.length; i++) {
     const s = lines[i].trim()
-    if (normStr(s) === 'promedio') { promedio_idx = i; break }
+    if (SUMMARY_MARKERS.includes(normStr(s))) { promedio_idx = i; break }
     if (/^PAGE \d+/i.test(s) || /^\d{2}\/\d{2}\/\d{4}/.test(s)) continue
     if (s) names.push(s)
   }
@@ -155,7 +157,7 @@ async function parsePdf(bytes: Uint8Array): Promise<Record<string, any>[]> {
     const line = lines[i].trim()
     if (!line) continue
     const ln = normStr(line)
-    if (ln === 'md' || ln === 'cuadro resumen') continue
+    if (ln === 'md' || ln === 'cuadro resumen' || ln === 'data base' || ln === 'rapport openfield de lathlete') continue
     if (/^\d{2}\/\d{2}\/\d{4}/.test(line)) continue
     if (/^j\d+\s+vs\s+/i.test(ln)) continue
     if (/^page\s+\d+/i.test(ln)) continue
