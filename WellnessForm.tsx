@@ -120,209 +120,208 @@ const BACK_ZONES = [
 
 // ── Body Map SVG Anatómico Profesional ────────────────────────────────────────
 
-// SVG anatómico frontal - trazado profesional con grupos musculares definidos
-const FRONT_SVG = `<svg viewBox="0 0 200 400" xmlns="http://www.w3.org/2000/svg">
-  <defs>
-    <filter id="fglow" x="-30%" y="-30%" width="160%" height="160%">
-      <feGaussianBlur stdDeviation="2.5" result="blur"/>
-      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
-    </filter>
-    <filter id="fglowStrong" x="-50%" y="-50%" width="200%" height="200%">
-      <feGaussianBlur stdDeviation="4" result="blur"/>
-      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
-    </filter>
-  </defs>
+// Vista FRONTAL - paths JSX del cuerpo anatómico
+function FrontBodySVG() {
+  const s = 'rgba(180,210,230,.75)'
+  const sm = 'rgba(180,210,230,.5)'
+  const sw = '1.1'
+  const sw2 = '.85'
+  return (
+    <>
+      {/* Cabeza */}
+      <ellipse cx="100" cy="26" rx="18" ry="21" fill="none" stroke={s} strokeWidth={sw}/>
+      <ellipse cx="100" cy="26" rx="13" ry="16" fill="none" stroke={sm} strokeWidth=".5"/>
+      {/* Cuello */}
+      <path d="M91 44 Q100 51 109 44 L111 57 Q100 60 89 57 Z" fill="none" stroke={s} strokeWidth={sw2}/>
+      {/* Clavículas */}
+      <path d="M89 57 Q94 54 100 53 Q106 54 111 57" fill="none" stroke={s} strokeWidth=".8"/>
+      {/* Trapecio izq */}
+      <path d="M89 57 Q80 61 68 68 Q63 72 62 80 L72 82 Q75 74 83 70 L89 63 Z" fill="none" stroke={s} strokeWidth={sw2}/>
+      {/* Trapecio der */}
+      <path d="M111 57 Q120 61 132 68 Q137 72 138 80 L128 82 Q125 74 117 70 L111 63 Z" fill="none" stroke={s} strokeWidth={sw2}/>
+      {/* Deltoides izq */}
+      <path d="M62 80 Q55 83 52 93 Q51 102 56 108 L63 104 Q60 96 62 87 Z" fill="none" stroke={s} strokeWidth={sw2}/>
+      {/* Deltoides der */}
+      <path d="M138 80 Q145 83 148 93 Q149 102 144 108 L137 104 Q140 96 138 87 Z" fill="none" stroke={s} strokeWidth={sw2}/>
+      {/* Pectoral izq */}
+      <path d="M72 82 Q70 88 70 100 Q72 108 82 112 Q90 113 100 110 L100 68 Q93 66 83 70 Z" fill="none" stroke={s} strokeWidth={sw}/>
+      {/* Pectoral der */}
+      <path d="M128 82 Q130 88 130 100 Q128 108 118 112 Q110 113 100 110 L100 68 Q107 66 117 70 Z" fill="none" stroke={s} strokeWidth={sw}/>
+      {/* Línea esternal */}
+      <line x1="100" y1="57" x2="100" y2="110" stroke={sm} strokeWidth=".7"/>
+      {/* Bícep izq */}
+      <path d="M52 93 Q47 106 48 120 Q50 130 55 135 L62 131 Q59 122 58 110 L56 97 Z" fill="none" stroke={s} strokeWidth={sw2}/>
+      {/* Separación bícep izq */}
+      <path d="M56 103 Q57 113 58 122" fill="none" stroke={sm} strokeWidth=".6"/>
+      {/* Bícep der */}
+      <path d="M148 93 Q153 106 152 120 Q150 130 145 135 L138 131 Q141 122 142 110 L144 97 Z" fill="none" stroke={s} strokeWidth={sw2}/>
+      {/* Separación bícep der */}
+      <path d="M144 103 Q143 113 142 122" fill="none" stroke={sm} strokeWidth=".6"/>
+      {/* Antebrazo izq externo */}
+      <path d="M48 120 Q44 135 44 151 Q45 162 49 167 L54 164 Q52 154 52 142 L52 124 Z" fill="none" stroke={s} strokeWidth={sw2}/>
+      {/* Antebrazo izq interno */}
+      <path d="M55 135 Q57 149 57 161 L54 164 Z" fill="none" stroke={sm} strokeWidth=".7"/>
+      {/* Antebrazo der externo */}
+      <path d="M152 120 Q156 135 156 151 Q155 162 151 167 L146 164 Q148 154 148 142 L148 124 Z" fill="none" stroke={s} strokeWidth={sw2}/>
+      {/* Antebrazo der interno */}
+      <path d="M145 135 Q143 149 143 161 L146 164 Z" fill="none" stroke={sm} strokeWidth=".7"/>
+      {/* Mano/muñeca izq */}
+      <path d="M44 151 Q40 161 39 171 Q40 180 48 183 Q54 179 54 164 Z" fill="none" stroke={s} strokeWidth={sw2}/>
+      {/* Mano/muñeca der */}
+      <path d="M156 151 Q160 161 161 171 Q160 180 152 183 Q146 179 146 164 Z" fill="none" stroke={s} strokeWidth={sw2}/>
+      {/* Abdomen - contorno */}
+      <path d="M72 108 L74 163 Q84 170 100 170 Q116 170 126 163 L128 108 Q114 115 100 115 Q86 115 72 108 Z" fill="none" stroke={s} strokeWidth={sw}/>
+      {/* Líneas abdominales */}
+      <path d="M87 122 Q100 124 113 122" fill="none" stroke={sm} strokeWidth=".7"/>
+      <path d="M87 135 Q100 137 113 135" fill="none" stroke={sm} strokeWidth=".7"/>
+      <path d="M87 149 Q100 151 113 149" fill="none" stroke={sm} strokeWidth=".7"/>
+      {/* Línea alba */}
+      <line x1="100" y1="110" x2="100" y2="163" stroke={sm} strokeWidth=".7"/>
+      {/* Oblicuo izq */}
+      <path d="M72 120 Q74 146 82 163 L87 163" fill="none" stroke={sm} strokeWidth=".8"/>
+      {/* Oblicuo der */}
+      <path d="M128 120 Q126 146 118 163 L113 163" fill="none" stroke={sm} strokeWidth=".8"/>
+      {/* Cadera/ingle izq */}
+      <path d="M74 163 Q70 173 69 184 Q70 196 76 202 L84 199 Q81 190 82 180 Q83 172 87 163 Z" fill="none" stroke={s} strokeWidth={sw2}/>
+      {/* Cadera/ingle der */}
+      <path d="M126 163 Q130 173 131 184 Q130 196 124 202 L116 199 Q119 190 118 180 Q117 172 113 163 Z" fill="none" stroke={s} strokeWidth={sw2}/>
+      {/* Arco pubis */}
+      <path d="M82 163 Q100 172 118 163" fill="none" stroke={sm} strokeWidth=".7"/>
+      {/* Cuádricep izq - contorno externo */}
+      <path d="M69 184 Q64 203 64 224 Q65 243 71 256 L80 253 Q75 240 76 220 Q77 202 82 186 Z" fill="none" stroke={s} strokeWidth={sw}/>
+      {/* Cuádricep izq - línea interna */}
+      <path d="M82 188 Q85 208 85 226 Q84 242 80 254" fill="none" stroke={sm} strokeWidth=".7"/>
+      {/* Cuádricep der - contorno externo */}
+      <path d="M131 184 Q136 203 136 224 Q135 243 129 256 L120 253 Q125 240 124 220 Q123 202 118 186 Z" fill="none" stroke={s} strokeWidth={sw}/>
+      {/* Cuádricep der - línea interna */}
+      <path d="M118 188 Q115 208 115 226 Q116 242 120 254" fill="none" stroke={sm} strokeWidth=".7"/>
+      {/* Separación entre cuádriceps */}
+      <path d="M85 186 Q90 198 100 200 Q110 198 115 186" fill="none" stroke={sm} strokeWidth=".7"/>
+      {/* Rótula izq */}
+      <ellipse cx="72" cy="263" rx="9" ry="10" fill="none" stroke={s} strokeWidth={sw2}/>
+      {/* Rótula der */}
+      <ellipse cx="128" cy="263" rx="9" ry="10" fill="none" stroke={s} strokeWidth={sw2}/>
+      {/* Tibia/peroné izq */}
+      <path d="M65 272 Q64 290 65 307 Q67 318 71 325 L77 323 Q75 311 75 298 Q75 282 76 272 Z" fill="none" stroke={s} strokeWidth={sw2}/>
+      <path d="M76 272 Q78 288 78 304 Q77 316 75 324" fill="none" stroke={sm} strokeWidth=".7"/>
+      {/* Tibia/peroné der */}
+      <path d="M135 272 Q136 290 135 307 Q133 318 129 325 L123 323 Q125 311 125 298 Q125 282 124 272 Z" fill="none" stroke={s} strokeWidth={sw2}/>
+      <path d="M124 272 Q122 288 122 304 Q123 316 125 324" fill="none" stroke={sm} strokeWidth=".7"/>
+      {/* Tobillo izq */}
+      <path d="M65 322 Q61 331 61 342 Q63 350 70 352 Q77 350 79 344 Q79 335 77 325 Z" fill="none" stroke={s} strokeWidth={sw2}/>
+      {/* Tobillo der */}
+      <path d="M135 322 Q139 331 139 342 Q137 350 130 352 Q123 350 121 344 Q121 335 123 325 Z" fill="none" stroke={s} strokeWidth={sw2}/>
+      {/* Pie izq */}
+      <path d="M61 342 Q57 352 55 362 Q54 372 59 378 Q69 382 80 378 Q85 370 81 360 L79 344 Z" fill="none" stroke={s} strokeWidth={sw2}/>
+      {/* Dedos pie izq */}
+      <path d="M55 366 Q58 376 69 380 Q79 381 84 374" fill="none" stroke={sm} strokeWidth=".6"/>
+      {/* Pie der */}
+      <path d="M139 342 Q143 352 145 362 Q146 372 141 378 Q131 382 120 378 Q115 370 119 360 L121 344 Z" fill="none" stroke={s} strokeWidth={sw2}/>
+      {/* Dedos pie der */}
+      <path d="M145 366 Q142 376 131 380 Q121 381 116 374" fill="none" stroke={sm} strokeWidth=".6"/>
+    </>
+  )
+}
 
-  <!-- Cabeza -->
-  <ellipse cx="100" cy="26" rx="18" ry="21" fill="none" stroke="rgba(180,200,220,.7)" stroke-width="1.1"/>
-  <!-- Cuello -->
-  <path d="M91 44 Q100 50 109 44 L111 56 Q100 58 89 56 Z" fill="none" stroke="rgba(180,200,220,.65)" stroke-width="1"/>
-  <!-- Trapecio izq-->
-  <path d="M89 56 Q80 60 68 66 Q63 70 62 77 L72 80 Q76 72 84 68 L89 62 Z" fill="none" stroke="rgba(180,200,220,.65)" stroke-width="1"/>
-  <!-- Trapecio der-->
-  <path d="M111 56 Q120 60 132 66 Q137 70 138 77 L128 80 Q124 72 116 68 L111 62 Z" fill="none" stroke="rgba(180,200,220,.65)" stroke-width="1"/>
-  <!-- Claviculas -->
-  <path d="M89 57 Q100 54 111 57" fill="none" stroke="rgba(180,200,220,.55)" stroke-width=".9"/>
-  <!-- Pectoral izq -->
-  <path d="M89 62 L89 98 Q95 105 100 105 L100 65 Q96 63 89 62 Z" fill="none" stroke="rgba(180,200,220,.65)" stroke-width="1"/>
-  <!-- Pectoral der -->
-  <path d="M111 62 L111 98 Q105 105 100 105 L100 65 Q104 63 111 62 Z" fill="none" stroke="rgba(180,200,220,.65)" stroke-width="1"/>
-  <!-- Linea esternal -->
-  <line x1="100" y1="57" x2="100" y2="105" stroke="rgba(180,200,220,.4)" stroke-width=".7"/>
-  <!-- Hombro izq (deltoides) -->
-  <path d="M68 66 Q60 68 56 78 Q54 88 58 96 L65 92 Q62 84 64 76 L72 73 Z" fill="none" stroke="rgba(180,200,220,.65)" stroke-width="1"/>
-  <!-- Hombro der (deltoides) -->
-  <path d="M132 66 Q140 68 144 78 Q146 88 142 96 L135 92 Q138 84 136 76 L128 73 Z" fill="none" stroke="rgba(180,200,220,.65)" stroke-width="1"/>
-  <!-- Bicep izq -->
-  <path d="M58 96 Q53 108 54 122 Q56 130 60 134 L66 130 Q63 122 62 112 L65 100 Z" fill="none" stroke="rgba(180,200,220,.65)" stroke-width="1"/>
-  <!-- Bicep der -->
-  <path d="M142 96 Q147 108 146 122 Q144 130 140 134 L134 130 Q137 122 138 112 L135 100 Z" fill="none" stroke="rgba(180,200,220,.65)" stroke-width="1"/>
-  <!-- Antebrazo izq (externo) -->
-  <path d="M54 122 Q50 136 50 152 Q51 162 54 168 L59 165 Q57 156 57 144 L57 126 Z" fill="none" stroke="rgba(180,200,220,.6)" stroke-width=".9"/>
-  <!-- Antebrazo izq (interno) -->
-  <path d="M60 134 Q62 148 62 158 L59 165 Z" fill="none" stroke="rgba(180,200,220,.5)" stroke-width=".8"/>
-  <!-- Antebrazo der (externo) -->
-  <path d="M146 122 Q150 136 150 152 Q149 162 146 168 L141 165 Q143 156 143 144 L143 126 Z" fill="none" stroke="rgba(180,200,220,.6)" stroke-width=".9"/>
-  <!-- Antebrazo der (interno) -->
-  <path d="M140 134 Q138 148 138 158 L141 165 Z" fill="none" stroke="rgba(180,200,220,.5)" stroke-width=".8"/>
-  <!-- Muñeca/mano izq -->
-  <path d="M50 152 Q46 162 45 172 Q46 180 54 183 Q59 179 60 168 Z" fill="none" stroke="rgba(180,200,220,.55)" stroke-width=".9"/>
-  <!-- Muñeca/mano der -->
-  <path d="M150 152 Q154 162 155 172 Q154 180 146 183 Q141 179 140 168 Z" fill="none" stroke="rgba(180,200,220,.55)" stroke-width=".9"/>
-  <!-- Abdomen - recto abdominal contorno -->
-  <path d="M89 105 L89 162 Q94 168 100 168 Q106 168 111 162 L111 105 Z" fill="none" stroke="rgba(180,200,220,.6)" stroke-width="1"/>
-  <!-- Líneas abs horizontales -->
-  <path d="M89 120 Q100 122 111 120" fill="none" stroke="rgba(180,200,220,.4)" stroke-width=".7"/>
-  <path d="M89 134 Q100 136 111 134" fill="none" stroke="rgba(180,200,220,.4)" stroke-width=".7"/>
-  <path d="M89 148 Q100 150 111 148" fill="none" stroke="rgba(180,200,220,.4)" stroke-width=".7"/>
-  <!-- Línea alba (centro abdomen) -->
-  <line x1="100" y1="105" x2="100" y2="162" stroke="rgba(180,200,220,.35)" stroke-width=".7"/>
-  <!-- Serrato izq -->
-  <path d="M72 80 L74 105 Q80 120 84 138 L89 138" fill="none" stroke="rgba(180,200,220,.45)" stroke-width=".8"/>
-  <!-- Serrato der -->
-  <path d="M128 80 L126 105 Q120 120 116 138 L111 138" fill="none" stroke="rgba(180,200,220,.45)" stroke-width=".8"/>
-  <!-- Oblicuo izq -->
-  <path d="M74 120 Q76 145 83 162 L89 162" fill="none" stroke="rgba(180,200,220,.5)" stroke-width=".9"/>
-  <!-- Oblicuo der -->
-  <path d="M126 120 Q124 145 117 162 L111 162" fill="none" stroke="rgba(180,200,220,.5)" stroke-width=".9"/>
-  <!-- Cadera/ingle izq -->
-  <path d="M83 162 Q79 170 77 182 Q76 192 80 198 L87 195 Q85 188 85 178 Q86 170 89 162 Z" fill="none" stroke="rgba(180,200,220,.6)" stroke-width=".9"/>
-  <!-- Cadera/ingle der -->
-  <path d="M117 162 Q121 170 123 182 Q124 192 120 198 L113 195 Q115 188 115 178 Q114 170 111 162 Z" fill="none" stroke="rgba(180,200,220,.6)" stroke-width=".9"/>
-  <!-- Pubis -->
-  <path d="M83 162 Q100 170 117 162" fill="none" stroke="rgba(180,200,220,.4)" stroke-width=".7"/>
-  <!-- Cuadricep izq -->
-  <path d="M77 182 Q72 200 72 220 Q73 238 78 252 L86 250 Q82 236 82 218 Q83 200 87 184 Z" fill="none" stroke="rgba(180,200,220,.65)" stroke-width="1"/>
-  <!-- Línea interna cuad izq -->
-  <path d="M85 185 Q88 204 88 222 Q87 238 84 250" fill="none" stroke="rgba(180,200,220,.4)" stroke-width=".7"/>
-  <!-- Cuadricep der -->
-  <path d="M123 182 Q128 200 128 220 Q127 238 122 252 L114 250 Q118 236 118 218 Q117 200 113 184 Z" fill="none" stroke="rgba(180,200,220,.65)" stroke-width="1"/>
-  <!-- Línea interna cuad der -->
-  <path d="M115 185 Q112 204 112 222 Q113 238 116 250" fill="none" stroke="rgba(180,200,220,.4)" stroke-width=".7"/>
-  <!-- Separación entre cuad izq y der -->
-  <path d="M87 184 Q92 195 100 196 Q108 195 113 184" fill="none" stroke="rgba(180,200,220,.4)" stroke-width=".7"/>
-  <!-- Rótula izq -->
-  <ellipse cx="80" cy="260" rx="8" ry="9" fill="none" stroke="rgba(180,200,220,.6)" stroke-width=".9"/>
-  <!-- Rótula der -->
-  <ellipse cx="120" cy="260" rx="8" ry="9" fill="none" stroke="rgba(180,200,220,.6)" stroke-width=".9"/>
-  <!-- Tibia izq -->
-  <path d="M74 268 Q73 285 74 300 Q75 312 78 320 L83 318 Q81 306 81 294 Q81 278 82 268 Z" fill="none" stroke="rgba(180,200,220,.6)" stroke-width=".9"/>
-  <!-- Tibia/peroné izq -->
-  <path d="M82 268 Q84 283 84 298 Q83 310 81 318" fill="none" stroke="rgba(180,200,220,.45)" stroke-width=".7"/>
-  <!-- Tibia der -->
-  <path d="M126 268 Q127 285 126 300 Q125 312 122 320 L117 318 Q119 306 119 294 Q119 278 118 268 Z" fill="none" stroke="rgba(180,200,220,.6)" stroke-width=".9"/>
-  <!-- Tibia/peroné der -->
-  <path d="M118 268 Q116 283 116 298 Q117 310 119 318" fill="none" stroke="rgba(180,200,220,.45)" stroke-width=".7"/>
-  <!-- Tobillo/pie izq -->
-  <path d="M74 318 Q70 326 70 336 Q71 344 78 347 Q84 346 86 340 Q86 332 84 322 Z" fill="none" stroke="rgba(180,200,220,.55)" stroke-width=".9"/>
-  <!-- Pie izq -->
-  <path d="M70 336 Q66 345 64 356 Q63 366 68 372 Q78 376 88 372 Q92 366 88 356 L86 340 Z" fill="none" stroke="rgba(180,200,220,.55)" stroke-width=".9"/>
-  <!-- Tobillo/pie der -->
-  <path d="M126 318 Q130 326 130 336 Q129 344 122 347 Q116 346 114 340 Q114 332 116 322 Z" fill="none" stroke="rgba(180,200,220,.55)" stroke-width=".9"/>
-  <!-- Pie der -->
-  <path d="M130 336 Q134 345 136 356 Q137 366 132 372 Q122 376 112 372 Q108 366 112 356 L114 340 Z" fill="none" stroke="rgba(180,200,220,.55)" stroke-width=".9"/>
-  <!-- Dedos pie izq (silueta) -->
-  <path d="M64 356 Q63 368 68 372 Q78 376 88 372 Q92 366 90 362 Q85 368 78 368 Q70 367 68 362 Z" fill="none" stroke="rgba(180,200,220,.4)" stroke-width=".6"/>
-  <!-- Dedos pie der (silueta) -->
-  <path d="M136 356 Q137 368 132 372 Q122 376 112 372 Q108 366 110 362 Q115 368 122 368 Q130 367 132 362 Z" fill="none" stroke="rgba(180,200,220,.4)" stroke-width=".6"/>
-</svg>`;
-
-// SVG anatómico trasero - vista posterior con grupos musculares definidos
-const BACK_SVG = `<svg viewBox="0 0 200 400" xmlns="http://www.w3.org/2000/svg">
-  <defs>
-    <filter id="bglow" x="-30%" y="-30%" width="160%" height="160%">
-      <feGaussianBlur stdDeviation="2.5" result="blur"/>
-      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
-    </filter>
-    <filter id="bglowStrong" x="-50%" y="-50%" width="200%" height="200%">
-      <feGaussianBlur stdDeviation="4" result="blur"/>
-      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
-    </filter>
-  </defs>
-
-  <!-- Cabeza posterior -->
-  <ellipse cx="100" cy="26" rx="18" ry="21" fill="none" stroke="rgba(180,200,220,.7)" stroke-width="1.1"/>
-  <!-- Cuello posterior -->
-  <path d="M91 44 Q100 50 109 44 L111 56 Q100 58 89 56 Z" fill="none" stroke="rgba(180,200,220,.65)" stroke-width="1"/>
-  <!-- Trapecio izq (grande, triangular) -->
-  <path d="M89 56 Q80 58 68 66 Q63 70 62 80 Q68 88 76 86 Q82 78 89 72 Z" fill="none" stroke="rgba(180,200,220,.7)" stroke-width="1.1"/>
-  <!-- Trapecio der -->
-  <path d="M111 56 Q120 58 132 66 Q137 70 138 80 Q132 88 124 86 Q118 78 111 72 Z" fill="none" stroke="rgba(180,200,220,.7)" stroke-width="1.1"/>
-  <!-- Línea trapecios centro espalda alta -->
-  <path d="M89 56 Q100 62 111 56" fill="none" stroke="rgba(180,200,220,.5)" stroke-width=".8"/>
-  <!-- Deltoides posterior izq -->
-  <path d="M62 80 Q56 84 54 92 Q56 100 60 104 L67 98 Q64 92 65 84 Z" fill="none" stroke="rgba(180,200,220,.65)" stroke-width="1"/>
-  <!-- Deltoides posterior der -->
-  <path d="M138 80 Q144 84 146 92 Q144 100 140 104 L133 98 Q136 92 135 84 Z" fill="none" stroke="rgba(180,200,220,.65)" stroke-width="1"/>
-  <!-- Infraespinoso + Redondo izq -->
-  <path d="M65 84 Q68 100 70 112 L78 110 Q77 96 75 84 Z" fill="none" stroke="rgba(180,200,220,.6)" stroke-width=".9"/>
-  <!-- Infraespinoso + Redondo der -->
-  <path d="M135 84 Q132 100 130 112 L122 110 Q123 96 125 84 Z" fill="none" stroke="rgba(180,200,220,.6)" stroke-width=".9"/>
-  <!-- Romboides / Espalda alta centro -->
-  <path d="M89 72 Q100 76 111 72 L112 98 Q100 104 88 98 Z" fill="none" stroke="rgba(180,200,220,.65)" stroke-width="1"/>
-  <!-- Línea espinal -->
-  <line x1="100" y1="56" x2="100" y2="162" stroke="rgba(180,200,220,.4)" stroke-width=".8"/>
-  <!-- Trícep izq -->
-  <path d="M60 104 Q55 116 54 130 Q55 140 60 146 L66 142 Q63 132 63 118 Q64 110 68 106 Z" fill="none" stroke="rgba(180,200,220,.65)" stroke-width="1"/>
-  <!-- Trícep der -->
-  <path d="M140 104 Q145 116 146 130 Q145 140 140 146 L134 142 Q137 132 137 118 Q136 110 132 106 Z" fill="none" stroke="rgba(180,200,220,.65)" stroke-width="1"/>
-  <!-- Dorsal izq -->
-  <path d="M72 86 Q70 106 72 130 Q75 148 84 162 L89 160 Q82 146 80 128 Q79 108 79 88 Z" fill="none" stroke="rgba(180,200,220,.65)" stroke-width="1"/>
-  <!-- Dorsal der -->
-  <path d="M128 86 Q130 106 128 130 Q125 148 116 162 L111 160 Q118 146 120 128 Q121 108 121 88 Z" fill="none" stroke="rgba(180,200,220,.65)" stroke-width="1"/>
-  <!-- Espalda baja/lumbar -->
-  <path d="M89 98 L89 162 Q94 168 100 168 Q106 168 111 162 L111 98 Q100 106 89 98 Z" fill="none" stroke="rgba(180,200,220,.6)" stroke-width="1"/>
-  <!-- Líneas lumbares -->
-  <path d="M89 120 Q100 124 111 120" fill="none" stroke="rgba(180,200,220,.35)" stroke-width=".7"/>
-  <path d="M89 138 Q100 142 111 138" fill="none" stroke="rgba(180,200,220,.35)" stroke-width=".7"/>
-  <!-- Antebrazo posterior izq -->
-  <path d="M54 130 Q50 144 50 160 Q51 170 55 174 L60 172 Q58 162 58 148 L57 136 Z" fill="none" stroke="rgba(180,200,220,.6)" stroke-width=".9"/>
-  <!-- Antebrazo posterior der -->
-  <path d="M146 130 Q150 144 150 160 Q149 170 145 174 L140 172 Q142 162 142 148 L143 136 Z" fill="none" stroke="rgba(180,200,220,.6)" stroke-width=".9"/>
-  <!-- Mano izq -->
-  <path d="M50 160 Q46 170 45 180 Q46 188 54 191 Q60 187 60 172 Z" fill="none" stroke="rgba(180,200,220,.55)" stroke-width=".9"/>
-  <!-- Mano der -->
-  <path d="M150 160 Q154 170 155 180 Q154 188 146 191 Q140 187 140 172 Z" fill="none" stroke="rgba(180,200,220,.55)" stroke-width=".9"/>
-  <!-- Glúteo izq -->
-  <path d="M84 162 Q76 168 74 180 Q74 196 82 206 Q90 210 100 208 L100 168 Q92 168 84 162 Z" fill="none" stroke="rgba(180,200,220,.7)" stroke-width="1.1"/>
-  <!-- Glúteo der -->
-  <path d="M116 162 Q124 168 126 180 Q126 196 118 206 Q110 210 100 208 L100 168 Q108 168 116 162 Z" fill="none" stroke="rgba(180,200,220,.7)" stroke-width="1.1"/>
-  <!-- Línea glútea -->
-  <path d="M84 162 Q100 170 116 162" fill="none" stroke="rgba(180,200,220,.4)" stroke-width=".7"/>
-  <!-- Isquiotibial izq -->
-  <path d="M74 198 Q70 216 70 236 Q71 250 77 260 L84 257 Q80 244 80 226 Q81 208 84 196 Z" fill="none" stroke="rgba(180,200,220,.65)" stroke-width="1"/>
-  <!-- Línea interna isquiotibial izq -->
-  <path d="M84 198 Q86 216 87 234 Q86 248 84 258" fill="none" stroke="rgba(180,200,220,.4)" stroke-width=".7"/>
-  <!-- Isquiotibial der -->
-  <path d="M126 198 Q130 216 130 236 Q129 250 123 260 L116 257 Q120 244 120 226 Q119 208 116 196 Z" fill="none" stroke="rgba(180,200,220,.65)" stroke-width="1"/>
-  <!-- Línea interna isquiotibial der -->
-  <path d="M116 198 Q114 216 113 234 Q114 248 116 258" fill="none" stroke="rgba(180,200,220,.4)" stroke-width=".7"/>
-  <!-- Hueco poplíteo izq (corva) -->
-  <path d="M74 260 Q78 266 84 268 Q90 266 94 260" fill="none" stroke="rgba(180,200,220,.55)" stroke-width=".9"/>
-  <!-- Hueco poplíteo der (corva) -->
-  <path d="M126 260 Q122 266 116 268 Q110 266 106 260" fill="none" stroke="rgba(180,200,220,.55)" stroke-width=".9"/>
-  <!-- Gemelo izq (cabeza medial y lateral) -->
-  <path d="M74 266 Q70 280 71 298 Q73 312 78 322 L84 319 Q81 308 80 294 Q80 278 82 266 Z" fill="none" stroke="rgba(180,200,220,.65)" stroke-width="1"/>
-  <!-- Línea gemelo izq -->
-  <path d="M82 268 Q86 282 86 296 Q85 310 83 320" fill="none" stroke="rgba(180,200,220,.45)" stroke-width=".7"/>
-  <!-- Gemelo der (cabeza medial y lateral) -->
-  <path d="M126 266 Q130 280 129 298 Q127 312 122 322 L116 319 Q119 308 120 294 Q120 278 118 266 Z" fill="none" stroke="rgba(180,200,220,.65)" stroke-width="1"/>
-  <!-- Línea gemelo der -->
-  <path d="M118 268 Q114 282 114 296 Q115 310 117 320" fill="none" stroke="rgba(180,200,220,.45)" stroke-width=".7"/>
-  <!-- Tendón aquiles / talón izq -->
-  <path d="M78 320 Q75 330 76 340 Q78 348 82 350 Q86 348 87 342 L86 326 Z" fill="none" stroke="rgba(180,200,220,.55)" stroke-width=".9"/>
-  <!-- Pie posterior izq -->
-  <path d="M76 340 Q72 348 70 358 Q69 368 74 374 Q84 378 90 372 Q94 364 90 354 L87 342 Z" fill="none" stroke="rgba(180,200,220,.55)" stroke-width=".9"/>
-  <!-- Tendón aquiles / talón der -->
-  <path d="M122 320 Q125 330 124 340 Q122 348 118 350 Q114 348 113 342 L114 326 Z" fill="none" stroke="rgba(180,200,220,.55)" stroke-width=".9"/>
-  <!-- Pie posterior der -->
-  <path d="M124 340 Q128 348 130 358 Q131 368 126 374 Q116 378 110 372 Q106 364 110 354 L113 342 Z" fill="none" stroke="rgba(180,200,220,.55)" stroke-width=".9"/>
-</svg>`;
+// Vista TRASERA - paths JSX del cuerpo anatómico posterior
+function BackBodySVG() {
+  const s = 'rgba(180,210,230,.75)'
+  const sm = 'rgba(180,210,230,.5)'
+  const sw = '1.1'
+  const sw2 = '.85'
+  return (
+    <>
+      {/* Cabeza posterior */}
+      <ellipse cx="100" cy="26" rx="18" ry="21" fill="none" stroke={s} strokeWidth={sw}/>
+      <ellipse cx="100" cy="26" rx="13" ry="16" fill="none" stroke={sm} strokeWidth=".5"/>
+      {/* Cuello posterior */}
+      <path d="M91 44 Q100 51 109 44 L111 57 Q100 60 89 57 Z" fill="none" stroke={s} strokeWidth={sw2}/>
+      {/* Trapecio izq - gran músculo triangular */}
+      <path d="M89 57 Q80 60 68 68 Q62 73 62 83 Q68 92 78 90 Q85 81 89 73 Z" fill="none" stroke={s} strokeWidth={sw}/>
+      {/* Trapecio der */}
+      <path d="M111 57 Q120 60 132 68 Q138 73 138 83 Q132 92 122 90 Q115 81 111 73 Z" fill="none" stroke={s} strokeWidth={sw}/>
+      {/* Conexión trapecios arriba */}
+      <path d="M89 57 Q100 63 111 57" fill="none" stroke={sm} strokeWidth=".7"/>
+      {/* Línea espinal */}
+      <line x1="100" y1="57" x2="100" y2="165" stroke={sm} strokeWidth=".8"/>
+      {/* Deltoides posterior izq */}
+      <path d="M62 83 Q55 87 52 96 Q53 106 58 110 L65 106 Q62 98 63 89 Z" fill="none" stroke={s} strokeWidth={sw2}/>
+      {/* Deltoides posterior der */}
+      <path d="M138 83 Q145 87 148 96 Q147 106 142 110 L135 106 Q138 98 137 89 Z" fill="none" stroke={s} strokeWidth={sw2}/>
+      {/* Infraespinoso + Redondo mayor izq */}
+      <path d="M62 83 Q64 98 66 112 L75 110 Q74 96 72 83 Z" fill="none" stroke={s} strokeWidth={sw2}/>
+      {/* Infraespinoso + Redondo mayor der */}
+      <path d="M138 83 Q136 98 134 112 L125 110 Q126 96 128 83 Z" fill="none" stroke={s} strokeWidth={sw2}/>
+      {/* Romboides / Espalda alta */}
+      <path d="M89 73 Q100 78 111 73 L112 100 Q100 107 88 100 Z" fill="none" stroke={s} strokeWidth={sw}/>
+      {/* Trícep izq */}
+      <path d="M52 96 Q47 110 47 126 Q48 137 53 143 L60 139 Q57 128 57 114 Q58 106 62 100 Z" fill="none" stroke={s} strokeWidth={sw2}/>
+      {/* Línea cabeza larga trícep izq */}
+      <path d="M57 108 Q58 118 58 128" fill="none" stroke={sm} strokeWidth=".6"/>
+      {/* Trícep der */}
+      <path d="M148 96 Q153 110 153 126 Q152 137 147 143 L140 139 Q143 128 143 114 Q142 106 138 100 Z" fill="none" stroke={s} strokeWidth={sw2}/>
+      {/* Línea cabeza larga trícep der */}
+      <path d="M143 108 Q142 118 142 128" fill="none" stroke={sm} strokeWidth=".6"/>
+      {/* Dorsal ancho izq */}
+      <path d="M72 88 Q70 108 72 132 Q75 150 85 165 L90 163 Q83 148 82 130 Q81 108 80 90 Z" fill="none" stroke={s} strokeWidth={sw}/>
+      {/* Dorsal ancho der */}
+      <path d="M128 88 Q130 108 128 132 Q125 150 115 165 L110 163 Q117 148 118 130 Q119 108 120 90 Z" fill="none" stroke={s} strokeWidth={sw}/>
+      {/* Espalda baja / Lumbar */}
+      <path d="M88 100 L88 165 Q94 170 100 170 Q106 170 112 165 L112 100 Q100 108 88 100 Z" fill="none" stroke={s} strokeWidth={sw}/>
+      {/* Líneas lumbares */}
+      <path d="M88 120 Q100 124 112 120" fill="none" stroke={sm} strokeWidth=".7"/>
+      <path d="M88 140 Q100 144 112 140" fill="none" stroke={sm} strokeWidth=".7"/>
+      {/* Antebrazo posterior izq */}
+      <path d="M47 126 Q43 141 43 158 Q44 169 48 174 L53 172 Q51 162 51 148 L51 132 Z" fill="none" stroke={s} strokeWidth={sw2}/>
+      {/* Antebrazo posterior der */}
+      <path d="M153 126 Q157 141 157 158 Q156 169 152 174 L147 172 Q149 162 149 148 L149 132 Z" fill="none" stroke={s} strokeWidth={sw2}/>
+      {/* Mano izq */}
+      <path d="M43 158 Q39 168 38 178 Q39 186 47 190 Q53 186 53 172 Z" fill="none" stroke={s} strokeWidth={sw2}/>
+      {/* Mano der */}
+      <path d="M157 158 Q161 168 162 178 Q161 186 153 190 Q147 186 147 172 Z" fill="none" stroke={s} strokeWidth={sw2}/>
+      {/* Glúteo izq - grande y redondeado */}
+      <path d="M84 165 Q75 172 73 185 Q72 200 80 210 Q89 215 100 213 L100 170 Q92 170 84 165 Z" fill="none" stroke={s} strokeWidth={sw}/>
+      {/* Glúteo der */}
+      <path d="M116 165 Q125 172 127 185 Q128 200 120 210 Q111 215 100 213 L100 170 Q108 170 116 165 Z" fill="none" stroke={s} strokeWidth={sw}/>
+      {/* Separación glútea */}
+      <line x1="100" y1="165" x2="100" y2="213" stroke={sm} strokeWidth=".7"/>
+      {/* Pliegue glúteo */}
+      <path d="M73 205 Q86 214 100 215 Q114 214 127 205" fill="none" stroke={sm} strokeWidth=".7"/>
+      {/* Isquiotibial izq - contorno */}
+      <path d="M73 200 Q68 218 68 240 Q69 256 76 265 L84 262 Q79 248 79 228 Q80 210 85 202 Z" fill="none" stroke={s} strokeWidth={sw}/>
+      {/* Isquiotibial izq - separación bíceps femoral */}
+      <path d="M85 204 Q87 222 88 240 Q87 254 85 262" fill="none" stroke={sm} strokeWidth=".7"/>
+      {/* Isquiotibial der - contorno */}
+      <path d="M127 200 Q132 218 132 240 Q131 256 124 265 L116 262 Q121 248 121 228 Q120 210 115 202 Z" fill="none" stroke={s} strokeWidth={sw}/>
+      {/* Isquiotibial der - separación */}
+      <path d="M115 204 Q113 222 112 240 Q113 254 115 262" fill="none" stroke={sm} strokeWidth=".7"/>
+      {/* Hueco poplíteo izq */}
+      <path d="M68 264 Q74 271 82 273 Q90 271 96 264" fill="none" stroke={s} strokeWidth={sw2}/>
+      {/* Hueco poplíteo der */}
+      <path d="M132 264 Q126 271 118 273 Q110 271 104 264" fill="none" stroke={s} strokeWidth={sw2}/>
+      {/* Gemelo izq - cabeza medial y lateral */}
+      <path d="M68 270 Q64 286 65 304 Q67 318 73 327 L79 324 Q77 312 77 298 Q77 281 79 270 Z" fill="none" stroke={s} strokeWidth={sw}/>
+      {/* Línea entre cabezas gemelo izq */}
+      <path d="M79 272 Q83 286 83 300 Q82 314 80 324" fill="none" stroke={sm} strokeWidth=".7"/>
+      {/* Gemelo der - cabeza medial y lateral */}
+      <path d="M132 270 Q136 286 135 304 Q133 318 127 327 L121 324 Q123 312 123 298 Q123 281 121 270 Z" fill="none" stroke={s} strokeWidth={sw}/>
+      {/* Línea entre cabezas gemelo der */}
+      <path d="M121 272 Q117 286 117 300 Q118 314 120 324" fill="none" stroke={sm} strokeWidth=".7"/>
+      {/* Tendón de Aquiles izq */}
+      <path d="M73 325 Q70 334 71 344 Q73 353 78 355 Q83 353 84 346 L83 330 Z" fill="none" stroke={s} strokeWidth={sw2}/>
+      {/* Pie posterior izq */}
+      <path d="M71 344 Q67 353 65 363 Q64 373 70 379 Q80 383 91 379 Q95 371 91 361 L84 346 Z" fill="none" stroke={s} strokeWidth={sw2}/>
+      {/* Tendón de Aquiles der */}
+      <path d="M127 325 Q130 334 129 344 Q127 353 122 355 Q117 353 116 346 L117 330 Z" fill="none" stroke={s} strokeWidth={sw2}/>
+      {/* Pie posterior der */}
+      <path d="M129 344 Q133 353 135 363 Q136 373 130 379 Q120 383 109 379 Q105 371 109 361 L116 346 Z" fill="none" stroke={s} strokeWidth={sw2}/>
+    </>
+  )
+}
 
 function BodyMap({ onSelect, selected }) {
   const [side, setSide] = useState('front')
   const zones = side === 'front' ? FRONT_ZONES : BACK_ZONES
-  const svgSource = side === 'front' ? FRONT_SVG : BACK_SVG
 
   function handleSVGClick(e) {
     const svg = e.currentTarget
@@ -339,7 +338,6 @@ function BodyMap({ onSelect, selected }) {
     if (nearest) onSelect(nearest.label)
   }
 
-  // Find selected zone for pin rendering
   const selectedZone = selected ? zones.find(z => z.label === selected) : null
 
   return (
@@ -359,207 +357,36 @@ function BodyMap({ onSelect, selected }) {
       </div>
 
       <div style={{ display:'flex', gap:14, alignItems:'flex-start' }}>
-        {/* SVG anatómico profesional */}
+        {/* SVG anatómico */}
         <div style={{ flexShrink:0, position:'relative' }}>
           <svg
             viewBox="0 0 200 400"
             width="160"
-            style={{ cursor:'crosshair', display:'block', overflow:'visible', filter:'drop-shadow(0 0 14px rgba(56,189,248,.25))' }}
+            style={{ cursor:'crosshair', display:'block', overflow:'visible' }}
             onClick={handleSVGClick}
           >
             <defs>
-              <filter id="xglowS" x="-50%" y="-50%" width="200%" height="200%">
+              <filter id="pinGlow" x="-50%" y="-50%" width="200%" height="200%">
                 <feGaussianBlur stdDeviation="4" result="blur"/>
                 <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
               </filter>
             </defs>
 
-            {/* Fondo transparente */}
             <rect width="200" height="400" fill="transparent"/>
 
-            {/* SVG anatómico renderizado como foreignObject o como dangerouslySetInnerHTML en grupo */}
-            <g dangerouslySetInnerHTML={{ __html: side === 'front'
-              ? `<!-- Cabeza -->
-  <ellipse cx="100" cy="26" rx="18" ry="21" fill="none" stroke="rgba(180,200,220,.7)" stroke-width="1.1"/>
-  <ellipse cx="100" cy="26" rx="14" ry="17" fill="none" stroke="rgba(180,200,220,.3)" stroke-width=".6"/>
-  <!-- Cuello -->
-  <path d="M91 44 Q100 50 109 44 L111 56 Q100 58 89 56 Z" fill="none" stroke="rgba(180,200,220,.65)" stroke-width="1"/>
-  <!-- Trapecio izq-->
-  <path d="M89 56 Q80 60 68 66 Q63 70 62 77 L72 80 Q76 72 84 68 L89 62 Z" fill="none" stroke="rgba(180,200,220,.65)" stroke-width="1"/>
-  <!-- Trapecio der-->
-  <path d="M111 56 Q120 60 132 66 Q137 70 138 77 L128 80 Q124 72 116 68 L111 62 Z" fill="none" stroke="rgba(180,200,220,.65)" stroke-width="1"/>
-  <!-- Claviculas -->
-  <path d="M89 57 Q100 54 111 57" fill="none" stroke="rgba(180,200,220,.55)" stroke-width=".9"/>
-  <!-- Pectoral izq -->
-  <path d="M89 62 L89 98 Q95 105 100 105 L100 65 Q96 63 89 62 Z" fill="none" stroke="rgba(180,200,220,.65)" stroke-width="1"/>
-  <!-- Pectoral der -->
-  <path d="M111 62 L111 98 Q105 105 100 105 L100 65 Q104 63 111 62 Z" fill="none" stroke="rgba(180,200,220,.65)" stroke-width="1"/>
-  <!-- Linea esternal -->
-  <line x1="100" y1="57" x2="100" y2="105" stroke="rgba(180,200,220,.4)" stroke-width=".7"/>
-  <!-- Hombro izq deltoides -->
-  <path d="M68 66 Q60 68 56 78 Q54 88 58 96 L65 92 Q62 84 64 76 L72 73 Z" fill="none" stroke="rgba(180,200,220,.65)" stroke-width="1"/>
-  <!-- Hombro der deltoides -->
-  <path d="M132 66 Q140 68 144 78 Q146 88 142 96 L135 92 Q138 84 136 76 L128 73 Z" fill="none" stroke="rgba(180,200,220,.65)" stroke-width="1"/>
-  <!-- Bicep izq -->
-  <path d="M58 96 Q53 108 54 122 Q56 130 60 134 L66 130 Q63 122 62 112 L65 100 Z" fill="none" stroke="rgba(180,200,220,.65)" stroke-width="1"/>
-  <!-- Pico bicep izq -->
-  <path d="M56 110 Q55 118 57 122" fill="none" stroke="rgba(180,200,220,.4)" stroke-width=".7"/>
-  <!-- Bicep der -->
-  <path d="M142 96 Q147 108 146 122 Q144 130 140 134 L134 130 Q137 122 138 112 L135 100 Z" fill="none" stroke="rgba(180,200,220,.65)" stroke-width="1"/>
-  <!-- Pico bicep der -->
-  <path d="M144 110 Q145 118 143 122" fill="none" stroke="rgba(180,200,220,.4)" stroke-width=".7"/>
-  <!-- Antebrazo izq externo -->
-  <path d="M54 122 Q50 136 50 152 Q51 162 54 168 L59 165 Q57 156 57 144 L57 126 Z" fill="none" stroke="rgba(180,200,220,.6)" stroke-width=".9"/>
-  <!-- Antebrazo izq interno -->
-  <path d="M60 134 Q62 148 62 158 L59 165 Z" fill="none" stroke="rgba(180,200,220,.5)" stroke-width=".8"/>
-  <!-- Antebrazo der externo -->
-  <path d="M146 122 Q150 136 150 152 Q149 162 146 168 L141 165 Q143 156 143 144 L143 126 Z" fill="none" stroke="rgba(180,200,220,.6)" stroke-width=".9"/>
-  <!-- Antebrazo der interno -->
-  <path d="M140 134 Q138 148 138 158 L141 165 Z" fill="none" stroke="rgba(180,200,220,.5)" stroke-width=".8"/>
-  <!-- Mano izq -->
-  <path d="M50 152 Q46 162 45 172 Q46 180 54 183 Q59 179 60 168 Z" fill="none" stroke="rgba(180,200,220,.55)" stroke-width=".9"/>
-  <!-- Mano der -->
-  <path d="M150 152 Q154 162 155 172 Q154 180 146 183 Q141 179 140 168 Z" fill="none" stroke="rgba(180,200,220,.55)" stroke-width=".9"/>
-  <!-- Abdomen recto abdominal -->
-  <path d="M89 105 L89 162 Q94 168 100 168 Q106 168 111 162 L111 105 Z" fill="none" stroke="rgba(180,200,220,.6)" stroke-width="1"/>
-  <!-- Líneas abs -->
-  <path d="M89 120 Q100 122 111 120" fill="none" stroke="rgba(180,200,220,.4)" stroke-width=".7"/>
-  <path d="M89 134 Q100 136 111 134" fill="none" stroke="rgba(180,200,220,.4)" stroke-width=".7"/>
-  <path d="M89 148 Q100 150 111 148" fill="none" stroke="rgba(180,200,220,.4)" stroke-width=".7"/>
-  <!-- Línea alba -->
-  <line x1="100" y1="105" x2="100" y2="162" stroke="rgba(180,200,220,.35)" stroke-width=".7"/>
-  <!-- Serrato izq -->
-  <path d="M72 80 L74 105 Q80 120 84 138 L89 138" fill="none" stroke="rgba(180,200,220,.45)" stroke-width=".8"/>
-  <!-- Serrato der -->
-  <path d="M128 80 L126 105 Q120 120 116 138 L111 138" fill="none" stroke="rgba(180,200,220,.45)" stroke-width=".8"/>
-  <!-- Oblicuo izq -->
-  <path d="M74 120 Q76 145 83 162 L89 162" fill="none" stroke="rgba(180,200,220,.5)" stroke-width=".9"/>
-  <!-- Oblicuo der -->
-  <path d="M126 120 Q124 145 117 162 L111 162" fill="none" stroke="rgba(180,200,220,.5)" stroke-width=".9"/>
-  <!-- Cadera izq -->
-  <path d="M83 162 Q79 170 77 182 Q76 192 80 198 L87 195 Q85 188 85 178 Q86 170 89 162 Z" fill="none" stroke="rgba(180,200,220,.6)" stroke-width=".9"/>
-  <!-- Cadera der -->
-  <path d="M117 162 Q121 170 123 182 Q124 192 120 198 L113 195 Q115 188 115 178 Q114 170 111 162 Z" fill="none" stroke="rgba(180,200,220,.6)" stroke-width=".9"/>
-  <!-- Pubis -->
-  <path d="M83 162 Q100 170 117 162" fill="none" stroke="rgba(180,200,220,.4)" stroke-width=".7"/>
-  <!-- Cuadricep izq -->
-  <path d="M77 182 Q72 200 72 220 Q73 238 78 252 L86 250 Q82 236 82 218 Q83 200 87 184 Z" fill="none" stroke="rgba(180,200,220,.65)" stroke-width="1"/>
-  <!-- Línea interna cuad izq -->
-  <path d="M85 185 Q88 204 88 222 Q87 238 84 250" fill="none" stroke="rgba(180,200,220,.4)" stroke-width=".7"/>
-  <!-- Cuadricep der -->
-  <path d="M123 182 Q128 200 128 220 Q127 238 122 252 L114 250 Q118 236 118 218 Q117 200 113 184 Z" fill="none" stroke="rgba(180,200,220,.65)" stroke-width="1"/>
-  <!-- Línea interna cuad der -->
-  <path d="M115 185 Q112 204 112 222 Q113 238 116 250" fill="none" stroke="rgba(180,200,220,.4)" stroke-width=".7"/>
-  <!-- Separación cuad -->
-  <path d="M87 184 Q92 195 100 196 Q108 195 113 184" fill="none" stroke="rgba(180,200,220,.4)" stroke-width=".7"/>
-  <!-- Rótula izq -->
-  <ellipse cx="80" cy="260" rx="8" ry="9" fill="none" stroke="rgba(180,200,220,.6)" stroke-width=".9"/>
-  <!-- Rótula der -->
-  <ellipse cx="120" cy="260" rx="8" ry="9" fill="none" stroke="rgba(180,200,220,.6)" stroke-width=".9"/>
-  <!-- Tibia izq -->
-  <path d="M74 268 Q73 285 74 300 Q75 312 78 320 L83 318 Q81 306 81 294 Q81 278 82 268 Z" fill="none" stroke="rgba(180,200,220,.6)" stroke-width=".9"/>
-  <path d="M82 268 Q84 283 84 298 Q83 310 81 318" fill="none" stroke="rgba(180,200,220,.45)" stroke-width=".7"/>
-  <!-- Tibia der -->
-  <path d="M126 268 Q127 285 126 300 Q125 312 122 320 L117 318 Q119 306 119 294 Q119 278 118 268 Z" fill="none" stroke="rgba(180,200,220,.6)" stroke-width=".9"/>
-  <path d="M118 268 Q116 283 116 298 Q117 310 119 318" fill="none" stroke="rgba(180,200,220,.45)" stroke-width=".7"/>
-  <!-- Tobillo izq -->
-  <path d="M74 318 Q70 326 70 336 Q71 344 78 347 Q84 346 86 340 Q86 332 84 322 Z" fill="none" stroke="rgba(180,200,220,.55)" stroke-width=".9"/>
-  <!-- Pie izq -->
-  <path d="M70 336 Q66 345 64 356 Q63 366 68 372 Q78 376 88 372 Q92 366 88 356 L86 340 Z" fill="none" stroke="rgba(180,200,220,.55)" stroke-width=".9"/>
-  <!-- Tobillo der -->
-  <path d="M126 318 Q130 326 130 336 Q129 344 122 347 Q116 346 114 340 Q114 332 116 322 Z" fill="none" stroke="rgba(180,200,220,.55)" stroke-width=".9"/>
-  <!-- Pie der -->
-  <path d="M130 336 Q134 345 136 356 Q137 366 132 372 Q122 376 112 372 Q108 366 112 356 L114 340 Z" fill="none" stroke="rgba(180,200,220,.55)" stroke-width=".9"/>`
-              : `<!-- Cabeza posterior -->
-  <ellipse cx="100" cy="26" rx="18" ry="21" fill="none" stroke="rgba(180,200,220,.7)" stroke-width="1.1"/>
-  <ellipse cx="100" cy="26" rx="14" ry="17" fill="none" stroke="rgba(180,200,220,.3)" stroke-width=".6"/>
-  <!-- Cuello posterior -->
-  <path d="M91 44 Q100 50 109 44 L111 56 Q100 58 89 56 Z" fill="none" stroke="rgba(180,200,220,.65)" stroke-width="1"/>
-  <!-- Trapecio izq -->
-  <path d="M89 56 Q80 58 68 66 Q63 70 62 80 Q68 88 76 86 Q82 78 89 72 Z" fill="none" stroke="rgba(180,200,220,.7)" stroke-width="1.1"/>
-  <!-- Trapecio der -->
-  <path d="M111 56 Q120 58 132 66 Q137 70 138 80 Q132 88 124 86 Q118 78 111 72 Z" fill="none" stroke="rgba(180,200,220,.7)" stroke-width="1.1"/>
-  <!-- Línea trapecios -->
-  <path d="M89 56 Q100 62 111 56" fill="none" stroke="rgba(180,200,220,.5)" stroke-width=".8"/>
-  <!-- Deltoides posterior izq -->
-  <path d="M62 80 Q56 84 54 92 Q56 100 60 104 L67 98 Q64 92 65 84 Z" fill="none" stroke="rgba(180,200,220,.65)" stroke-width="1"/>
-  <!-- Deltoides posterior der -->
-  <path d="M138 80 Q144 84 146 92 Q144 100 140 104 L133 98 Q136 92 135 84 Z" fill="none" stroke="rgba(180,200,220,.65)" stroke-width="1"/>
-  <!-- Infraespinoso izq -->
-  <path d="M65 84 Q68 100 70 112 L78 110 Q77 96 75 84 Z" fill="none" stroke="rgba(180,200,220,.6)" stroke-width=".9"/>
-  <!-- Infraespinoso der -->
-  <path d="M135 84 Q132 100 130 112 L122 110 Q123 96 125 84 Z" fill="none" stroke="rgba(180,200,220,.6)" stroke-width=".9"/>
-  <!-- Romboides / Espalda alta -->
-  <path d="M89 72 Q100 76 111 72 L112 98 Q100 104 88 98 Z" fill="none" stroke="rgba(180,200,220,.65)" stroke-width="1"/>
-  <!-- Línea espinal -->
-  <line x1="100" y1="56" x2="100" y2="162" stroke="rgba(180,200,220,.4)" stroke-width=".8"/>
-  <!-- Trícep izq -->
-  <path d="M60 104 Q55 116 54 130 Q55 140 60 146 L66 142 Q63 132 63 118 Q64 110 68 106 Z" fill="none" stroke="rgba(180,200,220,.65)" stroke-width="1"/>
-  <!-- Línea trícep izq -->
-  <path d="M63 116 Q65 124 65 132" fill="none" stroke="rgba(180,200,220,.4)" stroke-width=".7"/>
-  <!-- Trícep der -->
-  <path d="M140 104 Q145 116 146 130 Q145 140 140 146 L134 142 Q137 132 137 118 Q136 110 132 106 Z" fill="none" stroke="rgba(180,200,220,.65)" stroke-width="1"/>
-  <!-- Línea trícep der -->
-  <path d="M137 116 Q135 124 135 132" fill="none" stroke="rgba(180,200,220,.4)" stroke-width=".7"/>
-  <!-- Dorsal izq -->
-  <path d="M72 86 Q70 106 72 130 Q75 148 84 162 L89 160 Q82 146 80 128 Q79 108 79 88 Z" fill="none" stroke="rgba(180,200,220,.65)" stroke-width="1"/>
-  <!-- Dorsal der -->
-  <path d="M128 86 Q130 106 128 130 Q125 148 116 162 L111 160 Q118 146 120 128 Q121 108 121 88 Z" fill="none" stroke="rgba(180,200,220,.65)" stroke-width="1"/>
-  <!-- Espalda baja lumbar -->
-  <path d="M89 98 L89 162 Q94 168 100 168 Q106 168 111 162 L111 98 Q100 106 89 98 Z" fill="none" stroke="rgba(180,200,220,.6)" stroke-width="1"/>
-  <!-- Líneas lumbares -->
-  <path d="M89 120 Q100 124 111 120" fill="none" stroke="rgba(180,200,220,.35)" stroke-width=".7"/>
-  <path d="M89 138 Q100 142 111 138" fill="none" stroke="rgba(180,200,220,.35)" stroke-width=".7"/>
-  <!-- Antebrazo posterior izq -->
-  <path d="M54 130 Q50 144 50 160 Q51 170 55 174 L60 172 Q58 162 58 148 L57 136 Z" fill="none" stroke="rgba(180,200,220,.6)" stroke-width=".9"/>
-  <!-- Antebrazo posterior der -->
-  <path d="M146 130 Q150 144 150 160 Q149 170 145 174 L140 172 Q142 162 142 148 L143 136 Z" fill="none" stroke="rgba(180,200,220,.6)" stroke-width=".9"/>
-  <!-- Mano izq -->
-  <path d="M50 160 Q46 170 45 180 Q46 188 54 191 Q60 187 60 172 Z" fill="none" stroke="rgba(180,200,220,.55)" stroke-width=".9"/>
-  <!-- Mano der -->
-  <path d="M150 160 Q154 170 155 180 Q154 188 146 191 Q140 187 140 172 Z" fill="none" stroke="rgba(180,200,220,.55)" stroke-width=".9"/>
-  <!-- Glúteo izq -->
-  <path d="M84 162 Q76 168 74 180 Q74 196 82 206 Q90 210 100 208 L100 168 Q92 168 84 162 Z" fill="none" stroke="rgba(180,200,220,.7)" stroke-width="1.1"/>
-  <!-- Glúteo der -->
-  <path d="M116 162 Q124 168 126 180 Q126 196 118 206 Q110 210 100 208 L100 168 Q108 168 116 162 Z" fill="none" stroke="rgba(180,200,220,.7)" stroke-width="1.1"/>
-  <!-- Separación glútea -->
-  <line x1="100" y1="162" x2="100" y2="208" stroke="rgba(180,200,220,.35)" stroke-width=".7"/>
-  <!-- Isquiotibial izq -->
-  <path d="M74 198 Q70 216 70 236 Q71 250 77 260 L84 257 Q80 244 80 226 Q81 208 84 196 Z" fill="none" stroke="rgba(180,200,220,.65)" stroke-width="1"/>
-  <path d="M84 198 Q86 216 87 234 Q86 248 84 258" fill="none" stroke="rgba(180,200,220,.4)" stroke-width=".7"/>
-  <!-- Isquiotibial der -->
-  <path d="M126 198 Q130 216 130 236 Q129 250 123 260 L116 257 Q120 244 120 226 Q119 208 116 196 Z" fill="none" stroke="rgba(180,200,220,.65)" stroke-width="1"/>
-  <path d="M116 198 Q114 216 113 234 Q114 248 116 258" fill="none" stroke="rgba(180,200,220,.4)" stroke-width=".7"/>
-  <!-- Corva izq -->
-  <path d="M74 260 Q78 266 84 268 Q90 266 94 260" fill="none" stroke="rgba(180,200,220,.55)" stroke-width=".9"/>
-  <!-- Corva der -->
-  <path d="M126 260 Q122 266 116 268 Q110 266 106 260" fill="none" stroke="rgba(180,200,220,.55)" stroke-width=".9"/>
-  <!-- Gemelo izq -->
-  <path d="M74 266 Q70 280 71 298 Q73 312 78 322 L84 319 Q81 308 80 294 Q80 278 82 266 Z" fill="none" stroke="rgba(180,200,220,.65)" stroke-width="1"/>
-  <path d="M82 268 Q86 282 86 296 Q85 310 83 320" fill="none" stroke="rgba(180,200,220,.45)" stroke-width=".7"/>
-  <!-- Gemelo der -->
-  <path d="M126 266 Q130 280 129 298 Q127 312 122 322 L116 319 Q119 308 120 294 Q120 278 118 266 Z" fill="none" stroke="rgba(180,200,220,.65)" stroke-width="1"/>
-  <path d="M118 268 Q114 282 114 296 Q115 310 117 320" fill="none" stroke="rgba(180,200,220,.45)" stroke-width=".7"/>
-  <!-- Talón izq -->
-  <path d="M78 320 Q75 330 76 340 Q78 348 82 350 Q86 348 87 342 L86 326 Z" fill="none" stroke="rgba(180,200,220,.55)" stroke-width=".9"/>
-  <!-- Pie posterior izq -->
-  <path d="M76 340 Q72 348 70 358 Q69 368 74 374 Q84 378 90 372 Q94 364 90 354 L87 342 Z" fill="none" stroke="rgba(180,200,220,.55)" stroke-width=".9"/>
-  <!-- Talón der -->
-  <path d="M122 320 Q125 330 124 340 Q122 348 118 350 Q114 348 113 342 L114 326 Z" fill="none" stroke="rgba(180,200,220,.55)" stroke-width=".9"/>
-  <!-- Pie posterior der -->
-  <path d="M124 340 Q128 348 130 358 Q131 368 126 374 Q116 378 110 372 Q106 364 110 354 L113 342 Z" fill="none" stroke="rgba(180,200,220,.55)" stroke-width=".9"/>`
-            }} />
+            {/* Figura anatómica */}
+            {side === 'front' ? <FrontBodySVG /> : <BackBodySVG />}
 
-            {/* Zonas clickeables */}
+            {/* Zonas clickeables (invisible, solo para interacción) */}
             {zones.map(z => {
               const isSel = selected === z.label
               return (
                 <circle
                   key={z.id}
                   cx={z.cx} cy={z.cy} r={z.r}
-                  fill={isSel ? 'rgba(239,68,68,.35)' : 'rgba(56,189,248,.04)'}
-                  stroke={isSel ? '#ef4444' : 'rgba(56,189,248,.15)'}
-                  strokeWidth={isSel ? 2 : 1}
+                  fill={isSel ? 'rgba(239,68,68,.3)' : 'rgba(56,189,248,.03)'}
+                  stroke={isSel ? 'rgba(239,68,68,.8)' : 'rgba(56,189,248,.1)'}
+                  strokeWidth={isSel ? 2 : .8}
                   style={{ cursor:'pointer', transition:'all .15s' }}
                 />
               )
@@ -567,9 +394,9 @@ function BodyMap({ onSelect, selected }) {
 
             {/* PIN zona seleccionada */}
             {selectedZone && (
-              <g filter="url(#xglowS)">
-                <circle cx={selectedZone.cx} cy={selectedZone.cy} r={selectedZone.r + 5} fill="none" stroke="#ef4444" strokeWidth="1.5" opacity={0.4}/>
-                <circle cx={selectedZone.cx} cy={selectedZone.cy} r={selectedZone.r + 9} fill="none" stroke="#ef4444" strokeWidth="0.8" opacity={0.2}/>
+              <g filter="url(#pinGlow)">
+                <circle cx={selectedZone.cx} cy={selectedZone.cy} r={selectedZone.r + 6} fill="none" stroke="#ef4444" strokeWidth="1.5" opacity={0.35}/>
+                <circle cx={selectedZone.cx} cy={selectedZone.cy} r={selectedZone.r + 11} fill="none" stroke="#ef4444" strokeWidth="0.8" opacity={0.15}/>
                 <circle cx={selectedZone.cx} cy={selectedZone.cy} r={9} fill="#ef4444" opacity={0.95}/>
                 <circle cx={selectedZone.cx} cy={selectedZone.cy} r={3.5} fill="white" opacity={0.95}/>
               </g>
