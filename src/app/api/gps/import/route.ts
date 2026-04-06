@@ -116,10 +116,10 @@ const ROW_COL_ORDER = [
   'dist_total',
   'dist_per_min',
   'dist_v4',     // 15-20 km/h
-  'dist_hir',    // 20/25 km/h  
-  'dist_v5',     // Sprint distance
+  null,          // 20/25 km/h (VEL B5 — skipped; HSR>19.7 below is more accurate)
+  'dist_v5',     // Sprint distance (VEL B6)
   'n_sprints',
-  null,          // HSR (>19.7) — same as dist_hir, skip to avoid overwrite
+  'dist_hir',   // HSR (>19.7) — this IS the real High Speed Running metric
   'acc2',
   'dec2',
   'player_load',
@@ -161,8 +161,8 @@ function parsePdfRowFormat(lines: string[]): Record<string, any>[] | null {
   // [4] SprintDist  [5] NumSprints  [6] HSR(>19.7)
   // [7] AccB2-3  [8] DecelB2-3  [9] TotPL  [10] Duration(HH:MM:SS)  [11] MaxVel
   const FIELD_MAP = [
-    'dist_total', 'dist_per_min', 'dist_v4', 'dist_hir',
-    'dist_v5', 'n_sprints', null,
+    'dist_total', 'dist_per_min', 'dist_v4', null,     // 20/25 km/h → skip (HSR>19.7 is more accurate)
+    'dist_v5', 'n_sprints', 'dist_hir',
     'acc2', 'dec2', 'player_load', 'duracion_min', 'max_velocity'
   ]
 
