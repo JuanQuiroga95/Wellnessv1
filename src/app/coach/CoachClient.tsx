@@ -6027,22 +6027,46 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
     } catch(e){}
   }
 
-  // GPS Variables definition
-  const GPS_VARS = [
-    {key:'dist_total',   label:'Tot Dist (m)',   color:'#60a5fa'},
-    {key:'dist_per_min', label:'Mts/min',        color:'#34d399'},
-    {key:'dist_hir',     label:'High Speed (m)', color:'#f59e0b'},
-    {key:'dist_v4',      label:'Vel B4 (m)',     color:'#a78bfa'},
-    {key:'dist_v5',      label:'Vel B6 (m)',     color:'#f97316'},
-    {key:'n_sprints',    label:'Nº Sprints',     color:'#ec4899'},
-    {key:'max_velocity', label:'Vel Máx (km/h)', color:'#ef4444'},
-    {key:'acc2',         label:'ACC B2-3',       color:'#8b5cf6'},
-    {key:'dec2',         label:'DEC B2-3',       color:'#06b6d4'},
-  ]
-
   const gpsReal: any[] = data?.gpsReal || []
   const gpsPerMD: Record<string,any[]> = data?.gpsPerMD || {}
   const sesionesInfo: any[] = data?.sesionesInfo || []
+  const allMetricColsGps: string[] = data?.allMetricCols || []
+
+  // GPS_METRIC_COLOR: default color per key (fallback for unknown keys)
+  const GPS_KEY_COLORS: Record<string,string> = {
+    dist_total:'#60a5fa', dist_per_min:'#34d399', dist_hir:'#f59e0b',
+    dist_v4:'#a78bfa', dist_v5:'#f97316', dist_v1:'#94a3b8', dist_v2:'#64748b', dist_v3:'#7dd3fc',
+    n_sprints:'#ec4899', max_velocity:'#ef4444',
+    acc2:'#8b5cf6', dec2:'#06b6d4', acc3:'#f43f5e', dec3:'#0ea5e9',
+    acc1:'#c084fc', dec1:'#22d3ee', acc4:'#fb7185', dec4:'#38bdf8',
+    acc_total:'#d946ef', dec_total:'#0284c7',
+    player_load:'#fbbf24', metabolic_power:'#fb923c', avg_metabolic_power:'#fdba74',
+    hr_avg:'#f87171', hr_max:'#dc2626', duracion_min:'#a3e635',
+    hr_z1:'#bbf7d0', hr_z2:'#86efac', hr_z3:'#4ade80', hr_z4:'#fbbf24', hr_z5:'#f87171',
+    equiv_distance:'#67e8f9',
+  }
+
+  // Build GPS_VARS dynamically from columns actually present in the data
+  // Priority order: use GPS_METRIC_ORDER, then remaining unknown cols alphabetically
+  const GPS_VARS = (() => {
+    const rawCols = allMetricColsGps.length > 0 ? allMetricColsGps : (
+      gpsReal.length > 0
+        ? Object.keys(gpsReal[0]).filter(k => !['jugador_id','nombre','posicion','sesiones_gps','sesiones'].includes(k))
+        : []
+    )
+    const ordered = [
+      ...GPS_METRIC_ORDER.filter(k => rawCols.includes(k)),
+      ...rawCols.filter(k => !GPS_METRIC_ORDER.includes(k)).sort(),
+    ]
+    return ordered.map(key => {
+      const meta = GPS_METRIC_META[key]
+      return {
+        key,
+        label: meta ? `${meta.label}${meta.unit ? ' ('+meta.unit+')' : ''}` : key,
+        color: GPS_KEY_COLORS[key] || '#94a3b8',
+      }
+    })
+  })()
   const MD_ORDER_LOCAL = ['MD+1','MD+2','MD+3','MD-4','MD-3','MD-2','MD-1','MD']
   const existingMdLabels = new Set(sesionesInfo.map((s:any) => s.titulo))
   const mdCols = MD_ORDER_LOCAL
@@ -6056,7 +6080,8 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
   const pct = (val:number, key:string) => { const ref=refMedia[key]; if(!ref||ref===0) return null; return Math.round((val/ref)*100) }
   const pctColor = (p:number|null) => p===null?'var(--fog)':p>=85?'#22c55e':p>=65?'#f59e0b':'#ef4444'
 
-  // Team avg GPS for a given MD
+  // Team avg GPS for a given MD — works across all dynamic GPS_VARS
+  const MAX_FIELDS_GPS = new Set(['max_velocity','hr_max'])
   const mdTeamAvg = (md: string) => {
     const rows = gpsPerMD[md] || []
     if (!rows.length) return {}
@@ -6064,27 +6089,58 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
     GPS_VARS.forEach(v => {
       const vals = rows.map((p:any)=>Number(p[v.key])||0).filter(x=>x>0)
       if (!vals.length) return
-      avg[v.key] = v.key==='max_velocity'
+      avg[v.key] = MAX_FIELDS_GPS.has(v.key)
         ? Math.round(Math.max(...vals)*100)/100
         : Math.round(vals.reduce((s,x)=>s+x,0)/vals.length*10)/10
     })
     return avg
   }
 
-  // Chart groups for GPS comparison (real data per player)
+  // Chart groups for GPS comparison — only show groups for columns actually present
+  const availGpsKeys = new Set(GPS_VARS.map(v => v.key))
   const GPS_CHART_GROUPS = [
-    { title:'DISTANCIA', color:'#3b82f6',
-      bars:[{key:'dist_total',label:'Tot Dist',color:'#3b82f6'},{key:'dist_hir',label:'High Speed',color:'#f59e0b'}],
-      line:{key:'dist_per_min',label:'Mts/min',color:'#34d399'} },
-    { title:'VELOCIDAD', color:'#ef4444',
-      bars:[{key:'dist_v5',label:'Vel B6',color:'#f97316'},{key:'dist_v4',label:'Vel B4',color:'#a78bfa'}],
-      line:{key:'max_velocity',label:'Vel Máx',color:'#ef4444'} },
-    { title:'ACC / DEC B2-3', color:'#ec4899',
-      bars:[{key:'acc2',label:'ACC B2-3',color:'#ec4899'},{key:'dec2',label:'DEC B2-3',color:'#14b8a6'}],
-      line:null },
-    { title:'ACC / DEC >3', color:'#f43f5e',
-      bars:[{key:'acc3',label:'ACC >3',color:'#f43f5e'},{key:'dec3',label:'DEC >3',color:'#0ea5e9'}],
-      line:null },
+    ...(availGpsKeys.has('dist_total') || availGpsKeys.has('dist_hir') ? [{
+      title:'DISTANCIA', color:'#3b82f6',
+      bars:[
+        ...(availGpsKeys.has('dist_total') ? [{key:'dist_total',label:'Tot Dist',color:'#3b82f6'}] : []),
+        ...(availGpsKeys.has('dist_hir') ? [{key:'dist_hir',label:'High Speed',color:'#f59e0b'}] : []),
+      ],
+      line: availGpsKeys.has('dist_per_min') ? {key:'dist_per_min',label:'Mts/min',color:'#34d399'} : null,
+    }] : []),
+    ...(availGpsKeys.has('dist_v4') || availGpsKeys.has('dist_v5') ? [{
+      title:'VELOCIDAD', color:'#ef4444',
+      bars:[
+        ...(availGpsKeys.has('dist_v5') ? [{key:'dist_v5',label:'Vel B6',color:'#f97316'}] : []),
+        ...(availGpsKeys.has('dist_v4') ? [{key:'dist_v4',label:'Vel B4',color:'#a78bfa'}] : []),
+      ],
+      line: availGpsKeys.has('max_velocity') ? {key:'max_velocity',label:'Vel Máx',color:'#ef4444'} : null,
+    }] : []),
+    ...(availGpsKeys.has('acc2') || availGpsKeys.has('dec2') ? [{
+      title:'ACC / DEC B2-3', color:'#ec4899',
+      bars:[
+        ...(availGpsKeys.has('acc2') ? [{key:'acc2',label:'ACC B2-3',color:'#ec4899'}] : []),
+        ...(availGpsKeys.has('dec2') ? [{key:'dec2',label:'DEC B2-3',color:'#14b8a6'}] : []),
+      ],
+      line: null,
+    }] : []),
+    ...(availGpsKeys.has('acc3') || availGpsKeys.has('dec3') ? [{
+      title:'ACC / DEC >3', color:'#f43f5e',
+      bars:[
+        ...(availGpsKeys.has('acc3') ? [{key:'acc3',label:'ACC >3',color:'#f43f5e'}] : []),
+        ...(availGpsKeys.has('dec3') ? [{key:'dec3',label:'DEC >3',color:'#0ea5e9'}] : []),
+      ],
+      line: null,
+    }] : []),
+    ...(availGpsKeys.has('player_load') ? [{
+      title:'PLAYER LOAD', color:'#fbbf24',
+      bars:[{key:'player_load',label:'Player Load',color:'#fbbf24'}],
+      line: null,
+    }] : []),
+    ...(availGpsKeys.has('n_sprints') ? [{
+      title:'SPRINTS', color:'#ec4899',
+      bars:[{key:'n_sprints',label:'Nº Sprints',color:'#ec4899'}],
+      line: null,
+    }] : []),
   ]
 
   const POS_LIST = ['#22c55e','#3b82f6','#f59e0b','#ef4444','#a78bfa','#ec4899','#06b6d4','#fbbf24']
