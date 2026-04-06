@@ -34,7 +34,10 @@ const EXCEL_COL_MAP: Array<[string, string]> = [
   ['vel b2','dist_v2'],['velocity band 2','dist_v2'],
   ['vel b3','dist_v3'],['velocity band 3','dist_v3'],
   ['metabolic power','metabolic_power'],['hr avg','hr_avg'],['hr max','hr_max'],
-  ['duration','duracion_min'],['total time','duracion_min'],
+  ['duration','duracion_min'],['total time','duracion_min'],['tot dur','duracion_min'],
+  ['total dur','duracion_min'],['duree','duracion_min'],['durée','duracion_min'],
+  ['duración','duracion_min'],['duracion','duracion_min'],['temps total','duracion_min'],
+  ['time played','duracion_min'],['playing time','duracion_min'],['elapsed time','duracion_min'],
 ]
 
 function matchExcelCol(h: string): string | null {
@@ -67,6 +70,19 @@ function parseRawRows(raw: any[][]): Record<string, any>[] {
         const f = colMap[idx]
         if (!f || cell === null || cell === '') return
         if (f === '__name__') { name = String(cell).trim(); return }
+        // Handle HH:MM:SS or MM:SS duration → convert to minutes
+        if (f === 'duracion_min') {
+          const durStr = String(cell).trim()
+          const durMatch = durStr.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/)
+          if (durMatch) {
+            const h = durMatch[3] ? parseInt(durMatch[1]) : 0
+            const m = durMatch[3] ? parseInt(durMatch[2]) : parseInt(durMatch[1])
+            const s = durMatch[3] ? parseInt(durMatch[3]) : parseInt(durMatch[2])
+            const totalMin = h * 60 + m + s / 60
+            if (totalMin > 0) metricas[f] = Math.round(totalMin * 10) / 10
+            return
+          }
+        }
         const n = parseFloat(String(cell).replace(',', '.'))
         if (!isNaN(n)) metricas[f] = n
       })
@@ -107,22 +123,25 @@ const ROW_COL_ORDER = [
   'acc2',
   'dec2',
   'player_load',
-  null,          // Duration (HH:MM:SS, skip)
+  'duracion_min', // Duration (HH:MM:SS → converted to minutes)
   'max_velocity',
 ]
 
 function cleanCatapultName(raw: string): string {
   // "ALBERTO RUBIO ALBERTO R." → "ALBERTO RUBIO"
   // "KIKO KIKO" → "KIKO"
+  // "L Luvannor" → "L Luvannor" (do NOT strip — "L" is just an initial)
   const parts = raw.trim().split(/\s+/)
   const n = parts.length
   if (n < 2) return raw.trim()
   // If last word is repeated first word, remove it
   if (normStr(parts[n-1]) === normStr(parts[0])) return parts.slice(0, n-1).join(' ')
-  // If second half is an abbreviation of first half
+  // If second half is an abbreviation of first half —
+  // only apply when first part is >= 3 chars (NOT a bare initial like "L" or "A")
   for (let split = 1; split < n; split++) {
     const first = parts.slice(0, split).join(' ')
     const rest  = parts.slice(split).join(' ')
+    if (first.length < 3) continue  // skip: first part is a single letter initial
     if (normStr(first).startsWith(normStr(rest)) || normStr(rest).startsWith(normStr(first).split(' ')[0]))
       return first
   }
@@ -144,7 +163,7 @@ function parsePdfRowFormat(lines: string[]): Record<string, any>[] | null {
   const FIELD_MAP = [
     'dist_total', 'dist_per_min', 'dist_v4', 'dist_hir',
     'dist_v5', 'n_sprints', null,
-    'acc2', 'dec2', 'player_load', null, 'max_velocity'
+    'acc2', 'dec2', 'player_load', 'duracion_min', 'max_velocity'
   ]
 
   const results: Record<string, any>[] = []
@@ -204,8 +223,15 @@ function parsePdfRowFormat(lines: string[]): Record<string, any>[] | null {
       for (let i = 0; i < spaceParts.length && i < FIELD_MAP.length; i++) {
         const field = FIELD_MAP[i]
         if (!field) continue
-        // Skip duration field (HH:MM:SS)
-        if (/^\d{1,2}:\d{2}:\d{2}$/.test(spaceParts[i])) continue
+        // Convert HH:MM:SS duration to minutes
+        if (/^\d{1,2}:\d{2}:\d{2}$/.test(spaceParts[i])) {
+          if (field === 'duracion_min') {
+            const [h, m, s] = spaceParts[i].split(':').map(Number)
+            const totalMin = h * 60 + m + s / 60
+            if (totalMin > 0) metricas['duracion_min'] = Math.round(totalMin * 10) / 10
+          }
+          continue
+        }
         const val = parseFloat(spaceParts[i].replace(',', '.'))
         if (!isNaN(val)) metricas[field] = val
       }
