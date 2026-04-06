@@ -213,23 +213,104 @@ function parsePdfRowFormat(lines: string[]): Record<string, any>[] | null {
     'acc2', 'dec2', 'player_load', 'duracion_min', 'max_velocity'
   ]
 
+  const SUMMARY_WORDS = new Set(['total','moyenne','average','promedio','media','totale','totaux','totals'])
+
   const results: Record<string, any>[] = []
 
-  // Pre-merge lines: pdf-parse sometimes splits "L Luvannor ST 4685..." into
-  // "L" on one line and "Luvannor ST 4685..." on the next.
-  // Merge any orphan initial (1-2 char line) with the following line.
-  const mergedLines: string[] = []
-  for (let i = 0; i < lines.length; i++) {
-    const cur = lines[i].trim()
-    if (cur.length <= 2 && /^[A-Z]$/.test(cur) && i + 1 < lines.length) {
-      mergedLines.push(cur + ' ' + lines[i + 1].trim())
-      i++ // skip next line since we merged it
-    } else {
-      mergedLines.push(cur)
+  // ── Phase 1: Detect if pdf-parse has fragmented the text (one word/token per line) ──
+  // When fragmented, we need to reassemble player rows from the token stream.
+  // Reliable signal: if POS_CODE tokens appear ALONE on a line (no name before them, no data after),
+  // pdf-parse has fragmented the PDF into individual tokens.
+  const nonEmpty = lines.filter(l => l.trim())
+  const lonePosCodes = nonEmpty.filter(l => POS_CODES.includes(l.trim()))
+  const isFragmented = lonePosCodes.length >= 2
+
+  let workingLines: string[]
+
+  if (isFragmented) {
+    // ── Fragmented mode: reassemble rows from token stream ──
+    // Strategy: collect all tokens, find player rows by scanning for POS_CODE
+    // followed by a sequence of numbers (TotDist, MeterPerMin, etc.)
+    // Token stream example: ['R','Silva','CB','5563','73.06','505','113','0','0','133','65','48','649','01:16:08','24','A','Cherif','CM',...]
+    const tokens: string[] = []
+    for (const line of lines) {
+      const t = line.trim()
+      if (!t) continue
+      // Skip header/footer tokens
+      const tn = normStr(t)
+      if (/^page\s+\d+/i.test(t)) continue
+      if (/^\d{2}\/\d{2}\/\d{4}$/.test(t)) continue
+      // Split multi-word tokens that survived (e.g. "R Silva")
+      for (const tok of t.split(/\s+/)) {
+        if (tok) tokens.push(tok)
+      }
     }
+
+    // Find indices where a POS_CODE token appears and is followed by numeric tokens
+    const rows: string[] = []
+    let i = 0
+    while (i < tokens.length) {
+      if (POS_CODES.includes(tokens[i])) {
+        // Check if next token looks like TotDist (3-5 digit number)
+        if (i + 1 < tokens.length && /^\d{3,5}$/.test(tokens[i + 1])) {
+          // Found a POS_CODE + data boundary. Collect name tokens before it.
+          // Name tokens are everything after the previous numeric block ended.
+          // We build the full player line: [name tokens] [POS] [data tokens...]
+          const posIdx = i
+          // Collect name: go backward until we hit a duration, number, or start
+          let nameStart = posIdx - 1
+          while (nameStart >= 0) {
+            const tok = tokens[nameStart]
+            // Stop if we hit a number, duration, or another POS_CODE
+            if (/^\d/.test(tok) || POS_CODES.includes(tok)) break
+            nameStart--
+          }
+          nameStart++ // first name token
+
+          const nameParts = tokens.slice(nameStart, posIdx)
+          const pos = tokens[posIdx]
+
+          // Collect data tokens: numbers, decimals, durations until next name+pos pair
+          const dataParts: string[] = []
+          let j = posIdx + 1
+          while (j < tokens.length) {
+            const tok = tokens[j]
+            // Stop if next POS_CODE is found AND is followed by a number (next player row)
+            if (POS_CODES.includes(tok) && j + 1 < tokens.length && /^\d{3,5}$/.test(tokens[j + 1])) break
+            // Stop if we encounter a clear summary word
+            if (SUMMARY_WORDS.has(normStr(tok))) break
+            dataParts.push(tok)
+            j++
+          }
+
+          if (nameParts.length > 0 && dataParts.length >= 6) {
+            rows.push([...nameParts, pos, ...dataParts].join(' '))
+          }
+          i = j
+          continue
+        }
+      }
+      i++
+    }
+    workingLines = rows
+  } else {
+    // ── Normal mode: pre-merge lines ──
+    // pdf-parse sometimes splits "L Luvannor ST 4685..." into
+    // "L" on one line and "Luvannor ST 4685..." on the next.
+    const mergedLines: string[] = []
+    for (let i = 0; i < lines.length; i++) {
+      const cur = lines[i].trim()
+      if (cur.length <= 2 && /^[A-Z]$/.test(cur) && i + 1 < lines.length) {
+        mergedLines.push(cur + ' ' + lines[i + 1].trim())
+        i++
+      } else {
+        mergedLines.push(cur)
+      }
+    }
+    workingLines = mergedLines
   }
 
-  for (const line of mergedLines) {
+  for (const line of workingLines) {
     if (!line.trim() || !posDetect.test(line)) continue
 
     // ── Strategy 1: space-separated (ideal pdf-parse output) ──
