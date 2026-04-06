@@ -269,7 +269,7 @@ export async function GET(req: NextRequest) {
     }
 
     // Build gpsPerMD: { [md_label]: { [jugador_id]: { nombre, posicion, ...fields } } }
-    const GPS_AVG_FIELDS = new Set(['dist_per_min','max_velocity'])
+    const GPS_AVG_FIELDS = new Set(['dist_per_min','max_velocity','hr_avg','hr_max','avg_metabolic_power','duracion_min'])
     const gpsPerMD: Record<string, Record<number, any>> = {}
     for (const row of gpsPerSessionRaw as any[]) {
       const md = row.md_label || row.fecha
@@ -365,7 +365,7 @@ export async function GET(req: NextRequest) {
         jugador_id: p.jugador_id, nombre: p.nombre, posicion: p.posicion, sesiones_gps: p.sesiones_gps
       }
       // AVG fields (dist_per_min, hr_avg, etc.) vs SUM fields
-      const AVG_FIELDS = new Set(['dist_per_min', 'hr_avg', 'hr_max', 'max_velocity', 'avg_metabolic_power'])
+      const AVG_FIELDS = new Set(['dist_per_min', 'hr_avg', 'hr_max', 'max_velocity', 'avg_metabolic_power', 'duracion_min'])
       for (const [k, sum] of Object.entries(p._sums as Record<string,number>)) {
         result[k] = AVG_FIELDS.has(k)
           ? Math.round((sum / (p._counts[k] || 1)) * 10) / 10

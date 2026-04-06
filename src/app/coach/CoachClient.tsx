@@ -6046,19 +6046,21 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
     equiv_distance:'#67e8f9',
   }
 
-  // Build GPS_VARS dynamically from columns actually present in the data
-  // Priority order: use GPS_METRIC_ORDER, then remaining unknown cols alphabetically
+  // Build GPS_VARS from ALL columns present across gpsReal + every gpsPerMD group
   const GPS_VARS = (() => {
-    const rawCols = allMetricColsGps.length > 0 ? allMetricColsGps : (
-      gpsReal.length > 0
-        ? Object.keys(gpsReal[0]).filter(k => !['jugador_id','nombre','posicion','sesiones_gps','sesiones'].includes(k))
-        : []
+    const SKIP = new Set(['jugador_id','nombre','posicion','sesiones_gps','sesiones','_sums','_counts','_maxes'])
+    const colSet = new Set<string>()
+    allMetricColsGps.forEach((k: string) => colSet.add(k))
+    gpsReal.forEach((p: any) => Object.keys(p).forEach(k => { if (!SKIP.has(k)) colSet.add(k) }))
+    Object.values(gpsPerMD).forEach((players: any) =>
+      (players as any[]).forEach((p: any) => Object.keys(p).forEach(k => { if (!SKIP.has(k)) colSet.add(k) }))
     )
+    const rawCols = Array.from(colSet)
     const ordered = [
       ...GPS_METRIC_ORDER.filter(k => rawCols.includes(k)),
       ...rawCols.filter(k => !GPS_METRIC_ORDER.includes(k)).sort(),
     ]
-    return ordered.map(key => {
+    return ordered.map((key: string) => {
       const meta = GPS_METRIC_META[key]
       return {
         key,
