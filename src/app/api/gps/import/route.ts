@@ -415,6 +415,135 @@ function parsePdfRowFormat(lines: string[]): Record<string, any>[] | null {
   return results.length > 0 ? results : null
 }
 
+// ─── PDF PARSER — from pre-extracted row-ordered text (client-side pdf.js) ───
+// Called when the client sends `pdfText` (text extracted with pdf.js ordered by Y-coord).
+// With row-ordered text, each player row is a single line:
+//   "R Silva CB 5563 73.06 505 113 0 0 133 65 48 649 01:16:08 24"
+// This correctly handles DATA BASE RAPPORT OPENFIELD (Arabic/Saudi clubs) and CUADRO RESUMEN.
+function parsePdfFromText(rawText: string): Record<string, any>[] {
+  const lines = rawText.split('\n').map(l => l.trim()).filter(Boolean)
+
+  // ── Try row-based format first (DATA BASE / RAPPORT OPENFIELD) ──
+  const rowResults = parsePdfRowFormat(lines)
+  if (rowResults && rowResults.length > 0) return rowResults
+
+  // ── Fall back to columnar format (CUADRO RESUMEN) ──
+  // Re-use the same columnar logic from parsePdf but without needing bytes.
+  // Find page with data table (if page separator \f exists, it won't here since we join)
+  const SEPARATOR_WORDS = new Set([
+    'promedio','moyenne','average','media','total','prom','avg','mean',
+    'totaux','totale','totals','team average','team total',
+  ])
+  const HEADER_TOKENS = new Set([
+    'position','pos','name','nombre','player','jugador','athlete',
+    'tot dist','total dist','total distance','distancia total','distance totale',
+    'meterage per minute','meterage per min','meterage','per minute','per min',
+    'high speed running','high speed','hsr','sprint distance','sprint dist',
+    'number of sprints','number sprints','num sprints','n sprints',
+    'player load','playerload','tot pl',
+    'max velocity','max vel','top speed','vel max',
+    'acc b2','acc b2-3','decel b2','decel b2-3','acc b3','dec b3',
+    'velocity band','vel b4','vel b5','vel b6',
+    '15-20','20/25','20-25','19,7','19.7',
+    '(m)','(km/h)','(meteres)','(meters)','(metres)','km/h','m/min',
+    'cuadro resumen','player summary','rapport openfield','data base',
+    'gen 2','effs','eff','tot effs','b2-3 tot effs','b2-3 tot',
+    'high','speed','running','sprint','distance','number','of','sprints',
+    'acc','decel','tot','effs',
+  ])
+  function isHeaderLine(s: string): boolean {
+    const sn = normStr(s)
+    if (/^\([^)]{1,10}\)$/.test(s)) return true
+    if (HEADER_TOKENS.has(sn)) return true
+    if (/\b(dist|distance|speed|sprint|velocity|meterage|running|load|sprints|effs|acc|decel)\b/i.test(s) && !/\d/.test(s)) return true
+    return false
+  }
+
+  const names: string[] = []
+  let promedio_idx = -1
+  for (let i = 0; i < lines.length; i++) {
+    const s = lines[i].trim()
+    const sn = normStr(s)
+    if (SEPARATOR_WORDS.has(sn) || [...SEPARATOR_WORDS].some(w => sn.startsWith(w + ' '))) { promedio_idx = i; break }
+    if (/^PAGE \d+/i.test(s) || /^\d{2}\/\d{2}\/\d{4}/.test(s)) continue
+    if (isHeaderLine(s)) continue
+    if (s) names.push(s)
+  }
+
+  if (promedio_idx === -1 && names.length > 0) {
+    for (let i = 0; i < lines.length; i++) {
+      if (/^\d[\d,.\s]{3,}$/.test(lines[i].trim())) { promedio_idx = i; break }
+    }
+  }
+
+  if (promedio_idx === -1 || names.length === 0)
+    throw new Error('No se encontraron jugadores en el PDF. Verificá que sea el Cuadro Resumen de Catapult. [DEBUG texto: ' + lines.slice(0, 30).join(' | ') + ']')
+
+  const nPlayers = names.length
+  const nTotalPerCol = nPlayers + 2
+
+  type Token = { type: 'text' | 'num'; val: any }
+  const tokens: Token[] = []
+  for (let i = promedio_idx + 1; i < lines.length; i++) {
+    const line = lines[i].trim()
+    if (!line) continue
+    const ln = normStr(line)
+    if (ln === 'md' || ln === 'cuadro resumen') continue
+    if (/^\d{2}\/\d{2}\/\d{4}/.test(line)) continue
+    if (/^j\d+\s+vs\s+/i.test(ln)) continue
+    if (/^page\s+\d+/i.test(ln)) continue
+    const m = line.match(/^(.*?)(\d[\d,.]*)$/)
+    if (m) {
+      const txt = m[1].trim()
+      const num = parseFloat(m[2].replace(',', '.'))
+      if (txt) tokens.push({ type: 'text', val: txt })
+      tokens.push({ type: 'num', val: num })
+    } else {
+      tokens.push({ type: 'text', val: line })
+    }
+  }
+
+  const blocks: Array<{ label: string; values: number[] }> = []
+  let curLabel = '', curValues: number[] = []
+  const flush = () => {
+    if (curValues.length > 0) blocks.push({ label: curLabel.trim(), values: [...curValues] })
+    curLabel = ''; curValues = []
+  }
+  for (const tok of tokens) {
+    if (tok.type === 'text') {
+      if (curValues.length > 0) flush()
+      curLabel = (curLabel + ' ' + tok.val).trim()
+    } else {
+      curValues.push(tok.val)
+      if (curValues.length === nTotalPerCol) flush()
+    }
+  }
+  flush()
+
+  if (blocks.length === 0) throw new Error('No se encontraron datos numéricos en el PDF.')
+
+  const blockFields = blocks.map((b, bi) => {
+    const byLabel = matchMetricCol(b.label)
+    if (byLabel) return byLabel
+    return bi < CATAPULT_COL_ORDER.length ? CATAPULT_COL_ORDER[bi] : null
+  })
+
+  const results: Record<string, any>[] = []
+  for (let pi = 0; pi < nPlayers; pi++) {
+    const cleanName = cleanCatapultName(names[pi])
+    const metricas: Record<string, number> = {}
+    for (let bi = 0; bi < blocks.length; bi++) {
+      const field = blockFields[bi]
+      if (!field) continue
+      const val = blocks[bi].values[pi]
+      if (val !== undefined && !isNaN(val)) metricas[field] = val
+    }
+    if (Object.values(metricas).some(v => v > 0))
+      results.push({ nombre_catapult: cleanName, nombre_norm: normalizeName(cleanName), metricas })
+  }
+  return results
+}
+
 async function parsePdf(bytes: Uint8Array): Promise<Record<string, any>[]> {
   // Use pdf-parse (pure Node.js, works in Vercel serverless)
   const pdfParse = (await import('pdf-parse')).default
@@ -708,15 +837,19 @@ export async function POST(req: NextRequest) {
         if (body.rows && Array.isArray(body.rows)) {
           // Excel rows pre-parsed in browser — parse directly, no file bytes needed
           parsedRows = parseRawRows(body.rows as any[][])
+        } else if (body.pdfText && typeof body.pdfText === 'string') {
+          // PDF text extracted client-side (row-ordered via pdf.js) — parse directly
+          isPdf = true
+          parsedRows = parsePdfFromText(body.pdfText)
         } else if (body.fileBase64) {
-          // PDF as base64
+          // PDF as base64 (legacy fallback)
           isPdf = true
           const binaryStr = atob(body.fileBase64)
           const bytes = new Uint8Array(binaryStr.length)
           for (let i = 0; i < binaryStr.length; i++) bytes[i] = binaryStr.charCodeAt(i)
           parsedRows = await parsePdf(bytes)
         } else {
-          return NextResponse.json({ error: 'Falta rows o fileBase64' }, { status: 400 })
+          return NextResponse.json({ error: 'Falta rows, pdfText o fileBase64' }, { status: 400 })
         }
       } catch (e) {
         return NextResponse.json({ error: String(e) }, { status: 400 })
