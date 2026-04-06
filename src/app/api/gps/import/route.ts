@@ -255,17 +255,17 @@ function parsePdfRowFormat(lines: string[]): Record<string, any>[] | null {
     // Skip rows where name is only 1-2 chars (orphan initial that wasn't merged, or artifact)
     if (name.replace(/\s/g, '').length < 3) continue
 
-    // Skip summary rows (Total, Moyenne, etc.)
+    // Skip summary rows (Total, Moyenne, Average, Promedio, Media, etc.)
     const nameNorm = name.toLowerCase().replace(/[^a-z]/g, '')
-    if (['total','moyenne','average','promedio'].includes(nameNorm)) continue
+    if (['total','moyenne','average','promedio','media','totale','totaux','totals'].includes(nameNorm)) continue
 
     // ── Parse values from rest ──
     // rest may be space-separated or fully merged
     const spaceParts = rest.trim().split(/\s+/)
-    // A valid row has at least 10+ numeric-ish tokens
+    // A valid row has at least 8 numeric-ish tokens (accounts for pdf-parse merging a few zeros)
     const metricas: Record<string, number> = {}
 
-    if (spaceParts.length >= 10) {
+    if (spaceParts.length >= 8) {
       // Space-separated: straightforward mapping
       for (let i = 0; i < spaceParts.length && i < FIELD_MAP.length; i++) {
         const field = FIELD_MAP[i]
@@ -283,62 +283,45 @@ function parsePdfRowFormat(lines: string[]): Record<string, any>[] | null {
         if (!isNaN(val)) metricas[field] = val
       }
     } else {
-      // Merged: use structural parsing
-      // Remove spaces and parse by known structure from both ends
-      const merged = rest.replace(/\s/g, '')
-      // TotDist is 4 digits, MeterPerMin is XX.XX
-      const structM = merged.match(/^(\d{4})(\d{2}\.\d{2})(.+?)(\d{2}:\d{2}:\d{2}|\d{2}:\d{2})(\d{2})$/)
-      if (!structM) continue
+      // Merged: pdf-parse sometimes concatenates all values without spaces.
+      // Column order (after pos code): TotDist MeterPerMin 15-20 20/25 SprintDist NumSprints HSR Acc Dec TotPL Duration MaxVel
+      // Strategy: anchor on the HH:MM:SS duration token (may survive merging), extract all numbers,
+      // then map by position skipping the sprint-distance column (index 4 → null).
 
-      metricas['dist_total']   = parseInt(structM[1], 10)
-      metricas['dist_per_min'] = parseFloat(structM[2])
-      metricas['max_velocity'] = parseInt(structM[5], 10)
+      // Extract duration (HH:MM:SS) — it often survives even partial merging
+      const durMatch = rest.match(/(\d{1,2}:\d{2}:\d{2})/)
+      let restNoDur = rest
+      if (durMatch) {
+        const [hh, mm, ss] = durMatch[1].split(':').map(Number)
+        const totalMin = hh * 60 + mm + ss / 60
+        if (totalMin > 0) metricas['duracion_min'] = Math.round(totalMin * 10) / 10
+        restNoDur = rest.replace(durMatch[1], ' ').trim()
+      }
 
-      const mid = structM[3]
-      // From right: player_load(3) + dec(1-2) + acc(2) + hsr(1-3) = variable
-      // Reliable fixed suffix: player_load is always 3 digits (100-999 range in this dataset)
-      // acc is always 2 digits (10-99), dec can be 1-2 digits
-      // Try pl(3)+dec(2)+acc(2) = 7 from right first, then check if it makes sense
-      if (mid.length >= 7) {
-        const pl  = parseInt(mid.slice(-3), 10)
-        const dec = parseInt(mid.slice(-5, -3), 10)
-        const acc = parseInt(mid.slice(-7, -5), 10)
-        const front = mid.slice(0, -7) // dist_v4(3) + dist_hir(1-3) + sprint fields
+      // Extract all remaining numbers (integers and decimals)
+      const nums = (restNoDur.match(/\d+(?:\.\d+)?/g) || []).map(n => parseFloat(n))
+      if (nums.length < 6) continue
 
-        if (!isNaN(pl) && pl >= 100 && pl <= 999 &&
-            !isNaN(acc) && acc >= 5 && acc <= 99 &&
-            !isNaN(dec) && dec >= 0) {
-          metricas['player_load'] = pl
-          metricas['dec2'] = dec
-          metricas['acc2'] = acc
+      // MaxVel is always the LAST number (typically 2 digits, 15-45 km/h)
+      const maxVelCandidate = nums[nums.length - 1]
+      if (!isNaN(maxVelCandidate) && maxVelCandidate >= 15 && maxVelCandidate <= 45) {
+        metricas['max_velocity'] = maxVelCandidate
+      }
 
-          // front: dist_v4(3) + dist_hir(variable) + sprintDist(var) + numSprints(var) + hsr(var)
-          // dist_v4 is always 3 digits (100-999m for active players)
-          if (front.length >= 3) {
-            metricas['dist_v4'] = parseInt(front.slice(0, 3), 10)
-            // remaining: dist_hir + sprint fields + hsr(2-3 digits before acc)
-            // hsr is the value right before acc in the column, but here we've already consumed acc
-            // Actually looking at column order: ...HSR, Acc, Dec, PL
-            // So hsr IS the 3 chars before acc (already in the remaining -7 slice)
-            // Let me re-examine: mid ends with hsr(3)+acc(2)+dec(2)+pl(3)?
-            // No! Column order: HSR | Acc | Dec | PL
-            // So from RIGHT: pl(3) dec(2) acc(2) hsr(1-3) = variable
-            // But I put pl,dec,acc together... hsr is BEFORE acc
-            // Let me reparse: rightmost 3=PL, next 2=Dec, next 2=Acc
-            // That leaves: dist_v4(3) + dist_hir(var) + sprintDist(var) + numSprints(var) + hsr(var)
-            // front = everything before the last 7 chars
-            // front contains: dist_v4 + dist_hir + sprintDist + numSprints + hsr
-            // We can't reliably split these without knowing individual widths
-            // Best effort: dist_v4 is first 3, then try to find hsr at the end
-            const afterV4 = front.slice(3)
-            // hsr + sprintDist + numSprints are the remaining fields
-            // In this dataset, numSprints is always 0 or 1 digit (0-6)
-            // sprintDist is 0-51m
-            // hsr is 0-209m
-            // These can't be unambiguously split when merged
-            // Best effort: leave dist_hir, dist_v5, n_sprints out for merged format
-          }
-        }
+      // Map all numbers except the last to MERGED_MAP (same column order as space-separated)
+      // [0] TotDist  [1] MeterPerMin  [2] 15-20(dist_v4)  [3] 20/25(dist_v5)
+      // [4] SprintDist(skip)  [5] NumSprints  [6] HSR(dist_hir)
+      // [7] Acc  [8] Dec  [9] TotPL
+      const MERGED_MAP: (string | null)[] = [
+        'dist_total', 'dist_per_min', 'dist_v4', 'dist_v5',
+        null, 'n_sprints', 'dist_hir',
+        'acc2', 'dec2', 'player_load'
+      ]
+      const dataNums = nums.slice(0, nums.length - 1)
+      for (let i = 0; i < dataNums.length && i < MERGED_MAP.length; i++) {
+        const field = MERGED_MAP[i]
+        if (!field) continue
+        if (!isNaN(dataNums[i])) metricas[field] = dataNums[i]
       }
     }
 
@@ -357,14 +340,20 @@ async function parsePdf(bytes: Uint8Array): Promise<Record<string, any>[]> {
   const data = await pdfParse(Buffer.from(bytes))
   const rawText: string = data.text
 
-  // Find the section containing the Cuadro Resumen
+  // Find the section containing the data table (any language — ES/FR/EN)
   let pageText = rawText
   // If multiple pages, find the one with the data table
   if (rawText.includes('\f')) {
     const pages = rawText.split('\f')
     for (const p of pages) {
       const ln = normStr(p)
-      if (ln.includes('cuadro resumen') || ln.includes('tot dist') || ln.includes('meterage per') || ln.includes('data base')) {
+      if (
+        ln.includes('cuadro resumen') || ln.includes('tot dist') ||
+        ln.includes('meterage per') || ln.includes('data base') ||
+        ln.includes('rapport openfield') || ln.includes('distance totale') ||
+        ln.includes('total distance') || ln.includes('player summary') ||
+        ln.includes('distancia total')
+      ) {
         pageText = p; break
       }
     }
@@ -377,12 +366,14 @@ async function parsePdf(bytes: Uint8Array): Promise<Record<string, any>[]> {
   if (rowResults && rowResults.length > 0) return rowResults
 
   // ── Fall back to columnar format (standard Cuadro Resumen) ──
-  // Extract player names (lines before "Promedio")
+  // Extract player names (lines before "Promedio" / "Moyenne" / "Average" — any language)
+  const SEPARATOR_WORDS = new Set(['promedio', 'moyenne', 'average', 'media', 'total'])
   const names: string[] = []
   let promedio_idx = -1
   for (let i = 0; i < lines.length; i++) {
     const s = lines[i].trim()
-    if (normStr(s) === 'promedio') { promedio_idx = i; break }
+    const sn = normStr(s)
+    if (SEPARATOR_WORDS.has(sn)) { promedio_idx = i; break }
     if (/^PAGE \d+/i.test(s) || /^\d{2}\/\d{2}\/\d{4}/.test(s)) continue
     if (s) names.push(s)
   }
@@ -637,37 +628,17 @@ export async function POST(req: NextRequest) {
     // CONFIRM: save to DB
     const sql = getDb()
 
-    // Auto-migrate: add new columns if they don't exist yet
-    // (avoids hard failures when deploy is ahead of migrations)
+    // Check if metricas column exists
     let hasMetricasCol = false
-    let hasSprintsCol = false
-    let hasDuracionCol = false
     try {
       await sql`SELECT metricas FROM gps_logs LIMIT 0`
       hasMetricasCol = true
     } catch (_) {
+      // Column doesn't exist — try to create it
       try {
         await sql`ALTER TABLE gps_logs ADD COLUMN IF NOT EXISTS metricas JSONB DEFAULT '{}'`
         hasMetricasCol = true
       } catch (_2) { hasMetricasCol = false }
-    }
-    try {
-      await sql`SELECT n_sprints FROM gps_logs LIMIT 0`
-      hasSprintsCol = true
-    } catch (_) {
-      try {
-        await sql`ALTER TABLE gps_logs ADD COLUMN IF NOT EXISTS n_sprints INTEGER`
-        hasSprintsCol = true
-      } catch (_2) { hasSprintsCol = false }
-    }
-    try {
-      await sql`SELECT duracion_min FROM gps_logs LIMIT 0`
-      hasDuracionCol = true
-    } catch (_) {
-      try {
-        await sql`ALTER TABLE gps_logs ADD COLUMN IF NOT EXISTS duracion_min NUMERIC(6,1)`
-        hasDuracionCol = true
-      } catch (_2) { hasDuracionCol = false }
     }
 
     let saved = 0
@@ -699,17 +670,7 @@ export async function POST(req: NextRequest) {
           WHERE jugador_id = ${m.jugador_id} AND fecha = ${fecha} AND tipo_sesion = ${tipo_sesion}
         `
 
-        // Build INSERT dynamically based on which columns exist in this DB
-        const baseVals = {
-          jugador_id: m.jugador_id, club_id: s.clubId||null,
-          fecha, sesion_id, tipo_sesion,
-          dist_total: fixed.dist_total, dist_hir: fixed.dist_hir,
-          dist_v4: fixed.dist_v4, dist_v5: fixed.dist_v5,
-          player_load: fixed.player_load, max_velocity: fixed.max_velocity,
-          acc2: fixed.acc2, dec2: fixed.dec2, acc3: fixed.acc3, dec3: fixed.dec3,
-          dist_per_min: fixed.dist_per_min, fuente: isPdf?'pdf':'excel',
-        }
-        if (hasMetricasCol && hasSprintsCol && hasDuracionCol) {
+        if (hasMetricasCol) {
           await sql`
             INSERT INTO gps_logs (
               jugador_id, club_id, fecha, sesion_id, tipo_sesion,
@@ -723,33 +684,19 @@ export async function POST(req: NextRequest) {
               ${fixed.dist_per_min}, ${fixed.n_sprints}, ${fixed.duracion_min}, ${isPdf?'pdf':'excel'}, ${JSON.stringify(met)}
             )
           `
-        } else if (hasMetricasCol) {
-          await sql`
-            INSERT INTO gps_logs (
-              jugador_id, club_id, fecha, sesion_id, tipo_sesion,
-              dist_total, dist_hir, dist_v4, dist_v5,
-              player_load, max_velocity, acc2, dec2, acc3, dec3,
-              dist_per_min, fuente, metricas
-            ) VALUES (
-              ${m.jugador_id}, ${s.clubId||null}, ${fecha}, ${sesion_id}, ${tipo_sesion},
-              ${fixed.dist_total}, ${fixed.dist_hir}, ${fixed.dist_v4}, ${fixed.dist_v5},
-              ${fixed.player_load}, ${fixed.max_velocity}, ${fixed.acc2}, ${fixed.dec2}, ${fixed.acc3}, ${fixed.dec3},
-              ${fixed.dist_per_min}, ${isPdf?'pdf':'excel'}, ${JSON.stringify(met)}
-            )
-          `
         } else {
-          // Legacy schema — no metricas, no n_sprints, no duracion_min
+          // Fallback: insert without metricas column (old schema)
           await sql`
             INSERT INTO gps_logs (
               jugador_id, club_id, fecha, sesion_id, tipo_sesion,
               dist_total, dist_hir, dist_v4, dist_v5,
               player_load, max_velocity, acc2, dec2, acc3, dec3,
-              dist_per_min, fuente
+              dist_per_min, n_sprints, duracion_min, fuente
             ) VALUES (
               ${m.jugador_id}, ${s.clubId||null}, ${fecha}, ${sesion_id}, ${tipo_sesion},
               ${fixed.dist_total}, ${fixed.dist_hir}, ${fixed.dist_v4}, ${fixed.dist_v5},
               ${fixed.player_load}, ${fixed.max_velocity}, ${fixed.acc2}, ${fixed.dec2}, ${fixed.acc3}, ${fixed.dec3},
-              ${fixed.dist_per_min}, ${isPdf?'pdf':'excel'}
+              ${fixed.dist_per_min}, ${fixed.n_sprints}, ${fixed.duracion_min}, ${isPdf?'pdf':'excel'}
             )
           `
         }
