@@ -448,15 +448,68 @@ async function parsePdf(bytes: Uint8Array): Promise<Record<string, any>[]> {
 
   // ── Fall back to columnar format (standard Cuadro Resumen) ──
   // Extract player names (lines before "Promedio" / "Moyenne" / "Average" — any language)
-  const SEPARATOR_WORDS = new Set(['promedio', 'moyenne', 'average', 'media', 'total'])
+  const SEPARATOR_WORDS = new Set([
+    'promedio','moyenne','average','media','total','prom','avg','mean',
+    'totaux','totale','totals','team average','team total',
+  ])
+
+  // Known column header tokens that appear in Catapult PDFs before the player list.
+  // These must be filtered out so they aren't mistaken for player names.
+  const HEADER_TOKENS = new Set([
+    'position','pos','name','nombre','player','jugador','athlete',
+    'tot dist','total dist','total distance','distancia total','distance totale',
+    'meterage per minute','meterage per min','meterage','per minute','per min',
+    'high speed running','high speed','hsr','sprint distance','sprint dist',
+    'number of sprints','number sprints','num sprints','n sprints',
+    'player load','playerload','tot pl',
+    'max velocity','max vel','top speed','vel max',
+    'acc b2','acc b2-3','decel b2','decel b2-3','acc b3','dec b3',
+    'velocity band','vel b4','vel b5','vel b6',
+    '15-20','20/25','20-25','19,7','19.7',
+    '(m)','(km/h)','(meteres)','(meters)','(metres)','km/h','m/min',
+    'cuadro resumen','player summary','rapport openfield','data base',
+    'gen 2','effs','eff','tot effs','b2-3 tot effs','b2-3 tot',
+    'high','speed','running','sprint','distance','number','of','sprints',
+    'acc','decel','tot','effs',
+  ])
+
+  function isHeaderLine(s: string): boolean {
+    const sn = normStr(s)
+    // Pure metric unit tokens
+    if (/^\(m\)$/i.test(s) || /^\(km\/h\)$/i.test(s) || /^\(meteres\)$/i.test(s)) return true
+    // Known header tokens (exact or included)
+    if (HEADER_TOKENS.has(sn)) return true
+    // Short parenthetical units like "(m)" "(km/h)"
+    if (/^\([^)]{1,10}\)$/.test(s)) return true
+    // Looks like a column header fragment: 2-3 word metric description with no numbers
+    // and matches known metric patterns
+    if (
+      /\b(dist|distance|speed|sprint|velocity|meterage|running|load|sprints|effs|acc|decel)\b/i.test(s) &&
+      !/\d/.test(s)
+    ) return true
+    return false
+  }
+
   const names: string[] = []
   let promedio_idx = -1
   for (let i = 0; i < lines.length; i++) {
     const s = lines[i].trim()
     const sn = normStr(s)
-    if (SEPARATOR_WORDS.has(sn)) { promedio_idx = i; break }
+    // Stop at separator row
+    if (SEPARATOR_WORDS.has(sn) || [...SEPARATOR_WORDS].some(w => sn === w)) { promedio_idx = i; break }
+    // Also stop if line STARTS with a separator word followed by a number (e.g. "Promedio 1234")
+    if ([...SEPARATOR_WORDS].some(w => sn.startsWith(w + ' ') || sn.startsWith(w + '\t'))) { promedio_idx = i; break }
+    // Skip page markers, dates, column headers
     if (/^PAGE \d+/i.test(s) || /^\d{2}\/\d{2}\/\d{4}/.test(s)) continue
+    if (isHeaderLine(s)) continue
     if (s) names.push(s)
+  }
+
+  // Fallback: if no separator word found but we have names, find first purely numeric line
+  if (promedio_idx === -1 && names.length > 0) {
+    for (let i = 0; i < lines.length; i++) {
+      if (/^\d[\d,.\s]{3,}$/.test(lines[i].trim())) { promedio_idx = i; break }
+    }
   }
 
   if (promedio_idx === -1 || names.length === 0)
