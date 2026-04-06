@@ -84,4 +84,23 @@ export const SCHEMA_STATEMENTS = [
   )`,
   `CREATE INDEX IF NOT EXISTS idx_gps_logs_jugador_fecha ON gps_logs(jugador_id, fecha)`,
   `CREATE INDEX IF NOT EXISTS idx_gps_logs_club_fecha ON gps_logs(club_id, fecha)`,
+  // ── Módulo Evaluaciones & Tests ──────────────────────────────────────────────
+  // Variables simples: rango de peso ideal (nutricionista)
+  `ALTER TABLE jugadores ADD COLUMN IF NOT EXISTS peso_ideal_min NUMERIC(5,1)`,
+  `ALTER TABLE jugadores ADD COLUMN IF NOT EXISTS peso_ideal_max NUMERIC(5,1)`,
+  // Historial de pesajes
+  `CREATE TABLE IF NOT EXISTS pesajes (id SERIAL PRIMARY KEY, jugador_id INTEGER NOT NULL REFERENCES jugadores(id) ON DELETE CASCADE, club_id INTEGER, fecha DATE NOT NULL DEFAULT CURRENT_DATE, peso_kg NUMERIC(5,1) NOT NULL, registrado_por VARCHAR(50) DEFAULT 'coach', notas TEXT, created_at TIMESTAMPTZ DEFAULT NOW())`,
+  `CREATE INDEX IF NOT EXISTS idx_pesajes_jugador ON pesajes(jugador_id, fecha DESC)`,
+  `CREATE INDEX IF NOT EXISTS idx_pesajes_club ON pesajes(club_id, fecha DESC)`,
+  // CMJ — Countermovement Jump (3 saltos, promedio generado, flag baseline)
+  `CREATE TABLE IF NOT EXISTS cmj_sessions (id SERIAL PRIMARY KEY, jugador_id INTEGER NOT NULL REFERENCES jugadores(id) ON DELETE CASCADE, club_id INTEGER, fecha DATE NOT NULL DEFAULT CURRENT_DATE, salto1_cm NUMERIC(5,2) NOT NULL, salto2_cm NUMERIC(5,2) NOT NULL, salto3_cm NUMERIC(5,2) NOT NULL, promedio_cm NUMERIC(5,2) GENERATED ALWAYS AS (ROUND((salto1_cm + salto2_cm + salto3_cm) / 3.0, 2)) STORED, es_baseline BOOLEAN DEFAULT FALSE, notas TEXT, created_at TIMESTAMPTZ DEFAULT NOW())`,
+  `CREATE INDEX IF NOT EXISTS idx_cmj_jugador ON cmj_sessions(jugador_id, fecha DESC)`,
+  // Tests isométricos — estructura genérica por grupo muscular
+  `CREATE TABLE IF NOT EXISTS iso_sessions (id SERIAL PRIMARY KEY, jugador_id INTEGER NOT NULL REFERENCES jugadores(id) ON DELETE CASCADE, club_id INTEGER, fecha DATE NOT NULL DEFAULT CURRENT_DATE, grupo_muscular VARCHAR(60) NOT NULL, der_intento1 NUMERIC(7,2) NOT NULL, der_intento2 NUMERIC(7,2) NOT NULL, der_intento3 NUMERIC(7,2) NOT NULL, der_promedio NUMERIC(7,2) GENERATED ALWAYS AS (ROUND((der_intento1 + der_intento2 + der_intento3) / 3.0, 2)) STORED, izq_intento1 NUMERIC(7,2) NOT NULL, izq_intento2 NUMERIC(7,2) NOT NULL, izq_intento3 NUMERIC(7,2) NOT NULL, izq_promedio NUMERIC(7,2) GENERATED ALWAYS AS (ROUND((izq_intento1 + izq_intento2 + izq_intento3) / 3.0, 2)) STORED, unidad VARCHAR(20) DEFAULT 'N', notas TEXT, created_at TIMESTAMPTZ DEFAULT NOW())`,
+  `CREATE INDEX IF NOT EXISTS idx_iso_jugador ON iso_sessions(jugador_id, fecha DESC)`,
+  `CREATE INDEX IF NOT EXISTS idx_iso_grupo ON iso_sessions(grupo_muscular)`,
+  // Vista CMJ con diferencial vs baseline y estado de fatiga
+  `CREATE OR REPLACE VIEW cmj_con_diferencial AS SELECT s.*, b.promedio_cm AS baseline_cm, ROUND(s.promedio_cm - b.promedio_cm, 2) AS diferencial_cm, ROUND((b.promedio_cm - s.promedio_cm) / NULLIF(b.promedio_cm, 0) * 100.0, 2) AS pct_perdida, CASE WHEN b.promedio_cm IS NULL THEN 'sin_baseline' WHEN (b.promedio_cm - s.promedio_cm) / NULLIF(b.promedio_cm, 0) * 100.0 > 10 THEN 'fatiga' ELSE 'normal' END AS estado_fatiga FROM cmj_sessions s LEFT JOIN LATERAL (SELECT promedio_cm FROM cmj_sessions WHERE jugador_id = s.jugador_id AND es_baseline = TRUE ORDER BY fecha ASC LIMIT 1) b ON TRUE`,
+  // Vista isométrico con asimetría y semáforo
+  `CREATE OR REPLACE VIEW iso_con_asimetria AS SELECT s.*, ROUND(ABS(s.der_promedio - s.izq_promedio) / NULLIF(GREATEST(s.der_promedio, s.izq_promedio), 0) * 100.0, 2) AS pct_asimetria, CASE WHEN ABS(s.der_promedio - s.izq_promedio) / NULLIF(GREATEST(s.der_promedio, s.izq_promedio), 0) * 100.0 < 10 THEN 'verde' WHEN ABS(s.der_promedio - s.izq_promedio) / NULLIF(GREATEST(s.der_promedio, s.izq_promedio), 0) * 100.0 BETWEEN 10 AND 15 THEN 'amarillo' ELSE 'rojo' END AS semaforo, CASE WHEN s.der_promedio >= s.izq_promedio THEN 'derecha' ELSE 'izquierda' END AS lado_dominante FROM iso_sessions s`,
 ]
