@@ -637,17 +637,37 @@ export async function POST(req: NextRequest) {
     // CONFIRM: save to DB
     const sql = getDb()
 
-    // Check if metricas column exists
+    // Auto-migrate: add new columns if they don't exist yet
+    // (avoids hard failures when deploy is ahead of migrations)
     let hasMetricasCol = false
+    let hasSprintsCol = false
+    let hasDuracionCol = false
     try {
       await sql`SELECT metricas FROM gps_logs LIMIT 0`
       hasMetricasCol = true
     } catch (_) {
-      // Column doesn't exist — try to create it
       try {
         await sql`ALTER TABLE gps_logs ADD COLUMN IF NOT EXISTS metricas JSONB DEFAULT '{}'`
         hasMetricasCol = true
       } catch (_2) { hasMetricasCol = false }
+    }
+    try {
+      await sql`SELECT n_sprints FROM gps_logs LIMIT 0`
+      hasSprintsCol = true
+    } catch (_) {
+      try {
+        await sql`ALTER TABLE gps_logs ADD COLUMN IF NOT EXISTS n_sprints INTEGER`
+        hasSprintsCol = true
+      } catch (_2) { hasSprintsCol = false }
+    }
+    try {
+      await sql`SELECT duracion_min FROM gps_logs LIMIT 0`
+      hasDuracionCol = true
+    } catch (_) {
+      try {
+        await sql`ALTER TABLE gps_logs ADD COLUMN IF NOT EXISTS duracion_min NUMERIC(6,1)`
+        hasDuracionCol = true
+      } catch (_2) { hasDuracionCol = false }
     }
 
     let saved = 0
@@ -679,7 +699,17 @@ export async function POST(req: NextRequest) {
           WHERE jugador_id = ${m.jugador_id} AND fecha = ${fecha} AND tipo_sesion = ${tipo_sesion}
         `
 
-        if (hasMetricasCol) {
+        // Build INSERT dynamically based on which columns exist in this DB
+        const baseVals = {
+          jugador_id: m.jugador_id, club_id: s.clubId||null,
+          fecha, sesion_id, tipo_sesion,
+          dist_total: fixed.dist_total, dist_hir: fixed.dist_hir,
+          dist_v4: fixed.dist_v4, dist_v5: fixed.dist_v5,
+          player_load: fixed.player_load, max_velocity: fixed.max_velocity,
+          acc2: fixed.acc2, dec2: fixed.dec2, acc3: fixed.acc3, dec3: fixed.dec3,
+          dist_per_min: fixed.dist_per_min, fuente: isPdf?'pdf':'excel',
+        }
+        if (hasMetricasCol && hasSprintsCol && hasDuracionCol) {
           await sql`
             INSERT INTO gps_logs (
               jugador_id, club_id, fecha, sesion_id, tipo_sesion,
@@ -693,19 +723,33 @@ export async function POST(req: NextRequest) {
               ${fixed.dist_per_min}, ${fixed.n_sprints}, ${fixed.duracion_min}, ${isPdf?'pdf':'excel'}, ${JSON.stringify(met)}
             )
           `
-        } else {
-          // Fallback: insert without metricas column (old schema)
+        } else if (hasMetricasCol) {
           await sql`
             INSERT INTO gps_logs (
               jugador_id, club_id, fecha, sesion_id, tipo_sesion,
               dist_total, dist_hir, dist_v4, dist_v5,
               player_load, max_velocity, acc2, dec2, acc3, dec3,
-              dist_per_min, n_sprints, duracion_min, fuente
+              dist_per_min, fuente, metricas
             ) VALUES (
               ${m.jugador_id}, ${s.clubId||null}, ${fecha}, ${sesion_id}, ${tipo_sesion},
               ${fixed.dist_total}, ${fixed.dist_hir}, ${fixed.dist_v4}, ${fixed.dist_v5},
               ${fixed.player_load}, ${fixed.max_velocity}, ${fixed.acc2}, ${fixed.dec2}, ${fixed.acc3}, ${fixed.dec3},
-              ${fixed.dist_per_min}, ${fixed.n_sprints}, ${fixed.duracion_min}, ${isPdf?'pdf':'excel'}
+              ${fixed.dist_per_min}, ${isPdf?'pdf':'excel'}, ${JSON.stringify(met)}
+            )
+          `
+        } else {
+          // Legacy schema — no metricas, no n_sprints, no duracion_min
+          await sql`
+            INSERT INTO gps_logs (
+              jugador_id, club_id, fecha, sesion_id, tipo_sesion,
+              dist_total, dist_hir, dist_v4, dist_v5,
+              player_load, max_velocity, acc2, dec2, acc3, dec3,
+              dist_per_min, fuente
+            ) VALUES (
+              ${m.jugador_id}, ${s.clubId||null}, ${fecha}, ${sesion_id}, ${tipo_sesion},
+              ${fixed.dist_total}, ${fixed.dist_hir}, ${fixed.dist_v4}, ${fixed.dist_v5},
+              ${fixed.player_load}, ${fixed.max_velocity}, ${fixed.acc2}, ${fixed.dec2}, ${fixed.acc3}, ${fixed.dec3},
+              ${fixed.dist_per_min}, ${isPdf?'pdf':'excel'}
             )
           `
         }
