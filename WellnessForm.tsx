@@ -10,219 +10,192 @@ const FIELDS = [
   { key:'estado_animo',   label:'Estado de Ánimo',  low:'Muy alto',      high:'Muy bajo'      },
 ]
 
+const TQR_COLORS = ['','#ef4444','#ef4444','#f97316','#f97316','#eab308','#eab308','#22c55e','#22c55e','#c8f135','#c8f135']
 const TQR_LABELS = {
   1:'Muy mal', 2:'Mal', 3:'Bastante mal', 4:'Algo mal', 5:'Moderado',
   6:'Bastante bien', 7:'Bien', 8:'Muy bien', 9:'Excelente', 10:'Completamente recuperado'
 }
-const TQR_COLORS = ['','#ef4444','#ef4444','#f97316','#f97316','#eab308','#eab308','#22c55e','#22c55e','#c8f135','#c8f135']
 
-const EVA_LEVELS = [
-  { val:0, emoji:'😊', label:'Sin Dolor',           color:'#c8f135' },
-  { val:2, emoji:'🙂', label:'Muy Leve',            color:'#22c55e' },
-  { val:4, emoji:'😐', label:'Moderado',            color:'#eab308' },
-  { val:6, emoji:'😟', label:'Intenso',             color:'#f97316' },
-  { val:8, emoji:'😣', label:'Muy Intenso',         color:'#ef4444' },
-  { val:10,emoji:'😭', label:'Dolor Insoportable',  color:'#b91c1c' },
-]
+// ── COMPONENTES INTERNOS DEL MAPA ─────────────────────────────────────────────
 
-const WK = ['fatiga','calidad_sueno','dolor_muscular','nivel_estres','estado_animo']
-const WL = ['Fatiga','Sueño','Dolor','Estrés','Ánimo']
-const WC = ['#c8f135','#22c55e','#eab308','#f97316','#ef4444']
-
-// ── COMPONENTE: DIBUJO ANATÓMICO INTERACTIVO ──────────────────────────────────
-function BodyVisual({ side, selected, onSelect }) {
-  const isFront = side === 'front';
-  const activeStyle = { fill: 'rgba(239, 68, 68, 0.3)', stroke: '#ef4444', strokeWidth: '3' };
-  const idleStyle = { fill: 'transparent', stroke: 'currentColor', strokeWidth: '1.5' };
-
+function BodyPart({ d, label, selected, onSelect }) {
+  const isSelected = selected === label;
   return (
-    <svg 
-      viewBox="0 0 350 850" 
-      className="w-[180px] h-auto transition-all"
-      style={{ filter: 'drop-shadow(0 0 10px rgba(56,189,248,0.1))' }}
-    >
-      <g className="text-slate-700 hover:text-blue-400 transition-colors">
-        {isFront ? (
-          <>
-            {/* Cabeza */}
-            <path d="M175 45c-20 0-35 15-35 40 0 20 10 35 35 35s35-15 35-35c0-25-15-40-35-40z" 
-                  style={selected === 'Cabeza' ? activeStyle : idleStyle} onClick={() => onSelect('Cabeza')} />
-            {/* Pecho */}
-            <path d="M125 150c-15 5-25 30-25 50 0 40 25 50 75 50s75-10 75-50c0-20-10-45-25-50" 
-                  style={selected === 'Pecho' ? activeStyle : idleStyle} onClick={() => onSelect('Pecho')} />
-            {/* Abdomen */}
-            <path d="M140 260h70M140 300h70M140 340h70M140 380h70" 
-                  style={selected === 'Abdomen' ? activeStyle : idleStyle} onClick={() => onSelect('Abdomen')} />
-            {/* Brazos */}
-            <path d="M100 160c-20 10-30 40-40 80s-15 150-10 200" 
-                  style={selected === 'Bícep Der.' ? activeStyle : idleStyle} onClick={() => onSelect('Bícep Der.')} />
-            <path d="M250 160c20 10 30 40 40 80s15 150 10 200" 
-                  style={selected === 'Bícep Izq.' ? activeStyle : idleStyle} onClick={() => onSelect('Bícep Izq.')} />
-            {/* Piernas */}
-            <path d="M140 430c-10 50-20 150-15 250" 
-                  style={selected === 'Cuádricep Der.' ? activeStyle : idleStyle} onClick={() => onSelect('Cuádricep Der.')} />
-            <path d="M210 430c10 50 20 150 15 250" 
-                  style={selected === 'Cuádricep Izq.' ? activeStyle : idleStyle} onClick={() => onSelect('Cuádricep Izq.')} />
-          </>
-        ) : (
-          <>
-            {/* Espalda Alta */}
-            <path d="M125 150c-10 10-25 40-25 80 0 60 40 100 75 100s75-40 75-100" 
-                  style={selected === 'Espalda Alta' ? activeStyle : idleStyle} onClick={() => onSelect('Espalda Alta')} />
-            {/* Glúteos */}
-            <path d="M130 430c0 40 20 70 45 70s45-30 45-70" 
-                  style={selected === 'Glúteo Der.' ? activeStyle : idleStyle} onClick={() => onSelect('Glúteo Der.')} />
-            {/* Isquios */}
-            <path d="M140 500c-5 60-15 180-10 300" 
-                  style={selected === 'Isquiotibial Der.' ? activeStyle : idleStyle} onClick={() => onSelect('Isquiotibial Der.')} />
-            <path d="M210 500c5 60 15 180 10 300" 
-                  style={selected === 'Isquiotibial Izq.' ? activeStyle : idleStyle} onClick={() => onSelect('Isquiotibial Izq.')} />
-          </>
-        )}
-      </g>
-    </svg>
+    <path
+      d={d}
+      onClick={(e) => {
+        e.stopPropagation(); // Evita conflictos de eventos
+        onSelect(label);
+      }}
+      style={{
+        fill: isSelected ? 'rgba(239, 68, 68, 0.4)' : 'transparent',
+        stroke: isSelected ? '#ef4444' : '#475569',
+        strokeWidth: isSelected ? 3 : 1.5,
+        cursor: 'pointer',
+        transition: 'all 0.2s'
+      }}
+      className="hover:stroke-blue-400"
+    />
   );
 }
 
-// ── COMPONENTE: BODY MAP (Selector Frontal/Trasero y Lista) ───────────────────
 function BodyMap({ onSelect, selected }) {
-  const [side, setSide] = useState('front')
-  const zones = side === 'front' ? 
-    ['Cabeza', 'Cuello', 'Hombro Der.', 'Hombro Izq.', 'Pecho', 'Bícep Der.', 'Bícep Izq.', 'Abdomen', 'Cuádricep Der.', 'Cuádricep Izq.'] : 
-    ['Nuca', 'Espalda Alta', 'Lumbar', 'Glúteo Der.', 'Glúteo Izq.', 'Isquiotibial Der.', 'Isquiotibial Izq.', 'Gemelo Der.', 'Gemelo Izq.'];
+  const [side, setSide] = useState('front');
+  
+  const zones = side === 'front' 
+    ? ['Cabeza', 'Pecho', 'Abdomen', 'Bícep Der.', 'Bícep Izq.', 'Cuádricep Der.', 'Cuádricep Izq.'] 
+    : ['Espalda Alta', 'Glúteo Der.', 'Glúteo Izq.', 'Isquiotibial Der.', 'Isquiotibial Izq.'];
 
   return (
-    <div className="anim-up">
-      <div style={{ display:'flex', gap:6, marginBottom:16 }}>
-        {[['front','VISTA FRONTAL'],['back','VISTA TRASERA']].map(([s,l]) => (
-          <button key={s} type="button" onClick={() => setSide(s)} style={{
-            flex:1, padding:'10px 0', borderRadius:8, cursor:'pointer', fontSize:11, fontWeight:700,
-            border: side===s ? '1.5px solid #ef4444' : '1px solid rgba(239,68,68,.2)',
-            background: side===s ? 'rgba(239,68,68,.12)' : 'transparent',
-            color: side===s ? '#f87171' : 'var(--silver)',
-            transition:'all .15s',
-          }}>{l}</button>
-        ))}
+    <div className="flex flex-col gap-4">
+      <div className="flex gap-2">
+        <button 
+          type="button" 
+          onClick={() => setSide('front')}
+          className={`flex-1 py-2 rounded-lg text-[11px] font-bold border transition-all ${side === 'front' ? 'border-red-500 bg-red-500/10 text-red-400' : 'border-slate-800 text-slate-500'}`}
+        >
+          VISTA FRONTAL
+        </button>
+        <button 
+          type="button" 
+          onClick={() => setSide('back')}
+          className={`flex-1 py-2 rounded-lg text-[11px] font-bold border transition-all ${side === 'back' ? 'border-red-500 bg-red-500/10 text-red-400' : 'border-slate-800 text-slate-500'}`}
+        >
+          VISTA TRASERA
+        </button>
       </div>
 
-      <div style={{ display:'flex', gap:20, alignItems:'flex-start' }}>
-        <div style={{ flexShrink:0, textAlign:'center' }}>
-          <BodyVisual side={side} selected={selected} onSelect={onSelect} />
-          <p style={{ fontSize:9, color:'rgba(125,211,252,.5)', marginTop:8 }}>TOCÁ LA ZONA</p>
+      <div className="flex gap-6 items-start">
+        <div className="shrink-0">
+          <svg viewBox="0 0 350 850" className="w-[150px] h-auto">
+            <g fill="none" strokeLinecap="round" strokeLinejoin="round">
+              {side === 'front' ? (
+                <>
+                  <BodyPart label="Cabeza" d="M175 45c-20 0-35 15-35 40 0 20 10 35 35 35s35-15 35-35c0-25-15-40-35-40z" selected={selected} onSelect={onSelect} />
+                  <BodyPart label="Pecho" d="M125 150c-15 5-25 30-25 50 0 40 25 50 75 50s75-10 75-50c0-20-10-45-25-50" selected={selected} onSelect={onSelect} />
+                  <BodyPart label="Abdomen" d="M140 260h70M140 300h70M140 340h70" selected={selected} onSelect={onSelect} />
+                  <BodyPart label="Bícep Der." d="M100 160c-20 10-30 40-40 80s-15 150-10 200" selected={selected} onSelect={onSelect} />
+                  <BodyPart label="Bícep Izq." d="M250 160c20 10 30 40 40 80s15 150 10 200" selected={selected} onSelect={onSelect} />
+                  <BodyPart label="Cuádricep Der." d="M140 430c-10 50-20 150-15 250" selected={selected} onSelect={onSelect} />
+                  <BodyPart label="Cuádricep Izq." d="M210 430c10 50 20 150 15 250" selected={selected} onSelect={onSelect} />
+                </>
+              ) : (
+                <>
+                  <BodyPart label="Espalda Alta" d="M125 150c-10 10-25 40-25 80 0 60 40 100 75 100s75-40 75-100" selected={selected} onSelect={onSelect} />
+                  <BodyPart label="Glúteo Der." d="M130 430c0 40 20 70 45 70s45-30 45-70" selected={selected} onSelect={onSelect} />
+                  <BodyPart label="Isquiotibial Der." d="M140 500c-5 60-15 180-10 300" selected={selected} onSelect={onSelect} />
+                  <BodyPart label="Isquiotibial Izq." d="M210 500c5 60 15 180 10 300" selected={selected} onSelect={onSelect} />
+                </>
+              )}
+            </g>
+          </svg>
         </div>
 
-        <div style={{ flex:1, minWidth:0 }}>
-          <p style={{ fontSize:10, color:'var(--silver)', marginBottom:8, textTransform:'uppercase' }}>O elegí de la lista:</p>
-          <div style={{ maxHeight:320, overflowY:'auto', display:'flex', flexDirection:'column', gap:4, paddingRight:4 }}>
-            <button type="button" onClick={() => onSelect('Ningún dolor')} style={{
-              padding:'8px 12px', borderRadius:8, fontSize:12, cursor:'pointer', textAlign:'left',
-              border: selected==='Ningún dolor' ? '1px solid #4ade80' : '1px solid var(--mist)',
-              color: selected==='Ningún dolor' ? '#4ade80' : 'var(--silver)',
-              transition:'all .1s'
-            }}>✓ Ningún dolor</button>
+        <div className="flex-1 min-w-0">
+          <p className="text-[10px] text-slate-500 uppercase mb-2">O elegí de la lista:</p>
+          <div className="max-h-[250px] overflow-y-auto flex flex-col gap-1 pr-2">
+            <button 
+              type="button" 
+              onClick={() => onSelect('Ningún dolor')}
+              className={`text-left p-2 rounded border text-xs transition-all ${selected === 'Ningún dolor' ? 'border-green-500 text-green-400 bg-green-500/10' : 'border-slate-800 text-slate-400'}`}
+            >
+              ✓ Ningún dolor
+            </button>
             {zones.map(z => (
-              <button key={z} type="button" onClick={() => onSelect(z)} style={{
-                padding:'8px 12px', borderRadius:8, fontSize:12, cursor:'pointer', textAlign:'left',
-                border: selected===z ? '1px solid #ef4444' : '1px solid var(--mist)',
-                background: selected===z ? 'rgba(239,68,68,.1)' : 'transparent',
-                color: selected===z ? '#f87171' : 'var(--silver)',
-                transition:'all .1s'
-              }}>{z}</button>
+              <button 
+                key={z} 
+                type="button" 
+                onClick={() => onSelect(z)}
+                className={`text-left p-2 rounded border text-xs transition-all ${selected === z ? 'border-red-500 text-red-400 bg-red-500/10' : 'border-slate-800 text-slate-400'}`}
+              >
+                {z}
+              </button>
             ))}
           </div>
-          {selected && (
-            <div style={{ marginTop:12, padding:'12px', background:'rgba(239,68,68,.08)', border:'1px solid rgba(239,68,68,.25)', borderRadius:10 }}>
-              <p style={{ fontSize:13, color:'#f87171', fontWeight:600 }}>📍 {selected}</p>
-              <button type="button" onClick={() => onSelect(null)} style={{ fontSize:11, color:'rgba(125,211,252,.5)', background:'none', border:'none', cursor:'pointer', marginTop:4 }}>× Limpiar</button>
-            </div>
-          )}
         </div>
       </div>
     </div>
-  )
+  );
 }
 
-// ── COMPONENTE: FORMULARIO PRINCIPAL ──────────────────────────────────────────
+// ── FORMULARIO PRINCIPAL ──────────────────────────────────────────────────────
+
 export default function WellnessForm({ jugadorId, onSuccess, todayWellness }) {
   const [vals, setVals] = useState({ fatiga:null, calidad_sueno:null, dolor_muscular:null, nivel_estres:null, estado_animo:null })
   const [tqr, setTqr] = useState(null)
   const [zonaSeleccionada, setZonaSeleccionada] = useState(null)
-  const [dolorEva, setDolorEva] = useState(null)
   const [entrenaGrupo, setEntrenaGrupo] = useState(null)
   const [fueGimnasio, setFueGimnasio] = useState(null)
   const [loading, setLoading] = useState(false)
-  const [done, setDone] = useState(false)
   const [error, setError] = useState('')
 
   if (todayWellness) return (
-    <div className="anim-up" style={{ textAlign:'center' }}>
-      <div style={{ width:72, height:72, borderRadius:'50%', background:'rgba(200,241,53,.1)', border:'2px solid var(--lime)', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 16px', fontSize:32 }}>✓</div>
-      <h3 className="display" style={{ fontSize:28, color:'var(--lime)', marginBottom:6 }}>WELLNESS COMPLETADO</h3>
-      <p style={{ fontSize:14, color:'var(--silver)', marginBottom:24 }}>Mañana podrás registrar uno nuevo.</p>
-      <button className="btn-ghost" onClick={onSuccess} style={{ width:'100%', padding:12 }}>← Volver</button>
+    <div className="text-center p-8">
+      <div className="w-16 h-16 rounded-full bg-lime-500/10 border-2 border-lime-500 flex items-center justify-center mx-auto mb-4 text-2xl text-lime-500">✓</div>
+      <h3 className="text-xl font-bold text-lime-500 mb-2">WELLNESS COMPLETADO</h3>
+      <button className="text-slate-400 text-sm underline" onClick={onSuccess}>Volver al inicio</button>
     </div>
   )
 
   const showBodyMap = vals.dolor_muscular !== null && vals.dolor_muscular >= 2
-  const showEVA = showBodyMap && zonaSeleccionada !== null && zonaSeleccionada !== 'Ningún dolor'
-
   const allFilled = Object.values(vals).every(v => v !== null) && tqr !== null && entrenaGrupo !== null && fueGimnasio !== null
 
   async function submit(e) {
     e.preventDefault()
-    if (!allFilled) return
     setLoading(true)
     try {
       const res = await fetch('/api/wellness', {
-        method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ jugador_id:jugadorId, ...vals, dolor_zona: zonaSeleccionada, dolor_eva: dolorEva, tqr, entrena_grupo:entrenaGrupo, fue_gimnasio:fueGimnasio })
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ jugador_id:jugadorId, ...vals, dolor_zona: zonaSeleccionada, tqr, entrena_grupo:entrenaGrupo, fue_gimnasio:fueGimnasio })
       })
-      if (res.ok) { setDone(true); setTimeout(onSuccess, 1500) }
+      if (res.ok) onSuccess()
+      else setError('Error al guardar')
     } catch { setError('Error de conexión') }
     finally { setLoading(false) }
   }
 
   return (
-    <form onSubmit={submit} style={{ display:'flex', flexDirection:'column', gap:24 }}>
+    <form onSubmit={submit} className="flex flex-col gap-6">
       {FIELDS.map((f) => (
-        <div key={f.key}>
-          <label style={{ display:'block', fontSize:11, fontWeight:600, color:'var(--silver)', textTransform:'uppercase', marginBottom:10 }}>{f.label}</label>
-          <ScaleInput id={f.key} value={vals[f.key]} onChange={v => setVals(p=>({...p,[f.key]:v}))} lowLabel={f.low} highLabel={f.high} />
+        <div key={f.key} className="flex flex-col gap-2">
+          <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">{f.label}</label>
+          <ScaleInput value={vals[f.key]} onChange={v => setVals(p=>({...p,[f.key]:v}))} lowLabel={f.low} highLabel={f.high} />
           
           {f.key === 'dolor_muscular' && showBodyMap && (
-            <div style={{ marginTop:16, padding:'16px', background:'var(--ink3)', border:'1px solid rgba(239,68,68,0.2)', borderRadius:14 }}>
+            <div className="mt-4 p-4 rounded-xl border border-red-500/20 bg-slate-900/50">
+              <p className="text-[11px] font-bold text-red-400 uppercase mb-4">📍 ¿Dónde sentís la molestia?</p>
               <BodyMap onSelect={setZonaSeleccionada} selected={zonaSeleccionada} />
             </div>
           )}
         </div>
       ))}
 
-      {showEVA && (
-        <div className="anim-up">
-           <ScaleInput 
-             id="eva_scale" 
-             value={dolorEva} 
-             onChange={setDolorEva} 
-             lowLabel="Sin dolor" 
-             highLabel="Dolor insoportable" 
-             max={10} 
-           />
-           <p style={{ fontSize:11, color:'#f87171', textAlign:'center', marginTop:8 }}>Escala EVA para: {zonaSeleccionada}</p>
-        </div>
-      )}
-
-      <div>
-        <label style={{ display:'block', fontSize:11, fontWeight:600, color:'var(--silver)', textTransform:'uppercase', marginBottom:10 }}>TQR (Recuperación)</label>
-        <div style={{ display:'flex', gap:5 }}>
+      <div className="flex flex-col gap-3">
+        <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">TQR (Recuperación)</label>
+        <div className="flex gap-1">
           {[1,2,3,4,5,6,7,8,9,10].map(v => (
-            <button key={v} type="button" onClick={()=>setTqr(v)} style={{ flex:1, padding:'12px 0', borderRadius:8, border:tqr===v?`2px solid ${TQR_COLORS[v]}`:'1px solid var(--fog)', background:tqr===v?`${TQR_COLORS[v]}20`:'var(--ink3)', color:tqr===v?TQR_COLORS[v]:'var(--silver)', fontWeight:tqr===v?700:400 }}>{v}</button>
+            <button 
+              key={v} 
+              type="button" 
+              onClick={()=>setTqr(v)}
+              className={`flex-1 py-3 rounded text-sm font-mono transition-all ${tqr === v ? 'bg-red-500/20 border-2' : 'bg-slate-800 border'} `}
+              style={{ borderColor: tqr === v ? TQR_COLORS[v] : 'transparent', color: tqr === v ? TQR_COLORS[v] : '#94a3b8' }}
+            >
+              {v}
+            </button>
           ))}
         </div>
       </div>
 
-      <button type="submit" className="btn-lime" disabled={!allFilled||loading} style={{ width:'100%', padding:16, fontSize:15, fontWeight:700 }}>
+      <button 
+        type="submit" 
+        disabled={!allFilled || loading}
+        className="w-full py-4 rounded-xl bg-lime-500 text-black font-bold text-sm hover:bg-lime-400 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+      >
         {loading ? 'ENVIANDO...' : 'REGISTRAR WELLNESS →'}
       </button>
+      {error && <p className="text-red-500 text-xs text-center">{error}</p>}
     </form>
   )
 }
