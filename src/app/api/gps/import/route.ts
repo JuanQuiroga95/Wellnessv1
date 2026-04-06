@@ -13,39 +13,86 @@ function normStr(s: string): string {
 }
 const normalizeName = normStr
 
-// ─── EXCEL PARSER ─────────────────────────────────────────────────────────────
-const EXCEL_COL_MAP: Array<[string, string]> = [
+// ─── UNIVERSAL METRIC MAP (Excel + PDF headers — ES / FR / EN) ───────────────
+// Order matters: more specific patterns FIRST to avoid false positives.
+// normStr() is applied to both the header and each pattern before comparing.
+const METRIC_COL_MAP: Array<[string, string]> = [
+  // ── Distance total ──────────────────────────────────────────────────────────
   ['total distance','dist_total'],['total dist','dist_total'],['tot dist','dist_total'],
+  ['dist totale','dist_total'],['distancia total','dist_total'],['distance totale','dist_total'],
+  // ── Meterage / distance per minute ──────────────────────────────────────────
   ['meterage per minute','dist_per_min'],['meterage per min','dist_per_min'],
   ['distance per minute','dist_per_min'],['dist per min','dist_per_min'],['dist/min','dist_per_min'],
-  ['high speed dist','dist_hir'],['high intensity','dist_hir'],['hsr','dist_hir'],
-  ['vel b4 tot dist','dist_v4'],['vel b4','dist_v4'],['v4 dist','dist_v4'],['velocity band 4','dist_v4'],
-  ['vel b6 tot dist','dist_v5'],['vel b6','dist_v5'],['vel b5 tot dist','dist_v5'],['vel b5','dist_v5'],
-  ['v5 dist','dist_v5'],['v6 dist','dist_v5'],['velocity band 5','dist_v5'],['sprint dist','dist_v5'],
-  ['player load','player_load'],['playerload','player_load'],
+  ['metros por minuto','dist_per_min'],['metres par minute','dist_per_min'],
+  ['metres per minute','dist_per_min'],['mts/min','dist_per_min'],['mts min','dist_per_min'],
+  // ── High Speed Running (>19.7 km/h) ─────────────────────────────────────────
+  ['high speed running','dist_hir'],['high speed dist','dist_hir'],['high speed distance','dist_hir'],
+  ['high speed','dist_hir'],['hsr','dist_hir'],['high intensity running','dist_hir'],
+  ['alta intensidad','dist_hir'],['course haute intensite','dist_hir'],['haute intensite','dist_hir'],
+  // ── Velocity Band 4 (15-20 km/h) ────────────────────────────────────────────
+  ['vel b4 tot dist','dist_v4'],['vel b4 tot','dist_v4'],['vel b4','dist_v4'],
+  ['velocity band 4','dist_v4'],['v4 dist','dist_v4'],['banda 4','dist_v4'],['bande 4','dist_v4'],
+  ['15-20','dist_v4'],['15 20','dist_v4'],
+  // ── Velocity Band 5/6 / Sprint distance (>20 km/h) ──────────────────────────
+  ['vel b6 tot dist','dist_v5'],['vel b6 tot','dist_v5'],['vel b6','dist_v5'],
+  ['vel b5 tot dist','dist_v5'],['vel b5 tot','dist_v5'],['vel b5','dist_v5'],
+  ['velocity band 6','dist_v5'],['velocity band 5','dist_v5'],
+  ['v6 dist','dist_v5'],['v5 dist','dist_v5'],
+  ['sprint distance','dist_v5'],['sprint dist','dist_v5'],['distancia sprint','dist_v5'],
+  ['distance sprint','dist_v5'],['dist sprint','dist_v5'],
+  ['banda 6','dist_v5'],['banda 5','dist_v5'],['bande 6','dist_v5'],['bande 5','dist_v5'],
+  ['20 25','dist_v5'],['20/25','dist_v5'],['20-25','dist_v5'],
+  // ── Player Load ─────────────────────────────────────────────────────────────
+  ['player load','player_load'],['playerload','player_load'],['carga jugador','player_load'],
+  ['charge joueur','player_load'],['tot pl','player_load'],
+  // ── Max Velocity ─────────────────────────────────────────────────────────────
   ['max velocity','max_velocity'],['max vel','max_velocity'],['top speed','max_velocity'],
-  ['velocidad maxima','max_velocity'],
-  ['acc b2-3 tot effs','acc2'],['acc b2-3','acc2'],['acc b2','acc2'],['acc2 eff','acc2'],['acc 2','acc2'],
-  ['decel b2-3 tot effs','dec2'],['decel b2-3','dec2'],['dec b2','dec2'],['dec2 eff','dec2'],['dec 2','dec2'],
-  ['acc b3','acc3'],['acc3 eff','acc3'],['acc 3','acc3'],
-  ['dec b3','dec3'],['dec3 eff','dec3'],['dec 3','dec3'],
-  ['numero sprints','n_sprints'],['número sprints','n_sprints'],['number sprints','n_sprints'],
-  ['vel b1','dist_v1'],['velocity band 1','dist_v1'],
-  ['vel b2','dist_v2'],['velocity band 2','dist_v2'],
-  ['vel b3','dist_v3'],['velocity band 3','dist_v3'],
-  ['metabolic power','metabolic_power'],['hr avg','hr_avg'],['hr max','hr_max'],
-  ['duration','duracion_min'],['total time','duracion_min'],['tot dur','duracion_min'],
-  ['total dur','duracion_min'],['duree','duracion_min'],['durée','duracion_min'],
-  ['duración','duracion_min'],['duracion','duracion_min'],['temps total','duracion_min'],
-  ['time played','duracion_min'],['playing time','duracion_min'],['elapsed time','duracion_min'],
+  ['velocidad maxima','max_velocity'],['vitesse maximale','max_velocity'],['vel max','max_velocity'],
+  ['vitesse max','max_velocity'],['vmax','max_velocity'],['velocidad max','max_velocity'],
+  // ── Accelerations B2-3 ───────────────────────────────────────────────────────
+  ['acc b2-3 tot effs','acc2'],['acc b2-3 tot','acc2'],['acc b2-3','acc2'],
+  ['accelerations b2 3','acc2'],['accelerations b2','acc2'],['aceleraciones b2','acc2'],
+  ['acc b2','acc2'],['acc2 eff','acc2'],['acc 2','acc2'],['accel b2','acc2'],
+  ['nombre accelerations','acc2'],
+  // ── Decelerations B2-3 ──────────────────────────────────────────────────────
+  ['decel b2-3 tot effs','dec2'],['decel b2-3 tot','dec2'],['decel b2-3','dec2'],
+  ['decelerations b2 3','dec2'],['decelerations b2','dec2'],['desaceleraciones b2','dec2'],
+  ['dec b2','dec2'],['dec2 eff','dec2'],['dec 2','dec2'],['decel b2','dec2'],
+  ['nombre decelerations','dec2'],
+  // ── Accelerations B3 ────────────────────────────────────────────────────────
+  ['acc b3','acc3'],['acc3 eff','acc3'],['acc 3','acc3'],['accel b3','acc3'],
+  // ── Decelerations B3 ────────────────────────────────────────────────────────
+  ['dec b3','dec3'],['dec3 eff','dec3'],['dec 3','dec3'],['decel b3','dec3'],
+  // ── Number of Sprints ────────────────────────────────────────────────────────
+  ['number of sprints','n_sprints'],['number sprints','n_sprints'],['num sprints','n_sprints'],
+  ['numero sprints','n_sprints'],['numero de sprints','n_sprints'],
+  ['nombre sprints','n_sprints'],['nombre de sprints','n_sprints'],
+  ['n sprints','n_sprints'],
+  // ── Velocity bands 1/2/3 (lower speed zones) ─────────────────────────────────
+  ['vel b1','dist_v1'],['velocity band 1','dist_v1'],['banda 1','dist_v1'],['bande 1','dist_v1'],
+  ['vel b2','dist_v2'],['velocity band 2','dist_v2'],['banda 2','dist_v2'],['bande 2','dist_v2'],
+  ['vel b3','dist_v3'],['velocity band 3','dist_v3'],['banda 3','dist_v3'],['bande 3','dist_v3'],
+  // ── Heart Rate / Metabolic ───────────────────────────────────────────────────
+  ['metabolic power','metabolic_power'],['puissance metabolique','metabolic_power'],
+  ['hr avg','hr_avg'],['fc moyenne','hr_avg'],['fc media','hr_avg'],['frecuencia cardiaca media','hr_avg'],
+  ['hr max','hr_max'],['fc max','hr_max'],['frecuencia cardiaca max','hr_max'],
+  // ── Duration ─────────────────────────────────────────────────────────────────
+  ['total duration','duracion_min'],['total dur','duracion_min'],['tot dur','duracion_min'],
+  ['duration','duracion_min'],['duree','duracion_min'],['duracion','duracion_min'],
+  ['temps total','duracion_min'],['time played','duracion_min'],['playing time','duracion_min'],
+  ['elapsed time','duracion_min'],['total time','duracion_min'],
 ]
 
-function matchExcelCol(h: string): string | null {
+// Match a column header (Excel or PDF block label) to an internal field name.
+function matchMetricCol(h: string): string | null {
   const hn = normStr(h)
-  for (const [label, field] of EXCEL_COL_MAP)
+  for (const [label, field] of METRIC_COL_MAP)
     if (hn.includes(normStr(label))) return field
   return null
 }
+
+// Backward-compat alias (used by Excel parser below)
+const matchExcelCol = matchMetricCol
 
 // Parse a 2D array of rows (pre-parsed by client or from XLSX)
 function parseRawRows(raw: any[][]): Record<string, any>[] {
@@ -116,8 +163,8 @@ const ROW_COL_ORDER = [
   'dist_total',
   'dist_per_min',
   'dist_v4',     // 15-20 km/h
-  null,          // 20/25 km/h (VEL B5 — skipped; HSR>19.7 below is more accurate)
-  'dist_v5',     // Sprint distance (VEL B6)
+  'dist_v5',     // 20/25 km/h (VEL B5 — includes sprint zone distance)
+  null,          // Sprint distance (VEL B6 — already covered by dist_v5 above, skip to avoid double-count)
   'n_sprints',
   'dist_hir',   // HSR (>19.7) — this IS the real High Speed Running metric
   'acc2',
@@ -161,8 +208,8 @@ function parsePdfRowFormat(lines: string[]): Record<string, any>[] | null {
   // [4] SprintDist  [5] NumSprints  [6] HSR(>19.7)
   // [7] AccB2-3  [8] DecelB2-3  [9] TotPL  [10] Duration(HH:MM:SS)  [11] MaxVel
   const FIELD_MAP = [
-    'dist_total', 'dist_per_min', 'dist_v4', null,     // 20/25 km/h → skip (HSR>19.7 is more accurate)
-    'dist_v5', 'n_sprints', 'dist_hir',
+    'dist_total', 'dist_per_min', 'dist_v4', 'dist_v5', // 20/25 km/h = sprint zone dist
+    null, 'n_sprints', 'dist_hir',  // Sprint dist (B6) skip — already captured in dist_v5
     'acc2', 'dec2', 'player_load', 'duracion_min', 'max_velocity'
   ]
 
@@ -394,13 +441,22 @@ async function parsePdf(bytes: Uint8Array): Promise<Record<string, any>[]> {
   if (blocks.length === 0)
     throw new Error('No se encontraron datos numéricos en el PDF.')
 
-  // ── Map blocks to fields (col order: block[i].values = CATAPULT_COL_ORDER[i]) ──
+  // ── Map blocks to fields DYNAMICALLY using block label → matchMetricCol ──
+  // Handles any column order and any language (ES/FR/EN).
+  // Fallback to positional CATAPULT_COL_ORDER for PDFs with unreadable labels.
+  const blockFields = blocks.map((b, bi) => {
+    const byLabel = matchMetricCol(b.label)
+    if (byLabel) return byLabel
+    return bi < CATAPULT_COL_ORDER.length ? CATAPULT_COL_ORDER[bi] : null
+  })
+
   const results: Record<string, any>[] = []
   for (let pi = 0; pi < nPlayers; pi++) {
     const cleanName = cleanCatapultName(names[pi])
     const metricas: Record<string, number> = {}
     for (let bi = 0; bi < blocks.length; bi++) {
-      const field = bi < CATAPULT_COL_ORDER.length ? CATAPULT_COL_ORDER[bi] : `col_${bi}`
+      const field = blockFields[bi]
+      if (!field) continue
       const val = blocks[bi].values[pi]
       if (val !== undefined && !isNaN(val)) metricas[field] = val
     }
@@ -613,6 +669,8 @@ export async function POST(req: NextRequest) {
         acc3:         met.acc3         ?? null,
         dec3:         met.dec3         ?? null,
         dist_per_min: met.dist_per_min ?? null,
+        n_sprints:    met.n_sprints    ?? null,
+        duracion_min: met.duracion_min ?? null,
       }
 
       try {
@@ -627,12 +685,12 @@ export async function POST(req: NextRequest) {
               jugador_id, club_id, fecha, sesion_id, tipo_sesion,
               dist_total, dist_hir, dist_v4, dist_v5,
               player_load, max_velocity, acc2, dec2, acc3, dec3,
-              dist_per_min, fuente, metricas
+              dist_per_min, n_sprints, duracion_min, fuente, metricas
             ) VALUES (
               ${m.jugador_id}, ${s.clubId||null}, ${fecha}, ${sesion_id}, ${tipo_sesion},
               ${fixed.dist_total}, ${fixed.dist_hir}, ${fixed.dist_v4}, ${fixed.dist_v5},
               ${fixed.player_load}, ${fixed.max_velocity}, ${fixed.acc2}, ${fixed.dec2}, ${fixed.acc3}, ${fixed.dec3},
-              ${fixed.dist_per_min}, ${isPdf?'pdf':'excel'}, ${JSON.stringify(met)}
+              ${fixed.dist_per_min}, ${fixed.n_sprints}, ${fixed.duracion_min}, ${isPdf?'pdf':'excel'}, ${JSON.stringify(met)}
             )
           `
         } else {
@@ -642,12 +700,12 @@ export async function POST(req: NextRequest) {
               jugador_id, club_id, fecha, sesion_id, tipo_sesion,
               dist_total, dist_hir, dist_v4, dist_v5,
               player_load, max_velocity, acc2, dec2, acc3, dec3,
-              dist_per_min, fuente
+              dist_per_min, n_sprints, duracion_min, fuente
             ) VALUES (
               ${m.jugador_id}, ${s.clubId||null}, ${fecha}, ${sesion_id}, ${tipo_sesion},
               ${fixed.dist_total}, ${fixed.dist_hir}, ${fixed.dist_v4}, ${fixed.dist_v5},
               ${fixed.player_load}, ${fixed.max_velocity}, ${fixed.acc2}, ${fixed.dec2}, ${fixed.acc3}, ${fixed.dec3},
-              ${fixed.dist_per_min}, ${isPdf?'pdf':'excel'}
+              ${fixed.dist_per_min}, ${fixed.n_sprints}, ${fixed.duracion_min}, ${isPdf?'pdf':'excel'}
             )
           `
         }

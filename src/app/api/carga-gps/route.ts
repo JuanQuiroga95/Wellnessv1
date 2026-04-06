@@ -227,6 +227,7 @@ export async function GET(req: NextRequest) {
             g.dist_total, g.dist_hir, g.dist_v4, g.dist_v5,
             g.player_load, g.max_velocity,
             g.acc2, g.dec2, g.acc3, g.dec3, g.dist_per_min,
+            g.n_sprints, g.duracion_min,
             g.metricas
           FROM gps_logs g
           JOIN jugadores j ON j.id = g.jugador_id
@@ -255,6 +256,7 @@ export async function GET(req: NextRequest) {
             g.dist_total, g.dist_hir, g.dist_v4, g.dist_v5,
             g.player_load, g.max_velocity,
             g.acc2, g.dec2, g.acc3, g.dec3, g.dist_per_min,
+            g.n_sprints, g.duracion_min,
             g.metricas
           FROM gps_logs g
           JOIN jugadores j ON j.id = g.jugador_id
@@ -337,6 +339,8 @@ export async function GET(req: NextRequest) {
         acc2: fixedNum(row.acc2), dec2: fixedNum(row.dec2),
         acc3: fixedNum(row.acc3), dec3: fixedNum(row.dec3),
         dist_per_min: fixedNum(row.dist_per_min),
+        n_sprints: fixedNum(row.n_sprints),
+        duracion_min: fixedNum(row.duracion_min),
       }
 
       // Merge JSON metricas (newer imports) — these take priority / supplement fixed cols

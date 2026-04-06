@@ -55,6 +55,8 @@ export async function POST(req: NextRequest) {
     [`CREATE INDEX IF NOT EXISTS idx_lesiones_club_activa ON lesiones(club_id, activa)`, 'lesiones index club_activa'],
     [`ALTER TABLE lesiones ADD COLUMN IF NOT EXISTS causa VARCHAR(150)`, 'lesiones.causa'],
     [`ALTER TABLE gps_logs ADD COLUMN IF NOT EXISTS metricas JSONB DEFAULT '{}'`, 'gps_logs.metricas jsonb'],
+    [`ALTER TABLE gps_logs ADD COLUMN IF NOT EXISTS n_sprints INTEGER`, 'gps_logs.n_sprints'],
+    [`ALTER TABLE gps_logs ADD COLUMN IF NOT EXISTS duracion_min NUMERIC(6,1)`, 'gps_logs.duracion_min'],
     [`CREATE TABLE IF NOT EXISTS evaluaciones (
       id SERIAL PRIMARY KEY,
       jugador_id INTEGER REFERENCES jugadores(id) ON DELETE CASCADE,
