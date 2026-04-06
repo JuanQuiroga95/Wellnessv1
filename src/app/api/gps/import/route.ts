@@ -232,17 +232,38 @@ function parsePdfRowFormat(lines: string[]): Record<string, any>[] | null {
     // Strategy: collect all tokens, find player rows by scanning for POS_CODE
     // followed by a sequence of numbers (TotDist, MeterPerMin, etc.)
     // Token stream example: ['R','Silva','CB','5563','73.06','505','113','0','0','133','65','48','649','01:16:08','24','A','Cherif','CM',...]
+    // Header/unit tokens that must never be treated as player name parts
+    const HEADER_SKIP_TOKENS = new Set([
+      'position','pos','name','nombre','player','jugador','athlete','total','totale','totaux','totals',
+      'moyenne','promedio','media','average','prom','avg','mean',
+      'meterage','minute','per','running','distance','sprint','sprints','number','high','speed',
+      'acc','decel','effs','eff','gen','load','dist','vel','max','tot','dur','pl',
+      'km','m','meteres','meters','metres',
+      'data','base','rapport','openfield','page','of','cuadro','resumen','summary',
+      'de','du','la','le','les','el','los','atleta',
+    ])
+    // Tokens that are clearly non-name (parenthetical units, special chars, numeric fragments)
+    function isHeaderToken(tok: string): boolean {
+      if (/^\(.*\)$/.test(tok)) return true           // (m), (km/h), (>19,7), (Gen
+      if (/^[><()\[\]/\\]/.test(tok)) return true     // starts with special char
+      if (/^\d+[)>]$/.test(tok)) return true          // e.g. "2)"
+      if (/^[A-Z0-9]{1,2}[/\-][A-Z0-9]/i.test(tok)) return true  // B2-3, 15-20/, 20/25
+      if (/^km\//i.test(tok)) return true             // km/h
+      if (/^[A-Z]'[A-Z]/i.test(tok)) return true     // L'ATHLÈTE
+      if (HEADER_SKIP_TOKENS.has(normStr(tok))) return true
+      return false
+    }
+
     const tokens: string[] = []
     for (const line of lines) {
       const t = line.trim()
       if (!t) continue
-      // Skip header/footer tokens
-      const tn = normStr(t)
+      // Skip header/footer lines
       if (/^page\s+\d+/i.test(t)) continue
       if (/^\d{2}\/\d{2}\/\d{4}$/.test(t)) continue
       // Split multi-word tokens that survived (e.g. "R Silva")
       for (const tok of t.split(/\s+/)) {
-        if (tok) tokens.push(tok)
+        if (tok && !isHeaderToken(tok)) tokens.push(tok)
       }
     }
 
@@ -257,20 +278,22 @@ function parsePdfRowFormat(lines: string[]): Record<string, any>[] | null {
           // Name tokens are everything after the previous numeric block ended.
           // We build the full player line: [name tokens] [POS] [data tokens...]
           const posIdx = i
-          // Collect name: go backward until we hit a duration, number, or start
+          // Collect name: go backward until we hit a number, POS_CODE, or non-name token
           let nameStart = posIdx - 1
           while (nameStart >= 0) {
             const tok = tokens[nameStart]
-            // Stop if we hit a number, duration, or another POS_CODE
-            if (/^\d/.test(tok) || POS_CODES.includes(tok)) break
+            // Stop if we hit a number, duration, another POS_CODE, or a non-name token
+            if (/^\d/.test(tok) || POS_CODES.includes(tok) || isHeaderToken(tok)) break
+            // Only accept alphabetic tokens as name parts (player names are letters only)
+            if (!/^[A-Za-zÀ-ÿ'-]+$/.test(tok)) break
             nameStart--
           }
           nameStart++ // first name token
 
-          const nameParts = tokens.slice(nameStart, posIdx)
+          const nameParts = tokens.slice(nameStart, posIdx).filter(t => /^[A-Za-zÀ-ÿ'-]+$/.test(t) && !isHeaderToken(t))
           const pos = tokens[posIdx]
 
-          // Collect data tokens: numbers, decimals, durations until next name+pos pair
+          // Collect data tokens: only numeric/duration values until next player or summary
           const dataParts: string[] = []
           let j = posIdx + 1
           while (j < tokens.length) {
@@ -279,6 +302,8 @@ function parsePdfRowFormat(lines: string[]): Record<string, any>[] | null {
             if (POS_CODES.includes(tok) && j + 1 < tokens.length && /^\d{3,5}$/.test(tokens[j + 1])) break
             // Stop if we encounter a clear summary word
             if (SUMMARY_WORDS.has(normStr(tok))) break
+            // Stop at alphabetic tokens that are not numbers — next player's name starts here
+            if (/^[A-Za-z]/.test(tok) && !POS_CODES.includes(tok)) break
             dataParts.push(tok)
             j++
           }

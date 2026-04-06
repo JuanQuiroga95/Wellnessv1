@@ -4726,17 +4726,67 @@ function GpsPanel({ teamData }: { teamData: any }) {
   }, [result])
 
   // For Excel: parse client-side, send only rows JSON (avoids Vercel 4.5MB body limit)
-  // For PDF: send as FormData (pdf-parse is server-only, PDFs are usually small)
+  // Extract PDF text client-side using pdf.js, ordered by Y-coordinate (row by row).
+  // This correctly handles Catapult "DATA BASE RAPPORT OPENFIELD" PDFs where pdf-parse
+  // (server-side) reads columns vertically instead of rows horizontally.
+  async function extractPdfTextRowOrdered(file: File): Promise<string> {
+    const arrayBuffer = await file.arrayBuffer()
+    // Load pdf.js from CDN if not already loaded
+    if (!(window as any).pdfjsLib) {
+      await new Promise<void>((resolve, reject) => {
+        const script = document.createElement('script')
+        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js'
+        script.onload = () => {
+          ;(window as any).pdfjsLib.GlobalWorkerOptions.workerSrc =
+            'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'
+          resolve()
+        }
+        script.onerror = reject
+        document.head.appendChild(script)
+      })
+    }
+    const pdfjsLib = (window as any).pdfjsLib
+    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise
+    const allLines: string[] = []
+
+    for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+      const page = await pdf.getPage(pageNum)
+      const content = await page.getTextContent()
+      // Group text items by their Y coordinate (rounded to nearest 3px to handle sub-pixel differences)
+      const rows: Map<number, Array<{ x: number; text: string }>> = new Map()
+      for (const item of content.items as any[]) {
+        if (!item.str?.trim()) continue
+        const y = Math.round(item.transform[5] / 3) * 3
+        if (!rows.has(y)) rows.set(y, [])
+        rows.get(y)!.push({ x: item.transform[4], text: item.str })
+      }
+      // Sort rows top-to-bottom (higher Y = higher on page in PDF coords), then left-to-right within each row
+      const sortedYs = Array.from(rows.keys()).sort((a, b) => b - a)
+      for (const y of sortedYs) {
+        const rowItems = rows.get(y)!.sort((a, b) => a.x - b.x)
+        const line = rowItems.map(i => i.text.trim()).filter(Boolean).join(' ')
+        if (line) allLines.push(line)
+      }
+    }
+    return allLines.join('\n')
+  }
+
+  // For PDF: extract text client-side (row-ordered) and send as JSON.
+  // This avoids the column-stacking issue of server-side pdf-parse for DATA BASE OPENFIELD format.
   async function buildImportBody(confirmFlag: boolean): Promise<{body: BodyInit, headers?: Record<string,string>}> {
     const isPdf = file!.name.toLowerCase().endsWith('.pdf')
     if (isPdf) {
-      const fd = new FormData()
-      fd.append('file', file!)
-      fd.append('fecha', fecha)
-      fd.append('tipo_sesion', tipoSesion)
-      if (sesionId) fd.append('sesion_id', String(sesionId))
-      fd.append('confirm', String(confirmFlag))
-      return { body: fd }
+      const pdfText = await extractPdfTextRowOrdered(file!)
+      return {
+        body: JSON.stringify({
+          pdfText,
+          fecha,
+          tipo_sesion: tipoSesion,
+          sesion_id: sesionId || null,
+          confirm: confirmFlag,
+        }),
+        headers: { 'Content-Type': 'application/json' },
+      }
     }
     // Excel: parse in browser, send rows as JSON
     const arrayBuffer = await file!.arrayBuffer()
