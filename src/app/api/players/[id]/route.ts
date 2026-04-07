@@ -53,7 +53,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   }
 
   // Update jugador fields
-  const fields = ['posicion','edad','peso_kg','estatura_cm','pie_habil','email','fecha_nacimiento','hora_recordatorio']
+  const fields = ['posicion','edad','peso_kg','estatura_cm','pie_habil','email','fecha_nacimiento','hora_recordatorio','peso_ideal_min','peso_ideal_max']
   if (fields.some(f => b[f] !== undefined)) {
     await sql`UPDATE jugadores SET
       posicion          = COALESCE(${b.posicion ?? null}, posicion),
@@ -63,7 +63,9 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       pie_habil         = COALESCE(${b.pie_habil ?? null}, pie_habil),
       email             = COALESCE(${sanitizeString(b.email, 200)}, email),
       fecha_nacimiento  = COALESCE(${b.fecha_nacimiento ?? null}, fecha_nacimiento),
-      hora_recordatorio = COALESCE(${b.hora_recordatorio ?? null}, hora_recordatorio)
+      hora_recordatorio = COALESCE(${b.hora_recordatorio ?? null}, hora_recordatorio),
+      peso_ideal_min    = ${b.peso_ideal_min != null ? b.peso_ideal_min : null},
+      peso_ideal_max    = ${b.peso_ideal_max != null ? b.peso_ideal_max : null}
       WHERE usuario_id = ${userId}`
   }
 

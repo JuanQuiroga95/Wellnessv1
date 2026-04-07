@@ -3851,14 +3851,14 @@ function NewLesionForm({ teamData, onSuccess, onCancel }) {
 }
 
 function NewPlayerForm({ onSuccess, onCancel }) {
-  const [f, setF] = useState({ nombre:'', usuario:'', password:'', posicion:'', edad:'', peso_kg:'', estatura_cm:'', pie_habil:'Derecho', foto_url:'', email:'', fecha_nacimiento:'', hora_recordatorio:'08:00' })
+  const [f, setF] = useState({ nombre:'', usuario:'', password:'', posicion:'', edad:'', peso_kg:'', estatura_cm:'', pie_habil:'Derecho', foto_url:'', email:'', fecha_nacimiento:'', hora_recordatorio:'08:00', peso_ideal_min:'', peso_ideal_max:'' })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const set = (k,v) => setF(p=>({...p,[k]:v}))
   async function submit(e) {
     e.preventDefault(); setLoading(true); setError('')
     try {
-      const res = await fetch('/api/players',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...f,edad:f.edad?parseInt(f.edad):null,peso_kg:f.peso_kg?parseFloat(f.peso_kg):null,estatura_cm:f.estatura_cm?parseInt(f.estatura_cm):null,foto_url:f.foto_url||null,email:f.email||null,fecha_nacimiento:f.fecha_nacimiento||null,hora_recordatorio:f.hora_recordatorio||'08:00'})})
+      const res = await fetch('/api/players',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...f,edad:f.edad?parseInt(f.edad):null,peso_kg:f.peso_kg?parseFloat(f.peso_kg):null,estatura_cm:f.estatura_cm?parseInt(f.estatura_cm):null,foto_url:f.foto_url||null,email:f.email||null,fecha_nacimiento:f.fecha_nacimiento||null,hora_recordatorio:f.hora_recordatorio||'08:00',peso_ideal_min:f.peso_ideal_min?parseFloat(f.peso_ideal_min):null,peso_ideal_max:f.peso_ideal_max?parseFloat(f.peso_ideal_max):null})})
       const d = await res.json()
       if (!res.ok) { setError(d.error||'Error'); return }
       onSuccess()
@@ -3902,6 +3902,22 @@ function NewPlayerForm({ onSuccess, onCancel }) {
           <div><label style={{ display:'block', fontSize:11, fontWeight:600, color:'var(--lime)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:5 }}>📧 Email (para recordatorios)</label><input className="wp-input" type="email" value={f.email} onChange={e=>set('email',e.target.value)} placeholder="jugador@email.com" /></div>
           <div><label style={{ display:'block', fontSize:11, fontWeight:600, color:'var(--lime)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:5 }}>🎂 Fecha de nacimiento</label><input className="wp-input" type="date" value={f.fecha_nacimiento} onChange={e=>set('fecha_nacimiento',e.target.value)} /></div>
           <div><label style={{ display:'block', fontSize:11, fontWeight:600, color:'var(--lime)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:5 }}>⏰ Horario de recordatorio</label><select className="wp-input" value={f.hora_recordatorio} onChange={e=>set('hora_recordatorio',e.target.value)} style={{ appearance:'none' }}>{['06:00','06:30','07:00','07:30','08:00','08:30','09:00','09:30','10:00','10:30','11:00','11:30','12:00'].map(h=><option key={h} value={h} style={{ background:'var(--ink2)' }}>{h}</option>)}</select></div>
+          <div style={{ gridColumn:'span 2' }}>
+            <p style={{ fontSize:10, fontWeight:700, color:'#f59e0b', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:8, display:'flex', alignItems:'center', gap:6 }}>
+              <span style={{ width:3, height:12, borderRadius:2, background:'#f59e0b', display:'inline-block' }}/>
+              ⚖️ Rango de peso ideal — configurado por el coach
+            </p>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, background:'rgba(245,158,11,.06)', border:'1px solid rgba(245,158,11,.2)', borderRadius:10, padding:'12px 14px' }}>
+              <div>
+                <label style={{ display:'block', fontSize:11, fontWeight:600, color:'#f59e0b', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:5 }}>Peso mínimo ideal (kg)</label>
+                <input className="wp-input" type="number" step="0.1" min="40" max="150" value={f.peso_ideal_min} onChange={e=>set('peso_ideal_min',e.target.value)} placeholder="ej: 72.0" />
+              </div>
+              <div>
+                <label style={{ display:'block', fontSize:11, fontWeight:600, color:'#f59e0b', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:5 }}>Peso máximo ideal (kg)</label>
+                <input className="wp-input" type="number" step="0.1" min="40" max="150" value={f.peso_ideal_max} onChange={e=>set('peso_ideal_max',e.target.value)} placeholder="ej: 76.0" />
+              </div>
+            </div>
+          </div>
         </div>
         {error && <p style={{ fontSize:12, color:'#f87171', marginBottom:12 }}>{error}</p>}
         <div style={{ display:'flex', gap:10 }}>
@@ -3937,6 +3953,8 @@ function ManageRow({ player, last, onRefresh }) {
     fecha_nacimiento: player.fecha_nacimiento||'',
     hora_recordatorio: player.hora_recordatorio||'08:00',
     nueva_password: '',
+    peso_ideal_min: String(player.peso_ideal_min||''),
+    peso_ideal_max: String(player.peso_ideal_max||''),
   })
   const setE = (k,v) => setEf(p=>({...p,[k]:v}))
 
@@ -3959,6 +3977,8 @@ function ManageRow({ player, last, onRefresh }) {
         email: ef.email||null,
         fecha_nacimiento: ef.fecha_nacimiento||null,
         hora_recordatorio: ef.hora_recordatorio||null,
+        peso_ideal_min: ef.peso_ideal_min ? Number(ef.peso_ideal_min) : null,
+        peso_ideal_max: ef.peso_ideal_max ? Number(ef.peso_ideal_max) : null,
       }
       const newPwd = ef.nueva_password.trim()
       if (newPwd) { body.password = newPwd }
@@ -4099,6 +4119,22 @@ function ManageRow({ player, last, onRefresh }) {
                 <div>
                   <label style={{ display:'block', fontSize:10, fontWeight:600, color:'#f59e0b', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:4 }}>🔑 Nueva contraseña (opcional)</label>
                   <input className="wp-input" type="text" value={ef.nueva_password} onChange={e=>setE('nueva_password',e.target.value)} placeholder="Dejar vacío para no cambiar" autoComplete="off" />
+                </div>
+                <div style={{ gridColumn:'1/-1' }}>
+                  <p style={{ fontSize:10, fontWeight:700, color:'#f59e0b', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:8, display:'flex', alignItems:'center', gap:6 }}>
+                    <span style={{ width:3, height:12, borderRadius:2, background:'#f59e0b', display:'inline-block' }}/>
+                    ⚖️ Rango de peso ideal — configurado por el coach
+                  </p>
+                  <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, background:'rgba(245,158,11,.06)', border:'1px solid rgba(245,158,11,.2)', borderRadius:10, padding:'12px 14px' }}>
+                    <div>
+                      <label style={{ display:'block', fontSize:10, fontWeight:600, color:'#f59e0b', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:4 }}>Peso mínimo ideal (kg)</label>
+                      <input className="wp-input" type="number" step="0.1" min="40" max="150" value={ef.peso_ideal_min} onChange={e=>setE('peso_ideal_min',e.target.value)} placeholder="ej: 72.0" />
+                    </div>
+                    <div>
+                      <label style={{ display:'block', fontSize:10, fontWeight:600, color:'#f59e0b', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:4 }}>Peso máximo ideal (kg)</label>
+                      <input className="wp-input" type="number" step="0.1" min="40" max="150" value={ef.peso_ideal_max} onChange={e=>setE('peso_ideal_max',e.target.value)} placeholder="ej: 76.0" />
+                    </div>
+                  </div>
                 </div>
               </div>
               {editError && <p style={{ fontSize:12, color:'#f87171', marginBottom:10 }}>{editError}</p>}

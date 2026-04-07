@@ -14,7 +14,7 @@ interface Jugador {
   peso_ideal_max?: number
 }
 
-type TestKey = 'variables' | 'pesajes' | 'cmj' | 'isometrico'
+type TestKey = 'variables' | 'pesajes' | 'cmj' | 'isometrico' | 'pfv' | 'rsi' | 'dsi'
 
 // ─── Semáforo genérico ────────────────────────────────────────────────────────
 function Semaforo({ estado }: { estado: 'verde' | 'amarillo' | 'rojo' | 'gris' }) {
@@ -233,14 +233,14 @@ function PesajesPanel({ jugador }: { jugador: Jugador }) {
           <span style={{ fontSize: 16, fontWeight: 800, color: '#a3e635' }}>
             {jugador.peso_ideal_min} – {jugador.peso_ideal_max} kg
           </span>
-          <span style={{ fontSize: 11, color: '#64748b', marginLeft: 'auto' }}>Provisto por nutricionista</span>
+          <span style={{ fontSize: 11, color: '#64748b', marginLeft: 'auto' }}>Configurado por el coach</span>
         </div>
       ) : (
         <div style={{
           background: '#1e293b', borderRadius: 10, padding: '10px 14px', marginBottom: 16,
           border: '1px dashed #334155', fontSize: 12, color: '#475569',
         }}>
-          ⚠️ Sin rango de peso ideal definido — la nutricionista debe configurarlo en el perfil del jugador.
+          ⚠️ Sin rango de peso ideal definido — el coach debe configurarlo en el perfil del jugador (sección Jugadores → Editar).
         </div>
       )}
 
@@ -619,6 +619,475 @@ function IsometricoPanel({ jugador }: { jugador: Jugador }) {
   )
 }
 
+// ─── 5. Perfil Fuerza-Velocidad (PFV) ────────────────────────────────────────
+function PFVPanel({ jugador }: { jugador: Jugador }) {
+  const [sesiones, setSesiones] = useState<any[]>([])
+  const [activeSesion, setActiveSesion] = useState<number | null>(null)
+  const [form, setForm] = useState({ fecha: new Date().toISOString().split('T')[0], carga_kg: '', velocidad_ms: '', notas: '' })
+  const [saving, setSaving] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [newSesNombre, setNewSesNombre] = useState('')
+  const [creatingSes, setCreatingSes] = useState(false)
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    try {
+      const r = await fetch(`/api/evaluaciones/pfv?jugador_id=${jugador.id}`)
+      if (!r.ok) { setSesiones([]); setLoading(false); return }
+      const data = await r.json()
+      const arr = Array.isArray(data) ? data : []
+      setSesiones(arr)
+      if (arr.length > 0 && activeSesion === null) setActiveSesion(arr[0].sesion_id)
+    } catch { setSesiones([]) }
+    setLoading(false)
+  }, [jugador.id])
+
+  useEffect(() => { load() }, [load])
+
+  const sesActual = sesiones.find(s => s.sesion_id === activeSesion)
+  const puntos: {carga: number, vel: number}[] = sesActual?.puntos ?? []
+
+  // Calcular regresión lineal F-V
+  const fvResult = (() => {
+    if (puntos.length < 2) return null
+    const n = puntos.length
+    const sumF = puntos.reduce((a,p) => a + p.carga, 0)
+    const sumV = puntos.reduce((a,p) => a + p.vel, 0)
+    const sumFV = puntos.reduce((a,p) => a + p.carga * p.vel, 0)
+    const sumFF = puntos.reduce((a,p) => a + p.carga * p.carga, 0)
+    const slope = (n * sumFV - sumF * sumV) / (n * sumFF - sumF * sumF)
+    const intercept = (sumV - slope * sumF) / n
+    // F0 = velocidad 0 → F0 = -intercept/slope
+    const F0 = slope < 0 ? -intercept / slope : null
+    // V0 = fuerza 0 → V0 = intercept
+    const V0 = intercept > 0 ? intercept : null
+    // Pmax = F0 * V0 / 4
+    const Pmax = F0 && V0 ? (F0 * V0 / 4) : null
+    return { slope, intercept, F0, V0, Pmax }
+  })()
+
+  const handleAddPunto = async () => {
+    if (!form.carga_kg || !form.velocidad_ms || !activeSesion) return
+    setSaving(true)
+    await fetch('/api/evaluaciones/pfv', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ jugador_id: jugador.id, sesion_id: activeSesion, fecha: form.fecha, carga_kg: Number(form.carga_kg), velocidad_ms: Number(form.velocidad_ms), notas: form.notas || null }),
+    })
+    setSaving(false)
+    setForm(p => ({ ...p, carga_kg: '', velocidad_ms: '' }))
+    load()
+  }
+
+  const handleDeletePunto = async (id: number) => {
+    await fetch(`/api/evaluaciones/pfv?id=${id}`, { method: 'DELETE' })
+    load()
+  }
+
+  const handleCreateSesion = async () => {
+    if (!newSesNombre.trim()) return
+    setCreatingSes(true)
+    const r = await fetch('/api/evaluaciones/pfv/sesion', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ jugador_id: jugador.id, nombre: newSesNombre.trim() }),
+    })
+    const d = await r.json()
+    setCreatingSes(false)
+    setNewSesNombre('')
+    await load()
+    if (d.sesion_id) setActiveSesion(d.sesion_id)
+  }
+
+  // SVG chart
+  const chartW = 420, chartH = 200, pad = { t:20, r:20, b:40, l:50 }
+  const maxF = puntos.length ? Math.max(...puntos.map(p=>p.carga)) * 1.1 : 100
+  const maxV = puntos.length ? Math.max(...puntos.map(p=>p.vel)) * 1.2 : 3
+  const toX = (f: number) => pad.l + (f / maxF) * (chartW - pad.l - pad.r)
+  const toY = (v: number) => chartH - pad.b - (v / maxV) * (chartH - pad.t - pad.b)
+
+  return (
+    <Card title="Perfil Fuerza-Velocidad (F-V)">
+      <div style={{ background:'#1e293b', borderRadius:10, padding:'10px 14px', marginBottom:16, fontSize:12, color:'#64748b', border:'1px solid #334155', lineHeight:1.6 }}>
+        📋 <strong style={{ color:'#94a3b8' }}>Protocolo:</strong> Registrá múltiples cargas (kg) con su velocidad media propulsiva (m/s) en una sesión.
+        Se calcula automáticamente <strong style={{ color:'#a3e635' }}>F₀</strong> (fuerza teórica máxima),{' '}
+        <strong style={{ color:'#60a5fa' }}>V₀</strong> (velocidad máxima) y{' '}
+        <strong style={{ color:'#f59e0b' }}>Pmax</strong> (potencia mecánica máxima).
+      </div>
+
+      {/* Selector de sesiones */}
+      <div style={{ marginBottom:16 }}>
+        <div style={{ fontSize:10, fontWeight:700, color:'#64748b', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:8 }}>Sesiones</div>
+        <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginBottom:10 }}>
+          {sesiones.map(s => (
+            <button key={s.sesion_id} onClick={()=>setActiveSesion(s.sesion_id)} style={{
+              padding:'6px 14px', borderRadius:8, fontSize:12, fontWeight:600, cursor:'pointer', transition:'all .15s',
+              border:`1px solid ${activeSesion===s.sesion_id?'#a3e635':'#334155'}`,
+              background: activeSesion===s.sesion_id ? '#a3e63518' : '#1e293b',
+              color: activeSesion===s.sesion_id ? '#a3e635' : '#64748b',
+            }}>{s.nombre}</button>
+          ))}
+          <div style={{ display:'flex', gap:6, alignItems:'center' }}>
+            <input value={newSesNombre} onChange={e=>setNewSesNombre(e.target.value)} placeholder="Nueva sesión..." style={{ background:'#1e293b', border:'1px solid #334155', borderRadius:8, padding:'6px 10px', fontSize:12, color:'#f1f5f9', outline:'none', width:130 }} onKeyDown={e=>e.key==='Enter'&&handleCreateSesion()} />
+            <Btn onClick={handleCreateSesion} disabled={creatingSes||!newSesNombre.trim()} small>+ Sesión</Btn>
+          </div>
+        </div>
+      </div>
+
+      {activeSesion && (
+        <>
+          {/* Formulario de punto */}
+          <div style={{ display:'grid', gridTemplateColumns:'140px 140px 1fr auto', gap:10, alignItems:'end', marginBottom:20 }}>
+            <Field label="Carga (kg)" value={form.carga_kg} onChange={v=>setForm(p=>({...p,carga_kg:v}))} unit="kg" min="0" max="500" />
+            <Field label="Velocidad (m/s)" value={form.velocidad_ms} onChange={v=>setForm(p=>({...p,velocidad_ms:v}))} unit="m/s" min="0" max="5" step="0.01" />
+            <Field label="Notas" value={form.notas} onChange={v=>setForm(p=>({...p,notas:v}))} type="text" placeholder="Observaciones..." />
+            <Btn onClick={handleAddPunto} disabled={saving||!form.carga_kg||!form.velocidad_ms}>+ Punto</Btn>
+          </div>
+
+          {/* Resultados F-V */}
+          {fvResult && (
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:10, marginBottom:20 }}>
+              {[
+                { label:'F₀ — Fuerza teórica máx.', value: fvResult.F0 ? `${fvResult.F0.toFixed(1)} kg` : '—', color:'#a3e635' },
+                { label:'V₀ — Velocidad teórica máx.', value: fvResult.V0 ? `${fvResult.V0.toFixed(2)} m/s` : '—', color:'#60a5fa' },
+                { label:'Pmax — Potencia mecánica', value: fvResult.Pmax ? `${fvResult.Pmax.toFixed(1)} W·kg⁻¹` : '—', color:'#f59e0b' },
+              ].map(item => (
+                <div key={item.label} style={{ background:'#1e293b', borderRadius:10, padding:'12px 16px', border:`1px solid ${item.color}33` }}>
+                  <div style={{ fontSize:10, color:'#64748b', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:6 }}>{item.label}</div>
+                  <div style={{ fontSize:22, fontWeight:800, color:item.color }}>{item.value}</div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Gráfico F-V */}
+          {puntos.length >= 2 && fvResult && (
+            <div style={{ marginBottom:20, background:'#0f172a', borderRadius:12, padding:'16px', border:'1px solid #1e293b' }}>
+              <div style={{ fontSize:10, fontWeight:700, color:'#64748b', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:12 }}>Curva F-V</div>
+              <svg viewBox={`0 0 ${chartW} ${chartH}`} style={{ width:'100%', maxWidth:chartW, display:'block' }}>
+                {/* Ejes */}
+                <line x1={pad.l} y1={pad.t} x2={pad.l} y2={chartH-pad.b} stroke="#334155" strokeWidth={1} />
+                <line x1={pad.l} y1={chartH-pad.b} x2={chartW-pad.r} y2={chartH-pad.b} stroke="#334155" strokeWidth={1} />
+                {/* Labels ejes */}
+                <text x={pad.l-8} y={chartH-pad.b+4} textAnchor="end" fontSize={9} fill="#475569">0</text>
+                <text x={chartW/2} y={chartH-4} textAnchor="middle" fontSize={9} fill="#475569">Fuerza (kg)</text>
+                <text x={12} y={chartH/2} textAnchor="middle" fontSize={9} fill="#475569" transform={`rotate(-90,12,${chartH/2})`}>Vel (m/s)</text>
+                {/* Línea de regresión */}
+                {(() => {
+                  const x1 = 0, y1 = fvResult.intercept + fvResult.slope * x1
+                  const xMax = fvResult.F0 ? Math.min(fvResult.F0, maxF) : maxF
+                  const y2 = fvResult.intercept + fvResult.slope * xMax
+                  return <line x1={toX(x1)} y1={toY(Math.max(y1,0))} x2={toX(xMax)} y2={toY(Math.max(y2,0))} stroke="#a3e635" strokeWidth={1.5} strokeDasharray="4 3" opacity={0.7} />
+                })()}
+                {/* Puntos */}
+                {puntos.map((p,i) => (
+                  <circle key={i} cx={toX(p.carga)} cy={toY(p.vel)} r={5} fill="#60a5fa" stroke="#0f172a" strokeWidth={1.5} />
+                ))}
+              </svg>
+            </div>
+          )}
+
+          {/* Tabla de puntos */}
+          {loading ? (
+            <div style={{ color:'#64748b', fontSize:13, textAlign:'center', padding:20 }}>Cargando...</div>
+          ) : puntos.length === 0 ? (
+            <div style={{ color:'#475569', fontSize:13, textAlign:'center', padding:20 }}>Sin puntos. Agregá cargas y velocidades.</div>
+          ) : (
+            <table style={{ width:'100%', borderCollapse:'collapse', fontSize:13 }}>
+              <thead>
+                <tr style={{ borderBottom:'1px solid #1e293b' }}>
+                  {['Carga (kg)', 'Velocidad (m/s)', 'Notas', ''].map(h=>(
+                    <th key={h} style={{ textAlign:'left', padding:'6px 10px', color:'#64748b', fontSize:10, fontWeight:700, textTransform:'uppercase' }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {puntos.map((p:any) => (
+                  <tr key={p.id} style={{ borderBottom:'1px solid #0f172a' }}>
+                    <td style={{ padding:'8px 10px', fontWeight:700, color:'#a3e635' }}>{p.carga} kg</td>
+                    <td style={{ padding:'8px 10px', fontWeight:700, color:'#60a5fa' }}>{p.vel} m/s</td>
+                    <td style={{ padding:'8px 10px', color:'#64748b' }}>{p.notas ?? '—'}</td>
+                    <td style={{ padding:'8px 10px' }}><Btn onClick={()=>handleDeletePunto(p.id)} variant="ghost" small>✕</Btn></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </>
+      )}
+
+      {!activeSesion && !loading && (
+        <div style={{ color:'#475569', fontSize:13, textAlign:'center', padding:30 }}>Creá una sesión para comenzar.</div>
+      )}
+    </Card>
+  )
+}
+
+// ─── 6. RSI — Reactive Strength Index ────────────────────────────────────────
+function RSIPanel({ jugador }: { jugador: Jugador }) {
+  const [historial, setHistorial] = useState<any[]>([])
+  const [form, setForm] = useState({ fecha: new Date().toISOString().split('T')[0], altura_cm: '', contacto_ms: '', notas: '' })
+  const [saving, setSaving] = useState(false)
+  const [loading, setLoading] = useState(true)
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    try {
+      const r = await fetch(`/api/evaluaciones/rsi?jugador_id=${jugador.id}`)
+      if (!r.ok) { setHistorial([]); setLoading(false); return }
+      const data = await r.json()
+      setHistorial(Array.isArray(data) ? data : [])
+    } catch { setHistorial([]) }
+    setLoading(false)
+  }, [jugador.id])
+
+  useEffect(() => { load() }, [load])
+
+  const rsiPreview = form.altura_cm && form.contacto_ms
+    ? (Number(form.altura_cm) / 100 / (Number(form.contacto_ms) / 1000)).toFixed(2)
+    : null
+
+  const handleAdd = async () => {
+    if (!form.altura_cm || !form.contacto_ms) return
+    setSaving(true)
+    await fetch('/api/evaluaciones/rsi', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ jugador_id: jugador.id, fecha: form.fecha, altura_cm: Number(form.altura_cm), contacto_ms: Number(form.contacto_ms), notas: form.notas || null }),
+    })
+    setSaving(false)
+    setForm(p => ({ ...p, altura_cm: '', contacto_ms: '', notas: '' }))
+    load()
+  }
+
+  const handleDelete = async (id: number) => {
+    await fetch(`/api/evaluaciones/rsi?id=${id}`, { method: 'DELETE' })
+    load()
+  }
+
+  const getRSIEstado = (rsi: number): 'verde' | 'amarillo' | 'rojo' =>
+    rsi >= 2.5 ? 'verde' : rsi >= 1.5 ? 'amarillo' : 'rojo'
+
+  const baseline = historial.find(r => r.es_baseline)
+
+  return (
+    <Card title="RSI — Reactive Strength Index">
+      <div style={{ background:'#1e293b', borderRadius:10, padding:'10px 14px', marginBottom:16, fontSize:12, color:'#64748b', border:'1px solid #334155', lineHeight:1.6 }}>
+        📋 <strong style={{ color:'#94a3b8' }}>Cálculo:</strong>{' '}
+        RSI = Altura de salto (m) ÷ Tiempo de contacto (s).{' '}
+        <strong style={{ color:'#a3e635' }}>≥ 2.5</strong> excelente ·{' '}
+        <strong style={{ color:'#facc15' }}>1.5–2.5</strong> normal ·{' '}
+        <strong style={{ color:'#ef4444' }}>{'<'} 1.5</strong> mejorable.
+        Indica la capacidad reactiva del sistema neuromuscular.
+      </div>
+
+      <div style={{ display:'grid', gridTemplateColumns:'150px 150px 1fr auto', gap:10, alignItems:'end', marginBottom:8 }}>
+        <Field label="Fecha" value={form.fecha} onChange={v=>setForm(p=>({...p,fecha:v}))} type="date" />
+        <Field label="Altura salto (cm)" value={form.altura_cm} onChange={v=>setForm(p=>({...p,altura_cm:v}))} unit="cm" min="0" max="100" />
+        <Field label="Tiempo contacto (ms)" value={form.contacto_ms} onChange={v=>setForm(p=>({...p,contacto_ms:v}))} unit="ms" min="0" max="600" step="1" />
+        <Field label="Notas" value={form.notas} onChange={v=>setForm(p=>({...p,notas:v}))} type="text" placeholder="Obs..." />
+      </div>
+      <div style={{ display:'flex', gap:10, alignItems:'center', marginBottom:20 }}>
+        {rsiPreview && (
+          <div style={{ fontSize:13, color:'#94a3b8' }}>
+            → RSI: <strong style={{ fontSize:20, color:'#a3e635' }}>{rsiPreview}</strong>
+          </div>
+        )}
+        <Btn onClick={handleAdd} disabled={saving||!form.altura_cm||!form.contacto_ms}>+ Registrar</Btn>
+      </div>
+
+      {/* Mini sparkline de tendencia */}
+      {historial.length >= 3 && (
+        <div style={{ background:'#0f172a', borderRadius:10, padding:'12px 16px', marginBottom:16, border:'1px solid #1e293b' }}>
+          <div style={{ fontSize:10, fontWeight:700, color:'#64748b', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:10 }}>Tendencia RSI</div>
+          <svg viewBox="0 0 400 80" style={{ width:'100%', maxWidth:400 }}>
+            {(() => {
+              const pts = [...historial].reverse().slice(-12)
+              const vals = pts.map(r => Number(r.rsi))
+              const minV = Math.min(...vals) * 0.9
+              const maxV = Math.max(...vals) * 1.1
+              const w = 400, h = 60, pL = 10, pR = 10, pT = 5, pB = 15
+              const tx = (i:number) => pL + (i/(pts.length-1)) * (w-pL-pR)
+              const ty = (v:number) => pT + (1-(v-minV)/(maxV-minV)) * (h-pT-pB)
+              const d = pts.map((p,i) => `${i===0?'M':'L'}${tx(i)},${ty(Number(p.rsi))}`).join(' ')
+              return (
+                <>
+                  <path d={d} fill="none" stroke="#a3e635" strokeWidth={2} />
+                  {pts.map((p,i) => (
+                    <circle key={i} cx={tx(i)} cy={ty(Number(p.rsi))} r={3} fill="#a3e635" />
+                  ))}
+                  {pts.map((p,i) => (
+                    <text key={i} x={tx(i)} y={h} textAnchor="middle" fontSize={7} fill="#475569">{p.fecha?.split('T')[0]?.slice(5)}</text>
+                  ))}
+                </>
+              )
+            })()}
+          </svg>
+        </div>
+      )}
+
+      {loading ? (
+        <div style={{ color:'#64748b', fontSize:13, textAlign:'center', padding:20 }}>Cargando...</div>
+      ) : historial.length === 0 ? (
+        <div style={{ color:'#475569', fontSize:13, textAlign:'center', padding:20 }}>Sin tests registrados.</div>
+      ) : (
+        <table style={{ width:'100%', borderCollapse:'collapse', fontSize:13 }}>
+          <thead>
+            <tr style={{ borderBottom:'1px solid #1e293b' }}>
+              {['Fecha','Altura','T. Contacto','RSI','vs Baseline','Estado','Notas',''].map(h=>(
+                <th key={h} style={{ textAlign:'left', padding:'6px 10px', color:'#64748b', fontSize:10, fontWeight:700, textTransform:'uppercase', whiteSpace:'nowrap' }}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {historial.map((r:any) => {
+              const rsi = Number(r.rsi)
+              const diff = baseline && !r.es_baseline ? rsi - Number(baseline.rsi) : null
+              return (
+                <tr key={r.id} style={{ borderBottom:'1px solid #0f172a', background: r.es_baseline ? '#a3e63508' : 'transparent' }}>
+                  <td style={{ padding:'8px 10px', color:'#94a3b8', whiteSpace:'nowrap' }}>
+                    {r.fecha?.split('T')[0] ?? r.fecha}
+                    {r.es_baseline && <span style={{ marginLeft:6, fontSize:10, color:'#a3e635', fontWeight:700 }}>BASE</span>}
+                  </td>
+                  <td style={{ padding:'8px 10px', color:'#cbd5e1' }}>{r.altura_cm} cm</td>
+                  <td style={{ padding:'8px 10px', color:'#cbd5e1' }}>{r.contacto_ms} ms</td>
+                  <td style={{ padding:'8px 10px', fontWeight:800, color:'#f1f5f9', fontSize:15 }}>{rsi.toFixed(2)}</td>
+                  <td style={{ padding:'8px 10px', fontWeight:600, color: diff === null ? '#475569' : diff >= 0 ? '#22c55e' : '#ef4444' }}>
+                    {diff === null ? '—' : `${diff >= 0 ? '+' : ''}${diff.toFixed(2)}`}
+                  </td>
+                  <td style={{ padding:'8px 10px' }}><Semaforo estado={getRSIEstado(rsi)} /></td>
+                  <td style={{ padding:'8px 10px', color:'#64748b' }}>{r.notas ?? '—'}</td>
+                  <td style={{ padding:'8px 10px' }}><Btn onClick={()=>handleDelete(r.id)} variant="ghost" small>✕</Btn></td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      )}
+    </Card>
+  )
+}
+
+// ─── 7. DSI — Dynamic Strength Index ─────────────────────────────────────────
+function DSIPanel({ jugador }: { jugador: Jugador }) {
+  const [historial, setHistorial] = useState<any[]>([])
+  const [form, setForm] = useState({ fecha: new Date().toISOString().split('T')[0], fuerza_balistico_n: '', fuerza_isometrico_n: '', notas: '' })
+  const [saving, setSaving] = useState(false)
+  const [loading, setLoading] = useState(true)
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    try {
+      const r = await fetch(`/api/evaluaciones/dsi?jugador_id=${jugador.id}`)
+      if (!r.ok) { setHistorial([]); setLoading(false); return }
+      const data = await r.json()
+      setHistorial(Array.isArray(data) ? data : [])
+    } catch { setHistorial([]) }
+    setLoading(false)
+  }, [jugador.id])
+
+  useEffect(() => { load() }, [load])
+
+  const dsiPreview = form.fuerza_balistico_n && form.fuerza_isometrico_n
+    ? (Number(form.fuerza_balistico_n) / Number(form.fuerza_isometrico_n)).toFixed(3)
+    : null
+
+  const getDSIEstado = (dsi: number): 'verde' | 'amarillo' | 'rojo' => {
+    // DSI: <0.6 → déficit balístico (necesita potencia), 0.6–0.8 → zona mixta, >0.8 → déficit isométrico (necesita fuerza máxima)
+    if (dsi >= 0.6 && dsi <= 0.8) return 'verde'
+    return 'amarillo'
+  }
+
+  const getDSIInterpretacion = (dsi: number) => {
+    if (dsi < 0.6) return { texto: 'Priorizar trabajo de potencia/velocidad', color: '#60a5fa' }
+    if (dsi <= 0.8) return { texto: 'Perfil equilibrado — mantener', color: '#22c55e' }
+    return { texto: 'Priorizar trabajo de fuerza máxima', color: '#f59e0b' }
+  }
+
+  const handleAdd = async () => {
+    if (!form.fuerza_balistico_n || !form.fuerza_isometrico_n) return
+    setSaving(true)
+    await fetch('/api/evaluaciones/dsi', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ jugador_id: jugador.id, fecha: form.fecha, fuerza_balistico_n: Number(form.fuerza_balistico_n), fuerza_isometrico_n: Number(form.fuerza_isometrico_n), notas: form.notas || null }),
+    })
+    setSaving(false)
+    setForm(p => ({ ...p, fuerza_balistico_n: '', fuerza_isometrico_n: '', notas: '' }))
+    load()
+  }
+
+  const handleDelete = async (id: number) => {
+    await fetch(`/api/evaluaciones/dsi?id=${id}`, { method: 'DELETE' })
+    load()
+  }
+
+  return (
+    <Card title="DSI — Dynamic Strength Index">
+      <div style={{ background:'#1e293b', borderRadius:10, padding:'10px 14px', marginBottom:16, fontSize:12, color:'#64748b', border:'1px solid #334155', lineHeight:1.6 }}>
+        📋 <strong style={{ color:'#94a3b8' }}>Cálculo:</strong>{' '}
+        DSI = Fuerza pico balística (N) ÷ Fuerza pico isométrica (N).{' '}
+        <strong style={{ color:'#60a5fa' }}>{'<'} 0.6</strong> → entrenar potencia ·{' '}
+        <strong style={{ color:'#22c55e' }}>0.6 – 0.8</strong> → perfil equilibrado ·{' '}
+        <strong style={{ color:'#f59e0b' }}>{'>'} 0.8</strong> → entrenar fuerza máxima.
+      </div>
+
+      <div style={{ display:'grid', gridTemplateColumns:'180px 180px 1fr auto', gap:10, alignItems:'end', marginBottom:8 }}>
+        <Field label="Fecha" value={form.fecha} onChange={v=>setForm(p=>({...p,fecha:v}))} type="date" />
+        <Field label="F. Pico Balístico (N)" value={form.fuerza_balistico_n} onChange={v=>setForm(p=>({...p,fuerza_balistico_n:v}))} unit="N" min="0" max="5000" step="1" />
+        <Field label="F. Pico Isométrico (N)" value={form.fuerza_isometrico_n} onChange={v=>setForm(p=>({...p,fuerza_isometrico_n:v}))} unit="N" min="0" max="5000" step="1" />
+        <Field label="Notas" value={form.notas} onChange={v=>setForm(p=>({...p,notas:v}))} type="text" placeholder="Obs..." />
+      </div>
+      <div style={{ display:'flex', gap:14, alignItems:'center', marginBottom:20 }}>
+        {dsiPreview && (() => {
+          const dsi = Number(dsiPreview)
+          const interp = getDSIInterpretacion(dsi)
+          return (
+            <div style={{ display:'flex', gap:10, alignItems:'center' }}>
+              <span style={{ fontSize:13, color:'#94a3b8' }}>→ DSI: <strong style={{ fontSize:20, color:'#f1f5f9' }}>{dsiPreview}</strong></span>
+              <span style={{ fontSize:12, color:interp.color, fontWeight:600 }}>→ {interp.texto}</span>
+            </div>
+          )
+        })()}
+        <Btn onClick={handleAdd} disabled={saving||!form.fuerza_balistico_n||!form.fuerza_isometrico_n}>+ Registrar</Btn>
+      </div>
+
+      {loading ? (
+        <div style={{ color:'#64748b', fontSize:13, textAlign:'center', padding:20 }}>Cargando...</div>
+      ) : historial.length === 0 ? (
+        <div style={{ color:'#475569', fontSize:13, textAlign:'center', padding:20 }}>Sin tests registrados.</div>
+      ) : (
+        <table style={{ width:'100%', borderCollapse:'collapse', fontSize:13 }}>
+          <thead>
+            <tr style={{ borderBottom:'1px solid #1e293b' }}>
+              {['Fecha','F. Balística','F. Isométrica','DSI','Interpretación','Notas',''].map(h=>(
+                <th key={h} style={{ textAlign:'left', padding:'6px 10px', color:'#64748b', fontSize:10, fontWeight:700, textTransform:'uppercase', whiteSpace:'nowrap' }}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {historial.map((r:any) => {
+              const dsi = Number(r.dsi)
+              const interp = getDSIInterpretacion(dsi)
+              return (
+                <tr key={r.id} style={{ borderBottom:'1px solid #0f172a' }}>
+                  <td style={{ padding:'8px 10px', color:'#94a3b8' }}>{r.fecha?.split('T')[0] ?? r.fecha}</td>
+                  <td style={{ padding:'8px 10px', color:'#60a5fa', fontWeight:600 }}>{r.fuerza_balistico_n} N</td>
+                  <td style={{ padding:'8px 10px', color:'#f472b6', fontWeight:600 }}>{r.fuerza_isometrico_n} N</td>
+                  <td style={{ padding:'8px 10px', fontWeight:800, color:'#f1f5f9', fontSize:15 }}>{dsi.toFixed(3)}</td>
+                  <td style={{ padding:'8px 10px', fontSize:11, color:interp.color, fontWeight:600 }}>{interp.texto}</td>
+                  <td style={{ padding:'8px 10px', color:'#64748b' }}>{r.notas ?? '—'}</td>
+                  <td style={{ padding:'8px 10px' }}><Btn onClick={()=>handleDelete(r.id)} variant="ghost" small>✕</Btn></td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      )}
+    </Card>
+  )
+}
+
 // ─── Panel principal de Evaluaciones ─────────────────────────────────────────
 interface TeamPlayer {
   jugador_id: number
@@ -661,7 +1130,7 @@ export default function EvaluacionesPanel({ teamData }: { teamData: TeamPlayer[]
     { key: 'isometrico', label: 'Isométrico',   icon: '💪', desc: 'Asimetría bilateral' },
   ]
 
-  const ADVANCED = [
+  const ADVANCED: { key: TestKey; label: string; icon: string; desc: string }[] = [
     { key: 'pfv', label: 'Perfil F-V', icon: '📈', desc: 'Fuerza-Velocidad' },
     { key: 'rsi', label: 'RSI',        icon: '⚡', desc: 'Reactive Strength' },
     { key: 'dsi', label: 'DSI',        icon: '🎯', desc: 'Dynamic Strength' },
@@ -684,7 +1153,7 @@ export default function EvaluacionesPanel({ teamData }: { teamData: TeamPlayer[]
           📋 Evaluaciones & Tests
         </h2>
         <p style={{ margin: '4px 0 0', fontSize: 13, color: '#64748b' }}>
-          Tests físicos · Variables, Pesajes, CMJ, Isométricos — PFV, DSI, RSI próximamente
+          Tests físicos · Variables, Pesajes, CMJ, Isométricos, Perfil F-V, RSI, DSI
         </p>
       </div>
 
@@ -735,21 +1204,23 @@ export default function EvaluacionesPanel({ teamData }: { teamData: TeamPlayer[]
           ))}
         </div>
 
-        <div style={{ fontSize: 10, fontWeight: 700, color: '#475569', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 8 }}>
-          Calculadoras avanzadas (próximamente)
+        <div style={{ fontSize: 10, fontWeight: 700, color: '#a3e635', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 8 }}>
+          Calculadoras avanzadas
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           {ADVANCED.map(m => (
-            <div key={m.key} style={{
+            <button key={m.key} onClick={() => setActiveTest(m.key)} style={{
               display: 'flex', flexDirection: 'column', alignItems: 'flex-start',
               padding: '10px 16px', borderRadius: 10, fontSize: 13,
-              border: '1px dashed #1e293b', background: '#0a0f14',
-              color: '#2d3748', minWidth: 120, opacity: 0.6,
+              border: `1px solid ${activeTest === m.key ? '#a3e635' : '#334155'}`,
+              background: activeTest === m.key ? '#a3e63514' : '#0f172a',
+              color: activeTest === m.key ? '#a3e635' : '#94a3b8',
+              cursor: 'pointer', transition: 'all 0.15s', minWidth: 120,
             }}>
               <span style={{ fontSize: 18, marginBottom: 2 }}>{m.icon}</span>
               <span style={{ fontWeight: 700 }}>{m.label}</span>
-              <span style={{ fontSize: 10 }}>{m.desc}</span>
-            </div>
+              <span style={{ fontSize: 10, opacity: 0.7 }}>{m.desc}</span>
+            </button>
           ))}
         </div>
       </div>
@@ -765,6 +1236,9 @@ export default function EvaluacionesPanel({ teamData }: { teamData: TeamPlayer[]
           {activeTest === 'pesajes'    && <PesajesPanel    jugador={jugadorData} />}
           {activeTest === 'cmj'        && <CMJPanel        jugador={jugadorData} />}
           {activeTest === 'isometrico' && <IsometricoPanel jugador={jugadorData} />}
+          {activeTest === 'pfv'        && <PFVPanel        jugador={jugadorData} />}
+          {activeTest === 'rsi'        && <RSIPanel        jugador={jugadorData} />}
+          {activeTest === 'dsi'        && <DSIPanel        jugador={jugadorData} />}
         </>
       )}
     </div>
