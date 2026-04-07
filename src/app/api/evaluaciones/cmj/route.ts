@@ -41,13 +41,26 @@ export async function POST(req: NextRequest) {
 
   const sql = getDb()
 
-  // Si no existe baseline, este primer registro se convierte en baseline
-  const [existsBaseline] = await sql`
-    SELECT id FROM cmj_sessions
+  // Calcular el promedio del nuevo registro
+  const nuevoPromedio = (Number(salto1_cm) + Number(salto2_cm) + Number(salto3_cm)) / 3
+
+  // Obtener el baseline actual (si existe)
+  const [baselineActual] = await sql`
+    SELECT id, promedio_cm FROM cmj_sessions
     WHERE jugador_id = ${Number(jugador_id)} AND es_baseline = TRUE
     LIMIT 1
   `
-  const esBaseline = !existsBaseline
+
+  // Es baseline si: no hay ninguno todavía, O si el nuevo promedio supera al actual
+  const esBaseline = !baselineActual || nuevoPromedio > Number(baselineActual.promedio_cm)
+
+  // Si el nuevo registro va a ser baseline, quitar el flag del anterior
+  if (esBaseline && baselineActual) {
+    await sql`
+      UPDATE cmj_sessions SET es_baseline = FALSE
+      WHERE jugador_id = ${Number(jugador_id)}
+    `
+  }
 
   const [row] = await sql`
     INSERT INTO cmj_sessions (

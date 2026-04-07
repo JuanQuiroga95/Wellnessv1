@@ -352,8 +352,8 @@ function CMJPanel({ jugador }: { jugador: Jugador }) {
         background: '#1e293b', borderRadius: 10, padding: '10px 14px',
         marginBottom: 16, fontSize: 12, color: '#64748b', border: '1px solid #334155', lineHeight: 1.6,
       }}>
-        📋 <strong style={{ color: '#94a3b8' }}>Protocolo:</strong> 3 saltos máximos. El primer test se guarda automáticamente como{' '}
-        <strong style={{ color: '#a3e635' }}>baseline</strong>.
+        📋 <strong style={{ color: '#94a3b8' }}>Protocolo:</strong> 3 saltos máximos. El <strong style={{ color: '#a3e635' }}>baseline</strong> se actualiza automáticamente al{' '}
+        <strong style={{ color: '#a3e635' }}>mejor promedio registrado</strong> — si el jugador mejora, el baseline sube.
         Se marca <strong style={{ color: '#ef4444' }}>fatiga</strong> si la pérdida vs baseline supera el <strong>10%</strong>.
         Podés cambiar el baseline manualmente con ⚑.
       </div>
