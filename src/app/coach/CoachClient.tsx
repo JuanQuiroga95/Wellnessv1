@@ -7,6 +7,7 @@ import StatusBadge from '@/components/ui/StatusBadge'
 import ACWRChart from '@/components/charts/ACWRChart'
 import WellnessTrend from '@/components/charts/WellnessTrend'
 import { buildACWRHistory, buildDailyDetail } from '@/lib/acwr'
+import EvaluacionesPanelFull from './EvaluacionesPanel'
 import AnalyticsPanel from './AnalyticsPanel'
 
 // ─── GPS METRIC METADATA (shared between GpsPanel and CargaExternaPanel) ──────
@@ -6881,138 +6882,11 @@ function ExpoAIPanel({ teamData }: { teamData: any[] }) {
 
 
 
+// EvaluacionesPanel — implementado en ./EvaluacionesPanel.tsx
+// El componente completo (Variables, Pesajes, CMJ, Isométrico) vive en ese archivo.
+// CoachClient simplemente lo re-exporta aquí para no duplicar código.
 function EvaluacionesPanel({ teamData }: { teamData: any[] }) {
-  const [evals, setEvals] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-  const [showForm, setShowForm] = useState(false)
-  const [form, setForm] = useState<any>({ jugador_id:'', fecha:new Date().toISOString().split('T')[0], pfv:'', dsi:'', cmj:'', rsi:'', iq:'', aduc_iso:'', fms:'', velocidad_lineal:'', velocidad_fuerza:'', yo_yo:'', notas:'' })
-  const [saving, setSaving] = useState(false)
-
-  const TEST_COLS = [
-    {key:'pfv',label:'PFV',unit:''},
-    {key:'dsi',label:'DSI',unit:''},
-    {key:'cmj',label:'CMJ',unit:'cm'},
-    {key:'rsi',label:'RSI',unit:''},
-    {key:'iq',label:'I/Q',unit:'%'},
-    {key:'aduc_iso',label:'Aduc. ISO',unit:'N'},
-    {key:'fms',label:'FMS',unit:'pts'},
-    {key:'velocidad_lineal',label:'Vel. Lineal',unit:'s'},
-    {key:'velocidad_fuerza',label:'Vel. Fuerza',unit:''},
-    {key:'yo_yo',label:'YO-YO',unit:'m'},
-  ]
-
-  useEffect(() => { cargar() }, [])
-
-  async function cargar() {
-    setLoading(true)
-    try {
-      const r = await fetch('/api/evaluaciones')
-      const d = await r.json()
-      setEvals(d.evaluaciones||[])
-    } catch(e){} finally { setLoading(false) }
-  }
-
-  async function guardar() {
-    if (!form.jugador_id||!form.fecha) return
-    setSaving(true)
-    try {
-      await fetch('/api/evaluaciones', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(form) })
-      setShowForm(false)
-      setForm({ jugador_id:'', fecha:new Date().toISOString().split('T')[0], pfv:'', dsi:'', cmj:'', rsi:'', iq:'', aduc_iso:'', fms:'', velocidad_lineal:'', velocidad_fuerza:'', yo_yo:'', notas:'' })
-      await cargar()
-    } catch(e){} finally { setSaving(false) }
-  }
-
-  async function eliminar(id: number) {
-    if (!confirm('¿Eliminar evaluación?')) return
-    await fetch(`/api/evaluaciones?id=${id}`, { method:'DELETE' })
-    await cargar()
-  }
-
-  return (
-    <div style={{ padding:'24px 20px', maxWidth:1100, margin:'0 auto' }}>
-      <div style={{ marginBottom:24, display:'flex', justifyContent:'space-between', alignItems:'flex-end' }}>
-        <div>
-          <h2 style={{ fontFamily:'Bebas Neue,sans-serif', fontSize:36, color:'var(--snow)', letterSpacing:'0.04em', marginBottom:4 }}>📋 EVALUACIONES</h2>
-          <p style={{ fontSize:12, color:'var(--silver)' }}>Tests físicos · PFV, DSI, CMJ, RSI, I/Q, FMS, Velocidad, YO-YO</p>
-        </div>
-        <button onClick={()=>setShowForm(!showForm)} className="btn-lime" style={{ padding:'10px 20px', fontSize:13 }}>
-          {showForm ? '✕ Cancelar' : '+ Nueva Evaluación'}
-        </button>
-      </div>
-
-      {showForm && (
-        <div style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:16, padding:24, marginBottom:20 }}>
-          <p style={{ fontSize:11, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:16 }}>Nueva Evaluación</p>
-          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(160px,1fr))', gap:12, marginBottom:16 }}>
-            <div>
-              <label style={{ fontSize:10, color:'var(--fog)', display:'block', marginBottom:4, textTransform:'uppercase' }}>Jugador</label>
-              <select className="wp-input" value={form.jugador_id} onChange={e=>setForm({...form,jugador_id:e.target.value})} style={{ width:'100%', appearance:'none' }}>
-                <option value="">— Seleccionar —</option>
-                {teamData.map(p=><option key={p.jugador_id} value={p.jugador_id} style={{ background:'var(--ink2)' }}>{p.nombre}</option>)}
-              </select>
-            </div>
-            <div>
-              <label style={{ fontSize:10, color:'var(--fog)', display:'block', marginBottom:4, textTransform:'uppercase' }}>Fecha</label>
-              <input className="wp-input" type="date" value={form.fecha} onChange={e=>setForm({...form,fecha:e.target.value})} />
-            </div>
-            {TEST_COLS.map(col=>(
-              <div key={col.key}>
-                <label style={{ fontSize:10, color:'var(--lime)', display:'block', marginBottom:4, textTransform:'uppercase' }}>{col.label}{col.unit&&<span style={{ color:'var(--fog)' }}> ({col.unit})</span>}</label>
-                <input className="wp-input" type="number" step="0.01" placeholder="—" value={form[col.key]} onChange={e=>setForm({...form,[col.key]:e.target.value})} style={{ width:'100%' }} />
-              </div>
-            ))}
-            <div style={{ gridColumn:'1/-1' }}>
-              <label style={{ fontSize:10, color:'var(--fog)', display:'block', marginBottom:4, textTransform:'uppercase' }}>Notas</label>
-              <input className="wp-input" type="text" placeholder="Observaciones..." value={form.notas} onChange={e=>setForm({...form,notas:e.target.value})} style={{ width:'100%' }} />
-            </div>
-          </div>
-          <button onClick={guardar} disabled={saving||!form.jugador_id} className="btn-lime" style={{ padding:'10px 24px', fontSize:13 }}>
-            {saving ? 'Guardando...' : '✓ Guardar Evaluación'}
-          </button>
-        </div>
-      )}
-
-      {loading ? <div style={{ padding:48, textAlign:'center', color:'var(--silver)' }}>Cargando...</div> : !evals.length ? (
-        <div style={{ padding:48, textAlign:'center', color:'var(--silver)', background:'var(--ink2)', borderRadius:16 }}>
-          Sin evaluaciones registradas. Añadí la primera con el botón de arriba.
-        </div>
-      ) : (
-        <div style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:16, overflow:'hidden' }}>
-          <div style={{ overflowX:'auto' }}>
-            <table style={{ width:'100%', borderCollapse:'collapse', fontSize:11 }}>
-              <thead>
-                <tr style={{ background:'rgba(255,255,255,.03)' }}>
-                  <th style={{ padding:'8px 14px', textAlign:'left', color:'var(--silver)', fontSize:9, fontWeight:600, textTransform:'uppercase', whiteSpace:'nowrap' }}>Jugador</th>
-                  <th style={{ padding:'8px 10px', textAlign:'center', color:'var(--silver)', fontSize:9, fontWeight:600, textTransform:'uppercase', whiteSpace:'nowrap' }}>Fecha</th>
-                  {TEST_COLS.map(c=><th key={c.key} style={{ padding:'8px 10px', textAlign:'center', color:'var(--lime)', fontSize:9, fontWeight:600, textTransform:'uppercase', whiteSpace:'nowrap' }}>{c.label}</th>)}
-                  <th style={{ padding:'8px 10px', textAlign:'center', color:'var(--silver)', fontSize:9, fontWeight:600, textTransform:'uppercase' }}>Notas</th>
-                  <th style={{ padding:'8px 10px' }} />
-                </tr>
-              </thead>
-              <tbody>
-                {evals.map((e:any,i:number)=>(
-                  <tr key={i} style={{ borderTop:'1px solid var(--mist)', background:i%2===0?'transparent':'rgba(255,255,255,.015)' }}>
-                    <td style={{ padding:'9px 14px', color:'var(--snow)', fontWeight:500, whiteSpace:'nowrap' }}>{e.nombre}</td>
-                    <td style={{ padding:'9px 10px', textAlign:'center', fontFamily:'DM Mono,monospace', color:'var(--silver)', fontSize:10 }}>{e.fecha?.slice(0,10)}</td>
-                    {TEST_COLS.map(c=>(
-                      <td key={c.key} style={{ padding:'9px 10px', textAlign:'center', fontFamily:'DM Mono,monospace', color:e[c.key]!=null?'var(--snow)':'var(--fog)' }}>
-                        {e[c.key]??'—'}
-                      </td>
-                    ))}
-                    <td style={{ padding:'9px 10px', textAlign:'center', color:'var(--fog)', fontSize:10, maxWidth:120, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{e.notas||'—'}</td>
-                    <td style={{ padding:'9px 10px', textAlign:'center' }}>
-                      <button onClick={()=>eliminar(e.id)} style={{ fontSize:10, padding:'2px 8px', borderRadius:6, background:'rgba(239,68,68,.1)', color:'#f87171', border:'1px solid rgba(239,68,68,.2)', cursor:'pointer' }}>✕</button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-    </div>
-  )
+  return <EvaluacionesPanelFull teamData={teamData} />
 }
 
 // ═══════════════════════════════════════════════════════════════════
