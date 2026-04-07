@@ -85,19 +85,15 @@ const FRONT_ZONES = [
   { id:'tobillo_i', label:'Tobillo Izq.',    cx:121, cy:346, r:10 },
 ]
 const BACK_ZONES = [
-  { id:'nuca',      label:'Cuello',               cx:100, cy:50,  r:9  },
-  { id:'esp_alta',  label:'Espalda Alta',          cx:100, cy:90,  r:22 },
-  { id:'lumbar',    label:'Espalda Baja',          cx:100, cy:143, r:16 },
-  { id:'gluteo_d',  label:'Glúteo Der.',           cx:86,  cy:182, r:17 },
-  { id:'gluteo_i',  label:'Glúteo Izq.',           cx:114, cy:182, r:17 },
-  { id:'isquio_d',  label:'Isquiotibial Der.',     cx:79,  cy:238, r:16 },
-  { id:'isquio_i',  label:'Isquiotibial Izq.',     cx:121, cy:238, r:16 },
-  { id:'cuad_d',    label:'Cuádriceps Der.',       cx:74,  cy:240, r:10 },
-  { id:'cuad_i',    label:'Cuádriceps Izq.',       cx:126, cy:240, r:10 },
-  { id:'gemelo_d',  label:'Gemelo Der.',           cx:78,  cy:310, r:14 },
-  { id:'gemelo_i',  label:'Gemelo Izq.',           cx:122, cy:310, r:14 },
-  { id:'tobillo_d', label:'Tobillo Der.',          cx:76,  cy:350, r:10 },
-  { id:'tobillo_i', label:'Tobillo Izq.',          cx:124, cy:350, r:10 },
+  { id:'nuca',      label:'Cuello',          cx:100, cy:50,  r:9  },
+  { id:'esp_alta',  label:'Espalda Alta',    cx:100, cy:90,  r:22 },
+  { id:'lumbar',    label:'Espalda Baja',    cx:100, cy:143, r:16 },
+  { id:'gluteo_d',  label:'Glúteo Der.',     cx:86,  cy:182, r:17 },
+  { id:'gluteo_i',  label:'Glúteo Izq.',     cx:114, cy:182, r:17 },
+  { id:'gemelo_d',  label:'Gemelo Der.',     cx:81,  cy:310, r:14 },
+  { id:'gemelo_i',  label:'Gemelo Izq.',     cx:119, cy:310, r:14 },
+  { id:'tobillo_d', label:'Tobillo Der.',    cx:79,  cy:350, r:10 },
+  { id:'tobillo_i', label:'Tobillo Izq.',    cx:121, cy:350, r:10 },
 ]
 
 // Stroke config
@@ -226,128 +222,92 @@ function MuscleBack() {
       <path d="M93,38 L93,54 M107,38 L107,54" {...ST}/>
       <path d="M93,54 Q100,57 107,54" {...ST}/>
 
-      {/* ── TRAPECIO — rombo grande ── */}
-      <path d="M93,54 Q80,58 68,66 Q60,76 62,90 Q70,98 80,96 Q88,84 94,72 Z" {...ST}/>
-      <path d="M107,54 Q120,58 132,66 Q140,76 138,90 Q130,98 120,96 Q112,84 106,72 Z" {...ST}/>
+      {/* ── TRAPECIO ── */}
+      {/* Gran trapecio en rombo */}
+      <path d="M93,54 Q80,58 68,66 Q60,76 62,88 Q68,96 78,94 Q86,82 93,72 Z" {...ST}/>
+      <path d="M107,54 Q120,58 132,66 Q140,76 138,88 Q132,96 122,94 Q114,82 107,72 Z" {...ST}/>
       <path d="M93,54 Q100,60 107,54" {...ST}/>
-      {/* Trapecio medio — baja hasta lumbar */}
-      <path d="M94,72 Q100,76 106,72 L107,110 Q100,116 93,110 Z" {...ST}/>
-      {/* Trapecio inferior — punta hacia L4 */}
-      <path d="M93,110 Q100,116 107,110 L104,138 Q100,142 96,138 Z" {...ST2}/>
+      {/* Centro trapecio */}
+      <path d="M93,72 Q100,76 107,72 L108,108 Q100,114 92,108 Z" {...ST}/>
 
       {/* ── DELTOIDES POSTERIOR ── */}
-      <path d="M62,90 Q55,94 53,106 Q54,116 60,120 L66,116 Q63,106 64,98 Z" {...ST}/>
-      <path d="M138,90 Q145,94 147,106 Q146,116 140,120 L134,116 Q137,106 136,98 Z" {...ST}/>
+      <path d="M62,88 Q56,92 54,102 Q55,112 60,116 L66,112 Q63,104 64,96 Z" {...ST}/>
+      <path d="M138,88 Q144,92 146,102 Q145,112 140,116 L134,112 Q137,104 136,96 Z" {...ST}/>
 
-      {/* ── INFRAESPINOSO ── */}
-      <path d="M62,90 Q64,100 66,112 Q72,118 80,116 Q84,106 82,96 Q74,92 62,90 Z" {...ST}/>
-      <path d="M138,90 Q136,100 134,112 Q128,118 120,116 Q116,106 118,96 Q126,92 138,90 Z" {...ST}/>
-
-      {/* ── REDONDO MAYOR ── */}
-      <path d="M66,112 Q68,122 72,130 L78,126 Q76,116 72,110 Z" {...ST}/>
-      <path d="M134,112 Q132,122 128,130 L122,126 Q124,116 128,110 Z" {...ST}/>
-
-      {/* ── ROMBOIDES (entre escápulas) ── */}
-      <path d="M94,80 Q100,84 106,80 L106,108 Q100,112 94,108 Z" {...ST2}/>
+      {/* ── INFRAESPINOSO / REDONDO ── */}
+      <path d="M62,88 Q65,104 68,116 L76,114 Q74,100 72,88 Z" {...ST}/>
+      <path d="M138,88 Q135,104 132,116 L124,114 Q126,100 128,88 Z" {...ST}/>
 
       {/* ── DORSAL ANCHO ── */}
-      {/* Izq: arranca en axila y se abre hacia pelvis */}
-      <path d="M66,112 Q62,130 63,152 Q65,168 72,178 L80,175 Q74,162 73,144 Q72,126 75,112 Z" {...ST}/>
-      {/* Der */}
-      <path d="M134,112 Q138,130 137,152 Q135,168 128,178 L120,175 Q126,162 127,144 Q128,126 125,112 Z" {...ST}/>
-      {/* Línea de origen dorsal sobre cresta ilíaca izq */}
-      <path d="M72,172 Q80,178 88,178" {...ST2}/>
-      <path d="M128,172 Q120,178 112,178" {...ST2}/>
-
-      {/* ── ERECTOR ESPINAL / COLUMNA ── */}
-      <line x1="100" y1="58" x2="100" y2="172" {...ST2}/>
-      {/* Columna musculosa — dos bandas paravertebrales */}
-      <path d="M96,110 Q94,128 94,150 Q95,164 97,172" {...ST2}/>
-      <path d="M104,110 Q106,128 106,150 Q105,164 103,172" {...ST2}/>
-      {/* Líneas lumbares */}
-      <path d="M88,134 Q100,138 112,134" {...ST2}/>
-      <path d="M88,152 Q100,156 112,152" {...ST2}/>
+      <path d="M68,92 Q65,112 67,136 Q70,156 78,170 L84,168 Q78,154 76,134 Q74,112 76,92 Z" {...ST}/>
+      <path d="M132,92 Q135,112 133,136 Q130,156 122,170 L116,168 Q122,154 124,134 Q126,112 124,92 Z" {...ST}/>
 
       {/* ── ESPALDA BAJA / LUMBAR ── */}
-      <path d="M88,110 Q84,128 84,150 Q85,164 92,174 L100,176 L108,174 Q115,164 116,150 Q116,128 112,110" {...ST}/>
+      <path d="M92,108 Q88,126 88,146 Q89,162 94,172 L100,174 L106,172 Q111,162 112,146 Q112,126 108,108 Z" {...ST}/>
+      {/* Línea espinal */}
+      <line x1="100" y1="58" x2="100" y2="170" {...ST2}/>
+      {/* Líneas lumbares */}
+      <path d="M88,130 Q100,134 112,130" {...ST2}/>
+      <path d="M88,148 Q100,152 112,148" {...ST2}/>
 
       {/* ── BRAZOS (TRÍCEPS) ── */}
-      {/* Trícep izq — 3 cabezas */}
-      <path d="M60,120 Q54,136 54,154 Q55,166 60,170 L66,166 Q63,154 63,138 Q64,126 68,118 Z" {...ST}/>
-      {/* División cabeza larga/lateral */}
-      <path d="M57,130 Q57,144 59,156" {...ST2}/>
+      {/* Trícep izq */}
+      <path d="M60,116 Q54,130 54,148 Q55,160 60,164 L66,160 Q63,148 63,132 Q64,120 68,114 Z" {...ST}/>
+      {/* Línea cabeza larga/lateral trícep */}
+      <path d="M58,124 Q57,136 59,148" {...ST2}/>
       {/* Antebrazo posterior izq */}
-      <path d="M54,154 Q50,168 50,182 Q52,193 58,195 L64,192 Q61,182 61,166 L62,156 Z" {...ST}/>
+      <path d="M54,148 Q50,162 50,178 Q52,189 57,191 L63,188 Q60,178 60,162 L61,150 Z" {...ST}/>
       {/* Mano izq */}
-      <path d="M50,182 Q46,192 46,202 Q48,210 57,212 Q63,209 63,193 Z" {...ST}/>
+      <path d="M50,178 Q46,188 46,198 Q48,207 56,209 Q62,206 62,190 Z" {...ST}/>
       {/* Trícep der */}
-      <path d="M140,120 Q146,136 146,154 Q145,166 140,170 L134,166 Q137,154 137,138 Q136,126 132,118 Z" {...ST}/>
-      <path d="M143,130 Q143,144 141,156" {...ST2}/>
+      <path d="M140,116 Q146,130 146,148 Q145,160 140,164 L134,160 Q137,148 137,132 Q136,120 132,114 Z" {...ST}/>
+      <path d="M142,124 Q143,136 141,148" {...ST2}/>
       {/* Antebrazo posterior der */}
-      <path d="M146,154 Q150,168 150,182 Q148,193 142,195 L136,192 Q139,182 139,166 L138,156 Z" {...ST}/>
+      <path d="M146,148 Q150,162 150,178 Q148,189 143,191 L137,188 Q140,178 140,162 L139,150 Z" {...ST}/>
       {/* Mano der */}
-      <path d="M150,182 Q154,192 154,202 Q152,210 143,212 Q137,209 137,193 Z" {...ST}/>
+      <path d="M150,178 Q154,188 154,198 Q152,207 144,209 Q138,206 138,190 Z" {...ST}/>
 
       {/* ── GLÚTEOS ── */}
-      {/* Glúteo mayor izq — grande y redondeado */}
-      <path d="M84,174 Q74,180 72,196 Q72,212 82,220 Q91,224 100,222 L100,178 Q92,178 84,174 Z" {...ST}/>
-      {/* Glúteo mayor der */}
-      <path d="M116,174 Q126,180 128,196 Q128,212 118,220 Q109,224 100,222 L100,178 Q108,178 116,174 Z" {...ST}/>
-      {/* Glúteo medio — asoma sobre mayor */}
-      <path d="M76,170 Q70,178 72,190 L82,186 Q80,176 80,170 Z" {...ST2}/>
-      <path d="M124,170 Q130,178 128,190 L118,186 Q120,176 120,170 Z" {...ST2}/>
-      {/* Línea separación glútea */}
-      <line x1="100" y1="174" x2="100" y2="222" {...ST2}/>
-      {/* Pliegue inferior */}
-      <path d="M74,216 Q87,224 100,224 Q113,224 126,216" {...ST2}/>
+      {/* Glúteo izq - grande, redondeado */}
+      <path d="M84,170 Q76,176 74,190 Q74,206 82,214 Q90,218 100,216 L100,174 Q92,174 84,170 Z" {...ST}/>
+      {/* Glúteo der */}
+      <path d="M116,170 Q124,176 126,190 Q126,206 118,214 Q110,218 100,216 L100,174 Q108,174 116,170 Z" {...ST}/>
+      {/* Línea glútea */}
+      <line x1="100" y1="170" x2="100" y2="216" {...ST2}/>
+      {/* Pliegue inferior glúteo */}
+      <path d="M76,210 Q88,218 100,218 Q112,218 124,210" {...ST2}/>
 
       {/* ── ISQUIOTIBIALES ── */}
-      {/* Semitendinoso/semimembranoso izq (medial) */}
-      <path d="M84,220 Q82,238 82,258 Q83,270 86,278 L92,275 Q90,264 90,246 Q90,228 92,220 Z" {...ST}/>
-      {/* Bíceps femoral izq (lateral) */}
-      <path d="M74,220 Q68,238 68,258 Q69,272 74,280 L82,277 Q79,264 79,246 Q80,228 82,222 Z" {...ST}/>
-      {/* Línea separación isquios izq */}
-      <path d="M82,226 Q84,248 84,266" {...ST2}/>
-      {/* Cuádricep lateral visible izq (vasto externo asoma por lateral) */}
-      <path d="M66,222 Q62,240 63,260 Q64,272 68,278" {...ST2}/>
-
-      {/* Semitendinoso/semimembranoso der (medial) */}
-      <path d="M116,220 Q118,238 118,258 Q117,270 114,278 L108,275 Q110,264 110,246 Q110,228 108,220 Z" {...ST}/>
-      {/* Bíceps femoral der (lateral) */}
-      <path d="M126,220 Q132,238 132,258 Q131,272 126,280 L118,277 Q121,264 121,246 Q120,228 118,222 Z" {...ST}/>
-      <path d="M118,226 Q116,248 116,266" {...ST2}/>
-      {/* Cuádricep lateral visible der */}
-      <path d="M134,222 Q138,240 137,260 Q136,272 132,278" {...ST2}/>
-
-      {/* ── BANDA ILIOTIBIAL (IT band) ── */}
-      <path d="M68,220 Q65,248 66,270 Q67,278 70,280" {...ST2}/>
-      <path d="M132,220 Q135,248 134,270 Q133,278 130,280" {...ST2}/>
+      {/* Isquio izq */}
+      <path d="M76,214 Q70,232 70,254 Q71,268 76,276 L83,273 Q79,260 79,240 Q80,220 84,212 Z" {...ST}/>
+      {/* Bíceps femoral */}
+      <path d="M83,214 Q86,232 87,252 Q86,266 84,274" {...ST2}/>
+      {/* Isquio der */}
+      <path d="M124,214 Q130,232 130,254 Q129,268 124,276 L117,273 Q121,260 121,240 Q120,220 116,212 Z" {...ST}/>
+      <path d="M117,214 Q114,232 113,252 Q114,266 116,274" {...ST2}/>
 
       {/* ── HUECO POPLÍTEO ── */}
-      <path d="M68,280 Q76,286 86,286 Q82,282 76,278 Z" {...ST}/>
-      <path d="M132,280 Q124,286 114,286 Q118,282 124,278 Z" {...ST}/>
+      <path d="M70,276 Q78,282 88,282 Q84,278 78,274 Z" {...ST}/>
+      <path d="M130,276 Q122,282 112,282 Q116,278 122,274 Z" {...ST}/>
 
       {/* ── GEMELOS ── */}
-      {/* Cabeza lateral gemelo izq */}
-      <path d="M68,286 Q64,304 65,322 Q67,338 72,344 L78,341 Q76,328 75,312 Q75,296 77,286 Z" {...ST}/>
-      {/* Cabeza medial gemelo izq — más pronunciada */}
-      <path d="M77,286 Q82,302 82,320 Q81,336 79,342" {...ST}/>
-      {/* Sóleo asomando izq */}
-      <path d="M72,342 Q70,352 71,362" {...ST2}/>
-      {/* Cabeza lateral gemelo der */}
-      <path d="M132,286 Q136,304 135,322 Q133,338 128,344 L122,341 Q124,328 125,312 Q125,296 123,286 Z" {...ST}/>
-      {/* Cabeza medial gemelo der */}
-      <path d="M123,286 Q118,302 118,320 Q119,336 121,342" {...ST}/>
-      {/* Sóleo asomando der */}
-      <path d="M128,342 Q130,352 129,362" {...ST2}/>
+      {/* Gemelo izq - forma de diamante */}
+      <path d="M70,282 Q66,298 67,318 Q69,334 74,340 L80,337 Q78,324 77,308 Q77,292 79,282 Z" {...ST}/>
+      {/* Cabeza medial gemelo izq */}
+      <path d="M79,282 Q83,298 83,316 Q82,330 80,338" {...ST}/>
+      {/* Gemelo der */}
+      <path d="M130,282 Q134,298 133,318 Q131,334 126,340 L120,337 Q122,324 123,308 Q123,292 121,282 Z" {...ST}/>
+      <path d="M121,282 Q117,298 117,316 Q118,330 120,338" {...ST}/>
 
-      {/* ── TENDÓN AQUILES ── */}
-      <path d="M72,342 Q69,352 70,362 Q72,371 78,373 Q84,371 85,362 Q84,352 80,343 Z" {...ST}/>
+      {/* ── TENDÓN AQUILES / TALÓN ── */}
+      {/* Izq */}
+      <path d="M74,338 Q71,348 72,358 Q74,367 79,369 Q84,367 85,358 Q84,348 80,339 Z" {...ST}/>
       {/* Pie posterior izq */}
-      <path d="M66,366 L64,378 Q70,386 82,385 Q93,383 96,374 L90,364 Z" {...ST}/>
-      <path d="M128,342 Q131,352 130,362 Q128,371 122,373 Q116,371 115,362 Q116,352 120,343 Z" {...ST}/>
+      <path d="M68,362 L66,374 Q72,382 82,381 Q92,379 95,370 L89,360 Z" {...ST}/>
+      {/* Der */}
+      <path d="M126,338 Q129,348 128,358 Q126,367 121,369 Q116,367 115,358 Q116,348 120,339 Z" {...ST}/>
       {/* Pie posterior der */}
-      <path d="M134,366 L136,378 Q130,386 118,385 Q107,383 104,374 L110,364 Z" {...ST}/>
+      <path d="M132,362 L134,374 Q128,382 118,381 Q108,379 105,370 L111,360 Z" {...ST}/>
     </g>
   )
 }
