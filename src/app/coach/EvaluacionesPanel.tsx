@@ -621,7 +621,8 @@ function IsometricoPanel({ jugador }: { jugador: Jugador }) {
 
 // ─── Panel principal de Evaluaciones ─────────────────────────────────────────
 interface TeamPlayer {
-  id: number
+  jugador_id: number
+  id?: number
   nombre: string
   posicion?: string
   [key: string]: any
@@ -629,7 +630,7 @@ interface TeamPlayer {
 
 export default function EvaluacionesPanel({ teamData }: { teamData: TeamPlayer[] }) {
   const [selectedJugadorId, setSelectedJugadorId] = useState<number | null>(
-    teamData.length > 0 ? teamData[0].id : null
+    teamData.length > 0 ? (teamData[0].jugador_id ?? teamData[0].id ?? null) : null
   )
   const [activeTest, setActiveTest] = useState<TestKey>('variables')
   const [jugadorData, setJugadorData] = useState<Jugador | null>(null)
@@ -695,13 +696,13 @@ export default function EvaluacionesPanel({ teamData }: { teamData: TeamPlayer[]
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
           {teamData.map(j => (
             <button
-              key={j.id}
-              onClick={() => { setSelectedJugadorId(j.id); setJugadorData(null) }}
+              key={j.jugador_id ?? j.id}
+              onClick={() => { setSelectedJugadorId(j.jugador_id ?? j.id); setJugadorData(null) }}
               style={{
                 padding: '7px 16px', borderRadius: 99, fontSize: 13, fontWeight: 600,
-                border: `1px solid ${selectedJugadorId === j.id ? '#a3e635' : '#1e293b'}`,
-                background: selectedJugadorId === j.id ? '#a3e63518' : '#0f172a',
-                color: selectedJugadorId === j.id ? '#a3e635' : '#64748b',
+                border: `1px solid ${selectedJugadorId === (j.jugador_id ?? j.id) ? '#a3e635' : '#1e293b'}`,
+                background: selectedJugadorId === (j.jugador_id ?? j.id) ? '#a3e63518' : '#0f172a',
+                color: selectedJugadorId === (j.jugador_id ?? j.id) ? '#a3e635' : '#64748b',
                 cursor: 'pointer', transition: 'all 0.15s',
               }}
             >

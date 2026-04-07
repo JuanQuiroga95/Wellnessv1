@@ -175,16 +175,26 @@ export async function GET(req: NextRequest) {
         const gps = gpsPorFecha[fecha]
         // Assign GPS if: player logged RPE that day, OR player has no logs at all
         if (playerLogDates.has(fecha) || nLogs === 0) {
-          p.distTotal  += gps.distTotal
-          p.distSprint += gps.distSprint
-          p.distMP     += gps.distMP
-          p.distAcel   += gps.distAcel
-          p.distDecel  += gps.distDecel
-          p.nSprints   += gps.nSprints
-          p.nAcel      += gps.nAcel
-          p.nDecel     += gps.nDecel
-          p.nAcel3     += gps.nAcel3||0
-          p.nDecel3    += gps.nDecel3||0
+          // Scale GPS proportionally to player's actual training time vs planned time.
+          // If a player trained 60 min instead of planned 90 min, their GPS metrics
+          // are scaled to 60/90 = 0.667x. This fixes the bug where all players got
+          // identical distances even when one trained less time.
+          const playerLog = playerLogs.find((l: any) => l.fecha === fecha)
+          const playerMinutes = playerLog?.duracion_min ? Number(playerLog.duracion_min) : null
+          const plannedMinutes = gps.minActivo // total planned active time for that session
+          const scale = (playerMinutes !== null && plannedMinutes > 0)
+            ? Math.min(playerMinutes / plannedMinutes, 1.5) // cap at 150% to avoid extreme outliers
+            : 1
+          p.distTotal  += Math.round(gps.distTotal  * scale)
+          p.distSprint += Math.round(gps.distSprint * scale)
+          p.distMP     += Math.round(gps.distMP     * scale)
+          p.distAcel   += Math.round(gps.distAcel   * scale)
+          p.distDecel  += Math.round(gps.distDecel  * scale)
+          p.nSprints   += Math.round(gps.nSprints   * scale)
+          p.nAcel      += Math.round(gps.nAcel      * scale)
+          p.nDecel     += Math.round(gps.nDecel     * scale)
+          p.nAcel3     += Math.round((gps.nAcel3||0) * scale)
+          p.nDecel3    += Math.round((gps.nDecel3||0) * scale)
           p.diasConGps += 1
         }
       }

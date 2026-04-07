@@ -5467,7 +5467,7 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
                         { key:'distTotal',  label:'DT (m)',     color:'#3b82f6' },
                         { key:'distSprint', label:'Sprint (m)', color:'#ec4899' },
                       ],
-                      line: { key:'minActivo', label:'Mts/min', color:'#f59e0b' },
+                      line: { key:'minActivo', label:'Min Entrenamiento', color:'#f59e0b' },
                     },
                     {
                       title: 'VELOCIDAD', color: '#a78bfa',
@@ -5521,7 +5521,11 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
                       </div>
                       <div style={{ display:'grid', gridTemplateColumns:'1fr', gap:14 }}>
                         {GROUPS.map(grp => {
-                          const maxBar = Math.max(...players.flatMap((p:any) => grp.bars.map(b => Number(p[b.key])||0)), 1)
+                          // GPS bar keys use session data (same for all players from calculator)
+                          const GPS_BAR_KEYS = new Set(['distTotal','distSprint','nSprints','nAcel','nDecel','distMP','nAcel3','nDecel3'])
+                          const getBarVal = (p: any, key: string) =>
+                            GPS_BAR_KEYS.has(key) ? Math.round(Number(sesData[key])||0) : (Number(p[key])||0)
+                          const maxBar = Math.max(...players.flatMap((p:any) => grp.bars.map(b => getBarVal(p, b.key))), 1)
                           const lineVals = grp.line ? players.map((p:any) => Number(p[grp.line!.key])||0) : []
                           const maxLine = Math.max(...lineVals, 1)
 
@@ -5564,7 +5568,7 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
                                         {/* Grouped bars with values inside */}
                                         <div style={{ display:'flex', gap:2, alignItems:'flex-end', width:'100%', justifyContent:'center' }}>
                                           {grp.bars.map((b, bi) => {
-                                            const val = Number(p[b.key])||0
+                                            const val = getBarVal(p, b.key)
                                             const h = Math.max((val/maxBar)*BAR_H, val>0?4:2)
                                             return (
                                               <div key={bi} title={`${p.nombre}: ${val} ${b.label}`}
@@ -5670,7 +5674,7 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
       <div style={{ background:'var(--ink2)', border:'1px solid rgba(96,165,250,.2)', borderRadius:16, overflow:'hidden', marginBottom:20 }}>
         <div style={{ padding:'10px 16px', borderBottom:'1px solid var(--mist)' }}>
           <p style={{ fontSize:11, fontWeight:700, color:'#60a5fa', textTransform:'uppercase', letterSpacing:'0.08em' }}>CUADRO 2 · TOTALES POR MD · MD+1 → MD</p>
-          <p style={{ fontSize:10, color:'var(--fog)', marginTop:2 }}>Suma total del equipo en cada día de entrenamiento del microciclo</p>
+          <p style={{ fontSize:10, color:'var(--fog)', marginTop:2 }}>Sumatoria total del equipo (dato sesión × nº jugadores) en cada día del microciclo</p>
         </div>
         {existingMdLabels.size === 0 ? (
           <div style={{ padding:24, textAlign:'center', color:'var(--fog)', fontSize:12 }}>Sin sesiones con MD asignado. Asigná MD en el Calendario.</div>
@@ -5689,10 +5693,12 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
               <tbody>
                 {VARS.map((v,i)=>{
                   const vals = mdCols.map(md => {
-                    // Sum all players for this MD session
+                    // Cuadro 2 = SUMATORIO total del equipo
+                    // perSession has the planned session value (per player from calculator)
+                    // Multiply by number of players to get team total
                     const sessVal = perSession[md]?.[v.key]
-                    // perSession holds team avg — multiply by players count for total
-                    return Math.round(Number(sessVal)||0)
+                    const nP = players.length || 1
+                    return Math.round((Number(sessVal)||0) * nP)
                   })
                   const total = vals.reduce((s,x)=>s+x,0)
                   return (
