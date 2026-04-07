@@ -41,26 +41,21 @@ export async function POST(req: NextRequest) {
 
   const sql = getDb()
 
-  // Calcular el promedio del nuevo registro
-  const nuevoPromedio = (Number(salto1_cm) + Number(salto2_cm) + Number(salto3_cm)) / 3
-
-  // Obtener el baseline actual (si existe)
-  const [baselineActual] = await sql`
-    SELECT id, promedio_cm FROM cmj_sessions
+  // El baseline es siempre el primer test registrado para ese jugador
+  const [existsBaseline] = await sql`
+    SELECT id FROM cmj_sessions
     WHERE jugador_id = ${Number(jugador_id)} AND es_baseline = TRUE
     LIMIT 1
   `
+  const esBaseline = !existsBaseline
 
-  // Es baseline si: no hay ninguno todavía, O si el nuevo promedio supera al actual
-  const esBaseline = !baselineActual || nuevoPromedio > Number(baselineActual.promedio_cm)
-
-  // Si el nuevo registro va a ser baseline, quitar el flag del anterior
-  if (esBaseline && baselineActual) {
-    await sql`
-      UPDATE cmj_sessions SET es_baseline = FALSE
-      WHERE jugador_id = ${Number(jugador_id)}
-    `
-  }
+  // Calcular si este nuevo test rompe el récord personal
+  const nuevoPromedio = (Number(salto1_cm) + Number(salto2_cm) + Number(salto3_cm)) / 3
+  const [recordActual] = await sql`
+    SELECT MAX(promedio_cm) AS max_cm FROM cmj_sessions
+    WHERE jugador_id = ${Number(jugador_id)}
+  `
+  const esNuevoRecord = !recordActual?.max_cm || nuevoPromedio > Number(recordActual.max_cm)
 
   const [row] = await sql`
     INSERT INTO cmj_sessions (
@@ -79,7 +74,7 @@ export async function POST(req: NextRequest) {
     )
     RETURNING *
   `
-  return NextResponse.json({ ...row, es_baseline_nuevo: esBaseline })
+  return NextResponse.json({ ...row, es_baseline_nuevo: esBaseline, es_nuevo_record: esNuevoRecord })
 }
 
 export async function DELETE(req: NextRequest) {

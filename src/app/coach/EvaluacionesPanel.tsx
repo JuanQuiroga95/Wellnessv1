@@ -292,6 +292,7 @@ function CMJPanel({ jugador }: { jugador: Jugador }) {
   const [form, setForm] = useState({ fecha: new Date().toISOString().split('T')[0], s1: '', s2: '', s3: '', notas: '' })
   const [saving, setSaving] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [nuevoRecord, setNuevoRecord] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -308,14 +309,24 @@ function CMJPanel({ jugador }: { jugador: Jugador }) {
 
   useEffect(() => { load() }, [load])
 
+  // Récord personal: el mayor promedio de todos los tests
+  const recordPersonal = historial.length > 0
+    ? historial.reduce((max, r) => Number(r.promedio_cm) > Number(max.promedio_cm) ? r : max, historial[0])
+    : null
+
   const promPreview = [form.s1, form.s2, form.s3].every(Boolean)
     ? ((Number(form.s1) + Number(form.s2) + Number(form.s3)) / 3).toFixed(2)
     : null
 
+  // ¿El preview rompe el récord?
+  const rompeRecord = promPreview && recordPersonal
+    ? Number(promPreview) > Number(recordPersonal.promedio_cm)
+    : promPreview && !recordPersonal
+
   const handleAdd = async () => {
     if (!form.s1 || !form.s2 || !form.s3) return
     setSaving(true)
-    await fetch('/api/evaluaciones/cmj', {
+    const res = await fetch('/api/evaluaciones/cmj', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -324,27 +335,14 @@ function CMJPanel({ jugador }: { jugador: Jugador }) {
         notas: form.notas || null,
       }),
     })
+    const data = await res.json()
     setSaving(false)
     setForm(p => ({ ...p, s1: '', s2: '', s3: '', notas: '' }))
+    if (data.es_nuevo_record) {
+      setNuevoRecord(true)
+      setTimeout(() => setNuevoRecord(false), 5000)
+    }
     load()
-  }
-
-  const handleSetBaseline = async (id: number) => {
-    await fetch('/api/evaluaciones/cmj', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, jugador_id: jugador.id }),
-    })
-    load()
-  }
-
-  // Recalcula el baseline al registro con mayor promedio
-  const handleRecalcularBaseline = async () => {
-    if (historial.length === 0) return
-    const mejor = historial.reduce((prev, cur) =>
-      Number(cur.promedio_cm) > Number(prev.promedio_cm) ? cur : prev
-    )
-    await handleSetBaseline(mejor.id)
   }
 
   const handleDelete = async (id: number) => {
@@ -357,31 +355,80 @@ function CMJPanel({ jugador }: { jugador: Jugador }) {
 
   return (
     <Card title="Test CMJ — Countermovement Jump">
-      <div style={{
-        background: '#1e293b', borderRadius: 10, padding: '10px 14px',
-        marginBottom: 16, fontSize: 12, color: '#64748b', border: '1px solid #334155', lineHeight: 1.6,
-        display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12,
-      }}>
-        <div>
-          📋 <strong style={{ color: '#94a3b8' }}>Protocolo:</strong> 3 saltos máximos. El <strong style={{ color: '#a3e635' }}>baseline</strong> se actualiza automáticamente al{' '}
-          <strong style={{ color: '#a3e635' }}>mejor promedio registrado</strong> — si el jugador mejora, el baseline sube.
-          Se marca <strong style={{ color: '#ef4444' }}>fatiga</strong> si la pérdida vs baseline supera el <strong>10%</strong>.
-          Podés cambiar el baseline manualmente con ⚑.
-        </div>
-        {historial.length > 0 && (
-          <button
-            onClick={handleRecalcularBaseline}
-            style={{
-              flexShrink: 0, background: '#a3e63518', border: '1px solid #a3e63544',
-              color: '#a3e635', borderRadius: 8, padding: '6px 12px', fontSize: 11,
-              fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', letterSpacing: '0.03em',
-            }}
-          >
-            ↺ Recalcular baseline
-          </button>
+
+      {/* ── Récord Personal Widget ── */}
+      <div style={{ marginBottom: 20 }}>
+        {nuevoRecord ? (
+          <div style={{
+            background: 'linear-gradient(135deg, #a3e63520, #facc1520)',
+            border: '2px solid #a3e635',
+            borderRadius: 14, padding: '16px 20px',
+            display: 'flex', alignItems: 'center', gap: 16,
+            animation: 'pulse 1s ease-in-out',
+          }}>
+            <span style={{ fontSize: 36 }}>🏆</span>
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 800, color: '#a3e635', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+                ¡Nueva mayor altura lograda!
+              </div>
+              <div style={{ fontSize: 28, fontWeight: 900, color: '#f1f5f9', lineHeight: 1.2 }}>
+                {recordPersonal ? Number(recordPersonal.promedio_cm).toFixed(1) : '—'} cm
+              </div>
+              <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>
+                {jugador.nombre} acaba de romper su récord personal 🔥
+              </div>
+            </div>
+          </div>
+        ) : recordPersonal ? (
+          <div style={{
+            background: '#0a0f14', border: '1px solid #facc1540',
+            borderRadius: 14, padding: '14px 18px',
+            display: 'flex', alignItems: 'center', gap: 16,
+          }}>
+            <span style={{ fontSize: 28 }}>🏆</span>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: '#facc15', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 2 }}>
+                Récord Personal
+              </div>
+              <div style={{ fontSize: 26, fontWeight: 900, color: '#facc15', lineHeight: 1 }}>
+                {Number(recordPersonal.promedio_cm).toFixed(1)} cm
+              </div>
+              <div style={{ fontSize: 11, color: '#475569', marginTop: 3 }}>
+                Logrado el {recordPersonal.fecha?.split('T')[0] ?? recordPersonal.fecha}
+              </div>
+            </div>
+            {rompeRecord && (
+              <div style={{
+                background: '#a3e63520', border: '1px solid #a3e63560',
+                borderRadius: 10, padding: '8px 14px', fontSize: 12, color: '#a3e635', fontWeight: 700,
+              }}>
+                ⚡ Este test lo rompe
+              </div>
+            )}
+          </div>
+        ) : (
+          <div style={{
+            background: '#0a0f14', border: '1px dashed #1e293b',
+            borderRadius: 14, padding: '14px 18px', fontSize: 12, color: '#475569',
+            display: 'flex', alignItems: 'center', gap: 10,
+          }}>
+            <span style={{ fontSize: 22 }}>🏆</span>
+            Sin récord registrado aún — el primer test lo establece.
+          </div>
         )}
       </div>
 
+      {/* ── Protocolo ── */}
+      <div style={{
+        background: '#1e293b', borderRadius: 10, padding: '10px 14px',
+        marginBottom: 16, fontSize: 12, color: '#64748b', border: '1px solid #334155', lineHeight: 1.6,
+      }}>
+        📋 <strong style={{ color: '#94a3b8' }}>Protocolo:</strong> 3 saltos máximos.
+        El diferencial se calcula vs el <strong style={{ color: '#94a3b8' }}>test anterior</strong>.
+        Se marca <strong style={{ color: '#ef4444' }}>fatiga</strong> si la caída supera el <strong>10%</strong> respecto al primer test del día.
+      </div>
+
+      {/* ── Formulario ── */}
       <div style={{ display: 'grid', gridTemplateColumns: '160px repeat(3, 100px) 1fr auto', gap: 10, alignItems: 'end', marginBottom: 8 }}>
         <Field label="Fecha" value={form.fecha} onChange={v => setForm(p => ({ ...p, fecha: v }))} type="date" />
         <Field label="Salto 1" value={form.s1} onChange={v => setForm(p => ({ ...p, s1: v }))} unit="cm" min="0" max="100" />
@@ -392,11 +439,22 @@ function CMJPanel({ jugador }: { jugador: Jugador }) {
       </div>
 
       {promPreview && (
-        <div style={{ marginBottom: 16, color: '#94a3b8', fontSize: 13 }}>
-          → Promedio: <strong style={{ color: '#a3e635', fontSize: 16 }}>{promPreview} cm</strong>
+        <div style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{ color: '#94a3b8', fontSize: 13 }}>
+            → Promedio: <strong style={{ color: '#a3e635', fontSize: 16 }}>{promPreview} cm</strong>
+          </span>
+          {rompeRecord && (
+            <span style={{
+              background: '#a3e63520', border: '1px solid #a3e63560',
+              borderRadius: 99, padding: '2px 10px', fontSize: 11, color: '#a3e635', fontWeight: 700,
+            }}>
+              🏆 Nuevo récord
+            </span>
+          )}
         </div>
       )}
 
+      {/* ── Tabla historial ── */}
       {loading ? (
         <div style={{ color: '#64748b', fontSize: 13, textAlign: 'center', padding: 20 }}>Cargando...</div>
       ) : historial.length === 0 ? (
@@ -407,47 +465,47 @@ function CMJPanel({ jugador }: { jugador: Jugador }) {
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
               <thead>
                 <tr style={{ borderBottom: '1px solid #1e293b' }}>
-                  {['Fecha', 'S1', 'S2', 'S3', 'Promedio', 'Baseline', 'Diferencial', 'Pérdida %', 'Estado', 'Notas', ''].map(h => (
+                  {['Fecha', 'S1', 'S2', 'S3', 'Promedio', 'Diferencial', 'Estado', 'Notas', ''].map(h => (
                     <th key={h} style={{ textAlign: 'left', padding: '6px 8px', color: '#64748b', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', whiteSpace: 'nowrap' }}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {historial.map((r: any) => (
-                  <tr key={r.id} style={{ borderBottom: '1px solid #0f172a', background: r.es_baseline ? '#a3e63508' : 'transparent' }}>
-                    <td style={{ padding: '8px 8px', color: '#94a3b8', whiteSpace: 'nowrap' }}>
-                      {r.fecha?.split('T')[0] ?? r.fecha}
-                      {r.es_baseline && <span style={{ marginLeft: 6, fontSize: 10, color: '#a3e635', fontWeight: 700 }}>BASE</span>}
-                    </td>
-                    <td style={{ padding: '8px 8px', color: '#cbd5e1' }}>{r.salto1_cm}</td>
-                    <td style={{ padding: '8px 8px', color: '#cbd5e1' }}>{r.salto2_cm}</td>
-                    <td style={{ padding: '8px 8px', color: '#cbd5e1' }}>{r.salto3_cm}</td>
-                    <td style={{ padding: '8px 8px', fontWeight: 700, color: '#f1f5f9' }}>{Number(r.promedio_cm).toFixed(1)} cm</td>
-                    <td style={{ padding: '8px 8px', color: '#64748b' }}>{r.baseline_cm ? `${Number(r.baseline_cm).toFixed(1)} cm` : '—'}</td>
-                    <td style={{ padding: '8px 8px', fontWeight: 600, color: Number(r.diferencial_cm) >= 0 ? '#22c55e' : '#ef4444' }}>
-                      {r.diferencial_cm != null ? `${Number(r.diferencial_cm) >= 0 ? '+' : ''}${Number(r.diferencial_cm).toFixed(1)} cm` : '—'}
-                    </td>
-                    <td style={{ padding: '8px 8px', color: '#94a3b8' }}>
-                      {r.pct_perdida != null ? `${Number(r.pct_perdida).toFixed(1)}%` : '—'}
-                    </td>
-                    <td style={{ padding: '8px 8px' }}>
-                      {r.estado_fatiga === 'sin_baseline' ? <Semaforo estado="gris" /> : <Semaforo estado={getFatigaEstado(r.estado_fatiga)} />}
-                    </td>
-                    <td style={{ padding: '8px 8px', color: '#64748b', maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.notas ?? '—'}</td>
-                    <td style={{ padding: '8px 8px' }}>
-                      <div style={{ display: 'flex', gap: 4 }}>
-                        {!r.es_baseline && <Btn onClick={() => handleSetBaseline(r.id)} variant="ghost" small>⚑ Base</Btn>}
+                {historial.map((r: any, idx: number) => {
+                  // Diferencial vs el test inmediatamente anterior en el historial (que viene ordenado DESC)
+                  const anterior = historial[idx + 1]
+                  const diff = anterior ? Number(r.promedio_cm) - Number(anterior.promedio_cm) : null
+                  const esRecord = recordPersonal && r.id === recordPersonal.id
+                  return (
+                    <tr key={r.id} style={{ borderBottom: '1px solid #0f172a', background: esRecord ? '#facc1508' : 'transparent' }}>
+                      <td style={{ padding: '8px 8px', color: '#94a3b8', whiteSpace: 'nowrap' }}>
+                        {r.fecha?.split('T')[0] ?? r.fecha}
+                        {esRecord && <span style={{ marginLeft: 6, fontSize: 10, color: '#facc15', fontWeight: 700 }}>🏆 REC</span>}
+                        {r.es_baseline && !esRecord && <span style={{ marginLeft: 6, fontSize: 10, color: '#475569', fontWeight: 600 }}>BASE</span>}
+                      </td>
+                      <td style={{ padding: '8px 8px', color: '#cbd5e1' }}>{r.salto1_cm}</td>
+                      <td style={{ padding: '8px 8px', color: '#cbd5e1' }}>{r.salto2_cm}</td>
+                      <td style={{ padding: '8px 8px', color: '#cbd5e1' }}>{r.salto3_cm}</td>
+                      <td style={{ padding: '8px 8px', fontWeight: 700, color: '#f1f5f9' }}>{Number(r.promedio_cm).toFixed(1)} cm</td>
+                      <td style={{ padding: '8px 8px', fontWeight: 600, color: diff === null ? '#475569' : diff >= 0 ? '#22c55e' : '#ef4444' }}>
+                        {diff === null ? '—' : `${diff >= 0 ? '+' : ''}${diff.toFixed(1)} cm`}
+                      </td>
+                      <td style={{ padding: '8px 8px' }}>
+                        {r.estado_fatiga === 'sin_baseline' ? <Semaforo estado="gris" /> : <Semaforo estado={getFatigaEstado(r.estado_fatiga)} />}
+                      </td>
+                      <td style={{ padding: '8px 8px', color: '#64748b', maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.notas ?? '—'}</td>
+                      <td style={{ padding: '8px 8px' }}>
                         <Btn onClick={() => handleDelete(r.id)} variant="ghost" small>✕</Btn>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>
 
           {/* ── Gráfico CMJ ── */}
-          {historial.length >= 2 && <CMJChart historial={historial} />}
+          {historial.length >= 2 && <CMJChart historial={historial} recordId={recordPersonal?.id} />}
         </>
       )}
     </Card>
@@ -654,10 +712,9 @@ function IsometricoPanel({ jugador }: { jugador: Jugador }) {
 }
 
 // ─── Chart: CMJ evolución ─────────────────────────────────────────────────────
-function CMJChart({ historial }: { historial: any[] }) {
+function CMJChart({ historial, recordId }: { historial: any[], recordId?: number }) {
   const pts      = [...historial].reverse()
   const promedios = pts.map(r => Number(r.promedio_cm))
-  const perdidas  = pts.map(r => r.pct_perdida != null ? Number(r.pct_perdida) : null)
   const labels    = pts.map(r => (r.fecha?.split('T')[0] ?? r.fecha)?.slice(5))
   const baseline  = pts.find(r => r.es_baseline)
   const baseVal   = baseline ? Number(baseline.promedio_cm) : null
@@ -672,8 +729,6 @@ function CMJChart({ historial }: { historial: any[] }) {
   const tx  = (i: number) => pL + (n === 1 ? innerW / 2 : (i / (n - 1)) * innerW)
   const tyP = (v: number) => pT + (1 - (v - minP) / (maxP - minP)) * innerH
 
-  const perdVals = perdidas.filter((v): v is number => v !== null)
-  const maxPerd  = perdVals.length ? Math.max(...perdVals, 12) : 12
   const pathProm = promedios.map((v, i) => `${i === 0 ? 'M' : 'L'}${tx(i)},${tyP(v)}`).join(' ')
 
   return (
@@ -688,12 +743,12 @@ function CMJChart({ historial }: { historial: any[] }) {
             Promedio (cm)
           </span>
           <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            <span style={{ width: 8, height: 8, background: '#ef4444', display: 'inline-block', borderRadius: '50%' }} />
-            Pérdida % vs baseline
+            <span style={{ fontSize: 10 }}>🏆</span>
+            Récord personal
           </span>
           {baseVal && (
             <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-              <span style={{ width: 14, height: 1, background: '#a3e635', opacity: 0.5, display: 'inline-block' }} />
+              <span style={{ width: 14, height: 1, background: '#94a3b8', opacity: 0.5, display: 'inline-block' }} />
               Baseline: {baseVal.toFixed(1)} cm
             </span>
           )}
@@ -707,14 +762,8 @@ function CMJChart({ historial }: { historial: any[] }) {
 
         {baseVal && (
           <line x1={pL} y1={tyP(baseVal)} x2={W - pR} y2={tyP(baseVal)}
-            stroke="#a3e635" strokeWidth={1} strokeDasharray="5 4" opacity={0.4} />
+            stroke="#94a3b8" strokeWidth={1} strokeDasharray="4 3" opacity={0.3} />
         )}
-        {baseVal && (() => {
-          const y10 = tyP(baseVal * 0.9)
-          const yBot = H - pB
-          if (y10 >= yBot) return null
-          return <rect x={pL} y={y10} width={innerW} height={yBot - y10} fill="#ef444408" />
-        })()}
 
         <line x1={pL} y1={pT} x2={pL} y2={H - pB} stroke="#334155" strokeWidth={1} />
         <line x1={pL} y1={H - pB} x2={W - pR} y2={H - pB} stroke="#334155" strokeWidth={1} />
@@ -732,34 +781,22 @@ function CMJChart({ historial }: { historial: any[] }) {
 
         {promedios.map((v, i) => {
           const cx = tx(i), cy = tyP(v)
+          const isRec = pts[i]?.id === recordId
           const isBase = pts[i]?.es_baseline
           return (
             <g key={i}>
+              {isRec && (
+                <circle cx={cx} cy={cy} r={10} fill="#facc1520" stroke="#facc15" strokeWidth={1.5} opacity={0.6} />
+              )}
               <circle cx={cx} cy={cy} r={isBase ? 6 : 4}
-                fill={isBase ? '#a3e635' : '#0a0f14'} stroke="#a3e635" strokeWidth={2} />
-              <text x={cx} y={cy - 10} textAnchor="middle" fontSize={9} fontWeight={700} fill="#a3e635">
+                fill={isRec ? '#facc15' : isBase ? '#a3e635' : '#0a0f14'}
+                stroke={isRec ? '#facc15' : '#a3e635'} strokeWidth={2} />
+              <text x={cx} y={cy - 12} textAnchor="middle" fontSize={9} fontWeight={700} fill={isRec ? '#facc15' : '#a3e635'}>
                 {v.toFixed(1)}
               </text>
-            </g>
-          )
-        })}
-
-        {perdidas.map((perd, i) => {
-          if (perd === null || pts[i]?.es_baseline) return null
-          const cx  = tx(i)
-          // perd puede ser negativo si el jugador mejoró (promedio > baseline)
-          const absPerd = Math.abs(perd)
-          const barH = Math.max(0, Math.min((absPerd / maxPerd) * (innerH * 0.35), innerH * 0.35))
-          const barY = H - pB - barH
-          // negativo = mejora (verde brillante), positivo = pérdida
-          const col = perd < 0 ? '#22c55e' : perd > 10 ? '#ef4444' : perd > 5 ? '#facc15' : '#22c55e'
-          const label = perd < 0 ? `+${absPerd.toFixed(1)}%` : `${perd.toFixed(1)}%`
-          return (
-            <g key={`p${i}`}>
-              {barH > 0 && <rect x={cx - 6} y={barY} width={12} height={barH} fill={col} opacity={0.25} rx={2} />}
-              <text x={cx} y={barH > 0 ? barY - 3 : H - pB - 3} textAnchor="middle" fontSize={8} fontWeight={700} fill={col}>
-                {label}
-              </text>
+              {isRec && (
+                <text x={cx} y={cy - 22} textAnchor="middle" fontSize={8} fill="#facc15">🏆</text>
+              )}
             </g>
           )
         })}
