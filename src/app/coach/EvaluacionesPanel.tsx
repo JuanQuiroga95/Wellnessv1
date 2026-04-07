@@ -378,48 +378,53 @@ function CMJPanel({ jugador }: { jugador: Jugador }) {
       ) : historial.length === 0 ? (
         <div style={{ color: '#475569', fontSize: 13, textAlign: 'center', padding: 20 }}>Sin tests registrados.</div>
       ) : (
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-            <thead>
-              <tr style={{ borderBottom: '1px solid #1e293b' }}>
-                {['Fecha', 'S1', 'S2', 'S3', 'Promedio', 'Baseline', 'Diferencial', 'Pérdida %', 'Estado', 'Notas', ''].map(h => (
-                  <th key={h} style={{ textAlign: 'left', padding: '6px 8px', color: '#64748b', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', whiteSpace: 'nowrap' }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {historial.map((r: any) => (
-                <tr key={r.id} style={{ borderBottom: '1px solid #0f172a', background: r.es_baseline ? '#a3e63508' : 'transparent' }}>
-                  <td style={{ padding: '8px 8px', color: '#94a3b8', whiteSpace: 'nowrap' }}>
-                    {r.fecha?.split('T')[0] ?? r.fecha}
-                    {r.es_baseline && <span style={{ marginLeft: 6, fontSize: 10, color: '#a3e635', fontWeight: 700 }}>BASE</span>}
-                  </td>
-                  <td style={{ padding: '8px 8px', color: '#cbd5e1' }}>{r.salto1_cm}</td>
-                  <td style={{ padding: '8px 8px', color: '#cbd5e1' }}>{r.salto2_cm}</td>
-                  <td style={{ padding: '8px 8px', color: '#cbd5e1' }}>{r.salto3_cm}</td>
-                  <td style={{ padding: '8px 8px', fontWeight: 700, color: '#f1f5f9' }}>{Number(r.promedio_cm).toFixed(1)} cm</td>
-                  <td style={{ padding: '8px 8px', color: '#64748b' }}>{r.baseline_cm ? `${Number(r.baseline_cm).toFixed(1)} cm` : '—'}</td>
-                  <td style={{ padding: '8px 8px', fontWeight: 600, color: Number(r.diferencial_cm) >= 0 ? '#22c55e' : '#ef4444' }}>
-                    {r.diferencial_cm != null ? `${Number(r.diferencial_cm) >= 0 ? '+' : ''}${Number(r.diferencial_cm).toFixed(1)} cm` : '—'}
-                  </td>
-                  <td style={{ padding: '8px 8px', color: '#94a3b8' }}>
-                    {r.pct_perdida != null ? `${Number(r.pct_perdida).toFixed(1)}%` : '—'}
-                  </td>
-                  <td style={{ padding: '8px 8px' }}>
-                    {r.estado_fatiga === 'sin_baseline' ? <Semaforo estado="gris" /> : <Semaforo estado={getFatigaEstado(r.estado_fatiga)} />}
-                  </td>
-                  <td style={{ padding: '8px 8px', color: '#64748b', maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.notas ?? '—'}</td>
-                  <td style={{ padding: '8px 8px' }}>
-                    <div style={{ display: 'flex', gap: 4 }}>
-                      {!r.es_baseline && <Btn onClick={() => handleSetBaseline(r.id)} variant="ghost" small>⚑ Base</Btn>}
-                      <Btn onClick={() => handleDelete(r.id)} variant="ghost" small>✕</Btn>
-                    </div>
-                  </td>
+        <>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+              <thead>
+                <tr style={{ borderBottom: '1px solid #1e293b' }}>
+                  {['Fecha', 'S1', 'S2', 'S3', 'Promedio', 'Baseline', 'Diferencial', 'Pérdida %', 'Estado', 'Notas', ''].map(h => (
+                    <th key={h} style={{ textAlign: 'left', padding: '6px 8px', color: '#64748b', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', whiteSpace: 'nowrap' }}>{h}</th>
+                  ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {historial.map((r: any) => (
+                  <tr key={r.id} style={{ borderBottom: '1px solid #0f172a', background: r.es_baseline ? '#a3e63508' : 'transparent' }}>
+                    <td style={{ padding: '8px 8px', color: '#94a3b8', whiteSpace: 'nowrap' }}>
+                      {r.fecha?.split('T')[0] ?? r.fecha}
+                      {r.es_baseline && <span style={{ marginLeft: 6, fontSize: 10, color: '#a3e635', fontWeight: 700 }}>BASE</span>}
+                    </td>
+                    <td style={{ padding: '8px 8px', color: '#cbd5e1' }}>{r.salto1_cm}</td>
+                    <td style={{ padding: '8px 8px', color: '#cbd5e1' }}>{r.salto2_cm}</td>
+                    <td style={{ padding: '8px 8px', color: '#cbd5e1' }}>{r.salto3_cm}</td>
+                    <td style={{ padding: '8px 8px', fontWeight: 700, color: '#f1f5f9' }}>{Number(r.promedio_cm).toFixed(1)} cm</td>
+                    <td style={{ padding: '8px 8px', color: '#64748b' }}>{r.baseline_cm ? `${Number(r.baseline_cm).toFixed(1)} cm` : '—'}</td>
+                    <td style={{ padding: '8px 8px', fontWeight: 600, color: Number(r.diferencial_cm) >= 0 ? '#22c55e' : '#ef4444' }}>
+                      {r.diferencial_cm != null ? `${Number(r.diferencial_cm) >= 0 ? '+' : ''}${Number(r.diferencial_cm).toFixed(1)} cm` : '—'}
+                    </td>
+                    <td style={{ padding: '8px 8px', color: '#94a3b8' }}>
+                      {r.pct_perdida != null ? `${Number(r.pct_perdida).toFixed(1)}%` : '—'}
+                    </td>
+                    <td style={{ padding: '8px 8px' }}>
+                      {r.estado_fatiga === 'sin_baseline' ? <Semaforo estado="gris" /> : <Semaforo estado={getFatigaEstado(r.estado_fatiga)} />}
+                    </td>
+                    <td style={{ padding: '8px 8px', color: '#64748b', maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.notas ?? '—'}</td>
+                    <td style={{ padding: '8px 8px' }}>
+                      <div style={{ display: 'flex', gap: 4 }}>
+                        {!r.es_baseline && <Btn onClick={() => handleSetBaseline(r.id)} variant="ghost" small>⚑ Base</Btn>}
+                        <Btn onClick={() => handleDelete(r.id)} variant="ghost" small>✕</Btn>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* ── Gráfico CMJ ── */}
+          {historial.length >= 2 && <CMJChart historial={historial} />}
+        </>
       )}
     </Card>
   )
@@ -586,36 +591,276 @@ function IsometricoPanel({ jugador }: { jugador: Jugador }) {
       ) : historial.length === 0 ? (
         <div style={{ color: '#475569', fontSize: 13, textAlign: 'center', padding: 20 }}>Sin tests de {grupo} registrados.</div>
       ) : (
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-            <thead>
-              <tr style={{ borderBottom: '1px solid #1e293b' }}>
-                {['Fecha', 'Prom. Der.', 'Prom. Izq.', 'Asimetría', 'Dominante', 'Estado', 'Unidad', 'Notas', ''].map(h => (
-                  <th key={h} style={{ textAlign: 'left', padding: '6px 8px', color: '#64748b', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', whiteSpace: 'nowrap' }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {historial.map((r: any) => (
-                <tr key={r.id} style={{ borderBottom: '1px solid #0f172a' }}>
-                  <td style={{ padding: '8px 8px', color: '#94a3b8' }}>{r.fecha?.split('T')[0] ?? r.fecha}</td>
-                  <td style={{ padding: '8px 8px', fontWeight: 700, color: '#60a5fa' }}>{Number(r.der_promedio).toFixed(1)}</td>
-                  <td style={{ padding: '8px 8px', fontWeight: 700, color: '#f472b6' }}>{Number(r.izq_promedio).toFixed(1)}</td>
-                  <td style={{ padding: '8px 8px', fontWeight: 700, color: '#f1f5f9' }}>{Number(r.pct_asimetria).toFixed(1)}%</td>
-                  <td style={{ padding: '8px 8px', color: '#94a3b8', textTransform: 'capitalize' }}>{r.lado_dominante}</td>
-                  <td style={{ padding: '8px 8px' }}><Semaforo estado={getSemaforo(Number(r.pct_asimetria))} /></td>
-                  <td style={{ padding: '8px 8px', color: '#64748b' }}>{r.unidad}</td>
-                  <td style={{ padding: '8px 8px', color: '#64748b' }}>{r.notas ?? '—'}</td>
-                  <td style={{ padding: '8px 8px' }}>
-                    <Btn onClick={() => handleDelete(r.id)} variant="ghost" small>✕</Btn>
-                  </td>
+        <>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+              <thead>
+                <tr style={{ borderBottom: '1px solid #1e293b' }}>
+                  {['Fecha', 'Prom. Der.', 'Prom. Izq.', 'Asimetría', 'Dominante', 'Estado', 'Unidad', 'Notas', ''].map(h => (
+                    <th key={h} style={{ textAlign: 'left', padding: '6px 8px', color: '#64748b', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', whiteSpace: 'nowrap' }}>{h}</th>
+                  ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {historial.map((r: any) => (
+                  <tr key={r.id} style={{ borderBottom: '1px solid #0f172a' }}>
+                    <td style={{ padding: '8px 8px', color: '#94a3b8' }}>{r.fecha?.split('T')[0] ?? r.fecha}</td>
+                    <td style={{ padding: '8px 8px', fontWeight: 700, color: '#60a5fa' }}>{Number(r.der_promedio).toFixed(1)}</td>
+                    <td style={{ padding: '8px 8px', fontWeight: 700, color: '#f472b6' }}>{Number(r.izq_promedio).toFixed(1)}</td>
+                    <td style={{ padding: '8px 8px', fontWeight: 700, color: '#f1f5f9' }}>{Number(r.pct_asimetria).toFixed(1)}%</td>
+                    <td style={{ padding: '8px 8px', color: '#94a3b8', textTransform: 'capitalize' }}>{r.lado_dominante}</td>
+                    <td style={{ padding: '8px 8px' }}><Semaforo estado={getSemaforo(Number(r.pct_asimetria))} /></td>
+                    <td style={{ padding: '8px 8px', color: '#64748b' }}>{r.unidad}</td>
+                    <td style={{ padding: '8px 8px', color: '#64748b' }}>{r.notas ?? '—'}</td>
+                    <td style={{ padding: '8px 8px' }}>
+                      <Btn onClick={() => handleDelete(r.id)} variant="ghost" small>✕</Btn>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* ── Gráfico Isométrico ── */}
+          {historial.length >= 2 && <IsometricoChart historial={historial} grupo={grupo} />}
+        </>
       )}
     </Card>
+  )
+}
+
+// ─── Chart: CMJ evolución ─────────────────────────────────────────────────────
+function CMJChart({ historial }: { historial: any[] }) {
+  const pts      = [...historial].reverse()
+  const promedios = pts.map(r => Number(r.promedio_cm))
+  const perdidas  = pts.map(r => r.pct_perdida != null ? Number(r.pct_perdida) : null)
+  const labels    = pts.map(r => (r.fecha?.split('T')[0] ?? r.fecha)?.slice(5))
+  const baseline  = pts.find(r => r.es_baseline)
+  const baseVal   = baseline ? Number(baseline.promedio_cm) : null
+
+  const W = 560, H = 200, pL = 44, pR = 16, pT = 20, pB = 36
+  const innerW = W - pL - pR
+  const innerH = H - pT - pB
+  const n = pts.length
+
+  const minP = Math.min(...promedios) * 0.92
+  const maxP = Math.max(...promedios) * 1.06
+  const tx  = (i: number) => pL + (n === 1 ? innerW / 2 : (i / (n - 1)) * innerW)
+  const tyP = (v: number) => pT + (1 - (v - minP) / (maxP - minP)) * innerH
+
+  const perdVals = perdidas.filter((v): v is number => v !== null)
+  const maxPerd  = perdVals.length ? Math.max(...perdVals, 12) : 12
+  const pathProm = promedios.map((v, i) => `${i === 0 ? 'M' : 'L'}${tx(i)},${tyP(v)}`).join(' ')
+
+  return (
+    <div style={{ marginTop: 24, background: '#0a0f14', borderRadius: 12, padding: '16px 14px 10px', border: '1px solid #1e293b' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 14, flexWrap: 'wrap' }}>
+        <span style={{ fontSize: 10, fontWeight: 800, color: '#a3e635', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+          Evolución CMJ
+        </span>
+        <div style={{ display: 'flex', gap: 14, fontSize: 10, color: '#64748b' }}>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <span style={{ width: 14, height: 2, background: '#a3e635', display: 'inline-block', borderRadius: 1 }} />
+            Promedio (cm)
+          </span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <span style={{ width: 8, height: 8, background: '#ef4444', display: 'inline-block', borderRadius: '50%' }} />
+            Pérdida % vs baseline
+          </span>
+          {baseVal && (
+            <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              <span style={{ width: 14, height: 1, background: '#a3e635', opacity: 0.5, display: 'inline-block' }} />
+              Baseline: {baseVal.toFixed(1)} cm
+            </span>
+          )}
+        </div>
+      </div>
+
+      <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', maxWidth: W, display: 'block', overflow: 'visible' }}>
+        {[0.25, 0.5, 0.75, 1].map(f => (
+          <line key={f} x1={pL} y1={pT + f * innerH} x2={W - pR} y2={pT + f * innerH} stroke="#1e293b" strokeWidth={1} />
+        ))}
+
+        {baseVal && (
+          <line x1={pL} y1={tyP(baseVal)} x2={W - pR} y2={tyP(baseVal)}
+            stroke="#a3e635" strokeWidth={1} strokeDasharray="5 4" opacity={0.4} />
+        )}
+        {baseVal && (() => {
+          const y10 = tyP(baseVal * 0.9)
+          const yBot = H - pB
+          if (y10 >= yBot) return null
+          return <rect x={pL} y={y10} width={innerW} height={yBot - y10} fill="#ef444408" />
+        })()}
+
+        <line x1={pL} y1={pT} x2={pL} y2={H - pB} stroke="#334155" strokeWidth={1} />
+        <line x1={pL} y1={H - pB} x2={W - pR} y2={H - pB} stroke="#334155" strokeWidth={1} />
+
+        {[0, 0.5, 1].map(f => {
+          const v = minP + f * (maxP - minP)
+          return (
+            <text key={f} x={pL - 6} y={pT + (1 - f) * innerH + 4} textAnchor="end" fontSize={8} fill="#475569">
+              {v.toFixed(0)}
+            </text>
+          )
+        })}
+
+        <path d={pathProm} fill="none" stroke="#a3e635" strokeWidth={2.5} strokeLinejoin="round" />
+
+        {promedios.map((v, i) => {
+          const cx = tx(i), cy = tyP(v)
+          const isBase = pts[i]?.es_baseline
+          return (
+            <g key={i}>
+              <circle cx={cx} cy={cy} r={isBase ? 6 : 4}
+                fill={isBase ? '#a3e635' : '#0a0f14'} stroke="#a3e635" strokeWidth={2} />
+              <text x={cx} y={cy - 10} textAnchor="middle" fontSize={9} fontWeight={700} fill="#a3e635">
+                {v.toFixed(1)}
+              </text>
+            </g>
+          )
+        })}
+
+        {perdidas.map((perd, i) => {
+          if (perd === null || pts[i]?.es_baseline) return null
+          const cx  = tx(i)
+          const barH = Math.min((perd / maxPerd) * (innerH * 0.35), innerH * 0.35)
+          const barY = H - pB - barH
+          const col  = perd > 10 ? '#ef4444' : perd > 5 ? '#facc15' : '#22c55e'
+          return (
+            <g key={`p${i}`}>
+              <rect x={cx - 6} y={barY} width={12} height={barH} fill={col} opacity={0.25} rx={2} />
+              <text x={cx} y={barY - 3} textAnchor="middle" fontSize={8} fontWeight={700} fill={col}>
+                {perd.toFixed(1)}%
+              </text>
+            </g>
+          )
+        })}
+
+        {labels.map((lbl, i) => (
+          <text key={i} x={tx(i)} y={H - pB + 14} textAnchor="middle" fontSize={8} fill="#475569">{lbl}</text>
+        ))}
+      </svg>
+    </div>
+  )
+}
+
+// ─── Chart: Isométrico evolución ──────────────────────────────────────────────
+function IsometricoChart({ historial, grupo }: { historial: any[]; grupo: string }) {
+  const pts    = [...historial].reverse()
+  const ders   = pts.map(r => Number(r.der_promedio))
+  const izqs   = pts.map(r => Number(r.izq_promedio))
+  const asims  = pts.map(r => Number(r.pct_asimetria))
+  const labels = pts.map(r => (r.fecha?.split('T')[0] ?? r.fecha)?.slice(5))
+
+  const W = 560, H = 210, pL = 44, pR = 44, pT = 20, pB = 36
+  const innerW = W - pL - pR
+  const innerH = H - pT - pB
+  const n = pts.length
+
+  const allF = [...ders, ...izqs]
+  const minF = Math.min(...allF) * 0.90
+  const maxF = Math.max(...allF) * 1.08
+  const tx  = (i: number) => pL + (n === 1 ? innerW / 2 : (i / (n - 1)) * innerW)
+  const tyF = (v: number) => pT + (1 - (v - minF) / (maxF - minF)) * innerH
+  const maxA = Math.max(...asims, 20)
+  const tyA  = (v: number) => pT + (1 - v / maxA) * innerH
+
+  const pathDer = ders.map((v, i) => `${i === 0 ? 'M' : 'L'}${tx(i)},${tyF(v)}`).join(' ')
+  const pathIzq = izqs.map((v, i) => `${i === 0 ? 'M' : 'L'}${tx(i)},${tyF(v)}`).join(' ')
+  const y10 = tyA(10)
+  const y15 = tyA(15)
+
+  return (
+    <div style={{ marginTop: 24, background: '#0a0f14', borderRadius: 12, padding: '16px 14px 10px', border: '1px solid #1e293b' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 14, flexWrap: 'wrap' }}>
+        <span style={{ fontSize: 10, fontWeight: 800, color: '#a3e635', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+          Evolución — {grupo}
+        </span>
+        <div style={{ display: 'flex', gap: 14, fontSize: 10, color: '#64748b' }}>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <span style={{ width: 14, height: 2, background: '#60a5fa', display: 'inline-block', borderRadius: 1 }} />
+            Derecha
+          </span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <span style={{ width: 14, height: 2, background: '#f472b6', display: 'inline-block', borderRadius: 1 }} />
+            Izquierda
+          </span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <span style={{ width: 8, height: 8, background: '#facc15', display: 'inline-block', borderRadius: '50%' }} />
+            Asimetría % (eje der.)
+          </span>
+        </div>
+      </div>
+
+      <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', maxWidth: W, display: 'block', overflow: 'visible' }}>
+        {[0.25, 0.5, 0.75, 1].map(f => (
+          <line key={f} x1={pL} y1={pT + f * innerH} x2={W - pR} y2={pT + f * innerH} stroke="#1e293b" strokeWidth={1} />
+        ))}
+
+        <rect x={pL} y={y15} width={innerW} height={Math.max(0, (H - pB) - y15)} fill="#ef444408" />
+        <rect x={pL} y={y10} width={innerW} height={Math.max(0, y15 - y10)} fill="#facc1508" />
+        <line x1={pL} y1={y10} x2={W - pR} y2={y10} stroke="#facc15" strokeWidth={0.8} strokeDasharray="4 3" opacity={0.5} />
+        <line x1={pL} y1={y15} x2={W - pR} y2={y15} stroke="#ef4444" strokeWidth={0.8} strokeDasharray="4 3" opacity={0.5} />
+        <text x={W - pR + 3} y={y10 + 4} fontSize={7} fill="#facc15" opacity={0.8}>10%</text>
+        <text x={W - pR + 3} y={y15 + 4} fontSize={7} fill="#ef4444" opacity={0.8}>15%</text>
+
+        <line x1={pL} y1={pT} x2={pL} y2={H - pB} stroke="#334155" strokeWidth={1} />
+        <line x1={pL} y1={H - pB} x2={W - pR} y2={H - pB} stroke="#334155" strokeWidth={1} />
+        <line x1={W - pR} y1={pT} x2={W - pR} y2={H - pB} stroke="#334155" strokeWidth={1} />
+
+        {[0, 0.5, 1].map(f => {
+          const v = minF + f * (maxF - minF)
+          return (
+            <text key={f} x={pL - 6} y={pT + (1 - f) * innerH + 4} textAnchor="end" fontSize={8} fill="#475569">
+              {v.toFixed(0)}
+            </text>
+          )
+        })}
+        {[0, 0.5, 1].map(f => {
+          const v = f * maxA
+          return (
+            <text key={f} x={W - pR + 6} y={pT + (1 - f) * innerH + 4} textAnchor="start" fontSize={8} fill="#64748b">
+              {v.toFixed(0)}%
+            </text>
+          )
+        })}
+
+        <path d={pathDer} fill="none" stroke="#60a5fa" strokeWidth={2} strokeLinejoin="round" />
+        <path d={pathIzq} fill="none" stroke="#f472b6" strokeWidth={2} strokeLinejoin="round" />
+
+        {ders.map((v, i) => (
+          <g key={`d${i}`}>
+            <circle cx={tx(i)} cy={tyF(v)} r={4} fill="#0a0f14" stroke="#60a5fa" strokeWidth={2} />
+            <text x={tx(i)} y={tyF(v) - 8} textAnchor="middle" fontSize={8} fill="#60a5fa">{v.toFixed(1)}</text>
+          </g>
+        ))}
+        {izqs.map((v, i) => (
+          <g key={`z${i}`}>
+            <circle cx={tx(i)} cy={tyF(v)} r={4} fill="#0a0f14" stroke="#f472b6" strokeWidth={2} />
+            <text x={tx(i)} y={tyF(v) + 16} textAnchor="middle" fontSize={8} fill="#f472b6">{v.toFixed(1)}</text>
+          </g>
+        ))}
+
+        {asims.map((a, i) => {
+          const col  = a > 15 ? '#ef4444' : a > 10 ? '#facc15' : '#22c55e'
+          const barH = Math.min((a / maxA) * innerH * 0.5, innerH * 0.5)
+          const barY = H - pB - barH
+          return (
+            <g key={`a${i}`}>
+              <rect x={tx(i) - 5} y={barY} width={10} height={barH} fill={col} opacity={0.3} rx={2} />
+              <circle cx={tx(i)} cy={tyA(a)} r={4} fill={col} />
+              <text x={tx(i)} y={tyA(a) - 8} textAnchor="middle" fontSize={8} fontWeight={700} fill={col}>
+                {a.toFixed(1)}%
+              </text>
+            </g>
+          )
+        })}
+
+        {labels.map((lbl, i) => (
+          <text key={i} x={tx(i)} y={H - pB + 14} textAnchor="middle" fontSize={8} fill="#475569">{lbl}</text>
+        ))}
+      </svg>
+    </div>
   )
 }
 
