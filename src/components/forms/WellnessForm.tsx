@@ -69,54 +69,222 @@ function EVAScale({ value, onChange }) {
 }
 
 // ── Body Map SVG ──────────────────────────────────────────────────────────────
+
+// Zonas simplificadas — solo las principales para el jugador
 const FRONT_ZONES = [
-  { id:'cabeza_f',      label:'Cabeza',             cx:100, cy:25,  r:20 },
-  { id:'cuello_f',      label:'Cuello',             cx:100, cy:56,  r:11 },
-  { id:'hombro_d',      label:'Hombro Der.',        cx:65,  cy:76,  r:13 },
-  { id:'hombro_i',      label:'Hombro Izq.',        cx:135, cy:76,  r:13 },
-  { id:'pecho',         label:'Pecho',              cx:100, cy:98,  r:18 },
-  { id:'bicep_d',       label:'Bícep Der.',         cx:57,  cy:112, r:11 },
-  { id:'bicep_i',       label:'Bícep Izq.',         cx:143, cy:112, r:11 },
-  { id:'abdomen',       label:'Abdomen',            cx:100, cy:140, r:16 },
-  { id:'antebrazo_d',   label:'Antebrazo Der.',     cx:48,  cy:148, r:10 },
-  { id:'antebrazo_i',   label:'Antebrazo Izq.',     cx:152, cy:148, r:10 },
-  { id:'ingle_d',       label:'Ingle/Cadera Der.',  cx:83,  cy:178, r:13 },
-  { id:'ingle_i',       label:'Ingle/Cadera Izq.',  cx:117, cy:178, r:13 },
-  { id:'cuad_d',        label:'Cuádricep Der.',     cx:80,  cy:220, r:15 },
-  { id:'cuad_i',        label:'Cuádricep Izq.',     cx:120, cy:220, r:15 },
-  { id:'rodilla_d',     label:'Rodilla Der.',       cx:80,  cy:265, r:12 },
-  { id:'rodilla_i',     label:'Rodilla Izq.',       cx:120, cy:265, r:12 },
-  { id:'tibia_d',       label:'Tibia Der.',         cx:77,  cy:305, r:11 },
-  { id:'tibia_i',       label:'Tibia Izq.',         cx:123, cy:305, r:11 },
-  { id:'tobillo_d',     label:'Tobillo Der.',       cx:77,  cy:345, r:10 },
-  { id:'tobillo_i',     label:'Tobillo Izq.',       cx:123, cy:345, r:10 },
-  { id:'empeine_d',     label:'Empeine Der.',       cx:74,  cy:370, r:9  },
-  { id:'empeine_i',     label:'Empeine Izq.',       cx:126, cy:370, r:9  },
-  { id:'dedo_d',        label:'Dedos Pie Der.',     cx:72,  cy:386, r:8  },
-  { id:'dedo_i',        label:'Dedos Pie Izq.',     cx:128, cy:386, r:8  },
+  { id:'cabeza',    label:'Cabeza',          cx:100, cy:24,  r:18 },
+  { id:'cuello',    label:'Cuello',          cx:100, cy:52,  r:10 },
+  { id:'pecho',     label:'Pecho',           cx:100, cy:88,  r:22 },
+  { id:'abdomen',   label:'Abdomen',         cx:100, cy:135, r:18 },
+  { id:'aductor_d', label:'Aductor Der.',    cx:84,  cy:182, r:14 },
+  { id:'aductor_i', label:'Aductor Izq.',    cx:116, cy:182, r:14 },
+  { id:'cuad_d',    label:'Cuádriceps Der.', cx:80,  cy:228, r:18 },
+  { id:'cuad_i',    label:'Cuádriceps Izq.', cx:120, cy:228, r:18 },
+  { id:'rodilla_d', label:'Rodilla Der.',    cx:79,  cy:274, r:13 },
+  { id:'rodilla_i', label:'Rodilla Izq.',    cx:121, cy:274, r:13 },
+  { id:'tobillo_d', label:'Tobillo Der.',    cx:77,  cy:344, r:11 },
+  { id:'tobillo_i', label:'Tobillo Izq.',    cx:123, cy:344, r:11 },
 ]
 const BACK_ZONES = [
-  { id:'nuca',          label:'Nuca/Cabeza',        cx:100, cy:25,  r:20 },
-  { id:'cervical',      label:'Cervical',           cx:100, cy:55,  r:11 },
-  { id:'trap_d',        label:'Trapecio Der.',      cx:70,  cy:72,  r:13 },
-  { id:'trap_i',        label:'Trapecio Izq.',      cx:130, cy:72,  r:13 },
-  { id:'espalda_alta',  label:'Espalda Alta',       cx:100, cy:95,  r:16 },
-  { id:'tricep_d',      label:'Trícep Der.',        cx:57,  cy:112, r:11 },
-  { id:'tricep_i',      label:'Trícep Izq.',        cx:143, cy:112, r:11 },
-  { id:'lumbar',        label:'Lumbar',             cx:100, cy:148, r:16 },
-  { id:'gluteo_d',      label:'Glúteo Der.',        cx:82,  cy:183, r:14 },
-  { id:'gluteo_i',      label:'Glúteo Izq.',        cx:118, cy:183, r:14 },
-  { id:'isquio_d',      label:'Isquiotibial Der.',  cx:80,  cy:230, r:15 },
-  { id:'isquio_i',      label:'Isquiotibial Izq.',  cx:120, cy:230, r:15 },
-  { id:'corva_d',       label:'Corva Der.',         cx:80,  cy:268, r:12 },
-  { id:'corva_i',       label:'Corva Izq.',         cx:120, cy:268, r:12 },
-  { id:'gemelo_d',      label:'Gemelo Der.',        cx:77,  cy:308, r:13 },
-  { id:'gemelo_i',      label:'Gemelo Izq.',        cx:123, cy:308, r:13 },
-  { id:'talon_d',       label:'Talón Der.',         cx:77,  cy:347, r:10 },
-  { id:'talon_i',       label:'Talón Izq.',         cx:123, cy:347, r:10 },
-  { id:'planta_d',      label:'Planta Pie Der.',    cx:74,  cy:372, r:10 },
-  { id:'planta_i',      label:'Planta Pie Izq.',    cx:126, cy:372, r:10 },
+  { id:'nuca',       label:'Cuello',           cx:100, cy:52,  r:10 },
+  { id:'esp_alta',   label:'Espalda Alta',     cx:100, cy:90,  r:22 },
+  { id:'esp_baja',   label:'Espalda Baja',     cx:100, cy:138, r:18 },
+  { id:'gluteo_d',   label:'Glúteo Der.',      cx:85,  cy:180, r:16 },
+  { id:'gluteo_i',   label:'Glúteo Izq.',      cx:115, cy:180, r:16 },
+  { id:'gemelo_d',   label:'Gemelo Der.',      cx:80,  cy:308, r:15 },
+  { id:'gemelo_i',   label:'Gemelo Izq.',      cx:120, cy:308, r:15 },
+  { id:'tobillo_d',  label:'Tobillo Der.',     cx:78,  cy:349, r:11 },
+  { id:'tobillo_i',  label:'Tobillo Izq.',     cx:122, cy:349, r:11 },
 ]
+
+// ── Componente figura frontal atlética ──────────────────────────────────────
+function AthleteFront() {
+  const body = '#1a1a1a'
+  const line = '#4a5568'
+  const lineS = '#2d3748'
+  return (
+    <g>
+      {/* === CABEZA === */}
+      <ellipse cx="100" cy="24" rx="16" ry="19" fill={body} stroke={line} strokeWidth="1.4"/>
+      {/* Oreja izq/der */}
+      <ellipse cx="84.5" cy="25" rx="3" ry="5" fill={body} stroke={line} strokeWidth="1"/>
+      <ellipse cx="115.5" cy="25" rx="3" ry="5" fill={body} stroke={line} strokeWidth="1"/>
+
+      {/* === CUELLO === */}
+      <path d="M93,42 Q100,45 107,42 L109,55 Q100,57 91,55 Z" fill={body} stroke={line} strokeWidth="1.2"/>
+
+      {/* === TRAPECIO / HOMBROS === */}
+      {/* Hombro izq — deltoides redondeado */}
+      <path d="M91,55 Q78,57 67,64 Q58,72 57,84 Q59,94 65,98 Q70,88 74,78 L80,70 L91,63 Z"
+        fill={body} stroke={line} strokeWidth="1.3"/>
+      {/* Hombro der */}
+      <path d="M109,55 Q122,57 133,64 Q142,72 143,84 Q141,94 135,98 Q130,88 126,78 L120,70 L109,63 Z"
+        fill={body} stroke={line} strokeWidth="1.3"/>
+
+      {/* === TORSO — V-taper pronunciado === */}
+      {/* Pectorales: ancho arriba, estrecho en cintura */}
+      <path d="M74,78 Q72,92 73,108 Q75,122 78,134 Q82,152 86,168 Q90,178 100,180 Q110,178 114,168 Q118,152 122,134 Q125,122 127,108 Q128,92 126,78 L120,70 L100,66 L80,70 Z"
+        fill={body} stroke={line} strokeWidth="1.4"/>
+      {/* Línea pectoral */}
+      <path d="M78,80 Q100,88 122,80" fill="none" stroke={lineS} strokeWidth="1" opacity="0.8"/>
+      <line x1="100" y1="74" x2="100" y2="175" stroke={lineS} strokeWidth="0.9" opacity="0.7"/>
+      {/* Líneas abdominales */}
+      <path d="M85,115 Q100,119 115,115" fill="none" stroke={lineS} strokeWidth="0.9" opacity="0.6"/>
+      <path d="M84,134 Q100,138 116,134" fill="none" stroke={lineS} strokeWidth="0.9" opacity="0.5"/>
+      <path d="M85,153 Q100,157 115,153" fill="none" stroke={lineS} strokeWidth="0.8" opacity="0.4"/>
+      {/* Serrato */}
+      <path d="M75,105 Q72,118 74,132" fill="none" stroke={lineS} strokeWidth="0.7" opacity="0.4"/>
+      <path d="M125,105 Q128,118 126,132" fill="none" stroke={lineS} strokeWidth="0.7" opacity="0.4"/>
+
+      {/* === BRAZO IZQUIERDO === */}
+      {/* Bícep */}
+      <path d="M65,98 Q58,112 57,128 Q57,140 61,148 L67,145 Q64,134 65,120 Q66,108 70,100 Z"
+        fill={body} stroke={line} strokeWidth="1.2"/>
+      {/* Línea bícep */}
+      <path d="M62,110 Q61,120 62,130" fill="none" stroke={lineS} strokeWidth="0.7" opacity="0.5"/>
+      {/* Antebrazo */}
+      <path d="M61,148 Q57,162 56,178 Q57,190 62,192 L67,190 Q64,180 64,166 L67,145 Z"
+        fill={body} stroke={line} strokeWidth="1.2"/>
+      {/* Mano */}
+      <ellipse cx="60" cy="196" rx="7" ry="9" fill={body} stroke={line} strokeWidth="1"/>
+
+      {/* === BRAZO DERECHO === */}
+      <path d="M135,98 Q142,112 143,128 Q143,140 139,148 L133,145 Q136,134 135,120 Q134,108 130,100 Z"
+        fill={body} stroke={line} strokeWidth="1.2"/>
+      <path d="M138,110 Q139,120 138,130" fill="none" stroke={lineS} strokeWidth="0.7" opacity="0.5"/>
+      <path d="M139,148 Q143,162 144,178 Q143,190 138,192 L133,190 Q136,180 136,166 L133,145 Z"
+        fill={body} stroke={line} strokeWidth="1.2"/>
+      <ellipse cx="140" cy="196" rx="7" ry="9" fill={body} stroke={line} strokeWidth="1"/>
+
+      {/* === PELVIS / CADERA === */}
+      <path d="M86,168 Q84,176 84,185 L100,186 L116,185 Q116,176 114,168 Q107,173 100,174 Q93,173 86,168 Z"
+        fill={body} stroke={line} strokeWidth="1.2"/>
+
+      {/* === PIERNA IZQUIERDA === */}
+      {/* Cuádricep — forma ovoide, no rectangular */}
+      <path d="M84,185 Q78,198 76,218 Q75,238 76,256 Q77,266 79,276 L87,274 Q86,262 86,244 Q87,224 88,206 Q90,192 92,185 Z"
+        fill={body} stroke={line} strokeWidth="1.3"/>
+      {/* Línea separación cuád */}
+      <path d="M83,196 Q84,220 84,244 Q84,260 85,272" fill="none" stroke={lineS} strokeWidth="0.8" opacity="0.5"/>
+      {/* Rótula */}
+      <ellipse cx="80" cy="278" rx="8" ry="7" fill={body} stroke={line} strokeWidth="1.1"/>
+      {/* Tibia */}
+      <path d="M74,284 Q73,300 74,318 Q75,332 77,342 L83,340 Q82,328 82,314 Q82,298 82,284 Z"
+        fill={body} stroke={line} strokeWidth="1.2"/>
+      {/* Tobillo/pie */}
+      <path d="M74,340 Q72,350 72,358 Q74,366 80,368 Q87,366 88,358 Q87,350 84,342 Z"
+        fill={body} stroke={line} strokeWidth="1.1"/>
+      <path d="M70,362 Q72,372 80,374 Q90,372 93,365" fill="none" stroke={line} strokeWidth="1" fill="none"/>
+      <path d="M70,362 L68,374 Q74,380 82,379 Q91,378 94,370 L88,360 Z"
+        fill={body} stroke={line} strokeWidth="1"/>
+
+      {/* === PIERNA DERECHA === */}
+      <path d="M116,185 Q122,198 124,218 Q125,238 124,256 Q123,266 121,276 L113,274 Q114,262 114,244 Q113,224 112,206 Q110,192 108,185 Z"
+        fill={body} stroke={line} strokeWidth="1.3"/>
+      <path d="M117,196 Q116,220 116,244 Q116,260 115,272" fill="none" stroke={lineS} strokeWidth="0.8" opacity="0.5"/>
+      <ellipse cx="120" cy="278" rx="8" ry="7" fill={body} stroke={line} strokeWidth="1.1"/>
+      <path d="M126,284 Q127,300 126,318 Q125,332 123,342 L117,340 Q118,328 118,314 Q118,298 118,284 Z"
+        fill={body} stroke={line} strokeWidth="1.2"/>
+      <path d="M126,340 Q128,350 128,358 Q126,366 120,368 Q113,366 112,358 Q113,350 116,342 Z"
+        fill={body} stroke={line} strokeWidth="1.1"/>
+      <path d="M130,362 L132,374 Q126,380 118,379 Q109,378 106,370 L112,360 Z"
+        fill={body} stroke={line} strokeWidth="1"/>
+    </g>
+  )
+}
+
+// ── Componente figura trasera atlética ──────────────────────────────────────
+function AthleteBack() {
+  const body = '#1a1a1a'
+  const line = '#4a5568'
+  const lineS = '#2d3748'
+  return (
+    <g>
+      {/* === CABEZA === */}
+      <ellipse cx="100" cy="24" rx="16" ry="19" fill={body} stroke={line} strokeWidth="1.4"/>
+      <ellipse cx="84.5" cy="25" rx="3" ry="5" fill={body} stroke={line} strokeWidth="1"/>
+      <ellipse cx="115.5" cy="25" rx="3" ry="5" fill={body} stroke={line} strokeWidth="1"/>
+
+      {/* === CUELLO === */}
+      <path d="M93,42 Q100,45 107,42 L109,55 Q100,57 91,55 Z" fill={body} stroke={line} strokeWidth="1.2"/>
+
+      {/* === TRAPECIOS (grandes, triangulares) === */}
+      <path d="M91,55 Q80,58 68,66 Q60,74 60,86 Q62,96 70,98 Q76,86 82,77 L89,68 Z"
+        fill={body} stroke={line} strokeWidth="1.3"/>
+      <path d="M109,55 Q120,58 132,66 Q140,74 140,86 Q138,96 130,98 Q124,86 118,77 L111,68 Z"
+        fill={body} stroke={line} strokeWidth="1.3"/>
+      {/* Unión trapecio superior */}
+      <path d="M91,55 Q100,60 109,55" fill="none" stroke={line} strokeWidth="1.2"/>
+
+      {/* === ESPALDA — torso ancho con V-taper === */}
+      <path d="M70,98 Q68,114 70,132 Q72,150 76,164 Q80,176 86,184 Q93,188 100,188 Q107,188 114,184 Q120,176 124,164 Q128,150 130,132 Q132,114 130,98 L120,77 L100,72 L80,77 Z"
+        fill={body} stroke={line} strokeWidth="1.4"/>
+      {/* Línea columna */}
+      <line x1="100" y1="58" x2="100" y2="184" stroke={lineS} strokeWidth="1" opacity="0.8"/>
+      {/* Escápulas */}
+      <path d="M80,80 Q76,94 78,108 Q84,112 90,106 Q88,92 84,80 Z" fill="none" stroke={lineS} strokeWidth="0.9" opacity="0.6"/>
+      <path d="M120,80 Q124,94 122,108 Q116,112 110,106 Q112,92 116,80 Z" fill="none" stroke={lineS} strokeWidth="0.9" opacity="0.6"/>
+      {/* Dorsal */}
+      <path d="M72,110 Q70,130 74,152 Q78,168 86,178" fill="none" stroke={lineS} strokeWidth="0.8" opacity="0.5"/>
+      <path d="M128,110 Q130,130 126,152 Q122,168 114,178" fill="none" stroke={lineS} strokeWidth="0.8" opacity="0.5"/>
+      {/* Líneas lumbares */}
+      <path d="M84,150 Q100,154 116,150" fill="none" stroke={lineS} strokeWidth="0.8" opacity="0.4"/>
+
+      {/* === BRAZO IZQUIERDO === */}
+      {/* Trícep */}
+      <path d="M60,86 Q53,100 52,118 Q52,132 56,142 L62,139 Q59,128 60,114 Q62,100 66,90 Z"
+        fill={body} stroke={line} strokeWidth="1.2"/>
+      <path d="M56,104 Q55,116 57,128" fill="none" stroke={lineS} strokeWidth="0.8" opacity="0.5"/>
+      {/* Antebrazo */}
+      <path d="M56,142 Q52,158 52,172 Q53,184 58,186 L64,184 Q61,174 61,160 L62,139 Z"
+        fill={body} stroke={line} strokeWidth="1.2"/>
+      <ellipse cx="56" cy="190" rx="7" ry="9" fill={body} stroke={line} strokeWidth="1"/>
+
+      {/* === BRAZO DERECHO === */}
+      <path d="M140,86 Q147,100 148,118 Q148,132 144,142 L138,139 Q141,128 140,114 Q138,100 134,90 Z"
+        fill={body} stroke={line} strokeWidth="1.2"/>
+      <path d="M144,104 Q145,116 143,128" fill="none" stroke={lineS} strokeWidth="0.8" opacity="0.5"/>
+      <path d="M144,142 Q148,158 148,172 Q147,184 142,186 L136,184 Q139,174 139,160 L138,139 Z"
+        fill={body} stroke={line} strokeWidth="1.2"/>
+      <ellipse cx="144" cy="190" rx="7" ry="9" fill={body} stroke={line} strokeWidth="1"/>
+
+      {/* === GLÚTEOS === */}
+      <path d="M86,184 Q80,192 80,204 Q82,216 92,220 Q100,222 100,222 Q100,222 108,220 Q118,216 120,204 Q120,192 114,184 Q107,188 100,189 Q93,188 86,184 Z"
+        fill={body} stroke={line} strokeWidth="1.3"/>
+      <line x1="100" y1="184" x2="100" y2="222" stroke={lineS} strokeWidth="0.8" opacity="0.5"/>
+
+      {/* === PIERNA IZQUIERDA === */}
+      {/* Isquiotibial */}
+      <path d="M80,218 Q75,234 74,254 Q74,270 76,280 L84,278 Q83,266 83,248 Q84,230 87,216 Z"
+        fill={body} stroke={line} strokeWidth="1.3"/>
+      <path d="M82,226 Q81,248 82,268" fill="none" stroke={lineS} strokeWidth="0.8" opacity="0.4"/>
+      {/* Hueco poplíteo */}
+      <path d="M74,282 Q80,288 88,288 Q85,284 80,280 Z" fill={body} stroke={line} strokeWidth="1"/>
+      {/* Gemelo */}
+      <path d="M74,288 Q70,304 71,322 Q73,336 76,344 L82,342 Q80,330 80,316 Q80,300 82,288 Z"
+        fill={body} stroke={line} strokeWidth="1.2"/>
+      <path d="M82,290 Q84,306 84,320 Q83,334 82,342" fill="none" stroke={lineS} strokeWidth="0.8" opacity="0.5"/>
+      {/* Tobillo/pie */}
+      <path d="M74,342 Q72,354 73,362 Q75,370 80,372 Q87,370 88,362 Q87,354 83,344 Z"
+        fill={body} stroke={line} strokeWidth="1.1"/>
+      <path d="M70,366 L68,378 Q74,384 82,383 Q91,382 94,374 L88,364 Z"
+        fill={body} stroke={line} strokeWidth="1"/>
+
+      {/* === PIERNA DERECHA === */}
+      <path d="M120,218 Q125,234 126,254 Q126,270 124,280 L116,278 Q117,266 117,248 Q116,230 113,216 Z"
+        fill={body} stroke={line} strokeWidth="1.3"/>
+      <path d="M118,226 Q119,248 118,268" fill="none" stroke={lineS} strokeWidth="0.8" opacity="0.4"/>
+      <path d="M126,282 Q120,288 112,288 Q115,284 120,280 Z" fill={body} stroke={line} strokeWidth="1"/>
+      <path d="M126,288 Q130,304 129,322 Q127,336 124,344 L118,342 Q120,330 120,316 Q120,300 118,288 Z"
+        fill={body} stroke={line} strokeWidth="1.2"/>
+      <path d="M118,290 Q116,306 116,320 Q117,334 118,342" fill="none" stroke={lineS} strokeWidth="0.8" opacity="0.5"/>
+      <path d="M126,342 Q128,354 127,362 Q125,370 120,372 Q113,370 112,362 Q113,354 117,344 Z"
+        fill={body} stroke={line} strokeWidth="1.1"/>
+      <path d="M130,366 L132,378 Q126,384 118,383 Q109,382 106,374 L112,364 Z"
+        fill={body} stroke={line} strokeWidth="1"/>
+    </g>
+  )
+}
 
 function BodyMap({ onSelect, selected }) {
   const [side, setSide] = useState('front')
@@ -137,11 +305,13 @@ function BodyMap({ onSelect, selected }) {
     if (nearest) onSelect(nearest.label)
   }
 
+  const selZone = selected ? zones.find(z => z.label === selected) : null
+
   return (
     <div>
       <div style={{ display:'flex', gap:8, marginBottom:12 }}>
         {[['front','Vista Frontal'],['back','Vista Trasera']].map(([s,l]) => (
-          <button key={s} type="button" onClick={() => setSide(s)} style={{
+          <button key={s} type="button" onClick={() => setSide(s as any)} style={{
             flex:1, padding:'8px', borderRadius:8, cursor:'pointer', fontSize:12, fontWeight:600,
             border: side===s ? '2px solid #ef4444' : '1px solid var(--fog)',
             background: side===s ? 'rgba(239,68,68,.1)' : 'var(--ink2)',
@@ -155,67 +325,36 @@ function BodyMap({ onSelect, selected }) {
         {/* SVG Body */}
         <div style={{ flexShrink:0 }}>
           <svg viewBox="0 0 200 400" width="150" style={{ cursor:'crosshair', display:'block' }} onClick={handleSVGClick}>
-            {/* ── Athletic body ── */}
+            <defs>
+              <filter id="glow" x="-40%" y="-40%" width="180%" height="180%">
+                <feGaussianBlur stdDeviation="3" result="b"/>
+                <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+              </filter>
+            </defs>
 
-            {/* Head */}
-            <ellipse cx="100" cy="23" rx="16" ry="19" fill="#1c1c1c" stroke="#3a3a3a" strokeWidth="1.5"/>
-            {/* Neck */}
-            <rect x="91" y="41" width="18" height="13" rx="4" fill="#1c1c1c" stroke="#3a3a3a" strokeWidth="1.5"/>
+            {side === 'front' ? <AthleteFront /> : <AthleteBack />}
 
-            {/* Torso — wide shoulders, V-taper waist, slight hip */}
-            <path d="M90,54 L64,57 C58,63 57,78 59,96 L63,138 C64,155 68,168 76,178 L84,188 L100,190 L116,188 L124,178 C132,168 136,155 137,138 L141,96 C143,78 142,63 136,57 L110,54 Z"
-              fill="#1c1c1c" stroke="#3a3a3a" strokeWidth="1.5"/>
-
-            {/* Left arm (character's left) — tapered with slight forearm */}
-            <path d="M64,57 C56,62 46,76 40,100 L37,150 C36,162 41,170 49,170 C57,170 62,163 62,152 L63,118 C64,98 65,80 68,66 Z"
-              fill="#1c1c1c" stroke="#3a3a3a" strokeWidth="1.5"/>
-            {/* Right arm */}
-            <path d="M136,57 C144,62 154,76 160,100 L163,150 C164,162 159,170 151,170 C143,170 138,163 138,152 L137,118 C136,98 135,80 132,66 Z"
-              fill="#1c1c1c" stroke="#3a3a3a" strokeWidth="1.5"/>
-
-            {/* Left leg — thigh wider, tapers to ankle */}
-            <path d="M84,188 L81,268 C80,283 79,295 78,322 L75,358 L67,388 L79,390 L84,358 L88,322 L91,290 L93,190 Z"
-              fill="#1c1c1c" stroke="#3a3a3a" strokeWidth="1.5"/>
-            {/* Right leg */}
-            <path d="M116,188 L119,268 C120,283 121,295 122,322 L125,358 L133,388 L121,390 L116,358 L112,322 L109,290 L107,190 Z"
-              fill="#1c1c1c" stroke="#3a3a3a" strokeWidth="1.5"/>
-
-            {/* Feet */}
-            <ellipse cx="73" cy="391" rx="12" ry="5" fill="#1c1c1c" stroke="#3a3a3a" strokeWidth="1"/>
-            <ellipse cx="127" cy="391" rx="12" ry="5" fill="#1c1c1c" stroke="#3a3a3a" strokeWidth="1"/>
-
-            {/* Front detail: subtle pec/abs lines */}
-            {side === 'front' && <>
-              <line x1="100" y1="80" x2="100" y2="176" stroke="#2e2e2e" strokeWidth="1" opacity="0.7"/>
-              <line x1="72" y1="108" x2="128" y2="108" stroke="#2e2e2e" strokeWidth="0.8" opacity="0.5"/>
-              <line x1="74" y1="132" x2="126" y2="132" stroke="#2e2e2e" strokeWidth="0.8" opacity="0.4"/>
-            </>}
-            {/* Back detail: spine line */}
-            {side === 'back' && <>
-              <line x1="100" y1="56" x2="100" y2="178" stroke="#2e2e2e" strokeWidth="1.2" opacity="0.7"/>
-            </>}
-            {/* ── Clickable zones ── */}
+            {/* Zonas interactivas */}
             {zones.map(z => {
               const isSel = selected === z.label
               return (
                 <circle key={z.id} cx={z.cx} cy={z.cy} r={z.r}
-                  fill={isSel ? 'rgba(239,68,68,.7)' : 'rgba(255,255,255,.06)'}
-                  stroke={isSel ? '#ef4444' : 'rgba(255,255,255,.12)'}
-                  strokeWidth={isSel ? 2 : 1}
+                  fill={isSel ? 'rgba(239,68,68,.45)' : 'rgba(255,255,255,.04)'}
+                  stroke={isSel ? '#ef4444' : 'rgba(255,255,255,.1)'}
+                  strokeWidth={isSel ? 2 : 0.8}
                   style={{ cursor:'pointer', transition:'all .12s' }}
                 />
               )
             })}
-            {/* Selected pin */}
-            {selected && (() => {
-              const z = zones.find(z => z.label === selected)
-              return z ? (
-                <g>
-                  <circle cx={z.cx} cy={z.cy} r={7} fill="#ef4444" opacity={.9}/>
-                  <text x={z.cx} y={z.cy+1} textAnchor="middle" dominantBaseline="middle" fontSize="8" fill="white">✕</text>
-                </g>
-              ) : null
-            })()}
+
+            {/* Pin selección */}
+            {selZone && (
+              <g filter="url(#glow)">
+                <circle cx={selZone.cx} cy={selZone.cy} r={selZone.r + 5} fill="none" stroke="#ef4444" strokeWidth="1.5" opacity={0.4}/>
+                <circle cx={selZone.cx} cy={selZone.cy} r={8} fill="#ef4444"/>
+                <circle cx={selZone.cx} cy={selZone.cy} r={3} fill="white"/>
+              </g>
+            )}
           </svg>
           <p style={{ fontSize:9, color:'var(--silver)', textAlign:'center', marginTop:4 }}>Tocá la zona</p>
         </div>
@@ -224,7 +363,6 @@ function BodyMap({ onSelect, selected }) {
         <div style={{ flex:1, minWidth:0 }}>
           <p style={{ fontSize:10, color:'var(--silver)', marginBottom:6, textTransform:'uppercase', letterSpacing:'0.05em' }}>O elegí de la lista:</p>
           <div style={{ maxHeight:200, overflowY:'auto', display:'flex', flexDirection:'column', gap:3 }}>
-            {/* Ningún dolor — always first */}
             <button type="button" onClick={() => onSelect('Ningún dolor')} style={{
               padding:'5px 10px', borderRadius:7, fontSize:11, cursor:'pointer', textAlign:'left',
               border: selected==='Ningún dolor' ? '1px solid #4ade80' : '1px solid var(--fog)',
@@ -254,6 +392,7 @@ function BodyMap({ onSelect, selected }) {
     </div>
   )
 }
+
 
 // ── Already completed today ───────────────────────────────────────────────────
 function AlreadyCompleted({ data, onBack }) {
