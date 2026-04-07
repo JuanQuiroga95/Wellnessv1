@@ -223,91 +223,128 @@ function MuscleBack() {
       <path d="M93,54 Q100,57 107,54" {...ST}/>
 
       {/* ── TRAPECIO ── */}
-      {/* Gran trapecio en rombo */}
-      <path d="M93,54 Q80,58 68,66 Q60,76 62,88 Q68,96 78,94 Q86,82 93,72 Z" {...ST}/>
-      <path d="M107,54 Q120,58 132,66 Q140,76 138,88 Q132,96 122,94 Q114,82 107,72 Z" {...ST}/>
-      <path d="M93,54 Q100,60 107,54" {...ST}/>
-      {/* Centro trapecio */}
-      <path d="M93,72 Q100,76 107,72 L108,108 Q100,114 92,108 Z" {...ST}/>
+      {/* Hombro izq: misma inclinación que deltoides frontal */}
+      <path d="M93,54 Q84,56 76,62 Q68,68 66,76 Q64,84 68,90 Q74,96 78,94 Q80,84 82,74 Q86,64 93,58 Z" {...ST}/>
+      {/* Hombro der */}
+      <path d="M107,54 Q116,56 124,62 Q132,68 134,76 Q136,84 132,90 Q126,96 122,94 Q120,84 118,74 Q114,64 107,58 Z" {...ST}/>
+      {/* Rombo central trapecio inferior */}
+      <path d="M93,58 Q100,62 107,58 L108,108 Q100,112 92,108 Z" {...ST}/>
+      {/* Líneas de fibras del trapecio */}
+      <path d="M93,58 Q86,64 78,66" {...ST2}/>
+      <path d="M107,58 Q114,64 122,66" {...ST2}/>
 
       {/* ── DELTOIDES POSTERIOR ── */}
-      <path d="M62,88 Q56,92 54,102 Q55,112 60,116 L66,112 Q63,104 64,96 Z" {...ST}/>
-      <path d="M138,88 Q144,92 146,102 Q145,112 140,116 L134,112 Q137,104 136,96 Z" {...ST}/>
+      {/* Mismo tamaño/posición que deltoides frontal */}
+      <path d="M66,76 Q60,80 58,90 Q57,100 62,106 Q67,110 70,106 Q66,96 66,86 Z" {...ST}/>
+      <path d="M134,76 Q140,80 142,90 Q143,100 138,106 Q133,110 130,106 Q134,96 134,86 Z" {...ST}/>
 
-      {/* ── INFRAESPINOSO / REDONDO ── */}
-      <path d="M62,88 Q65,104 68,116 L76,114 Q74,100 72,88 Z" {...ST}/>
-      <path d="M138,88 Q135,104 132,116 L124,114 Q126,100 128,88 Z" {...ST}/>
+      {/* ── INFRAESPINOSO / REDONDO MAYOR ── */}
+      <path d="M68,90 Q66,106 68,118 L76,116 Q76,102 74,90 Z" {...ST}/>
+      <path d="M132,90 Q134,106 132,118 L124,116 Q124,102 126,90 Z" {...ST}/>
+      {/* Línea separación infraespinoso/redondo */}
+      <path d="M68,102 Q72,104 76,102" {...ST2}/>
+      <path d="M132,102 Q128,104 124,102" {...ST2}/>
 
       {/* ── DORSAL ANCHO ── */}
-      <path d="M68,92 Q65,112 67,136 Q70,156 78,170 L84,168 Q78,154 76,134 Q74,112 76,92 Z" {...ST}/>
-      <path d="M132,92 Q135,112 133,136 Q130,156 122,170 L116,168 Q122,154 124,134 Q126,112 124,92 Z" {...ST}/>
+      {/* Arranca desde axila, mismo ancho que torso frontal */}
+      <path d="M68,94 Q64,114 65,136 Q67,158 76,172 L84,170 Q77,156 75,136 Q73,114 74,94 Z" {...ST}/>
+      <path d="M132,94 Q136,114 135,136 Q133,158 124,172 L116,170 Q123,156 125,136 Q127,114 126,94 Z" {...ST}/>
 
-      {/* ── ESPALDA BAJA / LUMBAR ── */}
-      <path d="M92,108 Q88,126 88,146 Q89,162 94,172 L100,174 L106,172 Q111,162 112,146 Q112,126 108,108 Z" {...ST}/>
-      {/* Línea espinal */}
-      <line x1="100" y1="58" x2="100" y2="170" {...ST2}/>
+      {/* ── TORSO POSTERIOR (contorno) ── */}
+      {/* Exactamente igual al contorno frontal para mismas proporciones */}
+      <path d="M74,94 Q72,110 73,128 Q74,148 78,164 Q82,176 88,184 Q94,188 100,189 Q106,188 112,184 Q118,176 122,164 Q126,148 127,128 Q128,110 126,94" {...ST}/>
+
+      {/* ── COLUMNA / ROMBOIDES ── */}
+      <line x1="100" y1="58" x2="100" y2="172" {...ST2}/>
+      {/* Línea escapular */}
+      <path d="M82,84 Q100,88 118,84" {...ST2}/>
       {/* Líneas lumbares */}
-      <path d="M88,130 Q100,134 112,130" {...ST2}/>
-      <path d="M88,148 Q100,152 112,148" {...ST2}/>
+      <path d="M86,126 Q100,130 114,126" {...ST2}/>
+      <path d="M86,144 Q100,148 114,144" {...ST2}/>
+      <path d="M87,160 Q100,163 113,160" {...ST2}/>
+      {/* Borde escápula izq */}
+      <path d="M74,76 Q72,92 74,108 Q82,112 88,104 Q88,88 82,78 Z" {...ST2}/>
+      {/* Borde escápula der */}
+      <path d="M126,76 Q128,92 126,108 Q118,112 112,104 Q112,88 118,78 Z" {...ST2}/>
 
-      {/* ── BRAZOS (TRÍCEPS) ── */}
+      {/* ── BRAZOS — TRÍCEPS ── */}
+      {/* Mismo recorrido que bíceps/antebrazo frontal */}
       {/* Trícep izq */}
-      <path d="M60,116 Q54,130 54,148 Q55,160 60,164 L66,160 Q63,148 63,132 Q64,120 68,114 Z" {...ST}/>
-      {/* Línea cabeza larga/lateral trícep */}
-      <path d="M58,124 Q57,136 59,148" {...ST2}/>
+      <path d="M62,106 Q56,120 56,136 Q57,148 62,154 L68,150 Q65,138 65,124 Q66,112 70,106 Z" {...ST}/>
+      {/* División cabezas trícep izq */}
+      <path d="M60,118 Q59,130 61,142" {...ST2}/>
       {/* Antebrazo posterior izq */}
-      <path d="M54,148 Q50,162 50,178 Q52,189 57,191 L63,188 Q60,178 60,162 L61,150 Z" {...ST}/>
-      {/* Mano izq */}
-      <path d="M50,178 Q46,188 46,198 Q48,207 56,209 Q62,206 62,190 Z" {...ST}/>
+      <path d="M56,136 Q51,150 51,168 Q52,180 57,184 L63,181 Q60,170 60,154 L62,138 Z" {...ST}/>
+      {/* Mano izq — misma forma que frontal */}
+      <path d="M51,168 Q47,178 46,188 Q48,196 56,198 Q62,196 62,182 Z" {...ST}/>
+
       {/* Trícep der */}
-      <path d="M140,116 Q146,130 146,148 Q145,160 140,164 L134,160 Q137,148 137,132 Q136,120 132,114 Z" {...ST}/>
-      <path d="M142,124 Q143,136 141,148" {...ST2}/>
+      <path d="M138,106 Q144,120 144,136 Q143,148 138,154 L132,150 Q135,138 135,124 Q134,112 130,106 Z" {...ST}/>
+      <path d="M140,118 Q141,130 139,142" {...ST2}/>
       {/* Antebrazo posterior der */}
-      <path d="M146,148 Q150,162 150,178 Q148,189 143,191 L137,188 Q140,178 140,162 L139,150 Z" {...ST}/>
+      <path d="M144,136 Q149,150 149,168 Q148,180 143,184 L137,181 Q140,170 140,154 L138,138 Z" {...ST}/>
       {/* Mano der */}
-      <path d="M150,178 Q154,188 154,198 Q152,207 144,209 Q138,206 138,190 Z" {...ST}/>
+      <path d="M149,168 Q153,178 154,188 Q152,196 144,198 Q138,196 138,182 Z" {...ST}/>
 
       {/* ── GLÚTEOS ── */}
-      {/* Glúteo izq - grande, redondeado */}
-      <path d="M84,170 Q76,176 74,190 Q74,206 82,214 Q90,218 100,216 L100,174 Q92,174 84,170 Z" {...ST}/>
-      {/* Glúteo der */}
-      <path d="M116,170 Q124,176 126,190 Q126,206 118,214 Q110,218 100,216 L100,174 Q108,174 116,170 Z" {...ST}/>
-      {/* Línea glútea */}
-      <line x1="100" y1="170" x2="100" y2="216" {...ST2}/>
-      {/* Pliegue inferior glúteo */}
-      <path d="M76,210 Q88,218 100,218 Q112,218 124,210" {...ST2}/>
+      {/* Misma altura que pelvis frontal (y=172–198) */}
+      <path d="M84,172 Q76,178 74,192 Q74,208 82,216 Q90,220 100,218 L100,176 Q92,175 84,172 Z" {...ST}/>
+      <path d="M116,172 Q124,178 126,192 Q126,208 118,216 Q110,220 100,218 L100,176 Q108,175 116,172 Z" {...ST}/>
+      <line x1="100" y1="172" x2="100" y2="218" {...ST2}/>
+      {/* Pliegue glúteo — equivale a línea bajo pélvis frontal */}
+      <path d="M76,212 Q88,220 100,220 Q112,220 124,212" {...ST2}/>
 
       {/* ── ISQUIOTIBIALES ── */}
-      {/* Isquio izq */}
-      <path d="M76,214 Q70,232 70,254 Q71,268 76,276 L83,273 Q79,260 79,240 Q80,220 84,212 Z" {...ST}/>
-      {/* Bíceps femoral */}
-      <path d="M83,214 Q86,232 87,252 Q86,266 84,274" {...ST2}/>
+      {/* Mismo ancho y recorrido que cuádriceps frontal */}
+      {/* Vasto externo → bíceps femoral izq */}
+      <path d="M76,216 Q70,236 70,258 Q71,272 76,280 L83,277 Q79,262 79,242 Q80,222 84,214 Z" {...ST}/>
+      {/* Recto → semitendinoso izq */}
+      <path d="M84,214 Q88,234 88,256 Q87,270 85,278 L80,277 Q81,262 81,242 Q81,222 76,218 Z" {...ST2}/>
+      {/* Semitendinoso izq */}
+      <path d="M90,216 Q94,236 94,258 Q93,270 91,278 L85,278 Q87,262 87,242 Q87,222 88,214 Z" {...ST}/>
+      {/* Línea bíceps femoral izq */}
+      <path d="M83,218 Q82,240 82,260" {...ST2}/>
+
       {/* Isquio der */}
-      <path d="M124,214 Q130,232 130,254 Q129,268 124,276 L117,273 Q121,260 121,240 Q120,220 116,212 Z" {...ST}/>
-      <path d="M117,214 Q114,232 113,252 Q114,266 116,274" {...ST2}/>
+      <path d="M124,216 Q130,236 130,258 Q129,272 124,280 L117,277 Q121,262 121,242 Q120,222 116,214 Z" {...ST}/>
+      <path d="M116,214 Q112,234 112,256 Q113,270 115,278 L120,277 Q119,262 119,242 Q119,222 124,218 Z" {...ST2}/>
+      <path d="M110,216 Q106,236 106,258 Q107,270 109,278 L115,278 Q113,262 113,242 Q113,222 112,214 Z" {...ST}/>
+      <path d="M117,218 Q118,240 118,260" {...ST2}/>
 
       {/* ── HUECO POPLÍTEO ── */}
-      <path d="M70,276 Q78,282 88,282 Q84,278 78,274 Z" {...ST}/>
-      <path d="M130,276 Q122,282 112,282 Q116,278 122,274 Z" {...ST}/>
+      {/* Mismo nivel que rodilla frontal (cy=272) */}
+      <ellipse cx="81" cy="282" rx="9" ry="5" {...ST2}/>
+      <ellipse cx="119" cy="282" rx="9" ry="5" {...ST2}/>
 
       {/* ── GEMELOS ── */}
-      {/* Gemelo izq - forma de diamante */}
-      <path d="M70,282 Q66,298 67,318 Q69,334 74,340 L80,337 Q78,324 77,308 Q77,292 79,282 Z" {...ST}/>
+      {/* Mismo ancho y recorrido que tibias frontales */}
+      {/* Cabeza lateral gemelo izq */}
+      <path d="M72,282 Q67,300 68,320 Q70,336 75,342 L81,339 Q79,326 78,310 Q78,294 80,284 Z" {...ST}/>
       {/* Cabeza medial gemelo izq */}
-      <path d="M79,282 Q83,298 83,316 Q82,330 80,338" {...ST}/>
-      {/* Gemelo der */}
-      <path d="M130,282 Q134,298 133,318 Q131,334 126,340 L120,337 Q122,324 123,308 Q123,292 121,282 Z" {...ST}/>
-      <path d="M121,282 Q117,298 117,316 Q118,330 120,338" {...ST}/>
+      <path d="M80,284 Q84,302 84,320 Q83,334 81,340" {...ST}/>
+      {/* Línea separación cabezas */}
+      <path d="M76,290 Q77,308 77,326" {...ST2}/>
 
-      {/* ── TENDÓN AQUILES / TALÓN ── */}
+      {/* Cabeza lateral gemelo der */}
+      <path d="M128,282 Q133,300 132,320 Q130,336 125,342 L119,339 Q121,326 122,310 Q122,294 120,284 Z" {...ST}/>
+      {/* Cabeza medial gemelo der */}
+      <path d="M120,284 Q116,302 116,320 Q117,334 119,340" {...ST}/>
+      <path d="M124,290 Q123,308 123,326" {...ST2}/>
+
+      {/* ── TENDÓN AQUILES / TOBILLO ── */}
+      {/* Exactamente igual al tobillo frontal */}
       {/* Izq */}
-      <path d="M74,338 Q71,348 72,358 Q74,367 79,369 Q84,367 85,358 Q84,348 80,339 Z" {...ST}/>
-      {/* Pie posterior izq */}
-      <path d="M68,362 L66,374 Q72,382 82,381 Q92,379 95,370 L89,360 Z" {...ST}/>
+      <path d="M74,340 Q71,350 72,360 Q74,368 79,370 Q84,368 85,360 Q84,350 80,341 Z" {...ST}/>
+      {/* Pie posterior izq — orientación igual que pie frontal (hacia afuera) */}
+      <path d="M68,364 L65,376 Q70,383 80,382 Q91,380 94,372 L88,362 Z" {...ST}/>
+      {/* Línea tendón aquiles */}
+      <path d="M77,340 L77,362" {...ST2}/>
+
       {/* Der */}
-      <path d="M126,338 Q129,348 128,358 Q126,367 121,369 Q116,367 115,358 Q116,348 120,339 Z" {...ST}/>
+      <path d="M126,340 Q129,350 128,360 Q126,368 121,370 Q116,368 115,360 Q116,350 120,341 Z" {...ST}/>
       {/* Pie posterior der */}
-      <path d="M132,362 L134,374 Q128,382 118,381 Q108,379 105,370 L111,360 Z" {...ST}/>
+      <path d="M132,364 L135,376 Q130,383 120,382 Q109,380 106,372 L112,362 Z" {...ST}/>
+      <path d="M123,340 L123,362" {...ST2}/>
     </g>
   )
 }
@@ -315,6 +352,12 @@ function MuscleBack() {
 function BodyMap({ onSelect, selected }) {
   const [side, setSide] = useState('front')
   const zones = side === 'front' ? FRONT_ZONES : BACK_ZONES
+
+  function switchSide(s: string) {
+    setSide(s as any)
+    // Reset selection when switching views — zone circles are at different positions
+    onSelect(null)
+  }
 
   function handleSVGClick(e) {
     const svg = e.currentTarget
@@ -337,7 +380,7 @@ function BodyMap({ onSelect, selected }) {
     <div>
       <div style={{ display:'flex', gap:8, marginBottom:12 }}>
         {[['front','Vista Frontal'],['back','Vista Trasera']].map(([s,l]) => (
-          <button key={s} type="button" onClick={() => setSide(s as any)} style={{
+          <button key={s} type="button" onClick={() => switchSide(s)} style={{
             flex:1, padding:'8px', borderRadius:8, cursor:'pointer', fontSize:12, fontWeight:600,
             border: side===s ? '2px solid #ef4444' : '1px solid var(--fog)',
             background: side===s ? 'rgba(239,68,68,.1)' : 'var(--ink2)',
@@ -490,7 +533,7 @@ export default function WellnessForm({ jugadorId, onSuccess, todayWellness }) {
   // Mostrar mapa corporal cuando dolor >= 2 (algo de dolor)
   const showBodyMap = vals.dolor_muscular !== null && vals.dolor_muscular >= 2
   // Mostrar EVA cuando se seleccionó zona
-  const showEVA = showBodyMap && zonaSeleccionada !== null
+  const showEVA = showBodyMap && zonaSeleccionada !== null && zonaSeleccionada !== 'Ningún dolor'
 
   const allFilled = Object.values(vals).every(v => v !== null) && tqr !== null && entrenaGrupo !== null && fueGimnasio !== null && (!showBodyMap || zonaSeleccionada !== null || vals.dolor_muscular < 2) && (!showEVA || dolorEva !== null)
 
@@ -506,7 +549,7 @@ export default function WellnessForm({ jugadorId, onSuccess, todayWellness }) {
         method:'POST', headers:{'Content-Type':'application/json'},
         body: JSON.stringify({
           jugador_id:jugadorId, ...vals,
-          dolor_zona: zonaSeleccionada||null,
+          dolor_zona: (zonaSeleccionada && zonaSeleccionada !== 'Ningún dolor') ? zonaSeleccionada : null,
           dolor_eva: dolorEva,
           tqr, recovery: tqr,
           entrena_grupo:entrenaGrupo,
