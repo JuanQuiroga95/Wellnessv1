@@ -183,9 +183,14 @@ function PesajesPanel({ jugador }: { jugador: Jugador }) {
 
   const load = useCallback(async () => {
     setLoading(true)
-    const r = await fetch(`/api/evaluaciones/pesajes?jugador_id=${jugador.id}`)
-    const data = await r.json()
-    setHistorial(Array.isArray(data) ? data : [])
+    try {
+      const r = await fetch(`/api/evaluaciones/pesajes?jugador_id=${jugador.id}`)
+      if (!r.ok) { setHistorial([]); setLoading(false); return }
+      const data = await r.json()
+      setHistorial(Array.isArray(data) ? data : [])
+    } catch {
+      setHistorial([])
+    }
     setLoading(false)
   }, [jugador.id])
 
@@ -290,9 +295,14 @@ function CMJPanel({ jugador }: { jugador: Jugador }) {
 
   const load = useCallback(async () => {
     setLoading(true)
-    const r = await fetch(`/api/evaluaciones/cmj?jugador_id=${jugador.id}`)
-    const data = await r.json()
-    setHistorial(Array.isArray(data) ? data : [])
+    try {
+      const r = await fetch(`/api/evaluaciones/cmj?jugador_id=${jugador.id}`)
+      if (!r.ok) { setHistorial([]); setLoading(false); return }
+      const data = await r.json()
+      setHistorial(Array.isArray(data) ? data : [])
+    } catch {
+      setHistorial([])
+    }
     setLoading(false)
   }, [jugador.id])
 
@@ -431,9 +441,14 @@ function IsometricoPanel({ jugador }: { jugador: Jugador }) {
 
   const load = useCallback(async () => {
     setLoading(true)
-    const r = await fetch(`/api/evaluaciones/isometrico?jugador_id=${jugador.id}&grupo=${encodeURIComponent(grupo)}`)
-    const data = await r.json()
-    setHistorial(Array.isArray(data) ? data : [])
+    try {
+      const r = await fetch(`/api/evaluaciones/isometrico?jugador_id=${jugador.id}&grupo=${encodeURIComponent(grupo)}`)
+      if (!r.ok) { setHistorial([]); setLoading(false); return }
+      const data = await r.json()
+      setHistorial(Array.isArray(data) ? data : [])
+    } catch {
+      setHistorial([])
+    }
     setLoading(false)
   }, [jugador.id, grupo])
 
@@ -623,9 +638,14 @@ export default function EvaluacionesPanel({ teamData }: { teamData: TeamPlayer[]
 
   const loadJugador = useCallback(async (id: number) => {
     setLoadingJugador(true)
-    const r = await fetch(`/api/evaluaciones/variables?jugador_id=${id}`)
-    const data = await r.json()
-    setJugadorData(data)
+    try {
+      const r = await fetch(`/api/evaluaciones/variables?jugador_id=${id}`)
+      if (!r.ok) { setJugadorData(null); setLoadingJugador(false); return }
+      const data = await r.json()
+      setJugadorData(data)
+    } catch {
+      setJugadorData(null)
+    }
     setLoadingJugador(false)
   }, [])
 

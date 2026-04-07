@@ -95,7 +95,6 @@ const BACK_ZONES = [
   { id:'tobillo_d', label:'Tobillo Der.',    cx:79,  cy:350, r:10 },
   { id:'tobillo_i', label:'Tobillo Izq.',    cx:121, cy:350, r:10 },
 ]
-const OTRO_SENTINEL = '__otro__'
 
 // Stroke config
 const ST = { stroke:'#8899aa', strokeWidth:'1', fill:'none' }
@@ -350,15 +349,9 @@ function MuscleBack() {
   )
 }
 
-function BodyMap({ onSelect, selected, otroDesc, onOtroDesc }) {
+function BodyMap({ onSelect, selected }) {
   const [side, setSide] = useState('front')
   const zones = side === 'front' ? FRONT_ZONES : BACK_ZONES
-
-  function switchSide(s: string) {
-    setSide(s as any)
-    // Reset selection when switching views — zone circles are at different positions
-    onSelect(null)
-  }
 
   function handleSVGClick(e) {
     const svg = e.currentTarget
@@ -381,7 +374,7 @@ function BodyMap({ onSelect, selected, otroDesc, onOtroDesc }) {
     <div>
       <div style={{ display:'flex', gap:8, marginBottom:12 }}>
         {[['front','Vista Frontal'],['back','Vista Trasera']].map(([s,l]) => (
-          <button key={s} type="button" onClick={() => switchSide(s)} style={{
+          <button key={s} type="button" onClick={() => setSide(s as any)} style={{
             flex:1, padding:'8px', borderRadius:8, cursor:'pointer', fontSize:12, fontWeight:600,
             border: side===s ? '2px solid #ef4444' : '1px solid var(--fog)',
             background: side===s ? 'rgba(239,68,68,.1)' : 'var(--ink2)',
@@ -448,44 +441,11 @@ function BodyMap({ onSelect, selected, otroDesc, onOtroDesc }) {
                 transition:'all .1s',
               }}>{z.label}</button>
             ))}
-            {/* Botón "Otro" */}
-            <button type="button" onClick={() => onSelect(OTRO_SENTINEL)} style={{
-              padding:'5px 10px', borderRadius:7, fontSize:11, cursor:'pointer', textAlign:'left',
-              border: selected===OTRO_SENTINEL ? '1px solid #a78bfa' : '1px solid var(--fog)',
-              background: selected===OTRO_SENTINEL ? 'rgba(167,139,250,.15)' : 'transparent',
-              color: selected===OTRO_SENTINEL ? '#a78bfa' : 'var(--silver)',
-              fontWeight: selected===OTRO_SENTINEL ? 600 : 400,
-              transition:'all .1s',
-            }}>✏ Otro</button>
           </div>
-          {selected === OTRO_SENTINEL && (
-            <div style={{ marginTop:8 }}>
-              <textarea
-                autoFocus
-                placeholder="Describí dónde sentís el dolor o molestia..."
-                value={otroDesc}
-                onChange={e => onOtroDesc(e.target.value)}
-                rows={3}
-                style={{
-                  width:'100%', boxSizing:'border-box',
-                  background:'var(--ink2)', border:'1px solid rgba(167,139,250,.4)',
-                  borderRadius:8, padding:'8px 10px', fontSize:12,
-                  color:'var(--snow)', resize:'vertical', outline:'none',
-                  lineHeight:1.5,
-                }}
-              />
-            </div>
-          )}
-          {selected && selected !== OTRO_SENTINEL && (
+          {selected && (
             <div style={{ marginTop:8, padding:'8px 10px', background:'rgba(239,68,68,.08)', border:'1px solid rgba(239,68,68,.25)', borderRadius:8 }}>
               <p style={{ fontSize:12, color:'#f87171', fontWeight:600, marginBottom:3 }}>📍 {selected}</p>
               <button type="button" onClick={() => onSelect(null)} style={{ fontSize:10, color:'var(--silver)', background:'none', border:'none', cursor:'pointer' }}>× Limpiar</button>
-            </div>
-          )}
-          {selected === OTRO_SENTINEL && (
-            <div style={{ marginTop:6, display:'flex', alignItems:'center', gap:8 }}>
-              <span style={{ fontSize:11, color:'#a78bfa' }}>✏ Zona personalizada</span>
-              <button type="button" onClick={() => { onSelect(null); onOtroDesc('') }} style={{ fontSize:10, color:'var(--silver)', background:'none', border:'none', cursor:'pointer' }}>× Limpiar</button>
             </div>
           )}
         </div>
@@ -554,7 +514,6 @@ export default function WellnessForm({ jugadorId, onSuccess, todayWellness }) {
   const [vals, setVals] = useState({ fatiga:null, calidad_sueno:null, dolor_muscular:null, nivel_estres:null, estado_animo:null })
   const [tqr, setTqr] = useState(null)
   const [zonaSeleccionada, setZonaSeleccionada] = useState(null)
-  const [otroDescripcion, setOtroDescripcion] = useState('')
   const [dolorEva, setDolorEva] = useState(null)
   const [entrenaGrupo, setEntrenaGrupo] = useState(null)
   const [fueGimnasio, setFueGimnasio] = useState(null)
@@ -568,10 +527,9 @@ export default function WellnessForm({ jugadorId, onSuccess, todayWellness }) {
   // Mostrar mapa corporal cuando dolor >= 2 (algo de dolor)
   const showBodyMap = vals.dolor_muscular !== null && vals.dolor_muscular >= 2
   // Mostrar EVA cuando se seleccionó zona
-  const showEVA = showBodyMap && zonaSeleccionada !== null && zonaSeleccionada !== 'Ningún dolor' && zonaSeleccionada !== OTRO_SENTINEL
-  const isOtro = showBodyMap && zonaSeleccionada === OTRO_SENTINEL
+  const showEVA = showBodyMap && zonaSeleccionada !== null
 
-  const allFilled = Object.values(vals).every(v => v !== null) && tqr !== null && entrenaGrupo !== null && fueGimnasio !== null && (!showBodyMap || zonaSeleccionada !== null || vals.dolor_muscular < 2) && (!showEVA || dolorEva !== null) && (!isOtro || otroDescripcion.trim().length > 0)
+  const allFilled = Object.values(vals).every(v => v !== null) && tqr !== null && entrenaGrupo !== null && fueGimnasio !== null && (!showBodyMap || zonaSeleccionada !== null || vals.dolor_muscular < 2) && (!showEVA || dolorEva !== null)
 
   const filledCount = Object.values(vals).filter(v=>v!==null).length + (tqr?1:0) + (entrenaGrupo!==null?1:0) + (fueGimnasio!==null?1:0)
   const totalFields = 5 + 1 + 1 + 1 // wellness + tqr + entrena + gimnasio
@@ -585,7 +543,7 @@ export default function WellnessForm({ jugadorId, onSuccess, todayWellness }) {
         method:'POST', headers:{'Content-Type':'application/json'},
         body: JSON.stringify({
           jugador_id:jugadorId, ...vals,
-          dolor_zona: (zonaSeleccionada && zonaSeleccionada !== 'Ningún dolor') ? (zonaSeleccionada === OTRO_SENTINEL ? `Otro: ${otroDescripcion.trim()}` : zonaSeleccionada) : null,
+          dolor_zona: zonaSeleccionada||null,
           dolor_eva: dolorEva,
           tqr, recovery: tqr,
           entrena_grupo:entrenaGrupo,
@@ -630,7 +588,7 @@ export default function WellnessForm({ jugadorId, onSuccess, todayWellness }) {
             <div style={{ marginTop:14 }}>
               <div style={{ background:'var(--ink3)', border:'1px solid rgba(239,68,68,.2)', borderRadius:12, padding:16, marginBottom: showEVA ? 12 : 0 }}>
                 <p style={{ fontSize:11, fontWeight:700, color:'#f87171', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:12 }}>📍 ¿En qué parte sentís dolor o molestia?</p>
-                <BodyMap onSelect={(z) => { setZonaSeleccionada(z); if (!z) { setDolorEva(null); setOtroDescripcion('') } }} selected={zonaSeleccionada} otroDesc={otroDescripcion} onOtroDesc={setOtroDescripcion} />
+                <BodyMap onSelect={(z) => { setZonaSeleccionada(z); if (!z) setDolorEva(null) }} selected={zonaSeleccionada} />
               </div>
               {/* EVA aparece cuando hay zona seleccionada */}
               {showEVA && <EVAScale value={dolorEva} onChange={setDolorEva} />}
