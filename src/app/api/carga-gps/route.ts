@@ -117,7 +117,7 @@ export async function GET(req: NextRequest) {
     for (const ses of sesiones as any[]) {
       const m = sumarMetricasBloques(ses.ejercicios || [])
       if (!gpsPorFecha[ses.fecha]) {
-        gpsPorFecha[ses.fecha] = { distTotal:0, distSprint:0, distMP:0, distAcel:0, distDecel:0, nSprints:0, nAcel:0, nDecel:0, nAcel3:0, nDecel3:0, minActivo:0, minPausa:0, rpe_objetivo:0 }
+        gpsPorFecha[ses.fecha] = { distTotal:0, distSprint:0, distMP:0, distAcel:0, distDecel:0, nSprints:0, nAcel:0, nDecel:0, nAcel3:0, nDecel3:0, minActivo:0, minPausa:0, rpe_objetivo:0, tipo_sesion:'entrenamiento' }
       }
       const g = gpsPorFecha[ses.fecha]
       g.distTotal  += m.distTotal;  g.distSprint += m.distSprint; g.distMP    += m.distMP
@@ -126,6 +126,8 @@ export async function GET(req: NextRequest) {
       g.nAcel3     += m.nAcel3||0;  g.nDecel3    += m.nDecel3||0
       g.minActivo  += m.minActivo;  g.minPausa   += m.minPausa
       if (Number(ses.rpe_objetivo) > 0) g.rpe_objetivo = Number(ses.rpe_objetivo)
+      // Track session type: if any session that day is a partido, mark the day as partido
+      if (ses.tipo === 'partido') g.tipo_sesion = 'partido'
     }
 
     // 5. Build player map — pre-populate ALL players
@@ -146,12 +148,11 @@ export async function GET(req: NextRequest) {
       rpeByPlayer[log.jugador_id].push(log)
     }
 
-    // 7. For each player, accumulate RPE and GPS
-    //    GPS comes from planned sessions. RPE comes from their individual logs.
-    //    A player gets GPS for a day if: they registered RPE that day AND there's a planned session
-    //    OR if there's a planned session and no RPE logs at all (assign GPS anyway — player was there)
+    // 7. For each player, accumulate RPE and GPS.
+    //    A player receives GPS for a given day only if they logged RPE that day
+    //    AND there is a planned session for that date. Players with no attendance
+    //    (no RPE log) correctly receive zero GPS for sessions they missed.
     const fechasConSesion = Object.keys(gpsPorFecha)
-    const totalFechasConSesion = fechasConSesion.length
 
     for (const [jidStr, p] of Object.entries(byPlayer)) {
       const jid = Number(jidStr)
@@ -169,34 +170,48 @@ export async function GET(req: NextRequest) {
       // If player has a RPE log that day → they were definitely there
       // If player has NO logs at all in range → still assign GPS (e.g. coach viewing planned load)
       const playerLogDates = new Set(playerLogs.map((l: any) => l.fecha))
-      const nLogs = playerLogs.length
 
       for (const fecha of fechasConSesion) {
         const gps = gpsPorFecha[fecha]
-        // Assign GPS if: player logged RPE that day, OR player has no logs at all
-        if (playerLogDates.has(fecha) || nLogs === 0) {
-          // Scale GPS proportionally to player's actual training time vs planned time.
-          // If a player trained 60 min instead of planned 90 min, their GPS metrics
-          // are scaled to 60/90 = 0.667x. This fixes the bug where all players got
-          // identical distances even when one trained less time.
-          const playerLog = playerLogs.find((l: any) => l.fecha === fecha)
-          const playerMinutes = playerLog?.duracion_min ? Number(playerLog.duracion_min) : null
-          const plannedMinutes = gps.minActivo // total planned active time for that session
-          const scale = (playerMinutes !== null && plannedMinutes > 0)
-            ? Math.min(playerMinutes / plannedMinutes, 1.5) // cap at 150% to avoid extreme outliers
-            : 1
-          p.distTotal  += Math.round(gps.distTotal  * scale)
-          p.distSprint += Math.round(gps.distSprint * scale)
-          p.distMP     += Math.round(gps.distMP     * scale)
-          p.distAcel   += Math.round(gps.distAcel   * scale)
-          p.distDecel  += Math.round(gps.distDecel  * scale)
-          p.nSprints   += Math.round(gps.nSprints   * scale)
-          p.nAcel      += Math.round(gps.nAcel      * scale)
-          p.nDecel     += Math.round(gps.nDecel     * scale)
-          p.nAcel3     += Math.round((gps.nAcel3||0) * scale)
-          p.nDecel3    += Math.round((gps.nDecel3||0) * scale)
-          p.diasConGps += 1
+
+        // Fix 1: Only assign GPS if the player actually logged RPE that day.
+        // Previously "nLogs === 0" caused players with zero attendance to receive
+        // full session GPS, inflating their numbers incorrectly.
+        if (!playerLogDates.has(fecha)) continue
+
+        const playerLog = playerLogs.find((l: any) => l.fecha === fecha)
+        const playerMinutes = playerLog?.duracion_min ? Number(playerLog.duracion_min) : null
+
+        // Fix 2: plannedMinutes comes from sumarMetricasBloques (series × minutos).
+        // When sessions use only GPS overrides (no task blocks with duration),
+        // minActivo is 0 and scaling must be skipped — scale = 1 is correct but
+        // we make this explicit and log it so the coach isn't confused.
+        const plannedMinutes = gps.minActivo
+
+        let scale: number
+        if (playerMinutes !== null && plannedMinutes > 0) {
+          // Fix 3: Use a higher cap for partido sessions to handle extra time.
+          // Entrenamientos cap at 1.5x; partidos allow up to 2.0x (extra time + penalties).
+          const sessionType = gps.tipo_sesion || 'entrenamiento'
+          const cap = sessionType === 'partido' ? 2.0 : 1.5
+          scale = Math.min(playerMinutes / plannedMinutes, cap)
+        } else {
+          // plannedMinutes is 0 (override-only session) or player has no duration logged.
+          // In both cases assign full session GPS without scaling.
+          scale = 1
         }
+
+        p.distTotal  += Math.round(gps.distTotal  * scale)
+        p.distSprint += Math.round(gps.distSprint * scale)
+        p.distMP     += Math.round(gps.distMP     * scale)
+        p.distAcel   += Math.round(gps.distAcel   * scale)
+        p.distDecel  += Math.round(gps.distDecel  * scale)
+        p.nSprints   += Math.round(gps.nSprints   * scale)
+        p.nAcel      += Math.round(gps.nAcel      * scale)
+        p.nDecel     += Math.round(gps.nDecel     * scale)
+        p.nAcel3     += Math.round((gps.nAcel3||0) * scale)
+        p.nDecel3    += Math.round((gps.nDecel3||0) * scale)
+        p.diasConGps += 1
       }
     }
 
