@@ -338,6 +338,15 @@ function CMJPanel({ jugador }: { jugador: Jugador }) {
     load()
   }
 
+  // Recalcula el baseline al registro con mayor promedio
+  const handleRecalcularBaseline = async () => {
+    if (historial.length === 0) return
+    const mejor = historial.reduce((prev, cur) =>
+      Number(cur.promedio_cm) > Number(prev.promedio_cm) ? cur : prev
+    )
+    await handleSetBaseline(mejor.id)
+  }
+
   const handleDelete = async (id: number) => {
     await fetch(`/api/evaluaciones/cmj?id=${id}`, { method: 'DELETE' })
     load()
@@ -351,11 +360,26 @@ function CMJPanel({ jugador }: { jugador: Jugador }) {
       <div style={{
         background: '#1e293b', borderRadius: 10, padding: '10px 14px',
         marginBottom: 16, fontSize: 12, color: '#64748b', border: '1px solid #334155', lineHeight: 1.6,
+        display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12,
       }}>
-        📋 <strong style={{ color: '#94a3b8' }}>Protocolo:</strong> 3 saltos máximos. El <strong style={{ color: '#a3e635' }}>baseline</strong> se actualiza automáticamente al{' '}
-        <strong style={{ color: '#a3e635' }}>mejor promedio registrado</strong> — si el jugador mejora, el baseline sube.
-        Se marca <strong style={{ color: '#ef4444' }}>fatiga</strong> si la pérdida vs baseline supera el <strong>10%</strong>.
-        Podés cambiar el baseline manualmente con ⚑.
+        <div>
+          📋 <strong style={{ color: '#94a3b8' }}>Protocolo:</strong> 3 saltos máximos. El <strong style={{ color: '#a3e635' }}>baseline</strong> se actualiza automáticamente al{' '}
+          <strong style={{ color: '#a3e635' }}>mejor promedio registrado</strong> — si el jugador mejora, el baseline sube.
+          Se marca <strong style={{ color: '#ef4444' }}>fatiga</strong> si la pérdida vs baseline supera el <strong>10%</strong>.
+          Podés cambiar el baseline manualmente con ⚑.
+        </div>
+        {historial.length > 0 && (
+          <button
+            onClick={handleRecalcularBaseline}
+            style={{
+              flexShrink: 0, background: '#a3e63518', border: '1px solid #a3e63544',
+              color: '#a3e635', borderRadius: 8, padding: '6px 12px', fontSize: 11,
+              fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', letterSpacing: '0.03em',
+            }}
+          >
+            ↺ Recalcular baseline
+          </button>
+        )}
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '160px repeat(3, 100px) 1fr auto', gap: 10, alignItems: 'end', marginBottom: 8 }}>
@@ -723,14 +747,18 @@ function CMJChart({ historial }: { historial: any[] }) {
         {perdidas.map((perd, i) => {
           if (perd === null || pts[i]?.es_baseline) return null
           const cx  = tx(i)
-          const barH = Math.min((perd / maxPerd) * (innerH * 0.35), innerH * 0.35)
+          // perd puede ser negativo si el jugador mejoró (promedio > baseline)
+          const absPerd = Math.abs(perd)
+          const barH = Math.max(0, Math.min((absPerd / maxPerd) * (innerH * 0.35), innerH * 0.35))
           const barY = H - pB - barH
-          const col  = perd > 10 ? '#ef4444' : perd > 5 ? '#facc15' : '#22c55e'
+          // negativo = mejora (verde brillante), positivo = pérdida
+          const col = perd < 0 ? '#22c55e' : perd > 10 ? '#ef4444' : perd > 5 ? '#facc15' : '#22c55e'
+          const label = perd < 0 ? `+${absPerd.toFixed(1)}%` : `${perd.toFixed(1)}%`
           return (
             <g key={`p${i}`}>
-              <rect x={cx - 6} y={barY} width={12} height={barH} fill={col} opacity={0.25} rx={2} />
-              <text x={cx} y={barY - 3} textAnchor="middle" fontSize={8} fontWeight={700} fill={col}>
-                {perd.toFixed(1)}%
+              {barH > 0 && <rect x={cx - 6} y={barY} width={12} height={barH} fill={col} opacity={0.25} rx={2} />}
+              <text x={cx} y={barH > 0 ? barY - 3 : H - pB - 3} textAnchor="middle" fontSize={8} fontWeight={700} fill={col}>
+                {label}
               </text>
             </g>
           )
