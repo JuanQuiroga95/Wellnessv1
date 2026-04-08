@@ -2258,12 +2258,12 @@ function SesionEditor({ sesion, defaultFecha, onSave, onDelete, onCancel, teamPl
                     <button
                       key={t.id} type="button"
                       onClick={() => addBloqueFromBiblioteca(t)}
-                      style={{ display:'flex', alignItems:'flex-start', gap:12, padding:'10px 12px', borderRadius:8, background:'var(--ink2)', border:'1px solid var(--mist)', cursor:'pointer', textAlign:'left', transition:'border-color .12s' }}
+                      style={{ display:'flex', alignItems:'center', gap:10, padding:'8px 12px', borderRadius:8, background:'var(--ink2)', border:'1px solid var(--mist)', cursor:'pointer', textAlign:'left', transition:'border-color .12s' }}
                       onMouseEnter={e=>e.currentTarget.style.borderColor='var(--lime)'}
                       onMouseLeave={e=>e.currentTarget.style.borderColor='var(--mist)'}
                     >
                       {t.imagen && (
-                        <img src={t.imagen} alt="" style={{ width:132, height:132, objectFit:'contain', borderRadius:8, background:'var(--ink3)', flexShrink:0 }} />
+                        <img src={t.imagen} alt="" style={{ width:44, height:44, objectFit:'contain', borderRadius:6, background:'var(--ink3)', flexShrink:0 }} />
                       )}
                       <div style={{ flex:1, minWidth:0 }}>
                         <div style={{ display:'flex', alignItems:'center', gap:6, flexWrap:'wrap' }}>
@@ -3389,9 +3389,25 @@ function ComparativaPanel({ teamData }: { teamData: any[] }) {
   // Get unique positions
   const positions = ['todas', ...Array.from(new Set(merged.map(p => p.posicion).filter(Boolean).sort()))]
 
+  // Position order for consistent grouping
+  const POS_ORDER_MAP: Record<string,number> = {
+    'Portero':1, 'Defensa Central':2, 'Lateral Derecho':3, 'Lateral Izquierdo':3,
+    'Mediocentro Defensivo':4, 'Mediocentro':5, 'Mediocentro Ofensivo':6,
+    'Volante Derecho':7, 'Volante Izquierdo':7, 'Volante':7,
+    'Extremo Derecho':8, 'Extremo Izquierdo':8,
+    'Centro Delantero':9, 'Delantero':9,
+  }
+
   const filtered = merged
     .filter(p => posFilter === 'todas' || p.posicion === posFilter)
     .sort((a, b) => {
+      // When showing all, group by position first
+      if (posFilter === 'todas') {
+        const pa = POS_ORDER_MAP[a.posicion] ?? 99
+        const pb = POS_ORDER_MAP[b.posicion] ?? 99
+        if (pa !== pb) return pa - pb
+      }
+      // Within same position (or single position filter), sort by metric
       const va = Number(a[sortKey]) || 0
       const vb = Number(b[sortKey]) || 0
       return sortDir === 'desc' ? vb - va : va - vb
@@ -3526,28 +3542,42 @@ function ComparativaPanel({ teamData }: { teamData: any[] }) {
                   const sorted = [...samePos].sort((a,b)=>(Number(b[key])||0)-(Number(a[key])||0))
                   return sorted.findIndex(x=>x.jugador_id===p.jugador_id) + 1
                 }
+                // Show position group header when position changes (only in "todas" view)
+                const showGroupHeader = posFilter === 'todas' && (i === 0 || filtered[i-1].posicion !== p.posicion)
                 return (
-                  <tr key={i} style={{ borderTop:'1px solid var(--mist)', background:i%2===0?'transparent':'rgba(255,255,255,.015)' }}>
-                    <td style={{ padding:'8px 14px', color:'var(--snow)', fontWeight:500, whiteSpace:'nowrap' }}>{p.nombre}</td>
-                    <td style={{ padding:'8px 8px' }}>
-                      <span style={{ fontSize:10, padding:'2px 6px', borderRadius:4, background:`${posColor(p.posicion)}18`, color:posColor(p.posicion), fontWeight:600 }}>{p.posicion||'—'}</span>
-                    </td>
-                    {VARS.map(v=>{
-                      const val = Number(p[v.key]) || 0
-                      const rank = rankInPos(v.key)
-                      const total = samePos.filter(x=>(Number(x[v.key])||0)>0).length
-                      return (
-                        <td key={v.key} style={{ padding:'8px 8px', textAlign:'center' }}>
-                          {val > 0 ? (
-                            <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:1 }}>
-                              <span style={{ fontFamily:'DM Mono,monospace', fontWeight:600, color:v.color }}>{val}</span>
-                              {total > 1 && <span style={{ fontSize:8, color:rank===1?'#22c55e':rank<=2?'#f59e0b':'var(--fog)' }}>#{rank}/{total}</span>}
-                            </div>
-                          ) : <span style={{ color:'var(--fog)' }}>—</span>}
+                  <>
+                    {showGroupHeader && (
+                      <tr key={`header-${p.posicion}`}>
+                        <td colSpan={VARS.length + 2} style={{ padding:'10px 14px 4px', background:'rgba(255,255,255,.02)', borderTop: i>0?'2px solid var(--mist)':'none' }}>
+                          <span style={{ fontSize:9, fontWeight:800, color:posColor(p.posicion), textTransform:'uppercase', letterSpacing:'0.1em' }}>
+                            {p.posicion || 'Sin posición'}
+                            <span style={{ marginLeft:6, color:'var(--fog)', fontWeight:400 }}>({samePos.length} jugador{samePos.length!==1?'es':''})</span>
+                          </span>
                         </td>
-                      )
-                    })}
-                  </tr>
+                      </tr>
+                    )}
+                    <tr key={i} style={{ borderTop:'1px solid var(--mist)', background:i%2===0?'transparent':'rgba(255,255,255,.015)' }}>
+                      <td style={{ padding:'8px 14px', color:'var(--snow)', fontWeight:500, whiteSpace:'nowrap' }}>{p.nombre}</td>
+                      <td style={{ padding:'8px 8px' }}>
+                        <span style={{ fontSize:10, padding:'2px 6px', borderRadius:4, background:`${posColor(p.posicion)}18`, color:posColor(p.posicion), fontWeight:600 }}>{p.posicion||'—'}</span>
+                      </td>
+                      {VARS.map(v=>{
+                        const val = Number(p[v.key]) || 0
+                        const rank = rankInPos(v.key)
+                        const total = samePos.filter(x=>(Number(x[v.key])||0)>0).length
+                        return (
+                          <td key={v.key} style={{ padding:'8px 8px', textAlign:'center' }}>
+                            {val > 0 ? (
+                              <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:1 }}>
+                                <span style={{ fontFamily:'DM Mono,monospace', fontWeight:600, color:v.color }}>{val}</span>
+                                {total > 1 && <span style={{ fontSize:8, color:rank===1?'#22c55e':rank<=2?'#f59e0b':'var(--fog)' }}>#{rank}/{total}</span>}
+                              </div>
+                            ) : <span style={{ color:'var(--fog)' }}>—</span>}
+                          </td>
+                        )
+                      })}
+                    </tr>
+                  </>
                 )
               })}
             </tbody>
