@@ -101,7 +101,7 @@ export default function CoachClient({ session, teamData, today }) {
   const [playerWellness, setPlayerWellness] = useState([])
   const [loadingDetail, setLoadingDetail] = useState(false)
   const [showNew, setShowNew] = useState(false)
-  const [ciclo, setCiclo] = useState('microciclo')
+  const [showImport, setShowImport] = useState(false)
   const [clubLogo, setClubLogo] = useState<string|null>(null)
   const [logoSaving, setLogoSaving] = useState<'idle'|'saving'|'ok'|'error'>('idle')
   const [teamName, setTeamName] = useState<string>('PLANTEL')
@@ -331,11 +331,21 @@ export default function CoachClient({ session, teamData, today }) {
 
         {tab==='players' && (
           <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
-            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:10 }}>
               <h2 className="display" style={{ fontSize:48, color:'var(--snow)' }}>JUGADORES</h2>
-              <button className="btn-lime" onClick={()=>setShowNew(true)} style={{ fontSize:13, padding:'10px 20px' }}>+ Nuevo jugador</button>
+              <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+                <a href="/api/players/template" download="plantilla_jugadores.xlsx"
+                  style={{ display:'inline-flex', alignItems:'center', gap:7, fontSize:13, padding:'10px 18px', borderRadius:10, background:'rgba(200,241,53,.08)', border:'1px solid rgba(200,241,53,.25)', color:'var(--lime)', textDecoration:'none', fontWeight:600, cursor:'pointer' }}>
+                  📥 Bajar plantilla
+                </a>
+                <button className="btn-ghost" style={{ fontSize:13, padding:'10px 18px' }} onClick={()=>setShowImport(v=>!v)}>
+                  📤 Importar plantel
+                </button>
+                <button className="btn-lime" onClick={()=>setShowNew(true)} style={{ fontSize:13, padding:'10px 20px' }}>+ Nuevo jugador</button>
+              </div>
             </div>
             <CoachEmailSettings />
+            {showImport && <BulkImportPanel onSuccess={()=>{ setShowImport(false); router.refresh() }} onCancel={()=>setShowImport(false)} />}
             {showNew && <NewPlayerForm onSuccess={()=>{ setShowNew(false); router.refresh() }} onCancel={()=>setShowNew(false)} />}
             <div style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:16, overflow:'hidden' }}>
               {teamData.length===0
@@ -3846,6 +3856,258 @@ function NewLesionForm({ teamData, onSuccess, onCancel }) {
           <button type="submit" className="btn-lime" style={{ flex:1 }} disabled={loading}>{loading?'Registrando...':'Registrar lesión →'}</button>
         </div>
       </form>
+    </div>
+  )
+}
+
+// ══ BULK IMPORT PANEL ════════════════════════════════════════════════════════
+const IMPORT_COLS = [
+  { key:'posicion',         label:'Posición' },
+  { key:'edad',             label:'Edad' },
+  { key:'peso_kg',          label:'Peso (kg)' },
+  { key:'estatura_cm',      label:'Estatura (cm)' },
+  { key:'pie_habil',        label:'Pie Hábil' },
+  { key:'email',            label:'Email' },
+  { key:'fecha_nacimiento', label:'Fecha Nacimiento' },
+  { key:'peso_ideal_min',   label:'Peso Ideal Mín' },
+  { key:'peso_ideal_max',   label:'Peso Ideal Máx' },
+]
+
+function BulkImportPanel({ onSuccess, onCancel }: { onSuccess: ()=>void; onCancel: ()=>void }) {
+  const [step, setStep]           = useState<'config'|'preview'|'done'>('config')
+  const [selectedCols, setSelectedCols] = useState<string[]>(IMPORT_COLS.map(c=>c.key))
+  const [file, setFile]           = useState<File|null>(null)
+  const [parsing, setParsing]     = useState(false)
+  const [preview, setPreview]     = useState<any[]>([])
+  const [parseErrors, setParseErrors] = useState<string[]>([])
+  const [saving, setSaving]       = useState(false)
+  const [result, setResult]       = useState<any>(null)
+  const [dragOver, setDragOver]   = useState(false)
+
+  function toggleCol(key: string) {
+    setSelectedCols(prev => prev.includes(key) ? prev.filter(k=>k!==key) : [...prev, key])
+  }
+
+  function buildTemplateUrl() {
+    const cols = selectedCols.join(',')
+    return `/api/players/template?cols=${cols}`
+  }
+
+  async function handleFile(f: File) {
+    setFile(f); setParsing(true); setParseErrors([]); setPreview([])
+    try {
+      const XLSX = await import('xlsx')
+      const buf = await f.arrayBuffer()
+      const wb = XLSX.read(buf, { type:'array', cellDates:false })
+      const ws = wb.Sheets[wb.SheetNames[0]]
+      const raw: any[][] = XLSX.utils.sheet_to_json(ws, { header:1, defval:null, raw:true }) as any[][]
+
+      const res = await fetch('/api/players/import', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ rows: raw, confirm: false }),
+      })
+      const d = await res.json()
+      if (!res.ok) { setParseErrors([d.error||'Error al parsear', ...(d.parse_errors||[])]); setParsing(false); return }
+      setPreview(d.players||[])
+      setParseErrors(d.parse_errors||[])
+      setStep('preview')
+    } catch(e: any) {
+      setParseErrors([String(e?.message||e)])
+    }
+    setParsing(false)
+  }
+
+  async function confirmar() {
+    if (!file) return
+    setSaving(true)
+    try {
+      const XLSX = await import('xlsx')
+      const buf = await file.arrayBuffer()
+      const wb = XLSX.read(buf, { type:'array', cellDates:false })
+      const ws = wb.Sheets[wb.SheetNames[0]]
+      const raw: any[][] = XLSX.utils.sheet_to_json(ws, { header:1, defval:null, raw:true }) as any[][]
+
+      const res = await fetch('/api/players/import', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ rows: raw, confirm: true }),
+      })
+      const d = await res.json()
+      setResult(d)
+      setStep('done')
+    } catch(e: any) {
+      setResult({ ok:false, error: String(e?.message||e) })
+      setStep('done')
+    }
+    setSaving(false)
+  }
+
+  const inputStyle = { background:'var(--ink3)', border:'1px solid var(--mist)', borderRadius:8, padding:'7px 12px', fontSize:12, color:'var(--snow)', outline:'none', width:'100%' }
+  const sectionTitle = (t: string) => <p style={{ fontSize:10, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:10 }}>{t}</p>
+
+  return (
+    <div style={{ background:'var(--ink2)', border:'1px solid rgba(200,241,53,.2)', borderRadius:14, padding:24 }} className="anim-up">
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:18 }}>
+        <p style={{ fontSize:13, fontWeight:700, color:'var(--lime)', textTransform:'uppercase', letterSpacing:'0.06em' }}>
+          📤 Importación masiva de jugadores
+        </p>
+        <button onClick={onCancel} style={{ background:'transparent', border:'none', cursor:'pointer', color:'var(--silver)', fontSize:18, lineHeight:1 }}>✕</button>
+      </div>
+
+      {/* Step indicator */}
+      <div style={{ display:'flex', gap:0, marginBottom:20 }}>
+        {(['config','preview','done'] as const).map((s,i)=>(
+          <div key={s} style={{ display:'flex', alignItems:'center', flex:1 }}>
+            <div style={{ display:'flex', alignItems:'center', gap:7, flex:1 }}>
+              <div style={{ width:22, height:22, borderRadius:'50%', background: step===s?'var(--lime)': (i<(['config','preview','done'] as const).indexOf(step)?'rgba(200,241,53,.3)':'var(--mist)'), color: step===s?'var(--ink)':'var(--silver)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:10, fontWeight:700, flexShrink:0 }}>
+                {i+1}
+              </div>
+              <span style={{ fontSize:10, fontWeight:600, color: step===s?'var(--lime)':'var(--fog)', textTransform:'uppercase', letterSpacing:'0.06em' }}>
+                {s==='config'?'Configurar':s==='preview'?'Preview':'Resultado'}
+              </span>
+              {i<2 && <div style={{ flex:1, height:1, background:'var(--mist)', margin:'0 8px' }}/>}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* ── STEP 1: Config ── */}
+      {step==='config' && (
+        <div>
+          {sectionTitle('1. Elegí las columnas que querés en la plantilla')}
+          <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginBottom:20 }}>
+            {IMPORT_COLS.map(c=>(
+              <button key={c.key} onClick={()=>toggleCol(c.key)}
+                style={{ fontSize:11, padding:'5px 12px', borderRadius:20, cursor:'pointer', fontWeight:600, transition:'all .12s',
+                  border:`1px solid ${selectedCols.includes(c.key)?'var(--lime)':'var(--fog)'}`,
+                  background: selectedCols.includes(c.key)?'rgba(200,241,53,.12)':'transparent',
+                  color: selectedCols.includes(c.key)?'var(--lime)':'var(--silver)' }}>
+                {selectedCols.includes(c.key)?'✓ ':''}{c.label}
+              </button>
+            ))}
+          </div>
+          <p style={{ fontSize:11, color:'var(--fog)', marginBottom:16 }}>
+            Los campos <strong style={{ color:'var(--lime)' }}>Nombre, Usuario y Contraseña</strong> siempre se incluyen.
+          </p>
+
+          <a href={buildTemplateUrl()} download="plantilla_jugadores.xlsx"
+            style={{ display:'inline-flex', alignItems:'center', gap:8, fontSize:13, padding:'10px 20px', borderRadius:10, background:'rgba(200,241,53,.12)', border:'1px solid rgba(200,241,53,.3)', color:'var(--lime)', textDecoration:'none', fontWeight:700, marginBottom:24 }}>
+            📥 Descargar plantilla ({selectedCols.length + 3} columnas)
+          </a>
+
+          <div style={{ borderTop:'1px solid var(--mist)', paddingTop:20 }}>
+            {sectionTitle('2. Completá la planilla y subila acá')}
+            <label
+              onDragOver={e=>{e.preventDefault();setDragOver(true)}}
+              onDragLeave={()=>setDragOver(false)}
+              onDrop={e=>{e.preventDefault();setDragOver(false);const f=e.dataTransfer.files?.[0];if(f)handleFile(f)}}
+              style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:10, cursor:'pointer',
+                background: dragOver?'rgba(200,241,53,.06)':'var(--ink3)',
+                border:`2px dashed ${dragOver?'var(--lime)':'var(--fog)'}`,
+                borderRadius:12, padding:'32px 20px', transition:'all .15s', textAlign:'center' }}>
+              {parsing
+                ? <><span style={{ fontSize:24 }}>⏳</span><span style={{ fontSize:13, color:'var(--silver)' }}>Analizando archivo...</span></>
+                : <><span style={{ fontSize:28 }}>📁</span>
+                    <span style={{ fontSize:13, fontWeight:600, color:'var(--silver)' }}>Arrastrá el xlsx acá o hacé click para seleccionar</span>
+                    <span style={{ fontSize:11, color:'var(--fog)' }}>{file?`📄 ${file.name}`:'Solo archivos .xlsx'}</span></>}
+              <input type="file" accept=".xlsx" style={{ display:'none' }} onChange={e=>{const f=e.target.files?.[0];if(f)handleFile(f)}} />
+            </label>
+            {parseErrors.length>0 && (
+              <div style={{ marginTop:12, background:'rgba(239,68,68,.08)', border:'1px solid rgba(239,68,68,.25)', borderRadius:10, padding:14 }}>
+                <p style={{ fontSize:11, fontWeight:700, color:'#f87171', marginBottom:6 }}>⚠️ Problemas detectados:</p>
+                {parseErrors.map((e,i)=><p key={i} style={{ fontSize:11, color:'#f87171', marginBottom:2 }}>• {e}</p>)}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── STEP 2: Preview ── */}
+      {step==='preview' && (
+        <div>
+          <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:16, flexWrap:'wrap' }}>
+            <div style={{ background:'rgba(200,241,53,.1)', border:'1px solid rgba(200,241,53,.25)', borderRadius:10, padding:'8px 16px', fontSize:13, color:'var(--lime)', fontWeight:700 }}>
+              ✓ {preview.length} jugador{preview.length!==1?'es':''} listos para importar
+            </div>
+            {parseErrors.length>0 && (
+              <div style={{ background:'rgba(239,68,68,.08)', border:'1px solid rgba(239,68,68,.2)', borderRadius:10, padding:'8px 14px', fontSize:12, color:'#f87171' }}>
+                ⚠️ {parseErrors.length} advertencia{parseErrors.length!==1?'s':''}
+              </div>
+            )}
+          </div>
+
+          {parseErrors.length>0 && (
+            <div style={{ background:'rgba(239,68,68,.06)', border:'1px solid rgba(239,68,68,.15)', borderRadius:10, padding:12, marginBottom:14 }}>
+              {parseErrors.map((e,i)=><p key={i} style={{ fontSize:11, color:'#f87171', marginBottom:1 }}>• {e}</p>)}
+            </div>
+          )}
+
+          <div style={{ overflowX:'auto', marginBottom:20, borderRadius:10, border:'1px solid var(--mist)' }}>
+            <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12 }}>
+              <thead>
+                <tr style={{ background:'var(--ink3)' }}>
+                  {['Nombre','Usuario','Posición','Edad','Peso','Estatura','Pie','Email'].map(h=>(
+                    <th key={h} style={{ padding:'8px 12px', textAlign:'left', fontSize:9, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', whiteSpace:'nowrap' }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {preview.map((p,i)=>(
+                  <tr key={i} style={{ borderTop:'1px solid var(--mist)', background:i%2===0?'transparent':'var(--ink3)' }}>
+                    <td style={{ padding:'7px 12px', color:'var(--snow)', fontWeight:600 }}>{p.nombre}</td>
+                    <td style={{ padding:'7px 12px', color:'var(--lime)', fontFamily:'DM Mono,monospace', fontSize:11 }}>@{p.usuario}</td>
+                    <td style={{ padding:'7px 12px', color:'var(--silver)' }}>{p.posicion||'—'}</td>
+                    <td style={{ padding:'7px 12px', color:'var(--silver)' }}>{p.edad||'—'}</td>
+                    <td style={{ padding:'7px 12px', color:'var(--silver)' }}>{p.peso_kg?`${p.peso_kg}kg`:'—'}</td>
+                    <td style={{ padding:'7px 12px', color:'var(--silver)' }}>{p.estatura_cm?`${p.estatura_cm}cm`:'—'}</td>
+                    <td style={{ padding:'7px 12px', color:'var(--silver)' }}>{p.pie_habil||'—'}</td>
+                    <td style={{ padding:'7px 12px', color:'var(--silver)', fontSize:11 }}>{p.email||'—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div style={{ display:'flex', gap:10 }}>
+            <button onClick={()=>setStep('config')} className="btn-ghost" style={{ flex:1, fontSize:13 }}>← Volver</button>
+            <button onClick={confirmar} disabled={saving||preview.length===0} className="btn-lime" style={{ flex:2, fontSize:13 }}>
+              {saving?'Importando...': `✓ Confirmar e importar ${preview.length} jugador${preview.length!==1?'es':''}`}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── STEP 3: Done ── */}
+      {step==='done' && result && (
+        <div style={{ textAlign:'center' }}>
+          {result.ok ? (
+            <>
+              <div style={{ fontSize:48, marginBottom:12 }}>🎉</div>
+              <p style={{ fontSize:18, fontWeight:700, color:'var(--lime)', marginBottom:8 }}>
+                {result.saved} jugador{result.saved!==1?'es':''} importado{result.saved!==1?'s':''}
+              </p>
+              {result.failed>0 && (
+                <div style={{ background:'rgba(239,68,68,.08)', border:'1px solid rgba(239,68,68,.2)', borderRadius:10, padding:14, marginBottom:16, textAlign:'left' }}>
+                  <p style={{ fontSize:11, fontWeight:700, color:'#f87171', marginBottom:6 }}>⚠️ {result.failed} no se pudieron importar:</p>
+                  {result.failed_details?.map((e: string,i: number)=>(
+                    <p key={i} style={{ fontSize:11, color:'#f87171', marginBottom:2 }}>• {e}</p>
+                  ))}
+                </div>
+              )}
+              <button onClick={onSuccess} className="btn-lime" style={{ fontSize:13, padding:'12px 32px', marginTop:8 }}>
+                Ver plantel actualizado →
+              </button>
+            </>
+          ) : (
+            <>
+              <div style={{ fontSize:40, marginBottom:12 }}>❌</div>
+              <p style={{ fontSize:14, color:'#f87171', marginBottom:16 }}>{result.error||'Error al importar'}</p>
+              <button onClick={()=>setStep('config')} className="btn-ghost" style={{ fontSize:13 }}>← Volver a intentar</button>
+            </>
+          )}
+        </div>
+      )}
     </div>
   )
 }
