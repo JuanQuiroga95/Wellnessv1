@@ -123,6 +123,8 @@ export const SCHEMA_STATEMENTS = [
       CREATE UNIQUE INDEX idx_wellness_jugador_fecha_unique ON wellness_logs(jugador_id, fecha);
     END IF;
   END $$`,
-  // ── Biblioteca: intensidad column for ordering ────────────────────────────────
+  // ── Biblioteca: intensidad and objetivo columns for grouping ─────────────────
   `ALTER TABLE biblioteca_tareas ADD COLUMN IF NOT EXISTS intensidad INTEGER`,
+  `ALTER TABLE biblioteca_tareas ADD COLUMN IF NOT EXISTS objetivo VARCHAR(50)`,
+  `ALTER TABLE biblioteca_tareas ADD COLUMN IF NOT EXISTS imagen TEXT`,
 ]

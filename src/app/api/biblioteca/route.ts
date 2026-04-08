@@ -4,16 +4,33 @@ import { getDb } from '@/lib/db'
 import { getSessionFromRequest } from '@/lib/auth'
 function isAdmin(s:any){return s?.rol==='admin'||s?.rol==='master_admin'}
 
+async function ensureCols(sql: any) {
+  try { await sql`ALTER TABLE biblioteca_tareas ADD COLUMN IF NOT EXISTS intensidad INTEGER` } catch {}
+  try { await sql`ALTER TABLE biblioteca_tareas ADD COLUMN IF NOT EXISTS objetivo VARCHAR(50)` } catch {}
+  try { await sql`ALTER TABLE biblioteca_tareas ADD COLUMN IF NOT EXISTS imagen TEXT` } catch {}
+}
+
 export async function GET(req: NextRequest) {
   const s = await getSessionFromRequest(req)
   if (!s||!isAdmin(s)) return NextResponse.json({error:'No autorizado'},{status:403})
   const sql = getDb()
-  // Ensure intensidad column exists (safe migration)
-  try { await sql`ALTER TABLE biblioteca_tareas ADD COLUMN IF NOT EXISTS intensidad INTEGER` } catch {}
+  await ensureCols(sql)
   const rows = await sql`
     SELECT * FROM biblioteca_tareas
     WHERE admin_id=${s.userId}
-    ORDER BY ventana ASC NULLS LAST, intensidad ASC NULLS LAST, veces_usada DESC, created_at DESC
+    ORDER BY
+      CASE WHEN objetivo IS NOT NULL THEN 0 ELSE 1 END,
+      CASE objetivo
+        WHEN 'Fuerza' THEN 1
+        WHEN 'Activación' THEN 2
+        WHEN 'Resistencia' THEN 3
+        WHEN 'Velocidad' THEN 4
+        ELSE 5
+      END,
+      intensidad ASC NULLS LAST,
+      ventana ASC NULLS LAST,
+      veces_usada DESC,
+      created_at DESC
     LIMIT 200
   `
   return NextResponse.json({ tareas: rows })
@@ -24,15 +41,13 @@ export async function POST(req: NextRequest) {
   if (!s||!isAdmin(s)) return NextResponse.json({error:'No autorizado'},{status:403})
   const body = await req.json()
   const sql = getDb()
-  try { await sql`ALTER TABLE biblioteca_tareas ADD COLUMN IF NOT EXISTS intensidad INTEGER` } catch {}
+  await ensureCols(sql)
 
-  // Increment usage counter
   if (body.action === 'usar') {
     await sql`UPDATE biblioteca_tareas SET veces_usada=veces_usada+1 WHERE id=${body.id} AND admin_id=${s.userId}`
     return NextResponse.json({ ok: true })
   }
 
-  // Auto-save from calendar: upsert by (admin_id, nombre, ventana) — don't duplicate
   if (body.action === 'auto_guardar') {
     const tareas: any[] = body.tareas || []
     let guardadas = 0
@@ -40,32 +55,42 @@ export async function POST(req: NextRequest) {
       if (!t.nombre && !t.ventana) continue
       const nombre = String(t.nombre || t.ventana || '').trim().slice(0, 200)
       if (!nombre) continue
-      // Check if already exists (same coach + name + ventana)
       const exists = await sql`
         SELECT id FROM biblioteca_tareas
         WHERE admin_id=${s.userId}
           AND nombre=${nombre}
           AND COALESCE(ventana,'')=COALESCE(${t.ventana||null},'')
         LIMIT 1`
-      if (exists.length > 0) continue // already in biblioteca — skip
+      if (exists.length > 0) {
+        // Update imagen if this run has one and existing doesn't
+        if (t.imagen) {
+          await sql`
+            UPDATE biblioteca_tareas SET imagen=${t.imagen}
+            WHERE admin_id=${s.userId} AND nombre=${nombre}
+              AND COALESCE(ventana,'')=COALESCE(${t.ventana||null},'')
+              AND (imagen IS NULL OR imagen = '')`
+        }
+        continue
+      }
       await sql`
         INSERT INTO biblioteca_tareas
-          (admin_id, nombre, ventana, subtarea, jugadores, series, minutos, pausa, largo, ancho, descripcion, intensidad, veces_usada)
+          (admin_id, nombre, ventana, subtarea, jugadores, series, minutos, pausa, largo, ancho, descripcion, intensidad, objetivo, imagen, veces_usada)
         VALUES
           (${s.userId}, ${nombre}, ${t.ventana||null}, ${t.subtarea||null},
            ${t.jugadores||null}, ${t.series||null}, ${t.minutos||null},
            ${t.pausa||null}, ${t.largo||null}, ${t.ancho||null},
-           ${t.descripcion||null}, ${t.intensidad||null}, 1)`
+           ${t.descripcion||null}, ${t.intensidad||null}, ${t.objetivo||null},
+           ${t.imagen||null}, 1)`
       guardadas++
     }
     return NextResponse.json({ ok: true, guardadas })
   }
 
   // Manual save
-  const { nombre, ventana, subtarea, jugadores, series, minutos, pausa, largo, ancho, descripcion, intensidad } = body
+  const { nombre, ventana, subtarea, jugadores, series, minutos, pausa, largo, ancho, descripcion, intensidad, objetivo, imagen } = body
   await sql`
-    INSERT INTO biblioteca_tareas (admin_id,nombre,ventana,subtarea,jugadores,series,minutos,pausa,largo,ancho,descripcion,intensidad)
-    VALUES (${s.userId},${nombre},${ventana||null},${subtarea||null},${jugadores||null},${series||null},${minutos||null},${pausa||null},${largo||null},${ancho||null},${descripcion||null},${intensidad||null})
+    INSERT INTO biblioteca_tareas (admin_id,nombre,ventana,subtarea,jugadores,series,minutos,pausa,largo,ancho,descripcion,intensidad,objetivo,imagen)
+    VALUES (${s.userId},${nombre},${ventana||null},${subtarea||null},${jugadores||null},${series||null},${minutos||null},${pausa||null},${largo||null},${ancho||null},${descripcion||null},${intensidad||null},${objetivo||null},${imagen||null})
   `
   return NextResponse.json({ ok: true })
 }

@@ -175,7 +175,7 @@ function VariablesPanel({ jugador, onRefresh }: { jugador: Jugador; onRefresh: (
 }
 
 // ─── 2. Pesajes ───────────────────────────────────────────────────────────────
-function PesajesPanel({ jugador }: { jugador: Jugador }) {
+function PesajesPanel({ jugador, onRefresh }: { jugador: Jugador; onRefresh?: () => void }) {
   const [historial, setHistorial] = useState<any[]>([])
   const [form, setForm] = useState({ fecha: new Date().toISOString().split('T')[0], peso_kg: '', notas: '' })
   const [saving, setSaving] = useState(false)
@@ -207,6 +207,8 @@ function PesajesPanel({ jugador }: { jugador: Jugador }) {
     setSaving(false)
     setForm(p => ({ ...p, peso_kg: '', notas: '' }))
     load()
+    // Reload jugador profile so peso_kg shows updated value in this session
+    onRefresh?.()
   }
 
   const handleDelete = async (id: number) => {
@@ -1543,7 +1545,7 @@ export default function EvaluacionesPanel({ teamData }: { teamData: TeamPlayer[]
       ) : (
         <>
           {activeTest === 'variables'  && <VariablesPanel  jugador={jugadorData} onRefresh={() => setRefreshKey(k => k + 1)} />}
-          {activeTest === 'pesajes'    && <PesajesPanel    jugador={jugadorData} />}
+          {activeTest === 'pesajes'    && <PesajesPanel    jugador={jugadorData} onRefresh={() => setRefreshKey(k => k + 1)} />}
           {activeTest === 'cmj'        && <CMJPanel        jugador={jugadorData} />}
           {activeTest === 'isometrico' && <IsometricoPanel jugador={jugadorData} />}
           {activeTest === 'pfv'        && <PFVPanel        jugador={jugadorData} />}
