@@ -3621,7 +3621,7 @@ function ComparativaPanel({ teamData }: { teamData: any[] }) {
           const posData = Object.entries(posGroups)
             .map(([pos, vals]) => ({ pos, avg: Math.round(vals.reduce((s,v)=>s+v,0)/vals.length), count: vals.length, names: posPlayerNames[pos]||[] }))
             .filter(x => x.avg > 0)
-            .sort((a,b) => b.avg - a.avg)
+            .sort((a,b) => (POS_ORDER_MAP[a.pos] ?? 99) - (POS_ORDER_MAP[b.pos] ?? 99))
           if (!posData.length) return <div style={{padding:24,textAlign:'center',color:'var(--fog)',fontSize:12}}>Sin datos GPS para este período</div>
           const maxV = Math.max(...posData.map(x=>x.avg), 1)
           const BAR_H = 180   // altura del área de barras
