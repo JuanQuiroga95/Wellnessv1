@@ -16,15 +16,12 @@ export const ALL_COLS = [
   { key: 'pie_habil',        label: 'Pie Habil',            required: false, example: 'Derecho',           width: 12 },
   { key: 'email',            label: 'Email',                required: false, example: 'jugador@email.com', width: 26 },
   { key: 'fecha_nacimiento', label: 'Fecha Nacimiento',     required: false, example: '2001-05-15',        width: 16 },
-  { key: 'peso_ideal_min',   label: 'Peso Ideal Min (kg)',  required: false, example: '72.0',              width: 16 },
-  { key: 'peso_ideal_max',   label: 'Peso Ideal Max (kg)',  required: false, example: '76.0',              width: 16 },
 ]
 
 const ex2: Record<string, string> = {
   nombre: 'Maria Lopez', usuario: 'maria.lopez', password: 'Segura456',
   posicion: 'Portero', edad: '22', peso_kg: '65.0', estatura_cm: '170',
   pie_habil: 'Izquierdo', email: 'maria@email.com', fecha_nacimiento: '2002-11-05',
-  peso_ideal_min: '63.0', peso_ideal_max: '67.0',
 }
 
 function buildXlsx(cols: typeof ALL_COLS): Buffer {

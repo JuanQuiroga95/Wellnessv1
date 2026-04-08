@@ -51,6 +51,11 @@ export async function POST(req: NextRequest) {
     )
     RETURNING *
   `
+  // Update the player's current weight to reflect the latest measured value
+  await sql`
+    UPDATE jugadores SET peso_kg = ${Number(peso_kg)}
+    WHERE id = ${Number(jugador_id)}
+  `
   return NextResponse.json(row)
 }
 

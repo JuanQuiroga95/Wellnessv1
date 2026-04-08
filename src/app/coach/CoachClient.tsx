@@ -270,7 +270,6 @@ export default function CoachClient({ session, teamData, today }) {
                   <p style={{ fontSize:11, color:'var(--silver)', marginTop:2 }}>Por posición · {today}</p>
                 </div>
               </div>
-              <button className="btn-ghost" style={{ fontSize:12, padding:'8px 14px' }} onClick={async()=>{ await fetch('/api/seed/demo',{method:'POST'}); router.refresh() }}>+ Datos demo</button>
             </div>
             {Object.keys(byPos).sort((a,b)=>Number(a)-Number(b)).map(posKey=>(
               <div key={posKey}>
@@ -1520,6 +1519,43 @@ function CalendarioPanel({ teamData }) {
               setShowEditor(false)
               setEditSesion(null)
               await load()
+
+              // Auto-save tasks to biblioteca in background (fire and forget)
+              const bloques: any[] = data.ejercicios || []
+              const tareasParaBiblioteca = bloques
+                .filter(bl => bl.ventana) // only blocks with a task type defined
+                .map(bl => {
+                  // Calculate intensidad using same getCuadrante logic
+                  const jug = Number(bl.jugadores) || 0
+                  const largo = Number(bl.largo) || 0
+                  const ancho = Number(bl.ancho) || 0
+                  let intensidad: number | null = null
+                  if (jug > 0 && largo > 0 && ancho > 0) {
+                    const densidad = (largo * ancho) / jug
+                    const cuad = getCuadrante(densidad, jug)
+                    intensidad = cuad.intensidad
+                  }
+                  return {
+                    nombre: bl.ventana + (bl.subtarea ? ` › ${bl.subtarea}` : ''),
+                    ventana: bl.ventana,
+                    subtarea: bl.subtarea || null,
+                    jugadores: jug || null,
+                    series: Number(bl.series) || null,
+                    minutos: Number(bl.minutos) || null,
+                    pausa: Number(bl.pausa) || null,
+                    largo: largo || null,
+                    ancho: ancho || null,
+                    descripcion: bl.descripcion || null,
+                    intensidad,
+                  }
+                })
+              if (tareasParaBiblioteca.length > 0) {
+                fetch('/api/biblioteca', {
+                  method: 'POST',
+                  headers: {'Content-Type':'application/json'},
+                  body: JSON.stringify({ action: 'auto_guardar', tareas: tareasParaBiblioteca }),
+                }).catch(() => {}) // silent fail — never block the UI
+              }
             } catch(e) {
               alert('Error de conexión: ' + String(e))
             }
@@ -2652,34 +2688,6 @@ function CargaExternaPanel() {
   const [ciclo, setCiclo] = useState<'microciclo'|'mesociclo'|'macrociclo'>('microciclo')
   const [data, setData]     = useState<any>(null)
   const [loading, setLoading] = useState(false)
-  const [demoLoading, setDemoLoading] = useState(false)
-  const [demoMsg, setDemoMsg]     = useState('')
-
-  async function cargarDemo() {
-    setDemoLoading(true); setDemoMsg('')
-    try {
-      const r = await fetch('/api/seed/calendario', { method: 'POST' })
-      const d = await r.json()
-      if (d.ok) {
-        setDemoMsg(`✓ ${d.sesionesCreadas} sesiones y ${d.logsCreados} registros de RPE cargados`)
-        await load()
-      } else {
-        setDemoMsg('Error: ' + d.error)
-      }
-    } catch(e) { setDemoMsg('Error de conexión') }
-    finally { setDemoLoading(false) }
-  }
-
-  async function borrarDemo() {
-    if (!confirm('¿Borrar todas las sesiones y logs demo de esta semana?')) return
-    setDemoLoading(true); setDemoMsg('')
-    try {
-      const r = await fetch('/api/seed/calendario', { method: 'DELETE' })
-      const d = await r.json()
-      if (d.ok) { setDemoMsg('Demo borrado'); await load() }
-    } catch(e) { setDemoMsg('Error') }
-    finally { setDemoLoading(false) }
-  }
   const [sortField, setSortField] = useState('nombre')
   const [sortDir,   setSortDir]   = useState<'asc'|'desc'>('asc')
   const [vistaMode, setVistaMode] = useState<'ciclo'|'dia'>('ciclo')
@@ -2800,15 +2808,6 @@ function CargaExternaPanel() {
           </p>
         </div>
         <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', gap:6 }}>
-          <div style={{ display:'flex', gap:8 }}>
-            <button onClick={cargarDemo} disabled={demoLoading} style={{ fontSize:11, padding:'8px 14px', borderRadius:8, background:'rgba(200,241,53,.12)', color:'var(--lime)', border:'1px solid rgba(200,241,53,.3)', cursor:'pointer', fontWeight:600 }}>
-              {demoLoading ? 'Cargando...' : '🏋️ Cargar semana demo'}
-            </button>
-            <button onClick={borrarDemo} disabled={demoLoading} style={{ fontSize:11, padding:'8px 14px', borderRadius:8, background:'rgba(239,68,68,.08)', color:'#f87171', border:'1px solid rgba(239,68,68,.25)', cursor:'pointer' }}>
-              🗑 Borrar demo
-            </button>
-          </div>
-          {demoMsg && <p style={{ fontSize:11, color: demoMsg.startsWith('✓') ? 'var(--lime)' : '#f87171' }}>{demoMsg}</p>}
         </div>
       </div>
 
@@ -3869,8 +3868,6 @@ const IMPORT_COLS = [
   { key:'pie_habil',        label:'Pie Hábil' },
   { key:'email',            label:'Email' },
   { key:'fecha_nacimiento', label:'Fecha Nacimiento' },
-  { key:'peso_ideal_min',   label:'Peso Ideal Mín' },
-  { key:'peso_ideal_max',   label:'Peso Ideal Máx' },
 ]
 
 function BulkImportPanel({ onSuccess, onCancel }: { onSuccess: ()=>void; onCancel: ()=>void }) {
@@ -7641,7 +7638,7 @@ function BibliotecaPanel() {
   const [saving, setSaving] = useState(false)
   const [copied, setCopied] = useState<number|null>(null)
   const [ventanaFilter, setVentanaFilter] = useState('')
-  const [sortBy, setSortBy] = useState<'uso'|'reciente'>('uso')
+  const [sortBy, setSortBy] = useState<'uso'|'reciente'|'tipo'>('tipo')
 
   useEffect(() => { cargar() }, [])
 
@@ -7684,14 +7681,22 @@ function BibliotecaPanel() {
       const matchVentana = !ventanaFilter || t.ventana === ventanaFilter
       return matchBuscar && matchVentana
     })
-    .sort((a,b) => sortBy === 'uso' ? (b.veces_usada - a.veces_usada) : (new Date(b.created_at||0).getTime() - new Date(a.created_at||0).getTime()))
+    .sort((a,b) => {
+      if (sortBy === 'tipo') {
+        const vA = (a.ventana||'zzz').localeCompare(b.ventana||'zzz')
+        if (vA !== 0) return vA
+        return (a.intensidad ?? 99) - (b.intensidad ?? 99)
+      }
+      if (sortBy === 'uso') return (b.veces_usada||0) - (a.veces_usada||0)
+      return new Date(b.created_at||0).getTime() - new Date(a.created_at||0).getTime()
+    })
 
   return (
     <div style={{ padding:'24px 20px', maxWidth:900, margin:'0 auto' }}>
       <div style={{ marginBottom:24, display:'flex', justifyContent:'space-between', alignItems:'flex-end', flexWrap:'wrap', gap:12 }}>
         <div>
           <h2 style={{ fontFamily:'Bebas Neue,sans-serif', fontSize:36, color:'var(--snow)', letterSpacing:'0.04em', marginBottom:4 }}>📚 BIBLIOTECA DE TAREAS</h2>
-          <p style={{ fontSize:12, color:'var(--silver)' }}>Registro de tareas usadas · Reutilizalas en futuras sesiones</p>
+          <p style={{ fontSize:12, color:'var(--silver)' }}>Se guarda automáticamente al crear sesiones · Ordená por tipo e intensidad · Reutilizalas en futuras sesiones</p>
         </div>
         <button onClick={()=>setShowForm(!showForm)} className="btn-lime" style={{ padding:'10px 20px', fontSize:13 }}>
           {showForm ? '✕ Cancelar' : '+ Guardar Tarea'}
@@ -7739,7 +7744,7 @@ function BibliotecaPanel() {
           {ventanas.map(v=><option key={v} value={v} style={{ background:'var(--ink2)' }}>{v}</option>)}
         </select>
         <div style={{ display:'flex', gap:4, background:'var(--ink2)', borderRadius:8, padding:3, border:'1px solid var(--mist)' }}>
-          {([['uso','↓ Más usadas'],['reciente','↓ Recientes']] as const).map(([k,l])=>(
+          {([['tipo','↓ Por tipo'],['uso','↓ Más usadas'],['reciente','↓ Recientes']] as const).map(([k,l])=>(
             <button key={k} onClick={()=>setSortBy(k)} style={{ padding:'4px 10px', borderRadius:6, fontSize:10, fontWeight:600, cursor:'pointer', border:'none', background:sortBy===k?'var(--lime)':'transparent', color:sortBy===k?'var(--ink)':'var(--silver)' }}>{l}</button>
           ))}
         </div>
@@ -7747,7 +7752,7 @@ function BibliotecaPanel() {
 
       {loading ? <div style={{ padding:48, textAlign:'center', color:'var(--silver)' }}>Cargando...</div> : !filtradas.length ? (
         <div style={{ padding:48, textAlign:'center', color:'var(--silver)', background:'var(--ink2)', borderRadius:16 }}>
-          {buscar ? 'Sin resultados para esa búsqueda.' : 'La biblioteca está vacía. Guardá tareas para reutilizarlas.'}
+          {buscar ? 'Sin resultados para esa búsqueda.' : 'La biblioteca está vacía. Las tareas se guardan automáticamente al crear sesiones en el Calendario.'}
         </div>
       ) : (
         <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
@@ -7759,6 +7764,11 @@ function BibliotecaPanel() {
                     <span style={{ fontWeight:700, color:'var(--snow)', fontSize:14 }}>{t.nombre}</span>
                     {t.ventana && <span style={{ fontSize:10, padding:'2px 8px', borderRadius:6, background:'rgba(200,241,53,.12)', color:'var(--lime)', fontWeight:600 }}>{t.ventana}</span>}
                     {t.subtarea && <span style={{ fontSize:10, padding:'2px 8px', borderRadius:6, background:'rgba(200,241,53,.06)', color:'var(--silver)' }}>↳ {t.subtarea}</span>}
+                    {t.intensidad != null && (
+                      <span title={`Intensidad ${t.intensidad} (1=más intensa, 4=menos intensa)`} style={{ display:'inline-flex', alignItems:'center', justifyContent:'center', width:20, height:20, borderRadius:'50%', background: t.intensidad<=1?'#ef4444':t.intensidad<=2?'#f97316':t.intensidad<=3?'#eab308':'#22c55e', color:'#fff', fontSize:10, fontWeight:900, fontFamily:'DM Mono,monospace', flexShrink:0 }}>
+                        {t.intensidad}
+                      </span>
+                    )}
                     <span style={{ fontSize:9, color:'var(--fog)', fontFamily:'DM Mono,monospace' }}>usada {t.veces_usada}×</span>
                   </div>
                   <div style={{ display:'flex', gap:12, flexWrap:'wrap', fontSize:11, color:'var(--silver)' }}>
