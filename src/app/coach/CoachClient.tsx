@@ -2258,12 +2258,12 @@ function SesionEditor({ sesion, defaultFecha, onSave, onDelete, onCancel, teamPl
                     <button
                       key={t.id} type="button"
                       onClick={() => addBloqueFromBiblioteca(t)}
-                      style={{ display:'flex', alignItems:'center', gap:10, padding:'8px 12px', borderRadius:8, background:'var(--ink2)', border:'1px solid var(--mist)', cursor:'pointer', textAlign:'left', transition:'border-color .12s' }}
+                      style={{ display:'flex', alignItems:'flex-start', gap:12, padding:'10px 12px', borderRadius:8, background:'var(--ink2)', border:'1px solid var(--mist)', cursor:'pointer', textAlign:'left', transition:'border-color .12s' }}
                       onMouseEnter={e=>e.currentTarget.style.borderColor='var(--lime)'}
                       onMouseLeave={e=>e.currentTarget.style.borderColor='var(--mist)'}
                     >
                       {t.imagen && (
-                        <img src={t.imagen} alt="" style={{ width:44, height:44, objectFit:'contain', borderRadius:6, background:'var(--ink3)', flexShrink:0 }} />
+                        <img src={t.imagen} alt="" style={{ width:132, height:132, objectFit:'contain', borderRadius:8, background:'var(--ink3)', flexShrink:0 }} />
                       )}
                       <div style={{ flex:1, minWidth:0 }}>
                         <div style={{ display:'flex', alignItems:'center', gap:6, flexWrap:'wrap' }}>
