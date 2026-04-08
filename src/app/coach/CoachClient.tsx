@@ -3601,19 +3601,66 @@ function ComparativaPanel({ teamData }: { teamData: any[] }) {
             </button>
           ))}
         </div>
-        {/* Single grouped bar chart: one bar per position */}
+        {/* Single grouped bar chart: one bar per position (or per player if filtered) */}
         {(() => {
           const selVar = VARS.find(v=>v.key===posMetric) || VARS[0]
+
+          // When a single position is selected, show individual player bars
+          if (posFilter !== 'todas') {
+            const playerBars = filtered
+              .map(p => ({ nombre: p.nombre, val: Number(p[selVar.key]) || 0, pos: p.posicion }))
+              .filter(x => x.val > 0)
+            if (!playerBars.length) return <div style={{padding:24,textAlign:'center',color:'var(--fog)',fontSize:12}}>Sin datos para esta posición en este período</div>
+            const maxV = Math.max(...playerBars.map(x=>x.val), 1)
+            const BAR_H = 180
+            const BOT_PAD = 52
+            const yTicks = [1, 0.75, 0.5, 0.25, 0].map(f => Math.round(maxV * f))
+            const minBarWidth = 80
+            const chartMinWidth = playerBars.length * (minBarWidth + 20)
+            const col = posColor(posFilter)
+            return (
+              <div style={{ background:'var(--ink3)', borderRadius:12, padding:16, marginTop:16 }}>
+                <div style={{ fontSize:10, fontWeight:700, color:selVar.color, textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:12 }}>
+                  {selVar.label} — {posFilter}
+                </div>
+                <div style={{ display:'flex', gap:0 }}>
+                  <div style={{ display:'flex', flexDirection:'column', justifyContent:'space-between', height:`${BAR_H + BOT_PAD}px`, paddingBottom:`${BOT_PAD}px`, marginRight:8, flexShrink:0 }}>
+                    {yTicks.map((t,i)=>(
+                      <span key={i} style={{ fontSize:8, color:'var(--fog)', fontFamily:'DM Mono,monospace', textAlign:'right', display:'block', lineHeight:1 }}>{t}</span>
+                    ))}
+                  </div>
+                  <div style={{ flex:1, overflowX:'auto' }}>
+                    <div style={{ display:'flex', alignItems:'flex-end', gap:0, height:`${BAR_H + BOT_PAD}px`, minWidth:chartMinWidth, position:'relative' }}>
+                      {[1,0.75,0.5,0.25].map((f,i)=>(
+                        <div key={i} style={{ position:'absolute', left:0, right:0, bottom:`${BOT_PAD + f*BAR_H}px`, height:1, background:'rgba(255,255,255,.04)', pointerEvents:'none' }}/>
+                      ))}
+                      {playerBars.map((x,i)=>(
+                        <div key={i} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'flex-end', height:'100%', minWidth:minBarWidth, paddingBottom:`${BOT_PAD}px` }}>
+                          <div style={{ position:'relative', width:'60%', borderRadius:'4px 4px 0 0', height:`${Math.max((x.val/maxV)*BAR_H,14)}px`, background:col, opacity:0.85, display:'flex', alignItems:'center', justifyContent:'center' }}>
+                            <span style={{ fontSize:10, color:'#fff', fontFamily:'DM Mono,monospace', fontWeight:700, textShadow:'0 1px 2px rgba(0,0,0,.8)' }}>{x.val}</span>
+                          </div>
+                          <div style={{ textAlign:'center', marginTop:6 }}>
+                            <div style={{ fontSize:11, color:'var(--snow)', fontWeight:600 }}>{x.nombre.split(' ')[0]}</div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )
+          }
+
+          // "Todas" — group by position, one bar per position
           const posGroups: Record<string, number[]> = {}
-          merged.forEach((p:any) => {
+          filtered.forEach((p:any) => {
             const pos = p.posicion || 'Sin pos.'
             if (!posGroups[pos]) posGroups[pos] = []
             const v = Number(p[selVar.key]) || 0
             if (v > 0) posGroups[pos].push(v)
           })
-          // Build posData including player names for each position group
           const posPlayerNames: Record<string, string[]> = {}
-          merged.forEach((p:any) => {
+          filtered.forEach((p:any) => {
             const pos = p.posicion || 'Sin pos.'
             if (!posPlayerNames[pos]) posPlayerNames[pos] = []
             if (Number(p[selVar.key]) > 0) posPlayerNames[pos].push(p.nombre)
