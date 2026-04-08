@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getDb } from '@/lib/db'
-import { sendReminderEmail, sendBirthdayEmail } from '@/lib/email'
+import { sendReminderEmail, sendBirthdayEmail, sendACWRAlertEmail } from '@/lib/email'
+import { calcACWR } from '@/lib/acwr'
 
 export const dynamic = 'force-dynamic'
 
@@ -70,6 +71,58 @@ export async function GET(req: NextRequest) {
         results.push({ type: 'birthday', jugador: b.jugador_nombre, to: admin.email, ...r })
       }
     }
+  }
+
+  // 3. ACWR alerts — notify each coach if any player in their club is in precaución or peligro
+  try {
+    const adminsWithEmail = await sql`
+      SELECT u.id AS admin_id, u.nombre, u.email, u.club_id
+      FROM usuarios u
+      WHERE u.rol = 'admin' AND u.activo = true
+        AND u.email IS NOT NULL AND u.email <> ''
+        AND u.club_id IS NOT NULL
+    `
+
+    for (const admin of adminsWithEmail as any[]) {
+      // Load last 28 days of training logs for all active players in this club
+      const logsRows = await sql`
+        SELECT el.jugador_id::int, u.nombre AS jugador_nombre,
+               el.fecha::text, el.carga_ua::int
+        FROM entrenamiento_logs el
+        JOIN jugadores j ON j.id = el.jugador_id
+        JOIN usuarios u ON u.id = j.usuario_id
+        WHERE u.club_id = ${admin.club_id}
+          AND u.activo = true
+          AND u.rol = 'jugador'
+          AND el.fecha >= CURRENT_DATE - 28
+        ORDER BY el.jugador_id, el.fecha ASC
+      `
+
+      // Group logs by player
+      const byPlayer: Record<number, { nombre: string; logs: { fecha: string; carga_ua: number }[] }> = {}
+      for (const row of logsRows as any[]) {
+        if (!byPlayer[row.jugador_id]) byPlayer[row.jugador_id] = { nombre: String(row.jugador_nombre), logs: [] }
+        byPlayer[row.jugador_id].logs.push({ fecha: String(row.fecha), carga_ua: Number(row.carga_ua) || 0 })
+      }
+
+      // Identify players in precaución or peligro
+      const alertas: { nombre: string; ratio: number; status: string }[] = []
+      for (const { nombre, logs } of Object.values(byPlayer)) {
+        const acwr = calcACWR(logs)
+        if (acwr.status === 'precaucion' || acwr.status === 'peligro') {
+          alertas.push({ nombre, ratio: acwr.ratio, status: acwr.status })
+        }
+      }
+
+      if (alertas.length > 0) {
+        const r = await sendACWRAlertEmail(String(admin.email), String(admin.nombre), alertas)
+        results.push({ type: 'acwr_alert', coach: admin.nombre, alertas: alertas.length, ...r })
+      }
+    }
+  } catch (acwrErr: any) {
+    // Never let ACWR alerts break the rest of the cron
+    console.error('[notifications] ACWR alert error:', acwrErr?.message)
+    results.push({ type: 'acwr_alert', error: String(acwrErr?.message || acwrErr) })
   }
 
   return NextResponse.json({ ok: true, today, results })

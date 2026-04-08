@@ -103,4 +103,24 @@ export const SCHEMA_STATEMENTS = [
   `CREATE OR REPLACE VIEW cmj_con_diferencial AS SELECT s.*, b.promedio_cm AS baseline_cm, ROUND(s.promedio_cm - b.promedio_cm, 2) AS diferencial_cm, ROUND((b.promedio_cm - s.promedio_cm) / NULLIF(b.promedio_cm, 0) * 100.0, 2) AS pct_perdida, CASE WHEN b.promedio_cm IS NULL THEN 'sin_baseline' WHEN (b.promedio_cm - s.promedio_cm) / NULLIF(b.promedio_cm, 0) * 100.0 > 10 THEN 'fatiga' ELSE 'normal' END AS estado_fatiga FROM cmj_sessions s LEFT JOIN LATERAL (SELECT promedio_cm FROM cmj_sessions WHERE jugador_id = s.jugador_id AND es_baseline = TRUE ORDER BY fecha ASC LIMIT 1) b ON TRUE`,
   // Vista isométrico con asimetría y semáforo
   `CREATE OR REPLACE VIEW iso_con_asimetria AS SELECT s.*, ROUND(ABS(s.der_promedio - s.izq_promedio) / NULLIF(GREATEST(s.der_promedio, s.izq_promedio), 0) * 100.0, 2) AS pct_asimetria, CASE WHEN ABS(s.der_promedio - s.izq_promedio) / NULLIF(GREATEST(s.der_promedio, s.izq_promedio), 0) * 100.0 < 10 THEN 'verde' WHEN ABS(s.der_promedio - s.izq_promedio) / NULLIF(GREATEST(s.der_promedio, s.izq_promedio), 0) * 100.0 BETWEEN 10 AND 15 THEN 'amarillo' ELSE 'rojo' END AS semaforo, CASE WHEN s.der_promedio >= s.izq_promedio THEN 'derecha' ELSE 'izquierda' END AS lado_dominante FROM iso_sessions s`,
+  // ── Calculadoras avanzadas: PFV, RSI, DSI ────────────────────────────────────
+  `CREATE TABLE IF NOT EXISTS pfv_sesiones (id SERIAL PRIMARY KEY, jugador_id INTEGER NOT NULL REFERENCES jugadores(id) ON DELETE CASCADE, club_id INTEGER, nombre VARCHAR(100) NOT NULL DEFAULT 'Sesión', fecha DATE NOT NULL DEFAULT CURRENT_DATE, created_at TIMESTAMPTZ DEFAULT NOW())`,
+  `CREATE TABLE IF NOT EXISTS pfv_puntos (id SERIAL PRIMARY KEY, sesion_id INTEGER NOT NULL REFERENCES pfv_sesiones(id) ON DELETE CASCADE, jugador_id INTEGER NOT NULL REFERENCES jugadores(id) ON DELETE CASCADE, fecha DATE NOT NULL DEFAULT CURRENT_DATE, carga_kg NUMERIC(6,2) NOT NULL, velocidad_ms NUMERIC(5,3) NOT NULL, notas TEXT, created_at TIMESTAMPTZ DEFAULT NOW())`,
+  `CREATE INDEX IF NOT EXISTS idx_pfv_puntos_sesion ON pfv_puntos(sesion_id)`,
+  `CREATE INDEX IF NOT EXISTS idx_pfv_sesiones_jugador ON pfv_sesiones(jugador_id)`,
+  `CREATE TABLE IF NOT EXISTS rsi_tests (id SERIAL PRIMARY KEY, jugador_id INTEGER NOT NULL REFERENCES jugadores(id) ON DELETE CASCADE, club_id INTEGER, fecha DATE NOT NULL DEFAULT CURRENT_DATE, altura_cm NUMERIC(5,1) NOT NULL, contacto_ms NUMERIC(6,1) NOT NULL, rsi NUMERIC(6,3) GENERATED ALWAYS AS (ROUND((altura_cm / 100.0) / (contacto_ms / 1000.0), 3)) STORED, es_baseline BOOLEAN DEFAULT FALSE, notas TEXT, created_at TIMESTAMPTZ DEFAULT NOW())`,
+  `CREATE INDEX IF NOT EXISTS idx_rsi_jugador ON rsi_tests(jugador_id, fecha DESC)`,
+  `CREATE TABLE IF NOT EXISTS dsi_tests (id SERIAL PRIMARY KEY, jugador_id INTEGER NOT NULL REFERENCES jugadores(id) ON DELETE CASCADE, club_id INTEGER, fecha DATE NOT NULL DEFAULT CURRENT_DATE, fuerza_balistico_n NUMERIC(8,2) NOT NULL, fuerza_isometrico_n NUMERIC(8,2) NOT NULL, dsi NUMERIC(6,4) GENERATED ALWAYS AS (ROUND(fuerza_balistico_n / NULLIF(fuerza_isometrico_n, 0), 4)) STORED, notas TEXT, created_at TIMESTAMPTZ DEFAULT NOW())`,
+  `CREATE INDEX IF NOT EXISTS idx_dsi_jugador ON dsi_tests(jugador_id, fecha DESC)`,
+  // ── Wellness upsert: unique index on (jugador_id, fecha) — created only if no duplicates exist
+  // Uses DO block so it's a no-op if the index already exists or if duplicates prevent creation
+  `DO $$ BEGIN
+    IF NOT EXISTS (
+      SELECT 1 FROM pg_indexes WHERE indexname = 'idx_wellness_jugador_fecha_unique'
+    ) AND NOT EXISTS (
+      SELECT jugador_id, fecha FROM wellness_logs GROUP BY jugador_id, fecha HAVING COUNT(*) > 1
+    ) THEN
+      CREATE UNIQUE INDEX idx_wellness_jugador_fecha_unique ON wellness_logs(jugador_id, fecha);
+    END IF;
+  END $$`,
 ]

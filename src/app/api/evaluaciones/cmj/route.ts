@@ -16,11 +16,14 @@ export async function GET(req: NextRequest) {
   if (!jugador_id) return NextResponse.json({ error: 'Falta jugador_id' }, { status: 400 })
 
   const sql = getDb()
-  // La vista cmj_con_diferencial calcula baseline, diferencial y estado_fatiga
+
+  // Only return data for players belonging to this coach's club
   const rows = await sql`
-    SELECT * FROM cmj_con_diferencial
-    WHERE jugador_id = ${Number(jugador_id)}
-    ORDER BY fecha DESC
+    SELECT c.* FROM cmj_con_diferencial c
+    JOIN cmj_sessions cs ON cs.id = c.id
+    WHERE c.jugador_id = ${Number(jugador_id)}
+      AND (${s.clubId ?? null}::int IS NULL OR cs.club_id = ${s.clubId ?? null})
+    ORDER BY c.fecha DESC
   `
   return NextResponse.json(rows)
 }
@@ -40,6 +43,14 @@ export async function POST(req: NextRequest) {
   }
 
   const sql = getDb()
+
+  // Verify the player belongs to this coach's club before writing
+  if (s.clubId) {
+    const owns = await sql`
+      SELECT 1 FROM jugadores j JOIN usuarios u ON u.id = j.usuario_id
+      WHERE j.id = ${Number(jugador_id)} AND u.club_id = ${s.clubId} LIMIT 1`
+    if (!owns.length) return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
+  }
 
   // El baseline es siempre el primer test registrado para ese jugador
   const [existsBaseline] = await sql`

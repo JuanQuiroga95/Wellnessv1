@@ -42,29 +42,72 @@ export default async function CoachPage() {
     lesionMap[l.jugador_id] = { tipo_lesion:String(l.tipo_lesion||''), zona:String(l.zona||''), estado:String(l.estado||''), eta_dias:Number(l.eta_dias)||null, fecha_inicio:String(l.fecha_inicio||'') }
   }
 
-  const teamData = await Promise.all(players.map(async (p) => {
-    const [logs, wRows, lastLogRows] = await Promise.all([
-      sql`SELECT id,fecha::text, carga_ua::int, rpe::int, duracion_min::int FROM entrenamiento_logs WHERE jugador_id=${p.jugador_id} AND fecha>=CURRENT_DATE-28 ORDER BY fecha ASC`,
-      sql`SELECT fecha::text FROM entrenamiento_logs WHERE jugador_id=${p.jugador_id} ORDER BY fecha DESC LIMIT 1`,
-      sql`SELECT fecha::text, fatiga::int, calidad_sueno::int, dolor_muscular::int, nivel_estres::int, estado_animo::int, dolor_zona, COALESCE(tqr::int,0) AS tqr, COALESCE(recovery::int,0) AS recovery, COALESCE(entrena_grupo::text,'true') AS entrena_grupo, COALESCE(fue_gimnasio::text,'false') AS fue_gimnasio, COALESCE(grupos_musculares,'') AS grupos_musculares FROM wellness_logs WHERE jugador_id=${p.jugador_id} ORDER BY fecha DESC LIMIT 1`,
-    ])
-    const sl = logs.map(l=>({ fecha:String(l.fecha), carga_ua:Number(l.carga_ua)||0 }))
-    const rw = wRows[0]
-    const lastW = rw ? { fecha:String(rw.fecha), fatiga:Number(rw.fatiga)||0, calidad_sueno:Number(rw.calidad_sueno)||0, dolor_muscular:Number(rw.dolor_muscular)||0, nivel_estres:Number(rw.nivel_estres)||0, estado_animo:Number(rw.estado_animo)||0, dolor_zona:String(rw.dolor_zona||''), tqr:Number(rw.tqr)||0, recovery:Number(rw.recovery)||0, entrena_grupo:String(rw.entrena_grupo)!=='false', fue_gimnasio:String(rw.fue_gimnasio)==='true', grupos_musculares:String(rw.grupos_musculares||'') } : null
+  // Bulk-load all training logs, last sessions, and last wellness in 3 queries
+  // instead of 3 queries × N players (N+1 problem)
+  const jugadorIds = players.map(p => p.jugador_id)
+
+  const [allLogs, allLastSessions, allLastWellness] = jugadorIds.length === 0
+    ? [[], [], []]
+    : await Promise.all([
+        sql`SELECT id, jugador_id::int, fecha::text, carga_ua::int, rpe::int, duracion_min::int
+            FROM entrenamiento_logs
+            WHERE jugador_id = ANY(${jugadorIds}::int[])
+              AND fecha >= CURRENT_DATE - 28
+            ORDER BY jugador_id, fecha ASC`,
+        sql`SELECT DISTINCT ON (jugador_id) jugador_id::int, fecha::text
+            FROM entrenamiento_logs
+            WHERE jugador_id = ANY(${jugadorIds}::int[])
+            ORDER BY jugador_id, fecha DESC`,
+        sql`SELECT DISTINCT ON (jugador_id)
+              jugador_id::int, fecha::text, fatiga::int, calidad_sueno::int,
+              dolor_muscular::int, nivel_estres::int, estado_animo::int, dolor_zona,
+              COALESCE(tqr::int,0) AS tqr, COALESCE(recovery::int,0) AS recovery,
+              COALESCE(entrena_grupo::text,'true') AS entrena_grupo,
+              COALESCE(fue_gimnasio::text,'false') AS fue_gimnasio,
+              COALESCE(grupos_musculares,'') AS grupos_musculares
+            FROM wellness_logs
+            WHERE jugador_id = ANY(${jugadorIds}::int[])
+            ORDER BY jugador_id, fecha DESC`,
+      ])
+
+  // Index by jugador_id for O(1) lookup
+  const logsByPlayer: Record<number, any[]> = {}
+  for (const l of allLogs as any[]) {
+    if (!logsByPlayer[l.jugador_id]) logsByPlayer[l.jugador_id] = []
+    logsByPlayer[l.jugador_id].push(l)
+  }
+  const lastSessionByPlayer: Record<number, any> = {}
+  for (const r of allLastSessions as any[]) lastSessionByPlayer[r.jugador_id] = r
+  const lastWellnessByPlayer: Record<number, any> = {}
+  for (const r of allLastWellness as any[]) lastWellnessByPlayer[r.jugador_id] = r
+
+  const teamData = players.map((p) => {
+    const logs = logsByPlayer[p.jugador_id] || []
+    const sl = logs.map(l => ({ fecha: String(l.fecha), carga_ua: Number(l.carga_ua) || 0 }))
+    const rw = lastWellnessByPlayer[p.jugador_id] || null
+    const lastW = rw ? {
+      fecha: String(rw.fecha), fatiga: Number(rw.fatiga)||0, calidad_sueno: Number(rw.calidad_sueno)||0,
+      dolor_muscular: Number(rw.dolor_muscular)||0, nivel_estres: Number(rw.nivel_estres)||0,
+      estado_animo: Number(rw.estado_animo)||0, dolor_zona: String(rw.dolor_zona||''),
+      tqr: Number(rw.tqr)||0, recovery: Number(rw.recovery)||0,
+      entrena_grupo: String(rw.entrena_grupo) !== 'false',
+      fue_gimnasio: String(rw.fue_gimnasio) === 'true',
+      grupos_musculares: String(rw.grupos_musculares||''),
+    } : null
     const respondedToday = lastW?.fecha === today
     return {
-      id:p.id, nombre:String(p.nombre), usuario:String(p.usuario), activo:Boolean(p.activo),
-      password_plain:p.password_plain?String(p.password_plain):null,
-      jugador_id:p.jugador_id, posicion:String(p.posicion||''), edad:Number(p.edad)||null,
-      peso_kg:String(p.peso_kg||''), estatura_cm:Number(p.estatura_cm)||null, pie_habil:String(p.pie_habil||''),
-      foto_url:p.foto_url?String(p.foto_url):null,
-      posicion_orden:posOrder(p.posicion), acwr:calcACWR(sl),
-      recentLogs:logs.map(l=>({ id:Number(l.id), fecha:String(l.fecha), carga_ua:Number(l.carga_ua)||0, rpe:Number(l.rpe)||0, duracion_min:Number(l.duracion_min)||0 })),
-      lastWellness:lastW, respondedToday, entrena_grupo:respondedToday?(lastW?.entrena_grupo??null):null,
-      lesion:lesionMap[p.jugador_id]||null,
-      last_session_fecha: lastLogRows[0] ? String(lastLogRows[0].fecha) : null,
+      id: p.id, nombre: String(p.nombre), usuario: String(p.usuario), activo: Boolean(p.activo),
+      password_plain: p.password_plain ? String(p.password_plain) : null,
+      jugador_id: p.jugador_id, posicion: String(p.posicion||''), edad: Number(p.edad)||null,
+      peso_kg: String(p.peso_kg||''), estatura_cm: Number(p.estatura_cm)||null, pie_habil: String(p.pie_habil||''),
+      foto_url: p.foto_url ? String(p.foto_url) : null,
+      posicion_orden: posOrder(p.posicion), acwr: calcACWR(sl),
+      recentLogs: logs.map(l => ({ id: Number(l.id), fecha: String(l.fecha), carga_ua: Number(l.carga_ua)||0, rpe: Number(l.rpe)||0, duracion_min: Number(l.duracion_min)||0 })),
+      lastWellness: lastW, respondedToday, entrena_grupo: respondedToday ? (lastW?.entrena_grupo ?? null) : null,
+      lesion: lesionMap[p.jugador_id] || null,
+      last_session_fecha: lastSessionByPlayer[p.jugador_id] ? String(lastSessionByPlayer[p.jugador_id].fecha) : null,
     }
-  }))
+  })
 
   const sorted = [...teamData].sort((a,b) => a.posicion_orden!==b.posicion_orden ? a.posicion_orden-b.posicion_orden : a.nombre.localeCompare(b.nombre))
   return <CoachClient session={session} teamData={sorted} today={today} />

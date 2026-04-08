@@ -73,7 +73,62 @@ export async function sendReminderEmail(to: string, nombre: string) {
   }
 }
 
-export async function sendBirthdayEmail(to: string, coachNombre: string, jugadorNombre: string, edad?: number) {
+export async function sendACWRAlertEmail(to: string, coachNombre: string, alertas: { nombre: string; ratio: number; status: string }[]) {
+  if (!process.env.GMAIL_USER || !process.env.GMAIL_PASS) {
+    return { ok: false, error: 'GMAIL_USER o GMAIL_PASS no configurados' }
+  }
+
+  const appUrl = getAppUrl()
+  const filas = alertas.map(a => {
+    const color = a.status === 'peligro' ? '#ef4444' : '#f59e0b'
+    const label = a.status === 'peligro' ? '🔴 Riesgo Alto' : '🟡 Precaución'
+    return `<tr>
+      <td style="padding:10px 12px;color:#f1f5f9;font-weight:600">${a.nombre}</td>
+      <td style="padding:10px 12px;color:${color};font-weight:700;font-size:16px">${a.ratio.toFixed(2)}</td>
+      <td style="padding:10px 12px;color:${color};font-weight:600">${label}</td>
+    </tr>`
+  }).join('')
+
+  try {
+    const transporter = getTransporter()
+    const info = await transporter.sendMail({
+      from: getFrom(),
+      to,
+      subject: `⚠️ Alerta de Carga — ${alertas.length} jugador${alertas.length > 1 ? 'es' : ''} en zona de riesgo`,
+      html: `
+        <div style="font-family:sans-serif;max-width:520px;margin:0 auto;background:#0d0d0d;color:#eee;padding:32px;border-radius:12px">
+          <div style="text-align:center;margin-bottom:24px">
+            <div style="display:inline-block;background:#c8f135;border-radius:8px;padding:8px 16px">
+              <span style="font-size:20px;font-weight:900;color:#000;letter-spacing:1px">W&amp;P</span>
+            </div>
+          </div>
+          <h2 style="color:#f59e0b;margin:0 0 8px">⚠️ Alerta de Carga ACWR</h2>
+          <p style="color:#aaa;margin:0 0 20px">Hola ${coachNombre}, los siguientes jugadores tienen una relación carga aguda/crónica fuera del rango óptimo (0.8–1.3):</p>
+          <table style="width:100%;border-collapse:collapse;background:#1e293b;border-radius:10px;overflow:hidden;margin-bottom:24px">
+            <thead>
+              <tr style="background:#0f172a">
+                <th style="padding:10px 12px;text-align:left;color:#64748b;font-size:11px;text-transform:uppercase">Jugador</th>
+                <th style="padding:10px 12px;text-align:left;color:#64748b;font-size:11px;text-transform:uppercase">ACWR</th>
+                <th style="padding:10px 12px;text-align:left;color:#64748b;font-size:11px;text-transform:uppercase">Estado</th>
+              </tr>
+            </thead>
+            <tbody>${filas}</tbody>
+          </table>
+          <p style="color:#aaa;font-size:12px;margin:0 0 24px">ACWR óptimo: 0.8–1.3 · Precaución: 1.3–1.5 · Riesgo Alto: &gt;1.5</p>
+          <div style="text-align:center">
+            <a href="${appUrl}/coach" style="display:inline-block;background:#c8f135;color:#000;font-weight:700;font-size:15px;padding:14px 32px;border-radius:10px;text-decoration:none">
+              Ver plantel →
+            </a>
+          </div>
+        </div>
+      `,
+    })
+    return { ok: true, id: info.messageId }
+  } catch (err: any) {
+    console.error('ACWR alert email error:', err)
+    return { ok: false, error: String(err?.message || err) }
+  }
+}
   if (!process.env.GMAIL_USER || !process.env.GMAIL_PASS) {
     console.error('Email error: GMAIL_USER o GMAIL_PASS no configurados')
     return { ok: false, error: 'GMAIL_USER o GMAIL_PASS no configurados en variables de entorno' }

@@ -86,6 +86,19 @@ export async function POST(req: NextRequest) {
       ${b.entrena_grupo ?? true}, ${b.fue_gimnasio ?? false},
       ${b.grupos_musculares || null}, ${clubId}
     )
+    ON CONFLICT (jugador_id, fecha) DO UPDATE SET
+      fatiga            = EXCLUDED.fatiga,
+      calidad_sueno     = EXCLUDED.calidad_sueno,
+      dolor_muscular    = EXCLUDED.dolor_muscular,
+      nivel_estres      = EXCLUDED.nivel_estres,
+      estado_animo      = EXCLUDED.estado_animo,
+      dolor_zona        = EXCLUDED.dolor_zona,
+      dolor_eva         = EXCLUDED.dolor_eva,
+      tqr               = EXCLUDED.tqr,
+      recovery          = EXCLUDED.recovery,
+      entrena_grupo     = EXCLUDED.entrena_grupo,
+      fue_gimnasio      = EXCLUDED.fue_gimnasio,
+      grupos_musculares = EXCLUDED.grupos_musculares
     RETURNING id, fecha::text`
   return NextResponse.json(r)
 }

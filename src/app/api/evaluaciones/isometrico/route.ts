@@ -18,12 +18,13 @@ export async function GET(req: NextRequest) {
   if (!jugador_id) return NextResponse.json({ error: 'Falta jugador_id' }, { status: 400 })
 
   const sql = getDb()
-  // La vista iso_con_asimetria calcula pct_asimetria, semaforo y lado_dominante
   const rows = await sql`
-    SELECT * FROM iso_con_asimetria
-    WHERE jugador_id = ${Number(jugador_id)}
-      AND grupo_muscular ILIKE ${grupo}
-    ORDER BY fecha DESC
+    SELECT ia.* FROM iso_con_asimetria ia
+    JOIN iso_sessions iso ON iso.id = ia.id
+    WHERE ia.jugador_id = ${Number(jugador_id)}
+      AND ia.grupo_muscular ILIKE ${grupo}
+      AND (${s.clubId ?? null}::int IS NULL OR iso.club_id = ${s.clubId ?? null})
+    ORDER BY ia.fecha DESC
   `
   return NextResponse.json(rows)
 }
@@ -52,6 +53,14 @@ export async function POST(req: NextRequest) {
   }
 
   const sql = getDb()
+
+  // Verify the player belongs to this coach's club before writing
+  if (s.clubId) {
+    const owns = await sql`
+      SELECT 1 FROM jugadores j JOIN usuarios u ON u.id = j.usuario_id
+      WHERE j.id = ${Number(jugador_id)} AND u.club_id = ${s.clubId} LIMIT 1`
+    if (!owns.length) return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
+  }
   const [row] = await sql`
     INSERT INTO iso_sessions (
       jugador_id, club_id, fecha, grupo_muscular,
