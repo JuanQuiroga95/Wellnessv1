@@ -5226,6 +5226,9 @@ function GpsPanel({ teamData }: { teamData: any }) {
                 <div style={{ fontSize: 32, marginBottom: 8 }}>📁</div>
                 <div style={{ fontSize: 13, color: 'var(--silver)' }}>Arrastrá el archivo acá o hacé click para seleccionar</div>
                 <div style={{ fontSize: 11, color: 'var(--fog)', marginTop: 4 }}>Excel (.xlsx / .csv) o PDF — ambos formatos de Catapult OpenField</div>
+                <div style={{ marginTop: 10, padding: '8px 14px', background: 'rgba(245,158,11,.08)', border: '1px solid rgba(245,158,11,.2)', borderRadius: 8, fontSize: 11, color: '#f59e0b', lineHeight: 1.6 }}>
+                  📋 <strong>PDF:</strong> exportá solo la hoja de la <strong>tabla M</strong> (Cuadro Resumen / Player Summary) desde Catapult OpenField. No el reporte completo.
+                </div>
               </div>
             )}
           </label>
