@@ -1706,7 +1706,17 @@ function BloqueMetodologia({ bloque, index, onChange, onRemove, teamPlayers = []
   function handleImg(e: any) {
     const file = e.target.files?.[0]; if (!file) return
     const reader = new FileReader()
-    reader.onload = ev => { const url = ev.target?.result as string; setImgPreview(url); onChange('imagen', url) }
+    reader.onload = async ev => {
+      const raw = ev.target?.result as string
+      try {
+        const compressed = await compressImage(raw, 300, 0.75)
+        setImgPreview(compressed)
+        onChange('imagen', compressed)
+      } catch {
+        setImgPreview(raw)
+        onChange('imagen', raw)
+      }
+    }
     reader.readAsDataURL(file)
   }
 
@@ -7676,7 +7686,7 @@ function ManualPanel() {
         </ManualSection>
 
         <ManualSection title="Usar una tarea en sesión">
-          <p style={{ fontSize:12, color:'var(--silver)', lineHeight:1.65 }}>Hacé clic en <strong style={{ color:'var(--lime)' }}>+ Usar en sesión</strong>. Esto copia todos los datos de la tarea directamente en el formulario de sesión activo del Calendario. El contador de "veces usada" se incrementa automáticamente.</p>
+          <p style={{ fontSize:12, color:'var(--silver)', lineHeight:1.65 }}>Desde el Calendario, al crear o editar una sesión, hacé clic en <strong style={{ color:'var(--lime)' }}>📚 Biblioteca</strong> para elegir una tarea guardada y agregarla con todos sus datos pre-completados. El contador de "veces usada" se incrementa automáticamente.</p>
         </ManualSection>
       </div>
     ),
@@ -7743,7 +7753,6 @@ function BibliotecaPanel() {
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState({ nombre:'', ventana:'', subtarea:'', jugadores:'', series:'', minutos:'', pausa:'', largo:'', ancho:'', descripcion:'' })
   const [saving, setSaving] = useState(false)
-  const [copied, setCopied] = useState<number|null>(null)
   const [ventanaFilter, setVentanaFilter] = useState('')
   const [sortBy, setSortBy] = useState<'uso'|'reciente'|'tipo'>('tipo')
 
@@ -7767,12 +7776,6 @@ function BibliotecaPanel() {
       setForm({ nombre:'', ventana:'', subtarea:'', jugadores:'', series:'', minutos:'', pausa:'', largo:'', ancho:'', descripcion:'' })
       await cargar()
     } catch(e){} finally { setSaving(false) }
-  }
-
-  async function usar(id: number) {
-    await fetch('/api/biblioteca', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({action:'usar',id}) })
-    setCopied(id); setTimeout(()=>setCopied(null),2000)
-    await cargar()
   }
 
   async function eliminar(id: number) {
@@ -7855,10 +7858,6 @@ function BibliotecaPanel() {
             </div>
           </div>
           <div style={{ display:'flex', gap:8, flexShrink:0, alignItems:'center' }}>
-            <button onClick={()=>usar(t.id)}
-              style={{ fontSize:11, padding:'7px 16px', borderRadius:8, background:copied===t.id?'rgba(34,197,94,.2)':'rgba(200,241,53,.15)', color:copied===t.id?'#22c55e':'var(--lime)', border:`1px solid ${copied===t.id?'rgba(34,197,94,.4)':'rgba(200,241,53,.35)'}`, cursor:'pointer', fontWeight:700, whiteSpace:'nowrap' }}>
-              {copied===t.id?'✓ ¡Usada!':'+ Usar en sesión'}
-            </button>
             <button onClick={()=>eliminar(t.id)} style={{ fontSize:10, padding:'7px 10px', borderRadius:8, background:'rgba(239,68,68,.06)', color:'#f87171', border:'1px solid rgba(239,68,68,.2)', cursor:'pointer' }} title="Eliminar">✕</button>
           </div>
         </div>
