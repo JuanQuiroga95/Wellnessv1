@@ -129,6 +129,7 @@ export async function sendACWRAlertEmail(to: string, coachNombre: string, alerta
     return { ok: false, error: String(err?.message || err) }
   }
 }
+export async function sendBirthdayEmail(to: string, coachNombre: string, jugadorNombre: string, edad?: number) {
   if (!process.env.GMAIL_USER || !process.env.GMAIL_PASS) {
     console.error('Email error: GMAIL_USER o GMAIL_PASS no configurados')
     return { ok: false, error: 'GMAIL_USER o GMAIL_PASS no configurados en variables de entorno' }
