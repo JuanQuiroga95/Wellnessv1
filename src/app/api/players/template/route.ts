@@ -29,26 +29,19 @@ const ex2: Record<string, string> = {
 
 function buildXlsx(cols: typeof ALL_COLS): Buffer {
   const wb = XLSX.utils.book_new()
-
   const posStr = 'Portero|Defensa Central|Lateral Derecho|Lateral Izquierdo|Mediocentro Defensivo|Mediocentro|Mediocentro Ofensivo|Volante Derecho|Volante Izquierdo|Extremo Derecho|Extremo Izquierdo|Centro Delantero|Delantero'
   const instruccion = `PLANTILLA DE IMPORTACION DE JUGADORES | Campos obligatorios: Nombre, Usuario, Contrasena | No modificar columnas | Posiciones: ${posStr} | Pie: Derecho, Izquierdo, Ambidiestro | Fecha: YYYY-MM-DD`
 
-  const headerRow = cols.map(c => c.label)
-  const example1  = cols.map(c => c.example)
-  const example2  = cols.map(c => ex2[c.key] ?? c.example)
-
   const aoa = [
     [instruccion, ...Array(cols.length - 1).fill('')],
-    headerRow,
-    example1,
-    example2,
+    cols.map(c => c.label),
+    cols.map(c => c.example),
+    cols.map(c => ex2[c.key] ?? c.example),
   ]
 
   const ws = XLSX.utils.aoa_to_sheet(aoa)
-
   ws['!cols'] = cols.map(c => ({ wch: c.width }))
   ws['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: cols.length - 1 } }]
-
   XLSX.utils.book_append_sheet(wb, ws, 'Jugadores')
 
   const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' })

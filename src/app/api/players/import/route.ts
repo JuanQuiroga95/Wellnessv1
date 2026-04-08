@@ -27,7 +27,7 @@ const VALID_PIE = ['Derecho', 'Izquierdo', 'Ambidiestro']
 function parseRows(raw: any[][]): { players: any[]; errors: string[] } {
   if (raw.length < 2) return { players: [], errors: ['La planilla está vacía o no tiene datos.'] }
 
-  // Find header row: first row (within first 5) that contains 'nombre' or 'usuario'
+  // Find header row: first row (within first 5) that contains a known column name
   const KNOWN = ['nombre completo *', 'nombre completo', 'nombre', 'usuario *', 'usuario', 'contrasena *', 'contraseña *']
   let headerRowIdx = -1
   for (let i = 0; i < Math.min(5, raw.length); i++) {
