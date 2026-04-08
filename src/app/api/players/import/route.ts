@@ -23,12 +23,20 @@ const VALID_POSICIONES = [
 const VALID_PIE = ['Derecho', 'Izquierdo', 'Ambidiestro']
 
 // Parse a raw[][] from the client (xlsx pre-parsed via SheetJS in browser)
-// Row 0 = instructions, Row 1 = headers, Rows 2+ = data
+// Auto-detects header row within first 5 rows (robust to instruction rows)
 function parseRows(raw: any[][]): { players: any[]; errors: string[] } {
-  if (raw.length < 3) return { players: [], errors: ['La planilla está vacía o no tiene datos.'] }
+  if (raw.length < 2) return { players: [], errors: ['La planilla está vacía o no tiene datos.'] }
 
-  // Header row (row index 1)
-  const headers = (raw[1] as any[]).map(h => String(h ?? '').toLowerCase().trim())
+  // Find header row: first row (within first 5) that contains 'nombre' or 'usuario'
+  const KNOWN = ['nombre completo *', 'nombre completo', 'nombre', 'usuario *', 'usuario', 'contrasena *', 'contraseña *']
+  let headerRowIdx = -1
+  for (let i = 0; i < Math.min(5, raw.length); i++) {
+    const cells = (raw[i] as any[]).map(h => String(h ?? '').toLowerCase().trim())
+    if (KNOWN.some(k => cells.includes(k))) { headerRowIdx = i; break }
+  }
+  if (headerRowIdx === -1) return { players: [], errors: ['No se encontraron las columnas obligatorias: Nombre, Usuario, Contraseña. Verificá que usás la plantilla oficial.'] }
+
+  const headers = (raw[headerRowIdx] as any[]).map(h => String(h ?? '').toLowerCase().trim())
 
   // Map headers to field keys
   const fieldMap: Record<string, string> = {
@@ -60,11 +68,11 @@ function parseRows(raw: any[][]): { players: any[]; errors: string[] } {
   const errors: string[] = []
   const usedUsuarios = new Set<string>()
 
-  const dataRows = raw.slice(2) // skip instructions + headers
+  const dataRows = raw.slice(headerRowIdx + 1) // skip everything up to and including headers
 
   for (let i = 0; i < dataRows.length; i++) {
     const row = dataRows[i] as any[]
-    const rowNum = i + 3 // 1-indexed, +2 for instructions+header rows
+    const rowNum = i + headerRowIdx + 2 // 1-indexed, offset by header position
 
     const get = (field: string) => {
       const idx = colIdx[field]
