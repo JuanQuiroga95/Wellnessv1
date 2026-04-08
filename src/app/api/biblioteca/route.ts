@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
       CASE WHEN objetivo IS NOT NULL THEN 0 ELSE 1 END,
       CASE objetivo
         WHEN 'Fuerza' THEN 1
-        WHEN 'Activación' THEN 2
+        WHEN 'Activación/Recuperación' THEN 2
         WHEN 'Resistencia' THEN 3
         WHEN 'Velocidad' THEN 4
         ELSE 5
@@ -62,14 +62,23 @@ export async function POST(req: NextRequest) {
           AND COALESCE(ventana,'')=COALESCE(${t.ventana||null},'')
         LIMIT 1`
       if (exists.length > 0) {
-        // Update imagen if this run has one and existing doesn't
-        if (t.imagen) {
-          await sql`
-            UPDATE biblioteca_tareas SET imagen=${t.imagen}
-            WHERE admin_id=${s.userId} AND nombre=${nombre}
-              AND COALESCE(ventana,'')=COALESCE(${t.ventana||null},'')
-              AND (imagen IS NULL OR imagen = '')`
-        }
+        // Always update all fields so imagen, descripcion, etc. stay in sync
+        await sql`
+          UPDATE biblioteca_tareas SET
+            subtarea     = ${t.subtarea||null},
+            jugadores    = ${t.jugadores||null},
+            series       = ${t.series||null},
+            minutos      = ${t.minutos||null},
+            pausa        = ${t.pausa||null},
+            largo        = ${t.largo||null},
+            ancho        = ${t.ancho||null},
+            descripcion  = ${t.descripcion||null},
+            intensidad   = ${t.intensidad||null},
+            objetivo     = ${t.objetivo||null},
+            imagen       = CASE WHEN ${t.imagen ? 'y' : 'n'} = 'y' THEN ${t.imagen||null} ELSE imagen END
+          WHERE admin_id=${s.userId}
+            AND nombre=${nombre}
+            AND COALESCE(ventana,'')=COALESCE(${t.ventana||null},'')`
         continue
       }
       await sql`

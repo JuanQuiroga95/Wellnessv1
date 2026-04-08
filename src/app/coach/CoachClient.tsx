@@ -1564,7 +1564,7 @@ function CalendarioPanel({ teamData }) {
                   method: 'POST',
                   headers: {'Content-Type':'application/json'},
                   body: JSON.stringify({ action: 'auto_guardar', tareas: tareasParaBiblioteca }),
-                }).catch(() => {}) // silent fail — never block the UI
+                }).catch((err) => console.warn('[auto_guardar biblioteca]', err))
               }
             } catch(e) {
               alert('Error de conexión: ' + String(e))
@@ -1611,13 +1611,13 @@ function getCuadrante(densidad: number, jugadores?: number) {
   if (d < 50) {
     if (n <= 4)       { objetivo = 'Fuerza';     intensidad = 1 }
     else if (n <= 8)  { objetivo = 'Fuerza';     intensidad = 2 }
-    else if (n <= 14) { objetivo = 'Activación'; intensidad = 2 }
-    else              { objetivo = 'Activación'; intensidad = 4 }
+    else if (n <= 14) { objetivo = 'Activación/Recuperación'; intensidad = 2 }
+    else              { objetivo = 'Activación/Recuperación'; intensidad = 4 }
   } else if (d < 100) {
     if (n <= 4)       { objetivo = 'Fuerza';     intensidad = 3 }
     else if (n <= 8)  { objetivo = 'Fuerza';     intensidad = 4 }
-    else if (n <= 14) { objetivo = 'Activación'; intensidad = 1 }
-    else              { objetivo = 'Activación'; intensidad = 3 }
+    else if (n <= 14) { objetivo = 'Activación/Recuperación'; intensidad = 1 }
+    else              { objetivo = 'Activación/Recuperación'; intensidad = 3 }
   } else if (d < 200) {
     if (n <= 4)       { objetivo = 'Resistencia'; intensidad = 2 }
     else if (n <= 8)  { objetivo = 'Resistencia'; intensidad = 4 }
@@ -7802,7 +7802,7 @@ function BibliotecaPanel() {
 
   // Objectives that come from the GPS calculator (Sangnier table)
   const OBJETIVOS_CALC = ['Fuerza', 'Activación', 'Resistencia', 'Velocidad']
-  const OBJETIVO_ORDER = { 'Fuerza': 0, 'Activación': 1, 'Resistencia': 2, 'Velocidad': 3 }
+  const OBJETIVO_ORDER = { 'Fuerza': 0, 'Activación/Recuperación': 1, 'Resistencia': 2, 'Velocidad': 3 }
 
   // Split: tareas with objetivo (from calculator) vs without
   const tareasConCalc = filtradas.filter(t => t.objetivo != null)
@@ -7868,7 +7868,7 @@ function BibliotecaPanel() {
               <img
                 src={t.imagen}
                 alt={t.nombre}
-                style={{ width:120, height:80, objectFit:'contain', borderRadius:8, background:'var(--ink3)', border:'1px solid var(--mist)', flexShrink:0 }}
+                style={{ width:240, height:160, objectFit:'contain', borderRadius:8, background:'var(--ink3)', border:'1px solid var(--mist)', flexShrink:0 }}
               />
             )}
             {t.descripcion && (
@@ -7972,7 +7972,7 @@ function BibliotecaPanel() {
                 🧮 Tareas con calculadora
               </div>
               {objetivosSorted.map(obj => {
-                const colores: Record<string,string> = { 'Fuerza':'#ef4444', 'Activación':'#f97316', 'Resistencia':'#3b82f6', 'Velocidad':'#a855f7', 'Alta Intensidad':'#ef4444', 'Baja Intensidad':'#22c55e' }
+                const colores: Record<string,string> = { 'Fuerza':'#ef4444', 'Activación/Recuperación':'#f97316', 'Resistencia':'#3b82f6', 'Velocidad':'#a855f7' }
                 return (
                   <div key={obj}>
                     <GroupHeader label={obj} color={colores[obj] ?? 'var(--lime)'} />
