@@ -27,41 +27,54 @@ const VALID_PIE = ['Derecho', 'Izquierdo', 'Ambidiestro']
 function parseRows(raw: any[][]): { players: any[]; errors: string[] } {
   if (raw.length < 2) return { players: [], errors: ['La planilla está vacía o no tiene datos.'] }
 
+  // Normalize: lowercase, remove accents, trim
+  const norm = (s: any) => String(s ?? '').toLowerCase().trim()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, ' ')
+
   // Find header row: first row (within first 5) that contains a known column name
-  const KNOWN = ['nombre completo *', 'nombre completo', 'nombre', 'usuario *', 'usuario', 'contrasena *', 'contraseña *']
+  const KNOWN = [
+    'nombre completo *', 'nombre completo', 'nombre',
+    'usuario *', 'usuario',
+    'contrasena *', 'contrasena', 'password',
+    'contrasenha *', 'contrasenha',
+  ]
   let headerRowIdx = -1
   for (let i = 0; i < Math.min(5, raw.length); i++) {
-    const cells = (raw[i] as any[]).map(h => String(h ?? '').toLowerCase().trim())
+    const cells = (raw[i] as any[]).map(h => norm(h))
     if (KNOWN.some(k => cells.includes(k))) { headerRowIdx = i; break }
   }
   if (headerRowIdx === -1) return { players: [], errors: ['No se encontraron las columnas obligatorias: Nombre, Usuario, Contraseña. Verificá que usás la plantilla oficial.'] }
 
-  const headers = (raw[headerRowIdx] as any[]).map(h => String(h ?? '').toLowerCase().trim())
+  const headers = (raw[headerRowIdx] as any[]).map(h => norm(h))
 
-  // Map headers to field keys
+  // Map normalized headers to field keys — covers accented, unaccented and asterisk variants
   const fieldMap: Record<string, string> = {
     'nombre completo *': 'nombre', 'nombre completo': 'nombre', 'nombre': 'nombre',
     'usuario *': 'usuario', 'usuario': 'usuario',
-    'contraseña *': 'password', 'contraseña': 'password', 'password': 'password',
-    'posición': 'posicion', 'posicion': 'posicion',
+    'contrasena *': 'password', 'contrasena': 'password',
+    'contrasenha *': 'password', 'contrasenha': 'password',
+    'password *': 'password', 'password': 'password',
+    'posicion': 'posicion',
     'edad': 'edad',
     'peso (kg)': 'peso_kg', 'peso': 'peso_kg',
     'estatura (cm)': 'estatura_cm', 'estatura': 'estatura_cm',
-    'pie hábil': 'pie_habil', 'pie habil': 'pie_habil', 'pie': 'pie_habil',
+    'pie habil': 'pie_habil', 'pie': 'pie_habil',
     'email': 'email',
     'fecha nacimiento': 'fecha_nacimiento', 'fecha de nacimiento': 'fecha_nacimiento',
-    'peso ideal mín (kg)': 'peso_ideal_min', 'peso ideal min (kg)': 'peso_ideal_min', 'peso ideal min': 'peso_ideal_min',
-    'peso ideal máx (kg)': 'peso_ideal_max', 'peso ideal max (kg)': 'peso_ideal_max', 'peso ideal max': 'peso_ideal_max',
+    'peso ideal min (kg)': 'peso_ideal_min', 'peso ideal min': 'peso_ideal_min',
+    'peso ideal max (kg)': 'peso_ideal_max', 'peso ideal max': 'peso_ideal_max',
   }
 
   const colIdx: Record<string, number> = {}
   for (let i = 0; i < headers.length; i++) {
-    const key = fieldMap[headers[i]]
+    const key = fieldMap[headers[i]]  // headers already norm()-ed above
     if (key) colIdx[key] = i
   }
 
   if (colIdx['nombre'] === undefined || colIdx['usuario'] === undefined || colIdx['password'] === undefined) {
-    return { players: [], errors: ['No se encontraron las columnas obligatorias: Nombre, Usuario, Contraseña. Verificá que usás la plantilla oficial.'] }
+    const found = headers.filter(Boolean).slice(0, 8).join(', ')
+    return { players: [], errors: [`No se encontraron las columnas obligatorias: Nombre, Usuario, Contraseña. Columnas detectadas: [${found}]. Verificá que usás la plantilla oficial.`] }
   }
 
   const players: any[] = []
