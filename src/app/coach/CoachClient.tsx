@@ -1031,8 +1031,8 @@ const OBJETIVOS_SECUNDARIOS = ['Táctico','Técnico','Técnico-Táctico']
 const TITULOS_SESION = ['MD+1','MD+2','MD+3','MD-4','MD-3','MD-2','MD-1','MD']
 const TAREAS_PRINCIPALES = ['Activación en campo','Activación en gimnasio','Gimnasio','Rondo','Trabajo analítico','Juego de posesión','Juego de posición','Transiciones','Partido reducido','Partido modificado','Partido de entrenamiento','Partido amistoso','Partido oficial']
 const SUBTAREAS: Record<string, string[]> = { 'Activación en campo': ['Circuito técnico','Circuito neuromuscular','Pliometría','Movilidad','Trabajo Preventivo'], 'Activación en gimnasio': ['Isométricos','Pliometría','Movilidad','Excéntricos','Estabilidad','Tracción y empuje','Trabajo Preventivo'], 'Rondo': ['Rondo 4v2','Rondo 5v2','Rondo 6v2','Rondo 8v2','Rondo 4v1+1','Rondo en movimiento','Rondo conservación','Rondo orientado','Rondo dos espacios'] }
-const TAREAS_CON_ESPACIO = ['Rondo','Trabajo analítico','Juego de posesión','Juego de posición','Transiciones','Partido reducido','Partido modificado','Partido de entrenamiento','Partido amistoso','Partido oficial']
-const TAREAS_CON_EQUIPO = ['Rondo','Trabajo analítico','Juego de posesión','Juego de posición','Transiciones','Partido reducido','Partido modificado','Partido de entrenamiento','Partido amistoso','Partido oficial']
+const TAREAS_CON_ESPACIO = ['Rondo','Trabajo analítico','Juego de posesión','Juego de posición','Partido reducido','Partido modificado','Partido de entrenamiento','Partido amistoso','Partido oficial']
+const TAREAS_CON_EQUIPO = ['Rondo','Trabajo analítico','Juego de posesión','Juego de posición','Partido reducido','Partido modificado','Partido de entrenamiento','Partido amistoso','Partido oficial']
 const TAREAS_PARTIDO_SIMPLE = ['Partido amistoso','Partido oficial','Partido de entrenamiento']
 const TAREAS_MOSTRAR_FORM = [...TAREAS_CON_ESPACIO, 'Activación en campo','Activación en gimnasio','Gimnasio']
 const TIPO_COLORES = { entrenamiento:'#c8f135', partido:'#3b82f6', recuperacion:'#f59e0b', descanso:'#555' }
@@ -1549,7 +1549,7 @@ function CalendarioPanel({ teamData }) {
                       subtarea: bl.subtarea || null,
                       jugadores: jug || null,
                       series: Number(bl.series) || null,
-                      minutos: parseMinutos(bl.minutos) || null,
+                      minutos: Number(bl.minutos) || null,
                       pausa: Number(bl.pausa) || null,
                       largo: largo || null,
                       ancho: ancho || null,
@@ -1664,15 +1664,6 @@ function getJugadoresBloque(bl: any, esConEquipo: boolean): number {
   return Number(bl.jugadores) || 0
 }
 
-// Convierte "3:30" → 3.5, "3.5" → 3.5, "3" → 3. Acepta MM:SS o decimal.
-function parseMinutos(val: any): number {
-  if (!val && val !== 0) return 0
-  const s = String(val).trim()
-  const mmss = s.match(/^(\d+):([0-5]\d)$/)
-  if (mmss) return parseInt(mmss[1]) + parseInt(mmss[2]) / 60
-  return parseFloat(s) || 0
-}
-
 function calcularDistancias(jugadores: number, largo: number, ancho: number, series: number, minutos: number) {
   if (!jugadores || !largo || !ancho || !series || !minutos) return null
   const espacioM2 = largo * ancho
@@ -1713,7 +1704,7 @@ function BloqueMetodologia({ bloque, index, onChange, onRemove, teamPlayers = []
 
   // For partido types: prefer auto-total > manual jugadores > team selector
   const calcJugadores = autoTotal > 0 ? autoTotal : (Number(bloque.jugadores) || (esConEquipo ? totalJugadoresEquipos : 0))
-  const calc = esConEspacio ? calcularDistancias(calcJugadores, Number(bloque.largo), Number(bloque.ancho), Number(bloque.series), parseMinutos(bloque.minutos)) : null
+  const calc = esConEspacio ? calcularDistancias(calcJugadores, Number(bloque.largo), Number(bloque.ancho), Number(bloque.series), Number(bloque.minutos)) : null
 
   function handleImg(e: any) {
     const file = e.target.files?.[0]; if (!file) return
@@ -1813,13 +1804,7 @@ function BloqueMetodologia({ bloque, index, onChange, onRemove, teamPlayers = []
               }
             </div>
             <div><label style={{ fontSize:9, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:2 }}>Bloques</label>{inp('series','Nº bloques','number')}</div>
-            <div>
-              <label style={{ fontSize:9, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:2 }}>Min / bloque</label>
-              <input className="wp-input" type="text" placeholder="ej: 3:30 o 3.5"
-                value={bloque.minutos||''}
-                onChange={e=>onChange('minutos', e.target.value)}
-                style={{ padding:'5px 8px', fontSize:11, width:'100%' }} />
-            </div>
+            <div><label style={{ fontSize:9, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:2 }}>Min / bloque</label>{inp('minutos','Min','number')}</div>
             <div><label style={{ fontSize:9, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:2 }}>Pausa x bloque (min)</label>{inp('pausa','Min descanso','number')}</div>
           </div>
           {esConEspacio && (
@@ -1830,8 +1815,8 @@ function BloqueMetodologia({ bloque, index, onChange, onRemove, teamPlayers = []
           )}
           {(bloque.series && bloque.minutos) && (
             <div style={{ fontSize:10, color:'var(--lime)', fontFamily:'DM Mono,monospace', marginTop:4 }}>
-              ⏱ Tiempo activo: {(Number(bloque.series)*parseMinutos(bloque.minutos))} min
-              {bloque.pausa ? ` + ${(Number(bloque.series)*Number(bloque.pausa))} min pausa = ${(Number(bloque.series)*(parseMinutos(bloque.minutos)+Number(bloque.pausa)))} min total` : ''}
+              ⏱ Tiempo activo: {(Number(bloque.series)*Number(bloque.minutos))} min
+              {bloque.pausa ? ` + ${(Number(bloque.series)*Number(bloque.pausa))} min pausa = ${(Number(bloque.series)*(Number(bloque.minutos)+Number(bloque.pausa)))} min total` : ''}
             </div>
           )}
         </div>
@@ -1956,7 +1941,7 @@ function imprimirSesion(f: any, bloques: any[], teamPlayers: any[] = []) {
   bloques.forEach(bl => {
     if (!TAREAS_CON_ESPACIO.includes(bl.ventana)) return
     const jugN = getJugadoresBloque(bl, TAREAS_CON_EQUIPO.includes(bl.ventana))
-    const calc = calcularDistancias(jugN, Number(bl.largo), Number(bl.ancho), Number(bl.series), parseMinutos(bl.minutos))
+    const calc = calcularDistancias(jugN, Number(bl.largo), Number(bl.ancho), Number(bl.series), Number(bl.minutos))
     if (!calc) return
     hasCarga = true
     metricKeys.forEach(k => {
@@ -1967,7 +1952,7 @@ function imprimirSesion(f: any, bloques: any[], teamPlayers: any[] = []) {
 
   let tiempoTrabajo = 0, tiempoDescanso = 0
   bloques.forEach(bl => {
-    tiempoTrabajo += (Number(bl.series)||0) * (parseMinutos(bl.minutos)||0)
+    tiempoTrabajo += (Number(bl.series)||0) * (Number(bl.minutos)||0)
     tiempoDescanso += (Number(bl.series)||0) * (Number(bl.pausa)||0)
   })
 
@@ -1975,7 +1960,7 @@ function imprimirSesion(f: any, bloques: any[], teamPlayers: any[] = []) {
 
   const tareasHtml = bloques.map((bl, i) => {
     const jugN = getJugadoresBloque(bl, TAREAS_CON_EQUIPO.includes(bl.ventana))
-    const calc = TAREAS_CON_ESPACIO.includes(bl.ventana) ? calcularDistancias(jugN, Number(bl.largo), Number(bl.ancho), Number(bl.series), parseMinutos(bl.minutos)) : null
+    const calc = TAREAS_CON_ESPACIO.includes(bl.ventana) ? calcularDistancias(jugN, Number(bl.largo), Number(bl.ancho), Number(bl.series), Number(bl.minutos)) : null
     const cuad = calc ? getCuadrante(calc.densidad, jugN) : null
     const objColor = cuad ? (OBJCOLORS[cuad.objetivo] || '#555') : '#555'
 
@@ -2322,7 +2307,7 @@ function SesionEditor({ sesion, defaultFecha, onSave, onDelete, onCancel, teamPl
       {bloques.length > 0 && (() => {
         let tiempoTrabajo = 0, tiempoDescanso = 0
         bloques.forEach(bl => {
-          const s = Number(bl.series)||0, m = parseMinutos(bl.minutos)||0, p = Number(bl.pausa)||0
+          const s = Number(bl.series)||0, m = Number(bl.minutos)||0, p = Number(bl.pausa)||0
           tiempoTrabajo += s * m
           tiempoDescanso += s * p
         })
@@ -2359,7 +2344,7 @@ function SesionEditor({ sesion, defaultFecha, onSave, onDelete, onCancel, teamPl
         bloques.forEach(bl => {
           if (!TAREAS_CON_ESPACIO.includes(bl.ventana)) return
           const jugN = getJugadoresBloque(bl, TAREAS_CON_EQUIPO.includes(bl.ventana))
-          const calc = calcularDistancias(jugN, Number(bl.largo), Number(bl.ancho), Number(bl.series), parseMinutos(bl.minutos))
+          const calc = calcularDistancias(jugN, Number(bl.largo), Number(bl.ancho), Number(bl.series), Number(bl.minutos))
           if (!calc) return
           hasCarga = true
           metricKeys.forEach(k => {
@@ -2691,7 +2676,7 @@ function AddMatchForm({ teamData, onSuccess, onCancel }) {
       const entries = Object.entries(bulkMins)
         .filter(([,m]) => m && Number(m) > 0)
         .map(([jid, m]) => ({ jugador_id: Number(jid), minutos: Number(m) }))
-      if (entries.length === 0) { setLoading(false); alert('Ingresá al menos un minuto para un jugador.'); return }
+      if (entries.length === 0) return
 
       // Single bulk request — avoids concurrent Neon connection failures
       const res = await fetch('/api/partidos/bulk', {

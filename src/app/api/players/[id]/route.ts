@@ -9,7 +9,13 @@ function isAdmin(s: any) { return s?.rol === 'admin' || s?.rol === 'master_admin
 
 async function verifyPlayerInClub(sql: any, userId: number, clubId: number | null | undefined): Promise<boolean> {
   if (!clubId) return false
-  const rows = await sql`SELECT 1 FROM usuarios WHERE id = ${userId} AND club_id = ${clubId} AND rol = 'jugador' LIMIT 1`
+  // Check both u.club_id and j.club_id to handle legacy players where one may be NULL
+  const rows = await sql`
+    SELECT 1 FROM usuarios u
+    LEFT JOIN jugadores j ON j.usuario_id = u.id
+    WHERE u.id = ${userId} AND u.rol = 'jugador'
+      AND (u.club_id = ${clubId} OR j.club_id = ${clubId})
+    LIMIT 1`
   return rows.length > 0
 }
 
