@@ -577,10 +577,14 @@ async function parsePdf(bytes: Uint8Array): Promise<Record<string, any>[]> {
 
   // Find the section containing the data table (any language — ES/FR/EN)
   let pageText = rawText
-  // If multiple pages, find the one with the data table
+  // Si el PDF tiene múltiples páginas (separadas por ), solo miramos las 2 primeras.
+  // El profe garantiza que la tabla de datos esté en página 1 o 2.
+  // Las páginas siguientes tienen gráficos cuyo texto rompe el parser.
   if (rawText.includes('\f')) {
     const pages = rawText.split('\f')
-    for (const p of pages) {
+    const firstTwo = pages.slice(0, 2)
+    // Buscamos la tabla en las primeras 2 páginas únicamente
+    for (const p of firstTwo) {
       const ln = normStr(p)
       if (
         ln.includes('cuadro resumen') || ln.includes('tot dist') ||
@@ -592,6 +596,9 @@ async function parsePdf(bytes: Uint8Array): Promise<Record<string, any>[]> {
         pageText = p; break
       }
     }
+    // Si no encontramos la tabla en las primeras 2 páginas, usamos la página 1
+    // (mejor equivocarse ahí que leer gráficos de las páginas 3-6)
+    if (pageText === rawText) pageText = firstTwo[0] || rawText
   }
 
   const lines = pageText.split('\n').map((l: string) => l.trim()).filter(Boolean)

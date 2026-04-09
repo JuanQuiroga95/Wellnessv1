@@ -5318,7 +5318,11 @@ function GpsPanel({ teamData }: { teamData: any }) {
     const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise
     const allLines: string[] = []
 
-    for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+    // Solo procesamos las primeras 2 páginas: el profe garantiza que la tabla
+    // de datos esté en página 1 o 2. Las demás páginas son gráficos que
+    // contienen texto basura que rompe el parser.
+    const maxPages = Math.min(pdf.numPages, 2)
+    for (let pageNum = 1; pageNum <= maxPages; pageNum++) {
       const page = await pdf.getPage(pageNum)
       const content = await page.getTextContent()
       // Group text items by their Y coordinate (rounded to nearest 3px to handle sub-pixel differences)
@@ -5497,7 +5501,7 @@ function GpsPanel({ teamData }: { teamData: any }) {
                 <div style={{ fontSize: 13, color: 'var(--silver)' }}>Arrastrá el archivo acá o hacé click para seleccionar</div>
                 <div style={{ fontSize: 11, color: 'var(--fog)', marginTop: 4 }}>Excel (.xlsx / .csv) o PDF — ambos formatos de Catapult OpenField</div>
                 <div style={{ marginTop: 10, padding: '8px 14px', background: 'rgba(245,158,11,.08)', border: '1px solid rgba(245,158,11,.2)', borderRadius: 8, fontSize: 11, color: '#f59e0b', lineHeight: 1.6 }}>
-                  📋 <strong>PDF:</strong> exportá solo la hoja de la <strong>tabla M</strong> (Cuadro Resumen / Player Summary) desde Catapult OpenField. No el reporte completo.
+                  📋 <strong>PDF:</strong> podés subir el reporte completo de Catapult — solo asegurate de que la <strong>tabla de datos quede en la página 1 o 2</strong> del PDF (que es donde está normalmente). Las páginas de gráficos se ignoran automáticamente.
                 </div>
               </div>
             )}
