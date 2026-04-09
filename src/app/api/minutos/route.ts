@@ -11,33 +11,38 @@ export async function GET(req: NextRequest) {
   const clubId = s.clubId ?? null
   const isMaster = s.rol === 'master_admin'
   const sql = getDb()
+
   const [train,match,bimT,bimM] = await Promise.all([
     sql`SELECT j.id AS jugador_id,u.nombre,j.posicion,
                COALESCE(SUM(e.duracion_min),0)::int AS min_entreno,
                COUNT(e.id)::int AS sesiones
         FROM jugadores j JOIN usuarios u ON u.id=j.usuario_id
         LEFT JOIN entrenamiento_logs e ON e.jugador_id=j.id AND e.fecha BETWEEN ${desde} AND ${hasta}
-        WHERE u.rol='jugador' AND u.activo=true AND (${isMaster}::boolean OR u.club_id=${clubId})
+        WHERE u.rol='jugador' AND u.activo=true
+          AND (${isMaster}::boolean OR (${clubId}::int IS NOT NULL AND u.club_id=${clubId}) OR (${clubId}::int IS NULL AND u.club_id IS NULL))
         GROUP BY j.id,u.nombre,j.posicion`,
     sql`SELECT pl.jugador_id::int, COALESCE(SUM(pl.minutos),0)::int AS min_partido, COUNT(pl.id)::int AS partidos
         FROM partido_logs pl
         JOIN jugadores j ON j.id=pl.jugador_id
         JOIN usuarios u ON u.id=j.usuario_id
-        WHERE pl.fecha BETWEEN ${desde} AND ${hasta} AND (${isMaster}::boolean OR u.club_id=${clubId})
+        WHERE pl.fecha BETWEEN ${desde} AND ${hasta}
+          AND (${isMaster}::boolean OR (${clubId}::int IS NOT NULL AND u.club_id=${clubId}) OR (${clubId}::int IS NULL AND u.club_id IS NULL))
         GROUP BY pl.jugador_id`,
     sql`SELECT e.jugador_id::int, TO_CHAR(DATE_TRUNC('month',e.fecha),'YYYY-MM') AS mes,
                COALESCE(SUM(e.duracion_min),0)::int AS min_entreno
         FROM entrenamiento_logs e
         JOIN jugadores j ON j.id=e.jugador_id
         JOIN usuarios u ON u.id=j.usuario_id
-        WHERE e.fecha BETWEEN ${desde} AND ${hasta} AND (${isMaster}::boolean OR u.club_id=${clubId})
+        WHERE e.fecha BETWEEN ${desde} AND ${hasta}
+          AND (${isMaster}::boolean OR (${clubId}::int IS NOT NULL AND u.club_id=${clubId}) OR (${clubId}::int IS NULL AND u.club_id IS NULL))
         GROUP BY e.jugador_id,DATE_TRUNC('month',e.fecha)`,
     sql`SELECT pl.jugador_id::int, TO_CHAR(DATE_TRUNC('month',pl.fecha),'YYYY-MM') AS mes,
                COALESCE(SUM(pl.minutos),0)::int AS min_partido
         FROM partido_logs pl
         JOIN jugadores j ON j.id=pl.jugador_id
         JOIN usuarios u ON u.id=j.usuario_id
-        WHERE pl.fecha BETWEEN ${desde} AND ${hasta} AND (${isMaster}::boolean OR u.club_id=${clubId})
+        WHERE pl.fecha BETWEEN ${desde} AND ${hasta}
+          AND (${isMaster}::boolean OR (${clubId}::int IS NOT NULL AND u.club_id=${clubId}) OR (${clubId}::int IS NULL AND u.club_id IS NULL))
         GROUP BY pl.jugador_id,DATE_TRUNC('month',pl.fecha)`,
   ])
   const mm: Record<number,any> = {}
