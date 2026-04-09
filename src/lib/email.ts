@@ -1,23 +1,19 @@
-import nodemailer from 'nodemailer'
+import { Resend } from 'resend'
 
-// Uses Gmail + App Password — no domain needed, sends to anyone
-// Required env vars in Vercel:
-//   GMAIL_USER = tucuenta@gmail.com
-//   GMAIL_PASS = contraseña de aplicación de 16 caracteres (no tu password normal)
+// Uses Resend — free up to 3000 emails/month, no domain required for testing
+// Required env var in Vercel:
+//   RESEND_API_KEY = re_xxxxxxxxxxxxxxxx  (get from resend.com)
+//
+// Optional — if you have a custom domain verified in Resend:
+//   RESEND_FROM = "W&P App <notificaciones@tudominio.com>"
+// Without custom domain, Resend sends from onboarding@resend.dev (works fine for testing)
 
-function getTransporter() {
-  return nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-      user: process.env.GMAIL_USER,
-      pass: process.env.GMAIL_PASS,
-    },
-  })
+function getResend() {
+  return new Resend(process.env.RESEND_API_KEY)
 }
 
 function getFrom() {
-  const user = process.env.GMAIL_USER || ''
-  return `W&P App <${user}>`
+  return process.env.RESEND_FROM || 'W&P App <onboarding@resend.dev>'
 }
 
 function getAppUrl() {
@@ -27,16 +23,16 @@ function getAppUrl() {
 }
 
 export async function sendReminderEmail(to: string, nombre: string) {
-  if (!process.env.GMAIL_USER || !process.env.GMAIL_PASS) {
-    console.error('Email error: GMAIL_USER o GMAIL_PASS no configurados')
-    return { ok: false, error: 'GMAIL_USER o GMAIL_PASS no configurados en variables de entorno' }
+  if (!process.env.RESEND_API_KEY) {
+    console.error('Email error: RESEND_API_KEY no configurado')
+    return { ok: false, error: 'RESEND_API_KEY no configurado en variables de entorno' }
   }
 
   const appUrl = getAppUrl()
 
   try {
-    const transporter = getTransporter()
-    const info = await transporter.sendMail({
+    const resend = getResend()
+    const { data, error } = await resend.emails.send({
       from: getFrom(),
       to,
       subject: '📋 Recordatorio: Completá tu Wellness de hoy',
@@ -66,7 +62,8 @@ export async function sendReminderEmail(to: string, nombre: string) {
         </div>
       `,
     })
-    return { ok: true, id: info.messageId }
+    if (error) throw new Error(error.message)
+    return { ok: true, id: data?.id }
   } catch (err: any) {
     console.error('Email error:', err)
     return { ok: false, error: String(err?.message || err) }
@@ -74,8 +71,8 @@ export async function sendReminderEmail(to: string, nombre: string) {
 }
 
 export async function sendACWRAlertEmail(to: string, coachNombre: string, alertas: { nombre: string; ratio: number; status: string }[]) {
-  if (!process.env.GMAIL_USER || !process.env.GMAIL_PASS) {
-    return { ok: false, error: 'GMAIL_USER o GMAIL_PASS no configurados' }
+  if (!process.env.RESEND_API_KEY) {
+    return { ok: false, error: 'RESEND_API_KEY no configurado' }
   }
 
   const appUrl = getAppUrl()
@@ -90,8 +87,8 @@ export async function sendACWRAlertEmail(to: string, coachNombre: string, alerta
   }).join('')
 
   try {
-    const transporter = getTransporter()
-    const info = await transporter.sendMail({
+    const resend = getResend()
+    const { data, error } = await resend.emails.send({
       from: getFrom(),
       to,
       subject: `⚠️ Alerta de Carga — ${alertas.length} jugador${alertas.length > 1 ? 'es' : ''} en zona de riesgo`,
@@ -123,23 +120,24 @@ export async function sendACWRAlertEmail(to: string, coachNombre: string, alerta
         </div>
       `,
     })
-    return { ok: true, id: info.messageId }
+    if (error) throw new Error(error.message)
+    return { ok: true, id: data?.id }
   } catch (err: any) {
     console.error('ACWR alert email error:', err)
     return { ok: false, error: String(err?.message || err) }
   }
 }
+
 export async function sendBirthdayEmail(to: string, coachNombre: string, jugadorNombre: string, edad?: number) {
-  if (!process.env.GMAIL_USER || !process.env.GMAIL_PASS) {
-    console.error('Email error: GMAIL_USER o GMAIL_PASS no configurados')
-    return { ok: false, error: 'GMAIL_USER o GMAIL_PASS no configurados en variables de entorno' }
+  if (!process.env.RESEND_API_KEY) {
+    return { ok: false, error: 'RESEND_API_KEY no configurado' }
   }
 
   const appUrl = getAppUrl()
 
   try {
-    const transporter = getTransporter()
-    const info = await transporter.sendMail({
+    const resend = getResend()
+    const { data, error } = await resend.emails.send({
       from: getFrom(),
       to,
       subject: `🎂 Cumpleaños hoy: ${jugadorNombre}`,
@@ -165,7 +163,8 @@ export async function sendBirthdayEmail(to: string, coachNombre: string, jugador
         </div>
       `,
     })
-    return { ok: true, id: info.messageId }
+    if (error) throw new Error(error.message)
+    return { ok: true, id: data?.id }
   } catch (err: any) {
     console.error('Birthday email error:', err)
     return { ok: false, error: String(err?.message || err) }
