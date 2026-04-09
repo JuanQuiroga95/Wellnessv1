@@ -17,17 +17,22 @@ export async function POST(req: NextRequest) {
     }
     const sql = getDb()
     const d = fecha || new Date().toISOString().split('T')[0]
+    const rivalVal = rival || null
     const results = []
     for (const e of entries) {
       if (!e.jugador_id || !e.minutos || Number(e.minutos) <= 0) continue
+      const jid = Number(e.jugador_id)
+      const mins = Number(e.minutos)
+      // Remove any existing entry for this player+date+rival before inserting fresh
+      await sql`
+        DELETE FROM partido_logs
+        WHERE jugador_id = ${jid}
+          AND fecha = ${d}::date
+          AND COALESCE(rival, '') = COALESCE(${rivalVal}, '')`
       const [r] = await sql`
         INSERT INTO partido_logs(jugador_id, fecha, rival, tipo_partido, minutos, titular, notas, rival_foto)
-        VALUES(${Number(e.jugador_id)}, ${d}, ${rival || null}, ${tipo_partido || 'Oficial'},
-               ${Number(e.minutos)}, ${true}, ${null}, ${rival_foto || null})
-        ON CONFLICT (jugador_id, fecha, COALESCE(rival,'')) DO UPDATE
-          SET minutos = EXCLUDED.minutos,
-              tipo_partido = EXCLUDED.tipo_partido,
-              rival_foto = EXCLUDED.rival_foto
+        VALUES(${jid}, ${d}, ${rivalVal}, ${tipo_partido || 'Oficial'},
+               ${mins}, ${true}, ${null}, ${rival_foto || null})
         RETURNING id, fecha::text`
       results.push(r)
     }
