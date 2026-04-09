@@ -92,8 +92,11 @@ export async function POST(req: NextRequest) {
 
     const has = (cat: string) => categories.includes(cat)
 
-    // Get all jugador IDs for this club
+    // Get ALL jugador IDs for this club (active AND inactive)
     const jugadores = await sql`
+      SELECT j.id FROM jugadores j
+      WHERE j.club_id = ${clubId}
+      UNION
       SELECT j.id FROM jugadores j
       JOIN usuarios u ON u.id = j.usuario_id
       WHERE u.club_id = ${clubId}`
@@ -152,6 +155,7 @@ export async function POST(req: NextRequest) {
       if (jIds.length > 0) {
         await sql`DELETE FROM jugadores WHERE id = ANY(${jIds}::int[])`
       }
+      // Delete all jugador usuarios for this club (active AND inactive)
       await sql`DELETE FROM usuarios WHERE rol = 'jugador' AND club_id = ${clubId}`
     }
 
