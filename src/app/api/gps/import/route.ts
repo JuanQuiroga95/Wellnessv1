@@ -177,22 +177,40 @@ const ROW_COL_ORDER = [
 function cleanCatapultName(raw: string): string {
   // "ALBERTO RUBIO ALBERTO R." → "ALBERTO RUBIO"
   // "KIKO KIKO" → "KIKO"
+  // "FRAN GARNÉS GARNÉS" → "FRAN GARNÉS"
+  // "DANI MONTES DANI M." → "DANI MONTES"
   // "L Luvannor" → "L Luvannor" (do NOT strip — "L" is just an initial)
-  const parts = raw.trim().split(/\s+/)
+  const parts = raw.trim().replace(/\.$/, '').split(/\s+/)
   const n = parts.length
   if (n < 2) return raw.trim()
-  // If last word is repeated first word, remove it
-  if (normStr(parts[n-1]) === normStr(parts[0])) return parts.slice(0, n-1).join(' ')
-  // If second half is an abbreviation of first half —
-  // only apply when first part is >= 3 chars (NOT a bare initial like "L" or "A")
+
+  // Try every split point: if first half matches second half (full or abbreviated), return first half
   for (let split = 1; split < n; split++) {
-    const first = parts.slice(0, split).join(' ')
-    const rest  = parts.slice(split).join(' ')
-    if (first.length < 3) continue  // skip: first part is a single letter initial
-    if (normStr(first).startsWith(normStr(rest)) || normStr(rest).startsWith(normStr(first).split(' ')[0]))
-      return first
+    const first = parts.slice(0, split)
+    const rest  = parts.slice(split)
+    if (first.length < 1 || normStr(first.join(' ')).length < 2) continue
+    if (first[0].length < 2) continue  // skip bare single-letter initials as first part
+
+    const fn = normStr(first.join(' '))
+    const rn = normStr(rest.join(' '))
+
+    // Full repeat: "KIKO KIKO" or "JOSE CARLOS JOSE CARLOS" or "FRAN GARNÉS GARNÉS" (where rest=one word that equals last word of first)
+    if (fn === rn) return first.join(' ')
+
+    // Last word of first half equals all of rest (single word repeat of surname)
+    // e.g. "FRAN GARNÉS GARNÉS" → first=['FRAN','GARNÉS'], rest=['GARNÉS']
+    if (rest.length === 1 && normStr(first[first.length - 1]) === normStr(rest[0])) {
+      return first.join(' ')
+    }
+
+    // Abbreviated repeat: rest starts with same first word as first half
+    // e.g. "ALBERTO RUBIO ALBERTO R." → first=['ALBERTO','RUBIO'], rest=['ALBERTO','R']
+    // e.g. "DANI MONTES DANI M." → first=['DANI','MONTES'], rest=['DANI','M']
+    if (rest.length > 0 && normStr(rest[0]) === normStr(first[0]) && fn.length >= 4) {
+      return first.join(' ')
+    }
   }
-  return raw.trim()
+  return raw.trim().replace(/\.$/, '')
 }
 
 // ── Row-based parser: handles Catapult "DATA BASE RAPPORT OPENFIELD" format ──
@@ -440,6 +458,71 @@ function parsePdfRowFormat(lines: string[]): Record<string, any>[] | null {
   return results.length > 0 ? results : null
 }
 
+
+// ── Parser para CUADRO RESUMEN con filas ya ensambladas (sin columna de posición) ──
+// Formato: "NOMBRE APELLIDO 6223 82 730 287 22 2 28 19 31"
+// pdf.js ya agrupa por Y-coord, entonces cada fila viene junta en una sola línea.
+// Las columnas son: TotDist MetPerMin VelB4 HSR VelB6 NumSprints Acc Dec MaxVel
+// (9 valores numéricos, sin código de posición)
+const CUADRO_RESUMEN_COL_MAP: (string|null)[] = [
+  'dist_total', 'dist_per_min', 'dist_v4', 'dist_hir', 'dist_v5',
+  'n_sprints', 'acc2', 'dec2', 'max_velocity'
+]
+
+function parsePdfCuadroResumen(lines: string[]): Record<string, any>[] | null {
+  const SUMMARY_WORDS = new Set(['total','moyenne','average','promedio','media','totale','totaux','totals','max','maximo','máximo','min','minimo'])
+  const results: Record<string, any>[] = []
+
+  for (const line of lines) {
+    const trimmed = line.trim()
+    if (!trimmed) continue
+
+    // Split on whitespace — last N tokens that are numbers are the data
+    const parts = trimmed.split(/\s+/)
+    if (parts.length < 4) continue
+
+    // Find where the numeric data starts: scan from right, collect consecutive numbers
+    let dataStart = parts.length
+    while (dataStart > 0 && /^[\d.]+$/.test(parts[dataStart - 1])) {
+      dataStart--
+    }
+
+    const numericParts = parts.slice(dataStart)
+    const nameParts = parts.slice(0, dataStart)
+
+    // Must have at least 3 numbers (otherwise too few data) and a non-empty name
+    if (numericParts.length < 3 || nameParts.length === 0) continue
+
+    // First number must look like a total distance (1000–15000 m)
+    const firstNum = parseFloat(numericParts[0])
+    if (isNaN(firstNum) || firstNum < 500 || firstNum > 20000) continue
+
+    // Skip summary rows
+    const nameRaw = nameParts.join(' ')
+    const nameNorm2 = normStr(nameRaw)
+    if (SUMMARY_WORDS.has(nameNorm2) || [...SUMMARY_WORDS].some(w => nameNorm2.startsWith(w))) continue
+    // Skip lines that are clearly headers (no letters forming a plausible name after norm)
+    if (nameNorm2.length < 2) continue
+    // Skip if name is a pure date
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(nameRaw.trim())) continue
+
+    const metricas: Record<string, number> = {}
+    for (let i = 0; i < numericParts.length && i < CUADRO_RESUMEN_COL_MAP.length; i++) {
+      const field = CUADRO_RESUMEN_COL_MAP[i]
+      if (!field) continue
+      const val = parseFloat(numericParts[i])
+      if (!isNaN(val)) metricas[field] = val
+    }
+
+    if (Object.values(metricas).some(v => v > 0)) {
+      const cleanName = cleanCatapultName(nameRaw)
+      results.push({ nombre_catapult: cleanName, nombre_norm: normalizeName(cleanName), metricas })
+    }
+  }
+
+  return results.length >= 2 ? results : null
+}
+
 // ─── PDF PARSER — from pre-extracted row-ordered text (client-side pdf.js) ───
 // Called when the client sends `pdfText` (text extracted with pdf.js ordered by Y-coord).
 // With row-ordered text, each player row is a single line:
@@ -448,11 +531,15 @@ function parsePdfRowFormat(lines: string[]): Record<string, any>[] | null {
 function parsePdfFromText(rawText: string): Record<string, any>[] {
   const lines = rawText.split('\n').map(l => l.trim()).filter(Boolean)
 
-  // ── Try row-based format first (DATA BASE / RAPPORT OPENFIELD) ──
+  // ── Try row-based format first (DATA BASE / RAPPORT OPENFIELD — with position code) ──
   const rowResults = parsePdfRowFormat(lines)
   if (rowResults && rowResults.length > 0) return rowResults
 
-  // ── Fall back to columnar format (CUADRO RESUMEN) ──
+  // ── Try CUADRO RESUMEN row format (pdf.js assembles rows by Y-coord — no position column) ──
+  const cuadroResults = parsePdfCuadroResumen(lines)
+  if (cuadroResults && cuadroResults.length > 0) return cuadroResults
+
+  // ── Fall back to columnar format (CUADRO RESUMEN old-style pdf-parse) ──
   // Re-use the same columnar logic from parsePdf but without needing bytes.
   // Find page with data table (if page separator \f exists, it won't here since we join)
   const SEPARATOR_WORDS = new Set([
