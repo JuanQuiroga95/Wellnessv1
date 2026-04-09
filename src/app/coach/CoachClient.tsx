@@ -1632,21 +1632,23 @@ function getCuadrante(densidad: number, jugadores?: number) {
   }
 
   const colorMap: Record<string,{color:string,bg:string,border:string}> = {
-    'Fuerza':      { color:'#a855f7', bg:'rgba(168,85,247,.1)',  border:'rgba(168,85,247,.3)' },
-    'Activación':  { color:'#22c55e', bg:'rgba(34,197,94,.1)',   border:'rgba(34,197,94,.3)'  },
-    'Resistencia': { color:'#f59e0b', bg:'rgba(245,158,11,.1)',  border:'rgba(245,158,11,.3)' },
-    'Velocidad':   { color:'#3b82f6', bg:'rgba(59,130,246,.1)',  border:'rgba(59,130,246,.3)' },
+    'Fuerza':                  { color:'#a855f7', bg:'rgba(168,85,247,.1)',  border:'rgba(168,85,247,.3)' },
+    'Activación':              { color:'#22c55e', bg:'rgba(34,197,94,.1)',   border:'rgba(34,197,94,.3)'  },
+    'Activación/Recuperación': { color:'#22c55e', bg:'rgba(34,197,94,.1)',   border:'rgba(34,197,94,.3)'  },
+    'Resistencia':             { color:'#f59e0b', bg:'rgba(245,158,11,.1)',  border:'rgba(245,158,11,.3)' },
+    'Velocidad':               { color:'#3b82f6', bg:'rgba(59,130,246,.1)',  border:'rgba(59,130,246,.3)' },
   }
-  const { color, bg, border } = colorMap[objetivo]
+  const { color, bg, border } = colorMap[objetivo] ?? { color:'#888', bg:'rgba(128,128,128,.1)', border:'rgba(128,128,128,.3)' }
 
   // Etiqueta de espacio relativa a la densidad
   const espacioLabel = d < 100 ? 'Espacio Reducido' : d < 200 ? 'Espacio Medio' : 'Espacio Grande'
 
   const descs: Record<string,string> = {
-    'Fuerza':      'Acciones neuromusculares · Contactos frecuentes · Espacio limitado',
-    'Resistencia': 'Alta demanda aeróbica (FC) · Balance técnico-táctico · Densidad moderada',
-    'Activación':  'Activación y recuperación · Baja exigencia · SSG de alta densidad',
-    'Velocidad':   'Demanda HSR y VHSR · Sprints frecuentes · Espacios amplios',
+    'Fuerza':                  'Acciones neuromusculares · Contactos frecuentes · Espacio limitado',
+    'Resistencia':             'Alta demanda aeróbica (FC) · Balance técnico-táctico · Densidad moderada',
+    'Activación':              'Activación y recuperación · Baja exigencia · SSG de alta densidad',
+    'Activación/Recuperación': 'Activación y recuperación · Baja exigencia · SSG de alta densidad',
+    'Velocidad':               'Demanda HSR y VHSR · Sprints frecuentes · Espacios amplios',
   }
 
   return { label: espacioLabel, objetivo, intensidad, color, bg, border, desc: descs[objetivo] }
@@ -2399,6 +2401,10 @@ function MinutosPanel({ teamData }) {
   const [selectedPlayer, setSelectedPlayer] = useState<any>(null)
   const [playerMatches, setPlayerMatches] = useState<any[]>([])
   const [loadingMatches, setLoadingMatches] = useState(false)
+  const [assigningMatch, setAssigningMatch] = useState<any>(null) // partido pendiente en edición inline
+  const [assignMin, setAssignMin] = useState('')
+  const [assignTitular, setAssignTitular] = useState(true)
+  const [savingAssign, setSavingAssign] = useState(false)
 
   useEffect(()=>{ load() }, [desde, hasta])
 
@@ -2409,13 +2415,40 @@ function MinutosPanel({ teamData }) {
   }
 
   async function openPlayerMatches(p: any) {
-    if (selectedPlayer?.jugador_id === p.jugador_id) { setSelectedPlayer(null); setPlayerMatches([]); return }
-    setSelectedPlayer(p); setLoadingMatches(true)
+    if (selectedPlayer?.jugador_id === p.jugador_id) { setSelectedPlayer(null); setPlayerMatches([]); setAssigningMatch(null); return }
+    setSelectedPlayer(p); setLoadingMatches(true); setAssigningMatch(null)
     try {
       const r = await fetch(`/api/partidos?jugadorId=${p.jugador_id}&desde=${desde}&hasta=${hasta}`)
       setPlayerMatches(await r.json())
     } catch { setPlayerMatches([]) }
     finally { setLoadingMatches(false) }
+  }
+
+  async function saveAssign(match: any) {
+    if (!assignMin || Number(assignMin) <= 0) return
+    setSavingAssign(true)
+    try {
+      const res = await fetch('/api/partidos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          jugador_id: selectedPlayer.jugador_id,
+          fecha: match.fecha,
+          rival: match.rival || '',
+          tipo_partido: match.tipo_partido || 'Partido',
+          minutos: Number(assignMin),
+          titular: assignTitular,
+          rival_foto: match.rival_foto || null,
+        })
+      })
+      if (res.ok) {
+        setAssigningMatch(null); setAssignMin('')
+        // Reload matches and totals
+        const r = await fetch(`/api/partidos?jugadorId=${selectedPlayer.jugador_id}&desde=${desde}&hasta=${hasta}`)
+        setPlayerMatches(await r.json())
+        load()
+      }
+    } finally { setSavingAssign(false) }
   }
 
   const players = data?.players || []
@@ -2481,36 +2514,81 @@ function MinutosPanel({ teamData }) {
                       {isSelected && (
                         <div style={{ padding:'0 18px 14px', background:'rgba(200,241,53,.03)', borderTop:'1px solid rgba(200,241,53,.12)' }}>
                           <p style={{ fontSize:10, fontWeight:700, color:'var(--lime)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:10, paddingTop:12 }}>
-                            Partidos jugados — {p.nombre.split(' ')[0]}
+                            Partidos — {p.nombre.split(' ')[0]}
                           </p>
                           {loadingMatches
                             ? <p style={{ fontSize:12, color:'var(--silver)', padding:'10px 0' }}>Cargando...</p>
                             : playerMatches.length === 0
-                              ? <p style={{ fontSize:12, color:'var(--fog)', padding:'10px 0' }}>Sin partidos registrados en este período.</p>
+                              ? <p style={{ fontSize:12, color:'var(--fog)', padding:'10px 0' }}>Sin partidos en este período.</p>
                               : <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
-                                  {playerMatches.map((m:any)=>(
-                                    <div key={m.id} style={{ display:'flex', alignItems:'center', gap:12, padding:'8px 12px', background:'var(--ink2)', borderRadius:10, border:'1px solid var(--mist)' }}>
-                                      {/* Rival logo placeholder or initial */}
-                                      <div style={{ width:36, height:36, borderRadius:8, background:'rgba(96,165,250,.15)', border:'1px solid rgba(96,165,250,.3)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
-                                        {m.rival_foto
-                                          ? <img src={m.rival_foto} style={{ width:32, height:32, objectFit:'contain', borderRadius:6 }} alt={m.rival||'rival'} />
-                                          : <span style={{ fontSize:14, fontWeight:700, color:'#60a5fa' }}>{(m.rival||'?').charAt(0).toUpperCase()}</span>
-                                        }
-                                      </div>
-                                      <div style={{ flex:1, minWidth:0 }}>
-                                        <div style={{ fontSize:13, fontWeight:600, color:'var(--snow)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-                                          vs. {m.rival||'Rival'}
+                                  {playerMatches.map((m:any, mi:number)=>{
+                                    const isPending = m.sin_minutos
+                                    const isEditing = assigningMatch?.fecha === m.fecha && assigningMatch?.rival === m.rival
+                                    return (
+                                      <div key={mi} style={{ borderRadius:10, border:`1px solid ${isPending ? 'rgba(245,158,11,.35)' : 'var(--mist)'}`, background: isPending ? 'rgba(245,158,11,.05)' : 'var(--ink2)', overflow:'hidden' }}>
+                                        <div style={{ display:'flex', alignItems:'center', gap:12, padding:'8px 12px' }}>
+                                          {/* Logo */}
+                                          <div style={{ width:36, height:36, borderRadius:8, background:'rgba(96,165,250,.15)', border:'1px solid rgba(96,165,250,.3)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                                            {m.rival_foto
+                                              ? <img src={m.rival_foto} style={{ width:32, height:32, objectFit:'contain', borderRadius:6 }} alt={m.rival||'rival'} />
+                                              : <span style={{ fontSize:14, fontWeight:700, color:'#60a5fa' }}>{(m.rival||'?').charAt(0).toUpperCase()}</span>
+                                            }
+                                          </div>
+                                          <div style={{ flex:1, minWidth:0 }}>
+                                            <div style={{ fontSize:13, fontWeight:600, color:'var(--snow)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                                              vs. {m.rival||'Rival'}
+                                            </div>
+                                            <div style={{ fontSize:10, color:'var(--silver)', marginTop:1 }}>
+                                              {m.fecha} · {m.tipo_partido}
+                                            </div>
+                                          </div>
+                                          {isPending ? (
+                                            <button
+                                              onClick={()=>{ setAssigningMatch(isEditing ? null : m); setAssignMin(''); setAssignTitular(true) }}
+                                              style={{ fontSize:11, padding:'5px 12px', borderRadius:7, background:'rgba(245,158,11,.15)', color:'#fbbf24', border:'1px solid rgba(245,158,11,.4)', cursor:'pointer', flexShrink:0, fontWeight:600 }}
+                                            >
+                                              {isEditing ? '✕ Cancelar' : '⏱ Asignar minutos'}
+                                            </button>
+                                          ) : (
+                                            <div style={{ textAlign:'right', flexShrink:0 }}>
+                                              <div className="mono" style={{ fontSize:15, fontWeight:700, color:'#60a5fa' }}>{m.minutos} min</div>
+                                              {m.titular && <div style={{ fontSize:9, color:'#fbbf24', textTransform:'uppercase', letterSpacing:'0.06em' }}>Titular</div>}
+                                            </div>
+                                          )}
                                         </div>
-                                        <div style={{ fontSize:10, color:'var(--silver)', marginTop:1 }}>
-                                          {m.fecha} · {m.tipo_partido}
-                                        </div>
+                                        {/* Inline assign form */}
+                                        {isPending && isEditing && (
+                                          <div style={{ padding:'10px 12px', borderTop:'1px solid rgba(245,158,11,.2)', background:'rgba(245,158,11,.04)', display:'flex', alignItems:'center', gap:10, flexWrap:'wrap' }}>
+                                            <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+                                              <label style={{ fontSize:10, color:'var(--silver)', fontWeight:600, textTransform:'uppercase' }}>Minutos</label>
+                                              <input
+                                                type="number" min="1" max="200"
+                                                className="wp-input"
+                                                value={assignMin}
+                                                onChange={e=>setAssignMin(e.target.value)}
+                                                placeholder="90"
+                                                style={{ width:70, padding:'5px 8px', fontSize:13, fontFamily:'DM Mono,monospace', textAlign:'center' }}
+                                                autoFocus
+                                              />
+                                            </div>
+                                            <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+                                              <label style={{ fontSize:10, color:'var(--silver)', fontWeight:600, textTransform:'uppercase' }}>Titular</label>
+                                              <button type="button" onClick={()=>setAssignTitular(t=>!t)} style={{ fontSize:11, padding:'4px 10px', borderRadius:6, cursor:'pointer', border:`1px solid ${assignTitular ? '#fbbf24' : 'var(--fog)'}`, background: assignTitular ? 'rgba(251,191,36,.12)' : 'transparent', color: assignTitular ? '#fbbf24' : 'var(--silver)', fontWeight:600 }}>
+                                                {assignTitular ? '✓ Sí' : '✗ No'}
+                                              </button>
+                                            </div>
+                                            <button
+                                              onClick={()=>saveAssign(m)}
+                                              disabled={savingAssign || !assignMin || Number(assignMin)<=0}
+                                              style={{ fontSize:12, padding:'6px 16px', borderRadius:7, background:'var(--lime)', color:'#000', border:'none', cursor:'pointer', fontWeight:700, opacity: (!assignMin||Number(assignMin)<=0) ? 0.5 : 1 }}
+                                            >
+                                              {savingAssign ? 'Guardando...' : '✓ Guardar'}
+                                            </button>
+                                          </div>
+                                        )}
                                       </div>
-                                      <div style={{ textAlign:'right', flexShrink:0 }}>
-                                        <div className="mono" style={{ fontSize:15, fontWeight:700, color:'#60a5fa' }}>{m.minutos} min</div>
-                                        {m.titular && <div style={{ fontSize:9, color:'#fbbf24', textTransform:'uppercase', letterSpacing:'0.06em' }}>Titular</div>}
-                                      </div>
-                                    </div>
-                                  ))}
+                                    )
+                                  })}
                                 </div>
                           }
                         </div>

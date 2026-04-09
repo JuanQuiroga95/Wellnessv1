@@ -168,6 +168,7 @@ export async function POST(req: NextRequest) {
           ELSE 'izquierda'
         END AS lado_dominante
       FROM iso_sessions s`, 'view iso_con_asimetria'],
+    [`ALTER TABLE wellness_logs ADD COLUMN IF NOT EXISTS dolor_descripcion TEXT`, 'wellness_logs.dolor_descripcion'],
   ]
 
   for (const [sql_stmt, label] of migrations) {

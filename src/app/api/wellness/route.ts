@@ -60,11 +60,6 @@ export async function POST(req: NextRequest) {
 
   const sql = getDb()
 
-  // Add dolor_descripcion column if it doesn't exist
-  try {
-    await sql`ALTER TABLE wellness_logs ADD COLUMN IF NOT EXISTS dolor_descripcion TEXT`
-  } catch {}
-
   if (isAdmin(s) && s.clubId) {
     if (!(await verifyJugadorOwnership(sql, jugador_id, s.clubId))) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
@@ -81,31 +76,66 @@ export async function POST(req: NextRequest) {
     clubId = (rows[0] as any)?.club_id ?? null
   }
 
-  const [r] = await sql`
-    INSERT INTO wellness_logs(
-      jugador_id, fecha, fatiga, calidad_sueno, dolor_muscular, nivel_estres, estado_animo,
-      dolor_zona, dolor_descripcion, dolor_eva, tqr, recovery, entrena_grupo, fue_gimnasio, grupos_musculares, club_id
-    ) VALUES(
-      ${jugador_id}, ${fecha}, ${clamp(b.fatiga)}, ${clamp(b.calidad_sueno)},
-      ${clamp(b.dolor_muscular)}, ${clamp(b.nivel_estres)}, ${clamp(b.estado_animo)},
-      ${b.dolor_zona || null}, ${b.dolor_descripcion || null}, ${clamp(b.dolor_eva)}, ${clamp(b.tqr)}, ${clamp(b.recovery)},
-      ${b.entrena_grupo ?? true}, ${b.fue_gimnasio ?? false},
-      ${b.grupos_musculares || null}, ${clubId}
-    )
-    ON CONFLICT (jugador_id, fecha) DO UPDATE SET
-      fatiga            = EXCLUDED.fatiga,
-      calidad_sueno     = EXCLUDED.calidad_sueno,
-      dolor_muscular    = EXCLUDED.dolor_muscular,
-      nivel_estres      = EXCLUDED.nivel_estres,
-      estado_animo      = EXCLUDED.estado_animo,
-      dolor_zona        = EXCLUDED.dolor_zona,
-      dolor_descripcion = EXCLUDED.dolor_descripcion,
-      dolor_eva         = EXCLUDED.dolor_eva,
-      tqr               = EXCLUDED.tqr,
-      recovery          = EXCLUDED.recovery,
-      entrena_grupo     = EXCLUDED.entrena_grupo,
-      fue_gimnasio      = EXCLUDED.fue_gimnasio,
-      grupos_musculares = EXCLUDED.grupos_musculares
-    RETURNING id, fecha::text`
+  // Try with dolor_descripcion first; fall back without it if column doesn't exist yet
+  let r: any
+  try {
+    ;[r] = await sql`
+      INSERT INTO wellness_logs(
+        jugador_id, fecha, fatiga, calidad_sueno, dolor_muscular, nivel_estres, estado_animo,
+        dolor_zona, dolor_descripcion, dolor_eva, tqr, recovery, entrena_grupo, fue_gimnasio, grupos_musculares, club_id
+      ) VALUES(
+        ${jugador_id}, ${fecha}, ${clamp(b.fatiga)}, ${clamp(b.calidad_sueno)},
+        ${clamp(b.dolor_muscular)}, ${clamp(b.nivel_estres)}, ${clamp(b.estado_animo)},
+        ${b.dolor_zona || null}, ${b.dolor_descripcion || null}, ${clamp(b.dolor_eva)}, ${clamp(b.tqr)}, ${clamp(b.recovery)},
+        ${b.entrena_grupo ?? true}, ${b.fue_gimnasio ?? false},
+        ${b.grupos_musculares || null}, ${clubId}
+      )
+      ON CONFLICT (jugador_id, fecha) DO UPDATE SET
+        fatiga            = EXCLUDED.fatiga,
+        calidad_sueno     = EXCLUDED.calidad_sueno,
+        dolor_muscular    = EXCLUDED.dolor_muscular,
+        nivel_estres      = EXCLUDED.nivel_estres,
+        estado_animo      = EXCLUDED.estado_animo,
+        dolor_zona        = EXCLUDED.dolor_zona,
+        dolor_descripcion = EXCLUDED.dolor_descripcion,
+        dolor_eva         = EXCLUDED.dolor_eva,
+        tqr               = EXCLUDED.tqr,
+        recovery          = EXCLUDED.recovery,
+        entrena_grupo     = EXCLUDED.entrena_grupo,
+        fue_gimnasio      = EXCLUDED.fue_gimnasio,
+        grupos_musculares = EXCLUDED.grupos_musculares
+      RETURNING id, fecha::text`
+  } catch (e: any) {
+    // Fallback: insert without dolor_descripcion (column not migrated yet)
+    if (String(e).includes('dolor_descripcion')) {
+      ;[r] = await sql`
+        INSERT INTO wellness_logs(
+          jugador_id, fecha, fatiga, calidad_sueno, dolor_muscular, nivel_estres, estado_animo,
+          dolor_zona, dolor_eva, tqr, recovery, entrena_grupo, fue_gimnasio, grupos_musculares, club_id
+        ) VALUES(
+          ${jugador_id}, ${fecha}, ${clamp(b.fatiga)}, ${clamp(b.calidad_sueno)},
+          ${clamp(b.dolor_muscular)}, ${clamp(b.nivel_estres)}, ${clamp(b.estado_animo)},
+          ${b.dolor_zona || null}, ${clamp(b.dolor_eva)}, ${clamp(b.tqr)}, ${clamp(b.recovery)},
+          ${b.entrena_grupo ?? true}, ${b.fue_gimnasio ?? false},
+          ${b.grupos_musculares || null}, ${clubId}
+        )
+        ON CONFLICT (jugador_id, fecha) DO UPDATE SET
+          fatiga            = EXCLUDED.fatiga,
+          calidad_sueno     = EXCLUDED.calidad_sueno,
+          dolor_muscular    = EXCLUDED.dolor_muscular,
+          nivel_estres      = EXCLUDED.nivel_estres,
+          estado_animo      = EXCLUDED.estado_animo,
+          dolor_zona        = EXCLUDED.dolor_zona,
+          dolor_eva         = EXCLUDED.dolor_eva,
+          tqr               = EXCLUDED.tqr,
+          recovery          = EXCLUDED.recovery,
+          entrena_grupo     = EXCLUDED.entrena_grupo,
+          fue_gimnasio      = EXCLUDED.fue_gimnasio,
+          grupos_musculares = EXCLUDED.grupos_musculares
+        RETURNING id, fecha::text`
+    } else {
+      throw e
+    }
+  }
   return NextResponse.json(r)
 }
