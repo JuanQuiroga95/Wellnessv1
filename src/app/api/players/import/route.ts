@@ -183,7 +183,7 @@ export async function POST(req: NextRequest) {
 
   // CONFIRM mode — check existing users and insert
   const sql = getDb()
-  const clubId = s.clubId ?? null
+  const clubId = s.clubId ? Number(s.clubId) : null
 
   try { await sql`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS password_plain TEXT` } catch {}
 

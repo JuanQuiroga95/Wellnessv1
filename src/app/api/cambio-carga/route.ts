@@ -14,9 +14,12 @@ export async function GET(req: NextRequest) {
   const minEntrenamiento = parseInt(searchParams.get('minEntrenamiento') || '60')
   const minPartido = parseInt(searchParams.get('minPartido') || '0')
 
-  const clubId = s.clubId ?? null
+  const clubId = s.clubId ? Number(s.clubId) : null
   const isMaster = s.rol === 'master_admin' && !s.clubId
   const sql = getDb()
+
+  // Seguridad: si no es master y no tiene clubId, no puede ver datos de otros clubes
+  if (!isMaster && !clubId) return NextResponse.json([])
 
   // Get all training logs with player names in date range
   const trainLogs = await sql`

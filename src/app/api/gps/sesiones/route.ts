@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
 
     const sql = getDb()
     // Normalize clubId to null to avoid undefined being passed to Neon template literals
-    const clubId = s.clubId ?? null
+    const clubId = s.clubId ? Number(s.clubId) : null
 
     // Planned training sessions
     let sesiones: any[] = []

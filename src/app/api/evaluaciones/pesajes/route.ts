@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
     FROM pesajes p
     JOIN jugadores j ON j.id = p.jugador_id
     WHERE p.jugador_id = ${Number(jugador_id)}
-      AND p.club_id = ${s.clubId ?? null}
+      AND p.club_id = ${s.clubId ? Number(s.clubId) : null}
     ORDER BY p.fecha DESC
     LIMIT 50
   `
@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
     INSERT INTO pesajes (jugador_id, club_id, fecha, peso_kg, notas, registrado_por)
     VALUES (
       ${Number(jugador_id)},
-      ${s.clubId ?? null},
+      ${s.clubId ? Number(s.clubId) : null},
       ${fecha ?? new Date().toISOString().split('T')[0]},
       ${Number(peso_kg)},
       ${notas ?? null},
@@ -70,7 +70,7 @@ export async function DELETE(req: NextRequest) {
   const sql = getDb()
   await sql`
     DELETE FROM pesajes
-    WHERE id = ${Number(id)} AND club_id = ${s.clubId ?? null}
+    WHERE id = ${Number(id)} AND club_id = ${s.clubId ? Number(s.clubId) : null}
   `
   return NextResponse.json({ ok: true })
 }

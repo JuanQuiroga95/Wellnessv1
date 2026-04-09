@@ -13,7 +13,7 @@ export default async function CoachPage() {
   if (!session || session.rol !== 'admin' && session.rol !== 'master_admin') redirect('/login')
   const sql = getDb()
   const today = new Date().toISOString().split('T')[0]
-  const clubId = session.clubId ?? null
+  const clubId = session.clubId ? Number(session.clubId) : null
   const isMaster = session.rol === 'master_admin'
 
   // Ensure password_plain column exists before querying it

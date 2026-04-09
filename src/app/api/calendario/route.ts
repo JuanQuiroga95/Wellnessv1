@@ -87,7 +87,7 @@ export async function POST(req: NextRequest) {
       INSERT INTO sesiones_plan(admin_id, club_id, fecha, hora_inicio, hora_fin, tipo, titulo,
                                 objetivo, objetivo_secundario, descripcion, ejercicios, rpe_objetivo, notas,
                                 rival, rival_foto)
-      VALUES(${s.userId}, ${s.clubId ?? null}, ${fecha},
+      VALUES(${s.userId}, ${s.clubId ? Number(s.clubId) : null}, ${fecha},
              ${hora_inicio || null}, ${hora_fin || null},
              ${tipo || 'entrenamiento'}, ${titulo || null}, ${objetivo || null},
              ${objetivo_secundario || null}, ${descripcion || null},

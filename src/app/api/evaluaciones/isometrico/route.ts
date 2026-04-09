@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
     JOIN iso_sessions iso ON iso.id = ia.id
     WHERE ia.jugador_id = ${Number(jugador_id)}
       AND ia.grupo_muscular ILIKE ${grupo}
-      AND (${s.clubId ?? null}::int IS NULL OR iso.club_id = ${s.clubId ?? null})
+      AND (${s.clubId ? Number(s.clubId) : null}::int IS NULL OR iso.club_id = ${s.clubId ? Number(s.clubId) : null})
     ORDER BY ia.fecha DESC
   `
   return NextResponse.json(rows)
@@ -69,7 +69,7 @@ export async function POST(req: NextRequest) {
       unidad, notas
     ) VALUES (
       ${Number(jugador_id)},
-      ${s.clubId ?? null},
+      ${s.clubId ? Number(s.clubId) : null},
       ${fecha ?? new Date().toISOString().split('T')[0]},
       ${grupo_muscular},
       ${Number(der_intento1)}, ${Number(der_intento2)}, ${Number(der_intento3)},
@@ -93,7 +93,7 @@ export async function DELETE(req: NextRequest) {
   const sql = getDb()
   await sql`
     DELETE FROM iso_sessions
-    WHERE id = ${Number(id)} AND club_id = ${s.clubId ?? null}
+    WHERE id = ${Number(id)} AND club_id = ${s.clubId ? Number(s.clubId) : null}
   `
   return NextResponse.json({ ok: true })
 }

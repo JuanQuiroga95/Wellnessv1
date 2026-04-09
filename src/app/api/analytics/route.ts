@@ -9,9 +9,12 @@ export async function GET(req: NextRequest) {
   if (!s || !isAdmin(s)) return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
   const { searchParams } = new URL(req.url)
   const weeks = parseInt(searchParams.get('weeks') || '4')
-  const clubId = s.clubId ?? null
+  const clubId = s.clubId ? Number(s.clubId) : null
   const isMaster = s.rol === 'master_admin' && !s.clubId
   const sql = getDb()
+
+  // Seguridad: si no es master y no tiene clubId, no puede ver datos de otros clubes
+  if (!isMaster && !clubId) return NextResponse.json([])
 
   const wellnessWeekly = await sql`
     SELECT j.id AS jugador_id, u.nombre, j.posicion, j.foto_url,

@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
   const sesiones = await sql`
     SELECT ps.* FROM pfv_sesiones ps
     WHERE ps.jugador_id = ${jugadorId}
-      AND (${s.clubId ?? null}::int IS NULL OR ps.club_id = ${s.clubId ?? null})
+      AND (${s.clubId ? Number(s.clubId) : null}::int IS NULL OR ps.club_id = ${s.clubId ? Number(s.clubId) : null})
     ORDER BY ps.fecha DESC, ps.id DESC`
   const result = await Promise.all(sesiones.map(async (ses: any) => {
     const puntos = await sql`SELECT * FROM pfv_puntos WHERE sesion_id = ${ses.id} ORDER BY carga_kg ASC`

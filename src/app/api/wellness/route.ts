@@ -82,7 +82,7 @@ export async function POST(req: NextRequest) {
   }
   const fecha = b.fecha || new Date().toISOString().split('T')[0]
 
-  let clubId = s.clubId ?? null
+  let clubId = s.clubId ? Number(s.clubId) : null
   if (s.rol === 'jugador') {
     const rows = await sql`SELECT club_id FROM jugadores WHERE id = ${jugador_id} LIMIT 1`
     clubId = (rows[0] as any)?.club_id ?? null

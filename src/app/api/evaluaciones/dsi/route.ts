@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
   const rows = await sql`
     SELECT * FROM dsi_tests
     WHERE jugador_id = ${jugadorId}
-      AND (${s.clubId ?? null}::int IS NULL OR club_id = ${s.clubId ?? null})
+      AND (${s.clubId ? Number(s.clubId) : null}::int IS NULL OR club_id = ${s.clubId ? Number(s.clubId) : null})
     ORDER BY fecha DESC, id DESC`
   return NextResponse.json(rows)
 }
@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
     if (!owns.length) return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
   }
   await sql`INSERT INTO dsi_tests (jugador_id, club_id, fecha, fuerza_balistico_n, fuerza_isometrico_n, notas)
-    VALUES (${jugador_id}, ${s.clubId ?? null}, ${fecha}, ${fuerza_balistico_n}, ${fuerza_isometrico_n}, ${notas ?? null})`
+    VALUES (${jugador_id}, ${s.clubId ? Number(s.clubId) : null}, ${fecha}, ${fuerza_balistico_n}, ${fuerza_isometrico_n}, ${notas ?? null})`
   return NextResponse.json({ ok: true })
 }
 

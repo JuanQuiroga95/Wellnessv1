@@ -58,7 +58,7 @@ export async function POST(req: NextRequest) {
     const check = await sql`
       SELECT id FROM usuarios
       WHERE id = ANY(${resolvedUsuarioIds}::int[])
-        AND club_id = ${s.clubId ?? null}
+        AND club_id = ${s.clubId ? Number(s.clubId) : null}
         AND rol = 'jugador'`
     resolvedUsuarioIds = (check as any[]).map(r => r.id)
     if (resolvedUsuarioIds.length === 0) {

@@ -132,7 +132,7 @@ export async function POST(req: NextRequest) {
       try {
         await sql`
           INSERT INTO sesiones_plan(admin_id, club_id, fecha, tipo, titulo, objetivo, rpe_objetivo, ejercicios)
-          VALUES(${s.userId}, ${s.clubId ?? null}, ${fecha}, ${demo.tipo}, ${demo.titulo},
+          VALUES(${s.userId}, ${s.clubId ? Number(s.clubId) : null}, ${fecha}, ${demo.tipo}, ${demo.titulo},
                  ${demo.objetivo}, ${demo.rpe_objetivo}, ${JSON.stringify(ejercicios)}::jsonb)
           ON CONFLICT DO NOTHING`
         sesionesCreadas++
@@ -147,7 +147,7 @@ export async function POST(req: NextRequest) {
         try {
           await sql`
             INSERT INTO entrenamiento_logs(jugador_id, fecha, rpe, duracion_min, tipo_sesion, club_id)
-            VALUES(${p.jugador_id}, ${fecha}, ${rpe}, ${duracion}, 'EQUIPO', ${s.clubId ?? null})
+            VALUES(${p.jugador_id}, ${fecha}, ${rpe}, ${duracion}, 'EQUIPO', ${s.clubId ? Number(s.clubId) : null})
             ON CONFLICT DO NOTHING`
           logsCreados++
         } catch(e) { /* ignore conflict */ }

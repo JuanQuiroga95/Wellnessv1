@@ -9,7 +9,7 @@ export async function POST(req: NextRequest) {
   const sql = getDb()
   const { searchParams } = new URL(req.url)
   const dryRun = searchParams.get('dry') === '1'
-  const clubId = s.clubId ?? null
+  const clubId = s.clubId ? Number(s.clubId) : null
 
   // 1. Jugadores del club (con o sin usuario activo)
   const jugadores = clubId

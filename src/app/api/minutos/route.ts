@@ -8,9 +8,12 @@ export async function GET(req: NextRequest) {
   const {searchParams} = new URL(req.url)
   const desde = searchParams.get('desde')||'2024-01-01'
   const hasta = searchParams.get('hasta')||new Date().toISOString().split('T')[0]
-  const clubId = s.clubId ?? null
+  const clubId = s.clubId ? Number(s.clubId) : null
   const isMaster = s.rol === 'master_admin' && !s.clubId
   const sql = getDb()
+
+  // Seguridad: si no es master y no tiene clubId, no puede ver datos de otros clubes
+  if (!isMaster && !clubId) return NextResponse.json([])
 
   const [train,match,bimT,bimM] = await Promise.all([
     sql`SELECT j.id AS jugador_id,u.nombre,j.posicion,

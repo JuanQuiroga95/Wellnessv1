@@ -9,9 +9,12 @@ export async function GET(req: NextRequest) {
   const activas = searchParams.get('activas')!=='false'
   const jugadorId = searchParams.get('jugador_id') ? Number(searchParams.get('jugador_id')) : null
   const historialResumen = searchParams.get('historial_resumen') === 'true'
-  const clubId = s.clubId ?? null
+  const clubId = s.clubId ? Number(s.clubId) : null
   const isMaster = s.rol === 'master_admin' && !s.clubId
   const sql = getDb()
+
+  // Seguridad: si no es master y no tiene clubId, no puede ver datos de otros clubes
+  if (!isMaster && !clubId) return NextResponse.json([])
 
   // Resumen acumulativo por jugador (para tabla de historial en enfermería)
   if (historialResumen) {

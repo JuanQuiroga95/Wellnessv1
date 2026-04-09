@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
     SELECT c.* FROM cmj_con_diferencial c
     JOIN cmj_sessions cs ON cs.id = c.id
     WHERE c.jugador_id = ${Number(jugador_id)}
-      AND (${s.clubId ?? null}::int IS NULL OR cs.club_id = ${s.clubId ?? null})
+      AND (${s.clubId ? Number(s.clubId) : null}::int IS NULL OR cs.club_id = ${s.clubId ? Number(s.clubId) : null})
     ORDER BY c.fecha DESC
   `
   return NextResponse.json(rows)
@@ -75,7 +75,7 @@ export async function POST(req: NextRequest) {
       es_baseline, notas
     ) VALUES (
       ${Number(jugador_id)},
-      ${s.clubId ?? null},
+      ${s.clubId ? Number(s.clubId) : null},
       ${fecha ?? new Date().toISOString().split('T')[0]},
       ${Number(salto1_cm)},
       ${Number(salto2_cm)},
@@ -99,7 +99,7 @@ export async function DELETE(req: NextRequest) {
   const sql = getDb()
   await sql`
     DELETE FROM cmj_sessions
-    WHERE id = ${Number(id)} AND club_id = ${s.clubId ?? null}
+    WHERE id = ${Number(id)} AND club_id = ${s.clubId ? Number(s.clubId) : null}
   `
   return NextResponse.json({ ok: true })
 }
@@ -116,11 +116,11 @@ export async function PATCH(req: NextRequest) {
   // Quitar baseline anterior y asignar al nuevo
   await sql`
     UPDATE cmj_sessions SET es_baseline = FALSE
-    WHERE jugador_id = ${Number(jugador_id)} AND club_id = ${s.clubId ?? null}
+    WHERE jugador_id = ${Number(jugador_id)} AND club_id = ${s.clubId ? Number(s.clubId) : null}
   `
   await sql`
     UPDATE cmj_sessions SET es_baseline = TRUE
-    WHERE id = ${Number(id)} AND club_id = ${s.clubId ?? null}
+    WHERE id = ${Number(id)} AND club_id = ${s.clubId ? Number(s.clubId) : null}
   `
   return NextResponse.json({ ok: true })
 }

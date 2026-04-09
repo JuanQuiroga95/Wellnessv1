@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
   const rows = await sql`
     SELECT * FROM rsi_tests
     WHERE jugador_id = ${jugadorId}
-      AND (${s.clubId ?? null}::int IS NULL OR club_id = ${s.clubId ?? null})
+      AND (${s.clubId ? Number(s.clubId) : null}::int IS NULL OR club_id = ${s.clubId ? Number(s.clubId) : null})
     ORDER BY fecha DESC, id DESC`
   if (rows.length > 0 && !rows.some((r: any) => r.es_baseline)) {
     const oldest = rows[rows.length - 1] as any
@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
   const existing = await sql`SELECT COUNT(*) AS cnt FROM rsi_tests WHERE jugador_id = ${jugador_id}`
   const isFirst = Number((existing[0] as any).cnt) === 0
   await sql`INSERT INTO rsi_tests (jugador_id, club_id, fecha, altura_cm, contacto_ms, notas, es_baseline)
-    VALUES (${jugador_id}, ${s.clubId ?? null}, ${fecha}, ${altura_cm}, ${contacto_ms}, ${notas ?? null}, ${isFirst})`
+    VALUES (${jugador_id}, ${s.clubId ? Number(s.clubId) : null}, ${fecha}, ${altura_cm}, ${contacto_ms}, ${notas ?? null}, ${isFirst})`
   return NextResponse.json({ ok: true })
 }
 

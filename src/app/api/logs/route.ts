@@ -74,7 +74,7 @@ export async function POST(req: NextRequest) {
 
   const tipo_sesion = body.tipo_sesion === 'PARTIDO' ? 'PARTIDO' : 'EQUIPO'
   const fecha = body.fecha || new Date().toISOString().split('T')[0]
-  const clubId = s.clubId ?? null
+  const clubId = s.clubId ? Number(s.clubId) : null
 
   const [r] = await sql`
     INSERT INTO entrenamiento_logs(jugador_id, rpe, duracion_min, tipo_sesion, fecha, club_id)
@@ -101,7 +101,7 @@ export async function PATCH(req: NextRequest) {
     SELECT el.id FROM entrenamiento_logs el
     JOIN jugadores j ON j.id = el.jugador_id
     JOIN usuarios u ON u.id = j.usuario_id
-    WHERE el.id = ${id} AND u.club_id = ${s.clubId ?? null} LIMIT 1`
+    WHERE el.id = ${id} AND u.club_id = ${s.clubId ? Number(s.clubId) : null} LIMIT 1`
   if (!existing.length) return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
 
   const [r] = await sql`

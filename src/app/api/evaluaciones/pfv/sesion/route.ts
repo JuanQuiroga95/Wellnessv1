@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
   const sql = getDb()
   const [row] = await sql`
     INSERT INTO pfv_sesiones (jugador_id, club_id, nombre)
-    VALUES (${jugador_id}, ${s.clubId ?? null}, ${nombre})
+    VALUES (${jugador_id}, ${s.clubId ? Number(s.clubId) : null}, ${nombre})
     RETURNING id
   `
   return NextResponse.json({ sesion_id: (row as any).id })

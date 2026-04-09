@@ -9,9 +9,14 @@ export async function GET(req: NextRequest) {
   if (!s || !isAdmin(s)) return NextResponse.json({error:'No autorizado'},{status:403})
   const { searchParams } = new URL(req.url)
   const weeks = parseInt(searchParams.get('weeks')||'4')
-  const clubId = s.clubId ?? null
+  const clubId = s.clubId ? Number(s.clubId) : null
   const isMaster = s.rol === 'master_admin' && !s.clubId
   const sql = getDb()
+
+  // Si no es master y no tiene clubId válido, no puede ver nada
+  if (!isMaster && !clubId) {
+    return NextResponse.json({ wRows: [], rpeRows: [], todayRows: [] })
+  }
 
   const wRows = await sql`
     SELECT j.id AS jugador_id, u.nombre, j.posicion, j.foto_url,
@@ -31,7 +36,7 @@ export async function GET(req: NextRequest) {
       AND w.fatiga IS NOT NULL
       AND u.activo = true
       AND u.rol = 'jugador'
-      AND (${isMaster}::boolean OR u.club_id = ${clubId})
+      AND (${isMaster}::boolean OR (u.club_id = ${clubId} AND j.club_id = ${clubId}))
     GROUP BY j.id, u.nombre, j.posicion, j.foto_url, DATE_TRUNC('week',w.fecha)
     ORDER BY semana DESC, u.nombre`
 
@@ -47,7 +52,7 @@ export async function GET(req: NextRequest) {
     WHERE el.fecha >= CURRENT_DATE - (${weeks}*7)
       AND u.activo = true
       AND u.rol = 'jugador'
-      AND (${isMaster}::boolean OR u.club_id = ${clubId})
+      AND (${isMaster}::boolean OR (u.club_id = ${clubId} AND j.club_id = ${clubId}))
     GROUP BY el.jugador_id, DATE_TRUNC('week',el.fecha)
     ORDER BY semana DESC`
 
@@ -58,7 +63,8 @@ export async function GET(req: NextRequest) {
            w.tqr, w.dolor_zona, w.dolor_eva, w.entrena_grupo, w.fue_gimnasio
     FROM jugadores j JOIN usuarios u ON u.id=j.usuario_id
     LEFT JOIN wellness_logs w ON w.jugador_id=j.id AND w.fecha=CURRENT_DATE
-    WHERE u.rol='jugador' AND u.activo=true AND (${isMaster}::boolean OR u.club_id=${clubId})
+    WHERE u.rol='jugador' AND u.activo=true
+      AND (${isMaster}::boolean OR (u.club_id=${clubId} AND j.club_id=${clubId}))
     ORDER BY u.nombre`
 
   return NextResponse.json({ wRows, rpeRows, todayRows })

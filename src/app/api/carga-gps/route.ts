@@ -83,7 +83,7 @@ export async function GET(req: NextRequest) {
     const ciclo = searchParams.get('ciclo') || 'microciclo'
     const sql   = getDb()
     // Normalize clubId to null — undefined breaks Neon template literals
-    const clubId = s.clubId ?? null
+    const clubId = s.clubId ? Number(s.clubId) : null
 
     // 1. All planned sessions in range with their task blocks
     const sesiones = await sql`

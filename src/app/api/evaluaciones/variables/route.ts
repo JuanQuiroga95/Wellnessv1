@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
     FROM jugadores j
     JOIN usuarios u ON u.id = j.usuario_id
     WHERE j.id = ${Number(jugador_id)}
-      AND j.club_id = ${s.clubId ?? null}
+      AND j.club_id = ${s.clubId ? Number(s.clubId) : null}
   `
   return NextResponse.json(rows[0] ?? null)
 }
@@ -43,7 +43,7 @@ export async function PUT(req: NextRequest) {
         estatura_cm = ${estatura_cm ?? null},
         peso_kg     = ${peso_kg     ?? null}
     WHERE id = ${Number(jugador_id)}
-      AND club_id = ${s.clubId ?? null}
+      AND club_id = ${s.clubId ? Number(s.clubId) : null}
   `
   return NextResponse.json({ ok: true })
 }
