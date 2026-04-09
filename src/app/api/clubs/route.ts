@@ -66,6 +66,33 @@ export async function DELETE(req: NextRequest) {
   const id = searchParams.get('id')
   if (!id) return NextResponse.json({error:'id requerido'},{status:400})
   const sql = getDb()
-  await sql`DELETE FROM clubs WHERE id=${id}`
-  return NextResponse.json({ok:true})
+  try {
+    // Delete in dependency order to avoid FK constraint violations
+    // 1. Logs and data tied to jugadores of this club
+    await sql`DELETE FROM wellness_logs      WHERE club_id = ${id}`
+    await sql`DELETE FROM entrenamiento_logs WHERE club_id = ${id}`
+    await sql`DELETE FROM partido_logs       WHERE jugador_id IN (SELECT id FROM jugadores WHERE club_id = ${id})`
+    await sql`DELETE FROM lesiones           WHERE club_id = ${id}`
+    // Evaluaciones tables (best-effort — tables may not exist yet)
+    try { await sql`DELETE FROM pesajes          WHERE club_id = ${id}` } catch(_) {}
+    try { await sql`DELETE FROM cmj_sessions     WHERE club_id = ${id}` } catch(_) {}
+    try { await sql`DELETE FROM iso_sessions     WHERE club_id = ${id}` } catch(_) {}
+    try { await sql`DELETE FROM rsi_sessions     WHERE club_id = ${id}` } catch(_) {}
+    try { await sql`DELETE FROM dsi_sessions     WHERE club_id = ${id}` } catch(_) {}
+    try { await sql`DELETE FROM pfv_sesiones     WHERE club_id = ${id}` } catch(_) {}
+    try { await sql`DELETE FROM gps_logs         WHERE jugador_id IN (SELECT id FROM jugadores WHERE club_id = ${id})` } catch(_) {}
+    // 2. Sesiones del calendario del coach del club
+    await sql`DELETE FROM sesiones_plan WHERE club_id = ${id}`
+    // 3. Jugadores (usuarios jugador)
+    await sql`DELETE FROM usuarios WHERE club_id = ${id} AND rol = 'jugador'`
+    await sql`DELETE FROM jugadores WHERE club_id = ${id}`
+    // 4. Coaches (admin usuarios) of this club
+    await sql`DELETE FROM usuarios WHERE club_id = ${id} AND rol = 'admin'`
+    // 5. Finally delete the club
+    await sql`DELETE FROM clubs WHERE id = ${id}`
+    return NextResponse.json({ok:true})
+  } catch(e: any) {
+    console.error('[clubs DELETE error]', e)
+    return NextResponse.json({error: String(e)},{status:500})
+  }
 }
