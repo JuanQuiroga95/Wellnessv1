@@ -46,6 +46,7 @@ export async function GET(req: NextRequest) {
     JOIN jugadores j ON j.id = pl.jugador_id
     JOIN usuarios u ON u.id = j.usuario_id
     WHERE pl.fecha BETWEEN ${desde} AND ${hasta}
+      AND u.activo = true
       AND (${isMaster}::boolean OR u.club_id = ${clubId})
     ORDER BY pl.fecha ASC
   `

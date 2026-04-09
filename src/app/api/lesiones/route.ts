@@ -50,11 +50,11 @@ export async function GET(req: NextRequest) {
     ? await sql`SELECT l.id,l.jugador_id::int,l.fecha_inicio::text,l.fecha_alta::text,l.tipo_lesion,l.zona,
                        l.descripcion,l.eta_dias::int,l.estado,l.activa,u.nombre AS jugador_nombre,j.posicion
                 FROM lesiones l JOIN jugadores j ON j.id=l.jugador_id JOIN usuarios u ON u.id=j.usuario_id
-                WHERE l.activa=true AND (${isMaster}::boolean OR u.club_id=${clubId}) ORDER BY l.fecha_inicio DESC`
+                WHERE l.activa=true AND u.activo=true AND (${isMaster}::boolean OR u.club_id=${clubId}) ORDER BY l.fecha_inicio DESC`
     : await sql`SELECT l.id,l.jugador_id::int,l.fecha_inicio::text,l.fecha_alta::text,l.tipo_lesion,l.zona,
                        l.descripcion,l.eta_dias::int,l.estado,l.activa,u.nombre AS jugador_nombre,j.posicion
                 FROM lesiones l JOIN jugadores j ON j.id=l.jugador_id JOIN usuarios u ON u.id=j.usuario_id
-                WHERE u.club_id=${clubId} ORDER BY l.fecha_inicio DESC`
+                WHERE u.activo=true AND u.club_id=${clubId} ORDER BY l.fecha_inicio DESC`
   return NextResponse.json(r)
 }
 export async function POST(req: NextRequest) {

@@ -38,7 +38,7 @@ export async function GET(req: NextRequest) {
     FROM entrenamiento_logs el
     JOIN jugadores j ON j.id=el.jugador_id
     JOIN usuarios u ON u.id=j.usuario_id
-    WHERE el.fecha>=CURRENT_DATE-(${weeks}*7) AND (${isMaster}::boolean OR u.club_id=${clubId})
+    WHERE el.fecha>=CURRENT_DATE-(${weeks}*7) AND u.activo=true AND (${isMaster}::boolean OR u.club_id=${clubId})
     GROUP BY el.jugador_id, DATE_TRUNC('week', el.fecha)
     ORDER BY el.jugador_id, semana`
 

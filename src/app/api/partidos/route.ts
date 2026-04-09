@@ -20,7 +20,9 @@ export async function GET(req: NextRequest) {
     // No player filter — return all partido_logs as before
     const r = await sql`SELECT pl.id, pl.jugador_id::int, pl.fecha::text, pl.rival, pl.tipo_partido, pl.minutos::int, pl.titular, pl.rival_foto
                         FROM partido_logs pl JOIN jugadores j ON j.id = pl.jugador_id
+                        JOIN usuarios u ON u.id = j.usuario_id
                         WHERE pl.fecha BETWEEN ${desde} AND ${hasta}
+                          AND u.activo = true
                         ORDER BY pl.fecha DESC`
     return NextResponse.json(r)
   }
