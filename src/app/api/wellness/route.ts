@@ -88,63 +88,84 @@ export async function POST(req: NextRequest) {
     clubId = (rows[0] as any)?.club_id ?? null
   }
 
-  // Try with dolor_descripcion first; fall back without it if column doesn't exist yet
+  // Manual upsert: no depende de UNIQUE INDEX (que puede no existir si hay duplicados históricos)
+  // 1) Buscar si ya existe un registro para hoy
+  const existing = await sql`
+    SELECT id FROM wellness_logs
+    WHERE jugador_id = ${jugador_id} AND fecha = ${fecha}
+    ORDER BY id DESC LIMIT 1`
+
   let r: any
   try {
-    ;[r] = await sql`
-      INSERT INTO wellness_logs(
-        jugador_id, fecha, fatiga, calidad_sueno, dolor_muscular, nivel_estres, estado_animo,
-        dolor_zona, dolor_descripcion, dolor_eva, tqr, recovery, entrena_grupo, fue_gimnasio, grupos_musculares, club_id
-      ) VALUES(
-        ${jugador_id}, ${fecha}, ${clamp(b.fatiga)}, ${clamp(b.calidad_sueno)},
-        ${clamp(b.dolor_muscular)}, ${clamp(b.nivel_estres)}, ${clamp(b.estado_animo)},
-        ${b.dolor_zona || null}, ${b.dolor_descripcion || null}, ${clamp0(b.dolor_eva)}, ${clamp(b.tqr)}, ${clamp(b.recovery)},
-        ${b.entrena_grupo ?? true}, ${b.fue_gimnasio ?? false},
-        ${b.grupos_musculares || null}, ${clubId}
-      )
-      ON CONFLICT (jugador_id, fecha) DO UPDATE SET
-        fatiga            = EXCLUDED.fatiga,
-        calidad_sueno     = EXCLUDED.calidad_sueno,
-        dolor_muscular    = EXCLUDED.dolor_muscular,
-        nivel_estres      = EXCLUDED.nivel_estres,
-        estado_animo      = EXCLUDED.estado_animo,
-        dolor_zona        = EXCLUDED.dolor_zona,
-        dolor_descripcion = EXCLUDED.dolor_descripcion,
-        dolor_eva         = EXCLUDED.dolor_eva,
-        tqr               = EXCLUDED.tqr,
-        recovery          = EXCLUDED.recovery,
-        entrena_grupo     = EXCLUDED.entrena_grupo,
-        fue_gimnasio      = EXCLUDED.fue_gimnasio,
-        grupos_musculares = EXCLUDED.grupos_musculares
-      RETURNING id, fecha::text`
-  } catch (e: any) {
-    // Fallback: insert without dolor_descripcion (column not migrated yet)
-    if (String(e).includes('dolor_descripcion')) {
+    if (existing.length > 0) {
+      // UPDATE del registro más reciente
+      ;[r] = await sql`
+        UPDATE wellness_logs SET
+          fatiga            = ${clamp(b.fatiga)},
+          calidad_sueno     = ${clamp(b.calidad_sueno)},
+          dolor_muscular    = ${clamp(b.dolor_muscular)},
+          nivel_estres      = ${clamp(b.nivel_estres)},
+          estado_animo      = ${clamp(b.estado_animo)},
+          dolor_zona        = ${b.dolor_zona || null},
+          dolor_descripcion = ${b.dolor_descripcion || null},
+          dolor_eva         = ${clamp0(b.dolor_eva)},
+          tqr               = ${clamp(b.tqr)},
+          recovery          = ${clamp(b.recovery)},
+          entrena_grupo     = ${b.entrena_grupo ?? true},
+          fue_gimnasio      = ${b.fue_gimnasio ?? false},
+          grupos_musculares = ${b.grupos_musculares || null}
+        WHERE id = ${(existing[0] as any).id}
+        RETURNING id, fecha::text`
+    } else {
+      // INSERT nuevo
       ;[r] = await sql`
         INSERT INTO wellness_logs(
           jugador_id, fecha, fatiga, calidad_sueno, dolor_muscular, nivel_estres, estado_animo,
-          dolor_zona, dolor_eva, tqr, recovery, entrena_grupo, fue_gimnasio, grupos_musculares, club_id
+          dolor_zona, dolor_descripcion, dolor_eva, tqr, recovery, entrena_grupo, fue_gimnasio, grupos_musculares, club_id
         ) VALUES(
           ${jugador_id}, ${fecha}, ${clamp(b.fatiga)}, ${clamp(b.calidad_sueno)},
           ${clamp(b.dolor_muscular)}, ${clamp(b.nivel_estres)}, ${clamp(b.estado_animo)},
-          ${b.dolor_zona || null}, ${clamp0(b.dolor_eva)}, ${clamp(b.tqr)}, ${clamp(b.recovery)},
+          ${b.dolor_zona || null}, ${b.dolor_descripcion || null}, ${clamp0(b.dolor_eva)},
+          ${clamp(b.tqr)}, ${clamp(b.recovery)},
           ${b.entrena_grupo ?? true}, ${b.fue_gimnasio ?? false},
           ${b.grupos_musculares || null}, ${clubId}
         )
-        ON CONFLICT (jugador_id, fecha) DO UPDATE SET
-          fatiga            = EXCLUDED.fatiga,
-          calidad_sueno     = EXCLUDED.calidad_sueno,
-          dolor_muscular    = EXCLUDED.dolor_muscular,
-          nivel_estres      = EXCLUDED.nivel_estres,
-          estado_animo      = EXCLUDED.estado_animo,
-          dolor_zona        = EXCLUDED.dolor_zona,
-          dolor_eva         = EXCLUDED.dolor_eva,
-          tqr               = EXCLUDED.tqr,
-          recovery          = EXCLUDED.recovery,
-          entrena_grupo     = EXCLUDED.entrena_grupo,
-          fue_gimnasio      = EXCLUDED.fue_gimnasio,
-          grupos_musculares = EXCLUDED.grupos_musculares
         RETURNING id, fecha::text`
+    }
+  } catch (e: any) {
+    // Fallback: columna dolor_descripcion puede no existir en DB vieja
+    if (String(e).includes('dolor_descripcion')) {
+      if (existing.length > 0) {
+        ;[r] = await sql`
+          UPDATE wellness_logs SET
+            fatiga            = ${clamp(b.fatiga)},
+            calidad_sueno     = ${clamp(b.calidad_sueno)},
+            dolor_muscular    = ${clamp(b.dolor_muscular)},
+            nivel_estres      = ${clamp(b.nivel_estres)},
+            estado_animo      = ${clamp(b.estado_animo)},
+            dolor_zona        = ${b.dolor_zona || null},
+            dolor_eva         = ${clamp0(b.dolor_eva)},
+            tqr               = ${clamp(b.tqr)},
+            recovery          = ${clamp(b.recovery)},
+            entrena_grupo     = ${b.entrena_grupo ?? true},
+            fue_gimnasio      = ${b.fue_gimnasio ?? false},
+            grupos_musculares = ${b.grupos_musculares || null}
+          WHERE id = ${(existing[0] as any).id}
+          RETURNING id, fecha::text`
+      } else {
+        ;[r] = await sql`
+          INSERT INTO wellness_logs(
+            jugador_id, fecha, fatiga, calidad_sueno, dolor_muscular, nivel_estres, estado_animo,
+            dolor_zona, dolor_eva, tqr, recovery, entrena_grupo, fue_gimnasio, grupos_musculares, club_id
+          ) VALUES(
+            ${jugador_id}, ${fecha}, ${clamp(b.fatiga)}, ${clamp(b.calidad_sueno)},
+            ${clamp(b.dolor_muscular)}, ${clamp(b.nivel_estres)}, ${clamp(b.estado_animo)},
+            ${b.dolor_zona || null}, ${clamp0(b.dolor_eva)}, ${clamp(b.tqr)}, ${clamp(b.recovery)},
+            ${b.entrena_grupo ?? true}, ${b.fue_gimnasio ?? false},
+            ${b.grupos_musculares || null}, ${clubId}
+          )
+          RETURNING id, fecha::text`
+      }
     } else {
       console.error('[wellness POST] DB error:', String(e))
       return NextResponse.json({ error: 'Error interno del servidor', detail: String(e) }, { status: 500 })
