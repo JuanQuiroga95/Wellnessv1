@@ -85,6 +85,18 @@ export async function GET(req: NextRequest) {
     // Normalize clubId to null — undefined breaks Neon template literals
     const clubId = s.clubId ? Number(s.clubId) : null
 
+    // Auto-reparar jugadores sin club_id asignado (legacy data)
+    if (clubId) {
+      try {
+        await sql`
+          UPDATE jugadores j SET club_id = ${clubId}
+          FROM usuarios u WHERE u.id = j.usuario_id AND u.club_id = ${clubId} AND j.club_id IS NULL`
+        await sql`
+          UPDATE usuarios u SET club_id = ${clubId}
+          FROM jugadores j WHERE j.usuario_id = u.id AND j.club_id = ${clubId} AND u.club_id IS NULL`
+      } catch {}
+    }
+
     // 1. All planned sessions in range with their task blocks
     const sesiones = await sql`
       SELECT id, fecha::text, ejercicios, rpe_objetivo, titulo
