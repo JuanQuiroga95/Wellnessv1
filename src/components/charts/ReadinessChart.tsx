@@ -21,7 +21,8 @@ function PlayerDot(props) {
 
 const CustomTip = ({ active, payload }) => {
   if (!active || !payload?.length) return null
-  const d = payload[0].payload
+  const d = payload[0]?.payload
+  if (!d) return null
   const col = READINESS_COLOR(d.wellness)
   return (
     <div style={{ background:'var(--ink2)', border:`1px solid ${col}44`, borderRadius:10, padding:'10px 14px', fontSize:12 }}>

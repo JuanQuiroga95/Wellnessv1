@@ -9,7 +9,7 @@ export async function GET(req: NextRequest) {
   const desde = searchParams.get('desde')||'2024-01-01'
   const hasta = searchParams.get('hasta')||new Date().toISOString().split('T')[0]
   const clubId = s.clubId ?? null
-  const isMaster = s.rol === 'master_admin'
+  const isMaster = s.rol === 'master_admin' && !s.clubId
   const sql = getDb()
 
   const [train,match,bimT,bimM] = await Promise.all([

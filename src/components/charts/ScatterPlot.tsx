@@ -35,7 +35,8 @@ const CustomDot = (props) => {
 
 const CustomTooltip = ({ active, payload }) => {
   if (!active || !payload?.length) return null
-  const d = payload[0].payload
+  const d = payload[0]?.payload
+  if (!d) return null
   return (
     <div style={{ background:'#111', border:'1px solid #333', borderRadius:10, padding:'10px 14px', fontSize:12 }}>
       <div style={{ fontWeight:600, color:'white', marginBottom:4 }}>{d.nombre}</div>

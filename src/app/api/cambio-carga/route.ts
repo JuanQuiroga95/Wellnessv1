@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
   const minPartido = parseInt(searchParams.get('minPartido') || '0')
 
   const clubId = s.clubId ?? null
-  const isMaster = s.rol === 'master_admin'
+  const isMaster = s.rol === 'master_admin' && !s.clubId
   const sql = getDb()
 
   // Get all training logs with player names in date range

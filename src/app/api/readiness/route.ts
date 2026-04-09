@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const weeks = parseInt(searchParams.get('weeks')||'4')
   const clubId = s.clubId ?? null
-  const isMaster = s.rol === 'master_admin'
+  const isMaster = s.rol === 'master_admin' && !s.clubId
   const sql = getDb()
 
   const wRows = await sql`

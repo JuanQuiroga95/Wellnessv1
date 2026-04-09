@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
   const jugadorId = searchParams.get('jugador_id') ? Number(searchParams.get('jugador_id')) : null
   const historialResumen = searchParams.get('historial_resumen') === 'true'
   const clubId = s.clubId ?? null
-  const isMaster = s.rol === 'master_admin'
+  const isMaster = s.rol === 'master_admin' && !s.clubId
   const sql = getDb()
 
   // Resumen acumulativo por jugador (para tabla de historial en enfermería)
