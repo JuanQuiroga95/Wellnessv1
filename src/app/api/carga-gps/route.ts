@@ -106,21 +106,24 @@ export async function GET(req: NextRequest) {
       ORDER BY fecha`
 
     // 2. All active players from this club
+    // Check both u.club_id and j.club_id to handle legacy data where one may be NULL
     const todosJugadores = clubId ? await sql`
       SELECT j.id AS jugador_id, u.nombre, j.posicion
       FROM jugadores j
       JOIN usuarios u ON u.id = j.usuario_id
-      WHERE u.club_id = ${clubId} AND u.activo = true
+      WHERE (u.club_id = ${clubId} OR j.club_id = ${clubId}) AND u.activo = true
       ORDER BY u.nombre` : []
 
     // 3. RPE logs from players in range
+    // Join via jugadores.club_id (más robusto que u.club_id para datos legacy)
     const logs = clubId ? await sql`
       SELECT el.jugador_id, el.fecha::text, el.rpe::int, el.duracion_min::int, el.carga_ua::int
       FROM entrenamiento_logs el
       JOIN jugadores j ON j.id = el.jugador_id
       JOIN usuarios u ON u.id = j.usuario_id
       WHERE el.fecha BETWEEN ${desde} AND ${hasta}
-        AND u.activo = true AND u.club_id = ${clubId}
+        AND u.activo = true
+        AND (u.club_id = ${clubId} OR j.club_id = ${clubId})
       ORDER BY el.fecha` : []
 
     // 4. Compute GPS totals per date from planned sessions
@@ -269,7 +272,7 @@ export async function GET(req: NextRequest) {
           FROM gps_logs g
           JOIN jugadores j ON j.id = g.jugador_id
           JOIN usuarios u ON u.id = j.usuario_id
-          WHERE g.club_id = ${clubId}
+          WHERE (g.club_id = ${clubId} OR j.club_id = ${clubId})
             AND g.fecha BETWEEN ${desde} AND ${hasta}
             AND u.activo = true
           ORDER BY u.nombre
@@ -299,7 +302,7 @@ export async function GET(req: NextRequest) {
           JOIN jugadores j ON j.id = g.jugador_id
           JOIN usuarios u ON u.id = j.usuario_id
           LEFT JOIN sesiones_plan sp ON sp.id = g.sesion_id
-          WHERE g.club_id = ${clubId}
+          WHERE (g.club_id = ${clubId} OR j.club_id = ${clubId})
             AND g.fecha BETWEEN ${desde} AND ${hasta}
             AND u.activo = true
           ORDER BY g.fecha, u.nombre
