@@ -85,15 +85,17 @@ const FRONT_ZONES = [
   { id:'tobillo_i', label:'Tobillo Izq.',    cx:121, cy:346, r:10 },
 ]
 const BACK_ZONES = [
-  { id:'nuca',      label:'Cuello',          cx:100, cy:50,  r:9  },
-  { id:'esp_alta',  label:'Espalda Alta',    cx:100, cy:90,  r:22 },
-  { id:'lumbar',    label:'Espalda Baja',    cx:100, cy:143, r:16 },
-  { id:'gluteo_d',  label:'Glúteo Der.',     cx:86,  cy:182, r:17 },
-  { id:'gluteo_i',  label:'Glúteo Izq.',     cx:114, cy:182, r:17 },
-  { id:'gemelo_d',  label:'Gemelo Der.',     cx:81,  cy:310, r:14 },
-  { id:'gemelo_i',  label:'Gemelo Izq.',     cx:119, cy:310, r:14 },
-  { id:'tobillo_d', label:'Tobillo Der.',    cx:79,  cy:350, r:10 },
-  { id:'tobillo_i', label:'Tobillo Izq.',    cx:121, cy:350, r:10 },
+  { id:'nuca',      label:'Cuello',            cx:100, cy:50,  r:9  },
+  { id:'esp_alta',  label:'Espalda Alta',      cx:100, cy:90,  r:22 },
+  { id:'lumbar',    label:'Espalda Baja',      cx:100, cy:143, r:16 },
+  { id:'gluteo_d',  label:'Glúteo Der.',       cx:86,  cy:182, r:17 },
+  { id:'gluteo_i',  label:'Glúteo Izq.',       cx:114, cy:182, r:17 },
+  { id:'isquio_d',  label:'Isquiotibial Der.', cx:83,  cy:228, r:18 },
+  { id:'isquio_i',  label:'Isquiotibial Izq.', cx:117, cy:228, r:18 },
+  { id:'gemelo_d',  label:'Gemelo Der.',       cx:81,  cy:310, r:14 },
+  { id:'gemelo_i',  label:'Gemelo Izq.',       cx:119, cy:310, r:14 },
+  { id:'tobillo_d', label:'Tobillo Der.',      cx:79,  cy:350, r:10 },
+  { id:'tobillo_i', label:'Tobillo Izq.',      cx:121, cy:350, r:10 },
 ]
 
 // Stroke config
@@ -373,7 +375,7 @@ function BodyMap({ onSelect, selected }) {
   return (
     <div>
       <div style={{ display:'flex', gap:8, marginBottom:12 }}>
-        {[['front','Vista Frontal'],['back','Vista Trasera']].map(([s,l]) => (
+        {[['front','Vista Frontal'],['back','Vista Posterior']].map(([s,l]) => (
           <button key={s} type="button" onClick={() => setSide(s as any)} style={{
             flex:1, padding:'8px', borderRadius:8, cursor:'pointer', fontSize:12, fontWeight:600,
             border: side===s ? '2px solid #ef4444' : '1px solid var(--fog)',
@@ -502,6 +504,7 @@ function AlreadyCompleted({ data, onBack }) {
           {data.fue_gimnasio && <span style={{ fontSize:12, padding:'5px 12px', borderRadius:20, background:'rgba(200,241,53,.08)', color:'var(--lime)', border:'1px solid rgba(200,241,53,.2)', fontWeight:600 }}>🏋 Fue al gimnasio</span>}
           {data.dolor_zona && <span style={{ fontSize:12, padding:'5px 12px', borderRadius:20, background:'rgba(239,68,68,.08)', color:'#f87171', border:'1px solid rgba(239,68,68,.25)', fontWeight:600 }}>📍 {data.dolor_zona}</span>}
           {data.dolor_eva != null && data.dolor_eva > 0 && <span style={{ fontSize:12, padding:'5px 12px', borderRadius:20, background:'rgba(239,68,68,.08)', color:'#f87171', border:'1px solid rgba(239,68,68,.25)', fontWeight:600 }}>EVA: {data.dolor_eva}/10</span>}
+          {data.dolor_descripcion && <p style={{ fontSize:11, color:'#f87171', marginTop:6, fontStyle:'italic' }}>💬 {data.dolor_descripcion}</p>}
         </div>
       </div>
       <button className="btn-ghost" onClick={onBack} style={{ width:'100%', padding:12 }}>← Volver al inicio</button>
@@ -514,6 +517,7 @@ export default function WellnessForm({ jugadorId, onSuccess, todayWellness }) {
   const [vals, setVals] = useState({ fatiga:null, calidad_sueno:null, dolor_muscular:null, nivel_estres:null, estado_animo:null })
   const [tqr, setTqr] = useState(null)
   const [zonaSeleccionada, setZonaSeleccionada] = useState(null)
+  const [dolorDescripcion, setDolorDescripcion] = useState('')
   const [dolorEva, setDolorEva] = useState(null)
   const [entrenaGrupo, setEntrenaGrupo] = useState(null)
   const [fueGimnasio, setFueGimnasio] = useState(null)
@@ -529,7 +533,7 @@ export default function WellnessForm({ jugadorId, onSuccess, todayWellness }) {
   // Mostrar EVA cuando se seleccionó zona
   const showEVA = showBodyMap && zonaSeleccionada !== null
 
-  const allFilled = Object.values(vals).every(v => v !== null) && tqr !== null && entrenaGrupo !== null && fueGimnasio !== null && (!showBodyMap || zonaSeleccionada !== null || vals.dolor_muscular < 2) && (!showEVA || dolorEva !== null)
+  const allFilled = Object.values(vals).every(v => v !== null) && tqr !== null && entrenaGrupo !== null && fueGimnasio !== null && (!showBodyMap || zonaSeleccionada !== null || (vals.dolor_muscular != null && vals.dolor_muscular < 2)) && (!showEVA || dolorEva !== null)
 
   const filledCount = Object.values(vals).filter(v=>v!==null).length + (tqr?1:0) + (entrenaGrupo!==null?1:0) + (fueGimnasio!==null?1:0)
   const totalFields = 5 + 1 + 1 + 1 // wellness + tqr + entrena + gimnasio
@@ -544,6 +548,7 @@ export default function WellnessForm({ jugadorId, onSuccess, todayWellness }) {
         body: JSON.stringify({
           jugador_id:jugadorId, ...vals,
           dolor_zona: zonaSeleccionada||null,
+          dolor_descripcion: dolorDescripcion||null,
           dolor_eva: dolorEva,
           tqr, recovery: tqr,
           entrena_grupo:entrenaGrupo,
@@ -592,6 +597,19 @@ export default function WellnessForm({ jugadorId, onSuccess, todayWellness }) {
               </div>
               {/* EVA aparece cuando hay zona seleccionada */}
               {showEVA && <EVAScale value={dolorEva} onChange={setDolorEva} />}
+              {/* Campo descripción libre */}
+              {showBodyMap && (
+                <div style={{ marginTop:12 }}>
+                  <label style={{ display:'block', fontSize:10, fontWeight:700, color:'#f87171', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:6 }}>📝 Descripción adicional (opcional)</label>
+                  <textarea
+                    value={dolorDescripcion}
+                    onChange={e => setDolorDescripcion(e.target.value)}
+                    placeholder="Ej: Dolor al correr, al estirar, desde ayer..."
+                    rows={2}
+                    style={{ width:'100%', background:'var(--ink2)', border:'1px solid rgba(239,68,68,.2)', borderRadius:8, padding:'8px 12px', fontSize:12, color:'var(--snow)', outline:'none', resize:'vertical', fontFamily:'inherit', boxSizing:'border-box' }}
+                  />
+                </div>
+              )}
             </div>
           )}
         </div>

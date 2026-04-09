@@ -29,6 +29,7 @@ export async function GET(req: NextRequest) {
   const r = await sql`
     SELECT fecha::text, fatiga::int, calidad_sueno::int, dolor_muscular::int,
            nivel_estres::int, estado_animo::int, dolor_zona,
+           COALESCE(dolor_descripcion, '') AS dolor_descripcion,
            COALESCE(dolor_eva::int, 0) AS dolor_eva,
            COALESCE(tqr::int, 0) AS tqr,
            COALESCE(recovery::int, 0) AS recovery,
@@ -43,7 +44,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const rl = rateLimit(req, { limit: 30, windowMs: 60 * 1000, key: 'wellness-post' })
+  const rl = rateLimit(req, { limit: 100, windowMs: 60 * 1000, key: 'wellness-post' })
   if (!rl.allowed) return rl.response!
 
   const s = await getSessionFromRequest(req)
@@ -58,6 +59,11 @@ export async function POST(req: NextRequest) {
   }
 
   const sql = getDb()
+
+  // Add dolor_descripcion column if it doesn't exist
+  try {
+    await sql`ALTER TABLE wellness_logs ADD COLUMN IF NOT EXISTS dolor_descripcion TEXT`
+  } catch {}
 
   if (isAdmin(s) && s.clubId) {
     if (!(await verifyJugadorOwnership(sql, jugador_id, s.clubId))) {
@@ -78,11 +84,11 @@ export async function POST(req: NextRequest) {
   const [r] = await sql`
     INSERT INTO wellness_logs(
       jugador_id, fecha, fatiga, calidad_sueno, dolor_muscular, nivel_estres, estado_animo,
-      dolor_zona, dolor_eva, tqr, recovery, entrena_grupo, fue_gimnasio, grupos_musculares, club_id
+      dolor_zona, dolor_descripcion, dolor_eva, tqr, recovery, entrena_grupo, fue_gimnasio, grupos_musculares, club_id
     ) VALUES(
       ${jugador_id}, ${fecha}, ${clamp(b.fatiga)}, ${clamp(b.calidad_sueno)},
       ${clamp(b.dolor_muscular)}, ${clamp(b.nivel_estres)}, ${clamp(b.estado_animo)},
-      ${b.dolor_zona || null}, ${clamp(b.dolor_eva)}, ${clamp(b.tqr)}, ${clamp(b.recovery)},
+      ${b.dolor_zona || null}, ${b.dolor_descripcion || null}, ${clamp(b.dolor_eva)}, ${clamp(b.tqr)}, ${clamp(b.recovery)},
       ${b.entrena_grupo ?? true}, ${b.fue_gimnasio ?? false},
       ${b.grupos_musculares || null}, ${clubId}
     )
@@ -93,6 +99,7 @@ export async function POST(req: NextRequest) {
       nivel_estres      = EXCLUDED.nivel_estres,
       estado_animo      = EXCLUDED.estado_animo,
       dolor_zona        = EXCLUDED.dolor_zona,
+      dolor_descripcion = EXCLUDED.dolor_descripcion,
       dolor_eva         = EXCLUDED.dolor_eva,
       tqr               = EXCLUDED.tqr,
       recovery          = EXCLUDED.recovery,
