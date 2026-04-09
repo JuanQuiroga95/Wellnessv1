@@ -24,6 +24,10 @@ export async function POST(req: NextRequest) {
         INSERT INTO partido_logs(jugador_id, fecha, rival, tipo_partido, minutos, titular, notas, rival_foto)
         VALUES(${Number(e.jugador_id)}, ${d}, ${rival || null}, ${tipo_partido || 'Oficial'},
                ${Number(e.minutos)}, ${true}, ${null}, ${rival_foto || null})
+        ON CONFLICT (jugador_id, fecha, COALESCE(rival,'')) DO UPDATE
+          SET minutos = EXCLUDED.minutos,
+              tipo_partido = EXCLUDED.tipo_partido,
+              rival_foto = EXCLUDED.rival_foto
         RETURNING id, fecha::text`
       results.push(r)
     }

@@ -169,6 +169,7 @@ export async function POST(req: NextRequest) {
         END AS lado_dominante
       FROM iso_sessions s`, 'view iso_con_asimetria'],
     [`ALTER TABLE wellness_logs ADD COLUMN IF NOT EXISTS dolor_descripcion TEXT`, 'wellness_logs.dolor_descripcion'],
+    [`CREATE UNIQUE INDEX IF NOT EXISTS idx_partido_logs_jugador_fecha_rival ON partido_logs(jugador_id, fecha, COALESCE(rival,''))`, 'partido_logs unique index jugador_fecha_rival'],
   ]
 
   for (const [sql_stmt, label] of migrations) {

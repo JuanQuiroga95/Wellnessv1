@@ -2691,7 +2691,7 @@ function AddMatchForm({ teamData, onSuccess, onCancel }) {
       const entries = Object.entries(bulkMins)
         .filter(([,m]) => m && Number(m) > 0)
         .map(([jid, m]) => ({ jugador_id: Number(jid), minutos: Number(m) }))
-      if (entries.length === 0) return
+      if (entries.length === 0) { setLoading(false); alert('Ingresá al menos un minuto para un jugador.'); return }
 
       // Single bulk request — avoids concurrent Neon connection failures
       const res = await fetch('/api/partidos/bulk', {
