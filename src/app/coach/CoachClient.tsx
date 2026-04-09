@@ -4437,9 +4437,12 @@ function NewPlayerForm({ onSuccess, onCancel }) {
           <div style={{ gridColumn:'span 2' }}>
             <p style={{ fontSize:10, fontWeight:700, color:'#f59e0b', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:8, display:'flex', alignItems:'center', gap:6 }}>
               <span style={{ width:3, height:12, borderRadius:2, background:'#f59e0b', display:'inline-block' }}/>
-              ⚖️ Rango de peso ideal — configurado por el coach
+              ⚖️ Rango de peso ideal — provisto por nutricionista
             </p>
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, background:'rgba(245,158,11,.06)', border:'1px solid rgba(245,158,11,.2)', borderRadius:10, padding:'12px 14px' }}>
+              <div style={{ gridColumn:'span 2', marginBottom:4 }}>
+                <p style={{ fontSize:11, color:'#fbbf24', margin:0 }}>🥗 Estos valores deben ser provistos por la <strong>nutricionista</strong> — no los modifiques sin su indicación.</p>
+              </div>
               <div>
                 <label style={{ display:'block', fontSize:11, fontWeight:600, color:'#f59e0b', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:5 }}>Peso mínimo ideal (kg)</label>
                 <input className="wp-input" type="number" step="0.1" min="40" max="150" value={f.peso_ideal_min} onChange={e=>set('peso_ideal_min',e.target.value)} placeholder="ej: 72.0" />
@@ -4655,9 +4658,12 @@ function ManageRow({ player, last, onRefresh }) {
                 <div style={{ gridColumn:'1/-1' }}>
                   <p style={{ fontSize:10, fontWeight:700, color:'#f59e0b', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:8, display:'flex', alignItems:'center', gap:6 }}>
                     <span style={{ width:3, height:12, borderRadius:2, background:'#f59e0b', display:'inline-block' }}/>
-                    ⚖️ Rango de peso ideal — configurado por el coach
+                    ⚖️ Rango de peso ideal — provisto por nutricionista
                   </p>
                   <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, background:'rgba(245,158,11,.06)', border:'1px solid rgba(245,158,11,.2)', borderRadius:10, padding:'12px 14px' }}>
+                    <div style={{ gridColumn:'span 2', marginBottom:4 }}>
+                      <p style={{ fontSize:11, color:'#fbbf24', margin:0 }}>🥗 Estos valores deben ser provistos por la <strong>nutricionista</strong> — no los modifiques sin su indicación.</p>
+                    </div>
                     <div>
                       <label style={{ display:'block', fontSize:10, fontWeight:600, color:'#f59e0b', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:4 }}>Peso mínimo ideal (kg)</label>
                       <input className="wp-input" type="number" step="0.1" min="40" max="150" value={ef.peso_ideal_min} onChange={e=>setE('peso_ideal_min',e.target.value)} placeholder="ej: 72.0" />
