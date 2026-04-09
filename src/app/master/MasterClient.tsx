@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 export default function MasterClient({ session, clubs: initialClubs, coaches: initialCoaches }) {
   const [clubs, setClubs] = useState(initialClubs)
   const [coaches, setCoaches] = useState(initialCoaches)
-  const [tab, setTab] = useState<'clubs'|'coaches'>('clubs')
+  const [tab, setTab] = useState<'clubs'|'coaches'|'borrar'>('clubs')
   const [showNewClub, setShowNewClub] = useState(false)
   const [showNewCoach, setShowNewCoach] = useState(false)
   const [repairing, setRepairing] = useState(false)
@@ -86,9 +86,9 @@ export default function MasterClient({ session, clubs: initialClubs, coaches: in
 
         {/* Tabs */}
         <div style={{ display:'flex', gap:4, background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:10, padding:3, marginBottom:20, alignSelf:'flex-start', width:'fit-content' }}>
-          {(['clubs','coaches'] as const).map(t=>(
-            <button key={t} onClick={()=>setTab(t)} style={{ padding:'8px 24px', borderRadius:7, cursor:'pointer', fontSize:12, fontWeight:600, border:'none', background:tab===t?'var(--lime)':'transparent', color:tab===t?'var(--ink)':'var(--silver)', transition:'all .12s', textTransform:'uppercase', letterSpacing:'0.06em' }}>
-              {t === 'clubs' ? '🏟️ Clubes' : '👨‍🏫 Profesores'}
+          {(['clubs','coaches','borrar'] as const).map(t=>(
+            <button key={t} onClick={()=>setTab(t)} style={{ padding:'8px 24px', borderRadius:7, cursor:'pointer', fontSize:12, fontWeight:600, border:'none', background:tab===t?(t==='borrar'?'#ef4444':'var(--lime)'):'transparent', color:tab===t?(t==='borrar'?'#fff':'var(--ink)'):'var(--silver)', transition:'all .12s', textTransform:'uppercase', letterSpacing:'0.06em' }}>
+              {t === 'clubs' ? '🏟️ Clubes' : t === 'coaches' ? '👨‍🏫 Profesores' : '🗑 Borrar Datos'}
             </button>
           ))}
         </div>
@@ -126,7 +126,199 @@ export default function MasterClient({ session, clubs: initialClubs, coaches: in
         {tab === 'coaches' && (
           <CoachesTab coaches={coaches} clubs={clubs} showNewCoach={showNewCoach} setShowNewCoach={setShowNewCoach} reload={reload} />
         )}
+        {/* BORRAR DATOS TAB */}
+        {tab === 'borrar' && (
+          <BorrarDatosTab clubs={clubs} coaches={coaches} />
+        )}
       </main>
+    </div>
+  )
+}
+
+// ── Borrar Datos Tab ──────────────────────────────────────────────────────────
+const DATA_CATEGORIES = [
+  { key: 'wellness',      label: 'Wellness',          icon: '💚', desc: 'Registros diarios de bienestar de los jugadores' },
+  { key: 'rpe',           label: 'RPE / Cargas',       icon: '⚡', desc: 'Logs de RPE, carga interna y entrenamiento' },
+  { key: 'partidos',      label: 'Partidos',           icon: '⚽', desc: 'Minutos jugados y registros de competición' },
+  { key: 'gps',           label: 'GPS',                icon: '📡', desc: 'Datos GPS importados de Catapult' },
+  { key: 'calendario',    label: 'Calendario',         icon: '📅', desc: 'Sesiones planificadas y bloques de tareas' },
+  { key: 'biblioteca',    label: 'Biblioteca',         icon: '📚', desc: 'Tareas guardadas en la biblioteca' },
+  { key: 'evaluaciones',  label: 'Evaluaciones',       icon: '📋', desc: 'Pesajes, CMJ, isométricos y evaluaciones físicas' },
+  { key: 'lesiones',      label: 'Lesiones',           icon: '🩹', desc: 'Historial de lesiones registradas' },
+  { key: 'jugadores',     label: 'Jugadores',          icon: '👥', desc: 'Elimina los jugadores y sus cuentas de usuario' },
+]
+
+function BorrarDatosTab({ clubs, coaches }) {
+  return (
+    <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
+      <div>
+        <h2 className="display" style={{ fontSize:40, color:'#ef4444' }}>BORRAR DATOS</h2>
+        <p style={{ fontSize:12, color:'var(--silver)', marginTop:2 }}>Elegí qué datos borrar de cada club. Podés seleccionar categorías específicas. Esta acción <strong style={{ color:'#f87171' }}>no se puede deshacer</strong>.</p>
+      </div>
+      {clubs.length === 0
+        ? <div style={{ padding:48, textAlign:'center', color:'var(--silver)' }}>Sin clubes.</div>
+        : clubs.map(club => (
+            <BorrarClubPanel key={club.id} club={club} coach={coaches.find(c => c.club_id === club.id)} />
+          ))
+      }
+    </div>
+  )
+}
+
+function BorrarClubPanel({ club, coach }) {
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [loading, setLoading] = useState(false)
+  const [result, setResult] = useState<string|null>(null)
+  const [open, setOpen] = useState(false)
+
+  function toggle(key: string) {
+    setSelected(prev => {
+      const next = new Set(prev)
+      next.has(key) ? next.delete(key) : next.add(key)
+      return next
+    })
+    setResult(null)
+  }
+
+  function selectAll() {
+    setSelected(new Set(DATA_CATEGORIES.map(c => c.key)))
+    setResult(null)
+  }
+
+  function clearAll() {
+    setSelected(new Set())
+    setResult(null)
+  }
+
+  async function handleDelete() {
+    if (selected.size === 0) return
+    const cats = Array.from(selected)
+    const catLabels = cats.map(k => DATA_CATEGORIES.find(c => c.key === k)?.label).join(', ')
+    if (!confirm(`⚠️ ¿Borrar de "${club.nombre}":\n\n${catLabels}\n\nEsta acción no se puede deshacer.`)) return
+    if (!confirm(`Confirmá: borrar estos datos de "${club.nombre}"`)) return
+
+    setLoading(true); setResult(null)
+    try {
+      const r = await fetch('/api/admin/repair-club-ids', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'delete_club_data', club_id: club.id, categories: cats })
+      })
+      const d = await r.json()
+      if (d.ok) {
+        setResult(`✅ Borrado exitoso: ${catLabels}`)
+        setSelected(new Set())
+      } else {
+        setResult('❌ Error: ' + JSON.stringify(d))
+      }
+    } catch (e) {
+      setResult('❌ Error de conexión')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const paisObj = PAISES.find((p:any) => p.name === club.pais || p.code === club.pais)
+
+  return (
+    <div style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:16, overflow:'hidden' }}>
+      {/* Header — siempre visible */}
+      <button onClick={() => setOpen(o => !o)} style={{ width:'100%', padding:'16px 20px', background:'transparent', border:'none', cursor:'pointer', textAlign:'left', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+        <div style={{ display:'flex', alignItems:'center', gap:12 }}>
+          <div style={{ width:40, height:40, borderRadius:8, background:'var(--ink3)', display:'flex', alignItems:'center', justifyContent:'center', overflow:'hidden', flexShrink:0 }}>
+            {club.logo_url
+              ? <img src={club.logo_url} style={{ width:'100%', height:'100%', objectFit:'contain', padding:3 }} alt=""/>
+              : <span style={{ fontSize:20 }}>🏟️</span>
+            }
+          </div>
+          <div style={{ textAlign:'left' }}>
+            <p style={{ fontSize:14, fontWeight:700, color:'var(--snow)', marginBottom:1 }}>{club.nombre}</p>
+            <p style={{ fontSize:11, color:'var(--silver)' }}>
+              {coach ? `👨‍🏫 ${coach.nombre}` : 'Sin profe asignado'} · {club.jugadores || 0} jugadores
+            </p>
+          </div>
+        </div>
+        <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+          {selected.size > 0 && (
+            <span style={{ fontSize:11, padding:'3px 10px', borderRadius:20, background:'rgba(239,68,68,.15)', color:'#f87171', border:'1px solid rgba(239,68,68,.3)', fontWeight:600 }}>
+              {selected.size} categoría{selected.size > 1 ? 's' : ''} seleccionada{selected.size > 1 ? 's' : ''}
+            </span>
+          )}
+          <span style={{ fontSize:14, color:'var(--fog)', transition:'transform .15s', display:'inline-block', transform: open ? 'rotate(180deg)' : 'none' }}>▼</span>
+        </div>
+      </button>
+
+      {/* Panel expandible */}
+      {open && (
+        <div style={{ borderTop:'1px solid var(--mist)', padding:'16px 20px 20px' }}>
+          {/* Acciones rápidas */}
+          <div style={{ display:'flex', gap:8, marginBottom:14 }}>
+            <button onClick={selectAll} style={{ fontSize:11, padding:'5px 12px', borderRadius:7, background:'rgba(239,68,68,.1)', color:'#f87171', border:'1px solid rgba(239,68,68,.25)', cursor:'pointer', fontWeight:600 }}>
+              Seleccionar todo
+            </button>
+            <button onClick={clearAll} style={{ fontSize:11, padding:'5px 12px', borderRadius:7, background:'var(--ink3)', color:'var(--silver)', border:'1px solid var(--fog)', cursor:'pointer' }}>
+              Limpiar selección
+            </button>
+          </div>
+
+          {/* Checkboxes por categoría */}
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(240px, 1fr))', gap:8, marginBottom:16 }}>
+            {DATA_CATEGORIES.map(cat => {
+              const isSelected = selected.has(cat.key)
+              const isDestructive = cat.key === 'jugadores'
+              return (
+                <button key={cat.key} onClick={() => toggle(cat.key)} style={{
+                  display:'flex', alignItems:'flex-start', gap:10, padding:'10px 12px', borderRadius:10, cursor:'pointer', textAlign:'left',
+                  border: isSelected
+                    ? `1.5px solid ${isDestructive ? '#ef4444' : 'rgba(239,68,68,.5)'}`
+                    : '1px solid var(--fog)',
+                  background: isSelected
+                    ? (isDestructive ? 'rgba(239,68,68,.18)' : 'rgba(239,68,68,.1)')
+                    : 'var(--ink3)',
+                  transition:'all .12s',
+                }}>
+                  <div style={{
+                    width:18, height:18, borderRadius:4, border: isSelected ? 'none' : '1.5px solid var(--fog)',
+                    background: isSelected ? (isDestructive ? '#ef4444' : '#f87171') : 'transparent',
+                    display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, marginTop:1,
+                    fontSize:11, color:'#fff', fontWeight:700,
+                  }}>
+                    {isSelected ? '✓' : ''}
+                  </div>
+                  <div>
+                    <div style={{ fontSize:12, fontWeight:600, color: isSelected ? (isDestructive ? '#ef4444' : '#f87171') : 'var(--silver)', marginBottom:2 }}>
+                      {cat.icon} {cat.label}
+                    </div>
+                    <div style={{ fontSize:10, color:'var(--fog)', lineHeight:1.4 }}>{cat.desc}</div>
+                  </div>
+                </button>
+              )
+            })}
+          </div>
+
+          {/* Resultado */}
+          {result && (
+            <div style={{ marginBottom:12, padding:'10px 14px', borderRadius:8, background: result.startsWith('✅') ? 'rgba(34,197,94,.1)' : 'rgba(239,68,68,.1)', border:`1px solid ${result.startsWith('✅') ? 'rgba(34,197,94,.3)' : 'rgba(239,68,68,.3)'}`, fontSize:12, color: result.startsWith('✅') ? '#4ade80' : '#f87171' }}>
+              {result}
+            </div>
+          )}
+
+          {/* Botón borrar */}
+          <button
+            onClick={handleDelete}
+            disabled={selected.size === 0 || loading}
+            style={{
+              width:'100%', padding:'11px', borderRadius:10, cursor: selected.size === 0 ? 'not-allowed' : 'pointer',
+              background: selected.size === 0 ? 'var(--ink3)' : 'rgba(239,68,68,.85)',
+              color: selected.size === 0 ? 'var(--fog)' : '#fff',
+              border: selected.size === 0 ? '1px solid var(--fog)' : '1px solid #ef4444',
+              fontSize:13, fontWeight:700, transition:'all .12s',
+            }}
+          >
+            {loading ? '⏳ Borrando...' : selected.size === 0 ? 'Seleccioná al menos una categoría' : `🗑 Borrar ${selected.size} categoría${selected.size > 1 ? 's' : ''} de "${club.nombre}"`}
+          </button>
+        </div>
+      )}
     </div>
   )
 }
