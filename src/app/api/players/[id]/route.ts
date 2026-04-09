@@ -86,18 +86,33 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
     return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
   }
 
-  // Get jugador_id first for cascading deletes (in case FK constraints aren't active in prod)
-  const jugRows = await sql`SELECT id FROM jugadores WHERE usuario_id = ${userId} LIMIT 1`
-  const jugadorId = jugRows[0]?.id
+  // Get ALL jugador rows for this user (defensive: avoids leaving orphan rows)
+  const jugRows = await sql`SELECT id FROM jugadores WHERE usuario_id = ${userId}`
 
-  if (jugadorId) {
-    await sql`DELETE FROM wellness_logs WHERE jugador_id = ${jugadorId}`
+  for (const jug of jugRows as any[]) {
+    const jugadorId = jug.id
+    // Core logs
+    await sql`DELETE FROM wellness_logs      WHERE jugador_id = ${jugadorId}`
     await sql`DELETE FROM entrenamiento_logs WHERE jugador_id = ${jugadorId}`
-    await sql`DELETE FROM partido_logs WHERE jugador_id = ${jugadorId}`
-    await sql`DELETE FROM lesiones WHERE jugador_id = ${jugadorId}`
-    await sql`DELETE FROM gps_logs WHERE jugador_id = ${jugadorId}`
+    await sql`DELETE FROM partido_logs       WHERE jugador_id = ${jugadorId}`
+    await sql`DELETE FROM lesiones           WHERE jugador_id = ${jugadorId}`
+    await sql`DELETE FROM gps_logs           WHERE jugador_id = ${jugadorId}`
+    // Evaluation tables (belt + suspenders in case FK cascade isn't active)
+    try { await sql`DELETE FROM pesajes      WHERE jugador_id = ${jugadorId}` } catch(_) {}
+    try { await sql`DELETE FROM cmj_sessions WHERE jugador_id = ${jugadorId}` } catch(_) {}
+    try { await sql`DELETE FROM iso_sessions WHERE jugador_id = ${jugadorId}` } catch(_) {}
+    try { await sql`DELETE FROM rsi_tests    WHERE jugador_id = ${jugadorId}` } catch(_) {}
+    try { await sql`DELETE FROM dsi_tests    WHERE jugador_id = ${jugadorId}` } catch(_) {}
+    try { await sql`DELETE FROM pfv_puntos   WHERE jugador_id = ${jugadorId}` } catch(_) {}
+    try { await sql`DELETE FROM pfv_sesiones WHERE jugador_id = ${jugadorId}` } catch(_) {}
     await sql`DELETE FROM jugadores WHERE id = ${jugadorId}`
   }
-  await sql`DELETE FROM usuarios WHERE id = ${userId} AND rol = 'jugador' AND club_id = ${s.clubId ?? null}`
+
+  // FIX: club_id = NULL never matches in SQL — must branch explicitly
+  if (s.clubId != null) {
+    await sql`DELETE FROM usuarios WHERE id = ${userId} AND rol = 'jugador' AND club_id = ${s.clubId}`
+  } else {
+    await sql`DELETE FROM usuarios WHERE id = ${userId} AND rol = 'jugador'`
+  }
   return NextResponse.json({ ok: true })
 }
