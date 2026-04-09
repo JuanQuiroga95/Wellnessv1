@@ -8,7 +8,19 @@ export default function MasterClient({ session, clubs: initialClubs, coaches: in
   const [tab, setTab] = useState<'clubs'|'coaches'>('clubs')
   const [showNewClub, setShowNewClub] = useState(false)
   const [showNewCoach, setShowNewCoach] = useState(false)
+  const [repairing, setRepairing] = useState(false)
   const router = useRouter()
+
+  async function repairClubIds() {
+    if (!confirm('¿Reparar club_id en todas las tablas? Esto asigna correctamente cada registro a su club. No borra datos.')) return
+    setRepairing(true)
+    try {
+      const r = await fetch('/api/admin/repair-club-ids', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'repair' }) })
+      const d = await r.json()
+      if (d.ok) alert('✅ Reparación completada. Los registros ahora tienen su club_id correcto.')
+      else alert('Error: ' + JSON.stringify(d))
+    } finally { setRepairing(false) }
+  }
 
   async function reload() {
     try {
@@ -89,7 +101,12 @@ export default function MasterClient({ session, clubs: initialClubs, coaches: in
                 <h2 className="display" style={{ fontSize:40, color:'var(--snow)' }}>CLUBES</h2>
                 <p style={{ fontSize:12, color:'var(--silver)', marginTop:2 }}>Cada club tiene su plantel aislado e independiente</p>
               </div>
-              <button onClick={()=>setShowNewClub(true)} className="btn-lime" style={{ fontSize:12, padding:'10px 18px' }}>+ Nuevo club</button>
+              <div style={{ display:'flex', gap:8 }}>
+                <button onClick={repairClubIds} disabled={repairing} style={{ fontSize:12, padding:'10px 18px', borderRadius:8, background:'rgba(251,191,36,.12)', color:'#fbbf24', border:'1px solid rgba(251,191,36,.35)', cursor:'pointer', fontWeight:600 }}>
+                  {repairing ? '⏳ Reparando...' : '🔧 Reparar IDs de BD'}
+                </button>
+                <button onClick={()=>setShowNewClub(true)} className="btn-lime" style={{ fontSize:12, padding:'10px 18px' }}>+ Nuevo club</button>
+              </div>
             </div>
 
             {showNewClub && <NewClubForm onSuccess={()=>{ setShowNewClub(false); reload() }} onCancel={()=>setShowNewClub(false)} />}
@@ -217,6 +234,15 @@ function ClubCard({ club, coaches, onRefresh }) {
     onRefresh()
   }
 
+  async function deleteClubData() {
+    if (!confirm(`⚠️ ¿Borrar TODOS los datos del plantel de "${club.nombre}"?\n\nEsto elimina jugadores, entrenamientos, wellness, evaluaciones, partidos y sesiones.\nNO borra el club ni al profesor.\n\nEsta acción no se puede deshacer.`)) return
+    if (!confirm(`Confirmá de nuevo: ¿borrar todos los datos de "${club.nombre}"?`)) return
+    const r = await fetch('/api/admin/repair-club-ids', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'delete_club_data', club_id: club.id }) })
+    const d = await r.json()
+    if (d.ok) { alert(`✅ Datos borrados. Se eliminaron ${d.deleted_jugadores} jugadores y todos sus registros.`); onRefresh() }
+    else alert('Error: ' + JSON.stringify(d))
+  }
+
   const paisObj = PAISES.find(p => p.name === pais || p.code === pais)
 
   return (
@@ -272,7 +298,8 @@ function ClubCard({ club, coaches, onRefresh }) {
           </div>
           <div style={{ display:'flex', gap:6 }}>
             <button onClick={()=>setEditing(true)} style={{ fontSize:11, padding:'4px 8px', borderRadius:6, background:'var(--ink3)', color:'var(--silver)', border:'1px solid var(--fog)', cursor:'pointer' }}>✏️</button>
-            <button onClick={deleteClub} style={{ fontSize:11, padding:'4px 8px', borderRadius:6, background:'rgba(239,68,68,.1)', color:'#f87171', border:'1px solid rgba(239,68,68,.25)', cursor:'pointer' }}>🗑</button>
+            <button onClick={deleteClubData} title="Borrar datos del plantel" style={{ fontSize:11, padding:'4px 8px', borderRadius:6, background:'rgba(251,191,36,.1)', color:'#fbbf24', border:'1px solid rgba(251,191,36,.25)', cursor:'pointer' }}>🧹</button>
+            <button onClick={deleteClub} title="Eliminar club" style={{ fontSize:11, padding:'4px 8px', borderRadius:6, background:'rgba(239,68,68,.1)', color:'#f87171', border:'1px solid rgba(239,68,68,.25)', cursor:'pointer' }}>🗑</button>
           </div>
         </div>
       )}
