@@ -67,29 +67,42 @@ export async function DELETE(req: NextRequest) {
   if (!id) return NextResponse.json({error:'id requerido'},{status:400})
   const sql = getDb()
   try {
-    // Delete in dependency order to avoid FK constraint violations
-    // 1. Logs and data tied to jugadores of this club
-    await sql`DELETE FROM wellness_logs      WHERE club_id = ${id}`
-    await sql`DELETE FROM entrenamiento_logs WHERE club_id = ${id}`
-    await sql`DELETE FROM partido_logs       WHERE jugador_id IN (SELECT id FROM jugadores WHERE club_id = ${id})`
-    await sql`DELETE FROM lesiones           WHERE club_id = ${id}`
-    // Evaluaciones tables (best-effort — tables may not exist yet)
-    try { await sql`DELETE FROM pesajes          WHERE club_id = ${id}` } catch(_) {}
-    try { await sql`DELETE FROM cmj_sessions     WHERE club_id = ${id}` } catch(_) {}
-    try { await sql`DELETE FROM iso_sessions     WHERE club_id = ${id}` } catch(_) {}
-    try { await sql`DELETE FROM rsi_sessions     WHERE club_id = ${id}` } catch(_) {}
-    try { await sql`DELETE FROM dsi_sessions     WHERE club_id = ${id}` } catch(_) {}
-    try { await sql`DELETE FROM pfv_sesiones     WHERE club_id = ${id}` } catch(_) {}
-    try { await sql`DELETE FROM gps_logs         WHERE jugador_id IN (SELECT id FROM jugadores WHERE club_id = ${id})` } catch(_) {}
-    // 2. Sesiones del calendario del coach del club
+    // Step 1: get all jugador IDs for this club (before deleting anything)
+    const jugadores = await sql`SELECT id FROM jugadores WHERE club_id = ${id}`
+    const jids = (jugadores as any[]).map(j => j.id)
+
+    // Step 2: delete tables that reference jugador_id WITHOUT ON DELETE CASCADE
+    // (tables with ON DELETE CASCADE will auto-delete when jugadores row is deleted)
+    // sesiones_plan references admin (usuario), not jugador — delete separately
     await sql`DELETE FROM sesiones_plan WHERE club_id = ${id}`
-    // 3. Jugadores (usuarios jugador)
+
+    // Step 3: delete evaluacion tables that have jugador FK but no cascade on club deletion
+    // Most have ON DELETE CASCADE on jugador_id, so they'll clean up automatically.
+    // gps_logs may not — delete explicitly
+    if (jids.length > 0) {
+      try { await sql`DELETE FROM gps_logs WHERE jugador_id = ANY(${jids}::int[])` } catch(_) {}
+      try { await sql`DELETE FROM pfv_puntos WHERE jugador_id = ANY(${jids}::int[])` } catch(_) {}
+      try { await sql`DELETE FROM pfv_sesiones WHERE jugador_id = ANY(${jids}::int[])` } catch(_) {}
+    }
+
+    // Step 4: delete usuarios with rol='jugador' for this club
+    // → triggers ON DELETE CASCADE on jugadores
+    // → triggers ON DELETE CASCADE on wellness_logs, entrenamiento_logs, partido_logs, lesiones, etc.
     await sql`DELETE FROM usuarios WHERE club_id = ${id} AND rol = 'jugador'`
+
+    // Step 5: delete any orphan jugadores rows still tied to this club
+    // (in case jugadores.club_id is set but usuario was already gone)
     await sql`DELETE FROM jugadores WHERE club_id = ${id}`
-    // 4. Coaches (admin usuarios) of this club
-    await sql`DELETE FROM usuarios WHERE club_id = ${id} AND rol = 'admin'`
-    // 5. Finally delete the club
+
+    // Step 6: delete coach/admin usuarios for this club
+    await sql`DELETE FROM usuarios WHERE club_id = ${id}`
+
+    // Step 7: delete club_settings for admins of this club (already deleted above, best-effort)
+    try { await sql`DELETE FROM club_settings WHERE admin_id NOT IN (SELECT id FROM usuarios)` } catch(_) {}
+
+    // Step 8: delete the club itself
     await sql`DELETE FROM clubs WHERE id = ${id}`
+
     return NextResponse.json({ok:true})
   } catch(e: any) {
     console.error('[clubs DELETE error]', e)

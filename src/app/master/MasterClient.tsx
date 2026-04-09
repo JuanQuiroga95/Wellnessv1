@@ -9,6 +9,7 @@ export default function MasterClient({ session, clubs: initialClubs, coaches: in
   const [showNewClub, setShowNewClub] = useState(false)
   const [showNewCoach, setShowNewCoach] = useState(false)
   const [repairing, setRepairing] = useState(false)
+  const [cleaning, setCleaning] = useState(false)
   const router = useRouter()
 
   async function repairClubIds() {
@@ -20,6 +21,21 @@ export default function MasterClient({ session, clubs: initialClubs, coaches: in
       if (d.ok) alert('✅ Reparación completada. Los registros ahora tienen su club_id correcto.')
       else alert('Error: ' + JSON.stringify(d))
     } finally { setRepairing(false) }
+  }
+
+  async function cleanGhostData() {
+    if (!confirm('¿Limpiar datos fantasma? Esto elimina jugadores, usuarios y logs que pertenecen a clubes que ya no existen. Esta acción no se puede deshacer.')) return
+    setCleaning(true)
+    try {
+      const r = await fetch('/api/master/cleanup', { method: 'POST' })
+      const d = await r.json()
+      if (d.ok) {
+        alert('✅ Limpieza completada:\n' + (d.report || []).join('\n'))
+        reload()
+      } else {
+        alert('Error durante la limpieza:\n' + (d.error || JSON.stringify(d)))
+      }
+    } finally { setCleaning(false) }
   }
 
   async function reload() {
@@ -102,6 +118,9 @@ export default function MasterClient({ session, clubs: initialClubs, coaches: in
                 <p style={{ fontSize:12, color:'var(--silver)', marginTop:2 }}>Cada club tiene su plantel aislado e independiente</p>
               </div>
               <div style={{ display:'flex', gap:8 }}>
+                <button onClick={cleanGhostData} disabled={cleaning} style={{ fontSize:12, padding:'10px 18px', borderRadius:8, background:'rgba(239,68,68,.12)', color:'#f87171', border:'1px solid rgba(239,68,68,.35)', cursor:'pointer', fontWeight:600 }}>
+                  {cleaning ? '⏳ Limpiando...' : '🧹 Limpiar fantasmas'}
+                </button>
                 <button onClick={repairClubIds} disabled={repairing} style={{ fontSize:12, padding:'10px 18px', borderRadius:8, background:'rgba(251,191,36,.12)', color:'#fbbf24', border:'1px solid rgba(251,191,36,.35)', cursor:'pointer', fontWeight:600 }}>
                   {repairing ? '⏳ Reparando...' : '🔧 Reparar IDs de BD'}
                 </button>
