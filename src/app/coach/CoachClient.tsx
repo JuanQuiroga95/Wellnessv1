@@ -1863,7 +1863,7 @@ function BloqueMetodologia({ bloque, index, onChange, onRemove, teamPlayers = []
 
       {esConEspacio && calc && (() => {
         const cuad = getCuadrante(calc.densidad, calcJugadores)
-        const OBJCOLORS: Record<string,string> = { 'Fuerza':'#a855f7', 'Resistencia':'#f59e0b', 'Activación':'#22c55e', 'Velocidad':'#3b82f6' }
+        const OBJCOLORS: Record<string,string> = { 'Fuerza':'#a855f7', 'Resistencia':'#f59e0b', 'Activación':'#22c55e', 'Activación/Recuperación':'#22c55e', 'Velocidad':'#3b82f6' }
         const objColor = OBJCOLORS[cuad.objetivo] || '#888'
         return (
           <div style={{ background:`${objColor}10`, border:`1px solid ${objColor}33`, borderRadius:8, padding:10 }}>
@@ -1956,7 +1956,7 @@ function imprimirSesion(f: any, bloques: any[], teamPlayers: any[] = []) {
     tiempoDescanso += (Number(bl.series)||0) * (Number(bl.pausa)||0)
   })
 
-  const OBJCOLORS: Record<string,string> = { 'Fuerza':'#7c3aed','Resistencia':'#d97706','Activación':'#16a34a','Velocidad':'#2563eb' }
+  const OBJCOLORS: Record<string,string> = { 'Fuerza':'#7c3aed','Resistencia':'#d97706','Activación':'#16a34a','Activación/Recuperación':'#16a34a','Velocidad':'#2563eb' }
 
   const tareasHtml = bloques.map((bl, i) => {
     const jugN = getJugadoresBloque(bl, TAREAS_CON_EQUIPO.includes(bl.ventana))

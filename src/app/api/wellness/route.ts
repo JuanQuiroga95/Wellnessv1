@@ -67,7 +67,19 @@ export async function POST(req: NextRequest) {
   }
 
   // Sanitize all numeric wellness fields (scale 1-10)
-  const clamp = (v: any) => (v != null ? Math.min(10, Math.max(1, parseInt(v))) : null)
+  const clamp = (v: any) => {
+    if (v == null) return null
+    const n = parseInt(v)
+    if (isNaN(n)) return null
+    return Math.min(10, Math.max(1, n))
+  }
+  const clamp0 = (v: any) => {
+    // Like clamp but allows 0 (for dolor_eva which can be 0 = sin dolor)
+    if (v == null) return null
+    const n = parseInt(v)
+    if (isNaN(n)) return null
+    return Math.min(10, Math.max(0, n))
+  }
   const fecha = b.fecha || new Date().toISOString().split('T')[0]
 
   let clubId = s.clubId ?? null
@@ -86,7 +98,7 @@ export async function POST(req: NextRequest) {
       ) VALUES(
         ${jugador_id}, ${fecha}, ${clamp(b.fatiga)}, ${clamp(b.calidad_sueno)},
         ${clamp(b.dolor_muscular)}, ${clamp(b.nivel_estres)}, ${clamp(b.estado_animo)},
-        ${b.dolor_zona || null}, ${b.dolor_descripcion || null}, ${clamp(b.dolor_eva)}, ${clamp(b.tqr)}, ${clamp(b.recovery)},
+        ${b.dolor_zona || null}, ${b.dolor_descripcion || null}, ${clamp0(b.dolor_eva)}, ${clamp(b.tqr)}, ${clamp(b.recovery)},
         ${b.entrena_grupo ?? true}, ${b.fue_gimnasio ?? false},
         ${b.grupos_musculares || null}, ${clubId}
       )
@@ -115,7 +127,7 @@ export async function POST(req: NextRequest) {
         ) VALUES(
           ${jugador_id}, ${fecha}, ${clamp(b.fatiga)}, ${clamp(b.calidad_sueno)},
           ${clamp(b.dolor_muscular)}, ${clamp(b.nivel_estres)}, ${clamp(b.estado_animo)},
-          ${b.dolor_zona || null}, ${clamp(b.dolor_eva)}, ${clamp(b.tqr)}, ${clamp(b.recovery)},
+          ${b.dolor_zona || null}, ${clamp0(b.dolor_eva)}, ${clamp(b.tqr)}, ${clamp(b.recovery)},
           ${b.entrena_grupo ?? true}, ${b.fue_gimnasio ?? false},
           ${b.grupos_musculares || null}, ${clubId}
         )
@@ -134,8 +146,10 @@ export async function POST(req: NextRequest) {
           grupos_musculares = EXCLUDED.grupos_musculares
         RETURNING id, fecha::text`
     } else {
-      throw e
+      console.error('[wellness POST] DB error:', String(e))
+      return NextResponse.json({ error: 'Error interno del servidor', detail: String(e) }, { status: 500 })
     }
   }
+  if (!r) return NextResponse.json({ error: 'No se pudo guardar el registro' }, { status: 500 })
   return NextResponse.json(r)
 }
