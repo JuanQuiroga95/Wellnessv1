@@ -2,48 +2,107 @@ export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { getDb } from '@/lib/db'
 import { getSessionFromRequest } from '@/lib/auth'
-import bcrypt from 'bcryptjs'
-const POS_ORDER: Record<string,number> = {'portero':1,'defensa central':2,'lateral derecho':2,'lateral izquierdo':2,'defensa':2,'mediocampista':3,'mediocentro':3,'mediocentro defensivo':3,'mediocentro ofensivo':3,'volante':4,'volante derecho':4,'volante izquierdo':4,'extremo':5,'extremo derecho':5,'extremo izquierdo':5,'delantero':6,'centro delantero':6}
 
-function isAdmin(s: any) { return s?.rol === 'admin' || s?.rol === 'master_admin' }
-
-async function ensurePasswordPlainCol(sql: any) {
-  try { await sql`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS password_plain TEXT` } catch {}
+function isAdminOrMaster(s: any) {
+  return s?.rol === 'admin' || s?.rol === 'master_admin'
 }
 
-export async function GET(req: NextRequest) {
-  const s = await getSessionFromRequest(req)
-  if (!s || !isAdmin(s)) return NextResponse.json({error:'No autorizado'},{status:403})
-  const sql = getDb()
-  await ensurePasswordPlainCol(sql)
-  const r = s.rol === 'master_admin'
-    ? await sql`SELECT u.id,u.nombre,u.usuario,u.activo,u.password_plain,j.id AS jugador_id,j.posicion,j.edad,
-               j.peso_kg::text AS peso_kg,j.estatura_cm,j.pie_habil,j.foto_url,j.email,j.fecha_nacimiento,j.hora_recordatorio,
-               j.peso_ideal_min::text AS peso_ideal_min,j.peso_ideal_max::text AS peso_ideal_max
-               FROM usuarios u LEFT JOIN jugadores j ON j.usuario_id=u.id
-               WHERE u.rol='jugador' AND u.activo=true ORDER BY u.nombre`
-    : await sql`SELECT u.id,u.nombre,u.usuario,u.activo,u.password_plain,j.id AS jugador_id,j.posicion,j.edad,
-               j.peso_kg::text AS peso_kg,j.estatura_cm,j.pie_habil,j.foto_url,j.email,j.fecha_nacimiento,j.hora_recordatorio,
-               j.peso_ideal_min::text AS peso_ideal_min,j.peso_ideal_max::text AS peso_ideal_max
-               FROM usuarios u LEFT JOIN jugadores j ON j.usuario_id=u.id
-               WHERE u.rol='jugador' AND u.activo=true AND u.club_id=${s.clubId??null}
-               ORDER BY u.nombre`
-  return NextResponse.json(r)
-}
-
+/**
+ * POST /api/master/purge-player
+ * Body: { usuario_id: number } OR { nombre: string, club_id: number }
+ *
+ * Force-deletes a player and ALL their data across every table.
+ * Used when the standard DELETE leaves ghost rows.
+ * Requires admin or master_admin session.
+ */
 export async function POST(req: NextRequest) {
   const s = await getSessionFromRequest(req)
-  if (!s || !isAdmin(s)) return NextResponse.json({error:'No autorizado'},{status:403})
-  const b = await req.json()
-  const {nombre,usuario,password,posicion,edad,peso_kg,estatura_cm,pie_habil,foto_url,email,fecha_nacimiento,hora_recordatorio,peso_ideal_min,peso_ideal_max} = b
-  if (!nombre||!usuario||!password) return NextResponse.json({error:'Nombre, usuario y contraseña requeridos'},{status:400})
+  if (!s || !isAdminOrMaster(s)) {
+    return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
+  }
+
+  const body = await req.json()
   const sql = getDb()
-  await ensurePasswordPlainCol(sql)
-  const ex = await sql`SELECT id FROM usuarios WHERE usuario=${usuario} LIMIT 1`
-  if (ex.length) return NextResponse.json({error:'Usuario ya existe'},{status:409})
-  const h = await bcrypt.hash(password,12)
-  const [u] = await sql`INSERT INTO usuarios(nombre,usuario,password_hash,password_plain,rol,club_id) VALUES(${nombre},${usuario},${h},${password},'jugador',${s.clubId??null}) RETURNING id`
-  const po = POS_ORDER[String(posicion||'').toLowerCase()]??99
-  await sql`INSERT INTO jugadores(usuario_id,posicion,posicion_orden,edad,peso_kg,estatura_cm,pie_habil,foto_url,email,fecha_nacimiento,hora_recordatorio,club_id,peso_ideal_min,peso_ideal_max) VALUES(${(u as any).id},${posicion||null},${po},${edad||null},${peso_kg||null},${estatura_cm||null},${pie_habil||'Derecho'},${foto_url||null},${email||null},${fecha_nacimiento||null},${hora_recordatorio||'08:00'},${s.clubId??null},${peso_ideal_min||null},${peso_ideal_max||null})`
-  return NextResponse.json({ok:true})
+  const report: string[] = []
+
+  // ── Resolve usuario_id ──────────────────────────────────────────────────────
+  let resolvedUsuarioIds: number[] = []
+
+  if (body.usuario_id) {
+    // Direct ID lookup (most reliable)
+    resolvedUsuarioIds = [Number(body.usuario_id)]
+  } else if (body.nombre && body.club_id) {
+    // Lookup by name + club (for when you only know the display name)
+    const rows = await sql`
+      SELECT id FROM usuarios
+      WHERE LOWER(nombre) = LOWER(${String(body.nombre).trim()})
+        AND club_id = ${Number(body.club_id)}
+        AND rol = 'jugador'`
+    resolvedUsuarioIds = (rows as any[]).map(r => r.id)
+  } else if (body.nombre && s.clubId) {
+    // Lookup by name using session club
+    const rows = await sql`
+      SELECT id FROM usuarios
+      WHERE LOWER(nombre) = LOWER(${String(body.nombre).trim()})
+        AND club_id = ${s.clubId}
+        AND rol = 'jugador'`
+    resolvedUsuarioIds = (rows as any[]).map(r => r.id)
+  }
+
+  if (resolvedUsuarioIds.length === 0) {
+    return NextResponse.json({ error: 'Jugador no encontrado', report }, { status: 404 })
+  }
+
+  // Non-master admins can only purge players from their own club
+  if (s.rol !== 'master_admin') {
+    const check = await sql`
+      SELECT id FROM usuarios
+      WHERE id = ANY(${resolvedUsuarioIds}::int[])
+        AND club_id = ${s.clubId ?? null}
+        AND rol = 'jugador'`
+    resolvedUsuarioIds = (check as any[]).map(r => r.id)
+    if (resolvedUsuarioIds.length === 0) {
+      return NextResponse.json({ error: 'No autorizado: jugador no pertenece a tu club' }, { status: 403 })
+    }
+  }
+
+  report.push(`Usuarios a purgar: ${resolvedUsuarioIds.join(', ')}`)
+
+  // ── Get ALL jugador rows for these usuarios ─────────────────────────────────
+  const jugRows = await sql`
+    SELECT id FROM jugadores
+    WHERE usuario_id = ANY(${resolvedUsuarioIds}::int[])`
+  const jugadorIds = (jugRows as any[]).map(r => r.id)
+  report.push(`Jugador IDs encontrados: ${jugadorIds.join(', ') || 'ninguno'}`)
+
+  if (jugadorIds.length > 0) {
+    // Delete all data tables
+    const d1 = await sql`DELETE FROM wellness_logs      WHERE jugador_id = ANY(${jugadorIds}::int[])`
+    const d2 = await sql`DELETE FROM entrenamiento_logs WHERE jugador_id = ANY(${jugadorIds}::int[])`
+    const d3 = await sql`DELETE FROM partido_logs       WHERE jugador_id = ANY(${jugadorIds}::int[])`
+    const d4 = await sql`DELETE FROM lesiones           WHERE jugador_id = ANY(${jugadorIds}::int[])`
+    const d5 = await sql`DELETE FROM gps_logs           WHERE jugador_id = ANY(${jugadorIds}::int[])`
+    report.push(`Logs eliminados: wellness=${(d1 as any).count ?? '?'}, entreno=${(d2 as any).count ?? '?'}, partidos=${(d3 as any).count ?? '?'}, lesiones=${(d4 as any).count ?? '?'}, gps=${(d5 as any).count ?? '?'}`)
+
+    // Evaluation tables (ignore if they don't exist yet)
+    try { await sql`DELETE FROM pesajes      WHERE jugador_id = ANY(${jugadorIds}::int[])` } catch(_) {}
+    try { await sql`DELETE FROM cmj_sessions WHERE jugador_id = ANY(${jugadorIds}::int[])` } catch(_) {}
+    try { await sql`DELETE FROM iso_sessions WHERE jugador_id = ANY(${jugadorIds}::int[])` } catch(_) {}
+    try { await sql`DELETE FROM rsi_tests    WHERE jugador_id = ANY(${jugadorIds}::int[])` } catch(_) {}
+    try { await sql`DELETE FROM dsi_tests    WHERE jugador_id = ANY(${jugadorIds}::int[])` } catch(_) {}
+    try { await sql`DELETE FROM pfv_puntos   WHERE jugador_id = ANY(${jugadorIds}::int[])` } catch(_) {}
+    try { await sql`DELETE FROM pfv_sesiones WHERE jugador_id = ANY(${jugadorIds}::int[])` } catch(_) {}
+    report.push('Tablas de evaluación limpiadas')
+
+    // Delete jugadores rows
+    await sql`DELETE FROM jugadores WHERE id = ANY(${jugadorIds}::int[])`
+    report.push(`Jugadores eliminados: ${jugadorIds.length}`)
+  }
+
+  // Delete usuarios rows (also any orphan jugadores pointing to these users)
+  await sql`DELETE FROM jugadores WHERE usuario_id = ANY(${resolvedUsuarioIds}::int[])`
+  await sql`DELETE FROM usuarios   WHERE id         = ANY(${resolvedUsuarioIds}::int[])`
+  report.push(`Usuarios eliminados: ${resolvedUsuarioIds.length}`)
+
+  return NextResponse.json({ ok: true, report })
 }
