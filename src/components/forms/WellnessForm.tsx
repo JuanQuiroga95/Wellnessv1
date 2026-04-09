@@ -443,6 +443,13 @@ function BodyMap({ onSelect, selected }) {
                 transition:'all .1s',
               }}>{z.label}</button>
             ))}
+            <button type="button" onClick={() => onSelect('Otro')} style={{
+              padding:'5px 10px', borderRadius:7, fontSize:11, cursor:'pointer', textAlign:'left',
+              border: selected==='Otro' ? '1px solid #f59e0b' : '1px solid var(--fog)',
+              background: selected==='Otro' ? 'rgba(245,158,11,.12)' : 'transparent',
+              color: selected==='Otro' ? '#fbbf24' : 'var(--silver)',
+              transition:'all .1s',
+            }}>✏️ Otro</button>
           </div>
           {selected && (
             <div style={{ marginTop:8, padding:'8px 10px', background:'rgba(239,68,68,.08)', border:'1px solid rgba(239,68,68,.25)', borderRadius:8 }}>
@@ -593,20 +600,20 @@ export default function WellnessForm({ jugadorId, onSuccess, todayWellness }) {
             <div style={{ marginTop:14 }}>
               <div style={{ background:'var(--ink3)', border:'1px solid rgba(239,68,68,.2)', borderRadius:12, padding:16, marginBottom: showEVA ? 12 : 0 }}>
                 <p style={{ fontSize:11, fontWeight:700, color:'#f87171', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:12 }}>📍 ¿En qué parte sentís dolor o molestia?</p>
-                <BodyMap onSelect={(z) => { setZonaSeleccionada(z); if (!z) setDolorEva(null) }} selected={zonaSeleccionada} />
+                <BodyMap onSelect={(z) => { setZonaSeleccionada(z); if (!z) setDolorEva(null); if (z !== 'Otro') setDolorDescripcion('') }} selected={zonaSeleccionada} />
               </div>
               {/* EVA aparece cuando hay zona seleccionada */}
               {showEVA && <EVAScale value={dolorEva} onChange={setDolorEva} />}
-              {/* Campo descripción libre */}
-              {showBodyMap && (
+              {/* Campo descripción: solo aparece si eligió Otro */}
+              {zonaSeleccionada === 'Otro' && (
                 <div style={{ marginTop:12 }}>
-                  <label style={{ display:'block', fontSize:10, fontWeight:700, color:'#f87171', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:6 }}>📝 Descripción adicional (opcional)</label>
+                  <label style={{ display:'block', fontSize:10, fontWeight:700, color:'#fbbf24', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:6 }}>✏️ Describí la zona o molestia</label>
                   <textarea
                     value={dolorDescripcion}
                     onChange={e => setDolorDescripcion(e.target.value)}
-                    placeholder="Ej: Dolor al correr, al estirar, desde ayer..."
+                    placeholder="Ej: Zona lumbar derecha, dolor al rotar el tronco..."
                     rows={2}
-                    style={{ width:'100%', background:'var(--ink2)', border:'1px solid rgba(239,68,68,.2)', borderRadius:8, padding:'8px 12px', fontSize:12, color:'var(--snow)', outline:'none', resize:'vertical', fontFamily:'inherit', boxSizing:'border-box' }}
+                    style={{ width:'100%', background:'var(--ink2)', border:'1px solid rgba(245,158,11,.3)', borderRadius:8, padding:'8px 12px', fontSize:12, color:'var(--snow)', outline:'none', resize:'vertical', fontFamily:'inherit', boxSizing:'border-box' }}
                   />
                 </div>
               )}
