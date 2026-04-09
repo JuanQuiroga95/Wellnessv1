@@ -17,8 +17,8 @@ export async function GET(req: NextRequest) {
   try {
     const clubs = await sql`
       SELECT c.id, c.nombre, c.logo_url, c.pais, c.created_at::text,
-             COUNT(DISTINCT CASE WHEN u.rol='admin' THEN u.id END)::int AS coaches,
-             COUNT(DISTINCT CASE WHEN u.rol='jugador' THEN u.id END)::int AS jugadores
+             COUNT(DISTINCT CASE WHEN u.rol='admin' AND u.activo=true THEN u.id END)::int AS coaches,
+             COUNT(DISTINCT CASE WHEN u.rol='jugador' AND u.activo=true THEN u.id END)::int AS jugadores
       FROM clubs c
       LEFT JOIN usuarios u ON u.club_id=c.id AND u.activo=true
       GROUP BY c.id ORDER BY c.nombre`

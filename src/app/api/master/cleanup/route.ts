@@ -81,6 +81,16 @@ export async function POST(req: NextRequest) {
     const orphanJ = await sql`DELETE FROM jugadores WHERE usuario_id NOT IN (SELECT id FROM usuarios) RETURNING id`
     if ((orphanJ as any[]).length > 0) report.push(`Jugadores sin usuario eliminados: ${(orphanJ as any[]).length}`)
 
+    // 5. Also report inactive jugadores (activo=false) so master knows they exist
+    const inactiveJ = await sql`
+      SELECT u.id, u.nombre, u.club_id, c.nombre AS club_nombre
+      FROM usuarios u
+      JOIN clubs c ON c.id = u.club_id
+      WHERE u.rol = 'jugador' AND u.activo = false`
+    if ((inactiveJ as any[]).length > 0) {
+      report.push(`Jugadores inactivos (activo=false) encontrados: ${(inactiveJ as any[]).length} — ${(inactiveJ as any[]).map((u:any)=>u.nombre).join(', ')}`)
+    }
+
     return NextResponse.json({ ok: true, report })
   } catch(e: any) {
     console.error('[master/cleanup error]', e)
