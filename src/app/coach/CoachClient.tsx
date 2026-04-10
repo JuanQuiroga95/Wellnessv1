@@ -5470,9 +5470,12 @@ function GpsPanel({ teamData }: { teamData: any }) {
               {tipoSesion === 'entrenamiento' && sesiones.filter(s => s.tipo === 'entrenamiento').map((s: any) => (
                 <option key={s.id} value={s.id}>{s.fecha} · {s.titulo || s.objetivo || 'Entrenamiento'}</option>
               ))}
-              {tipoSesion === 'partido' && partidos.map((p: any, i: number) => (
-                <option key={i} value="">{p.fecha} · vs {p.rival} ({p.tipo_partido})</option>
+              {tipoSesion === 'partido' && sesiones.filter(s => s.tipo === 'partido').map((s: any) => (
+                <option key={s.id} value={s.id}>{s.fecha} · {s.titulo || (s.rival ? `vs ${s.rival}` : 'Partido')}</option>
               ))}
+              {tipoSesion === 'partido' && sesiones.filter(s => s.tipo === 'partido').length === 0 && (
+                <option disabled value="">— Creá primero el partido en el Calendario —</option>
+              )}
             </select>
           </div>
         </div>

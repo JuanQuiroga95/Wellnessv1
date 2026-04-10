@@ -88,14 +88,14 @@ const BACK_ZONES = [
   { id:'nuca',      label:'Cuello',            cx:100, cy:50,  r:9  },
   { id:'esp_alta',  label:'Espalda Alta',      cx:100, cy:90,  r:22 },
   { id:'lumbar',    label:'Espalda Baja',      cx:100, cy:143, r:16 },
-  { id:'gluteo_d',  label:'Glúteo Der.',       cx:86,  cy:182, r:17 },
-  { id:'gluteo_i',  label:'Glúteo Izq.',       cx:114, cy:182, r:17 },
-  { id:'isquio_d',  label:'Isquiotibial Der.', cx:83,  cy:228, r:18 },
-  { id:'isquio_i',  label:'Isquiotibial Izq.', cx:117, cy:228, r:18 },
-  { id:'gemelo_d',  label:'Gemelo Der.',       cx:81,  cy:310, r:14 },
-  { id:'gemelo_i',  label:'Gemelo Izq.',       cx:119, cy:310, r:14 },
-  { id:'tobillo_d', label:'Tobillo Der.',      cx:79,  cy:350, r:10 },
-  { id:'tobillo_i', label:'Tobillo Izq.',      cx:121, cy:350, r:10 },
+  { id:'gluteo_d',  label:'Glúteo Der.',       cx:114, cy:182, r:17 },
+  { id:'gluteo_i',  label:'Glúteo Izq.',       cx:86,  cy:182, r:17 },
+  { id:'isquio_d',  label:'Isquiotibial Der.', cx:117, cy:228, r:18 },
+  { id:'isquio_i',  label:'Isquiotibial Izq.', cx:83,  cy:228, r:18 },
+  { id:'gemelo_d',  label:'Gemelo Der.',       cx:119, cy:310, r:14 },
+  { id:'gemelo_i',  label:'Gemelo Izq.',       cx:81,  cy:310, r:14 },
+  { id:'tobillo_d', label:'Tobillo Der.',      cx:121, cy:350, r:10 },
+  { id:'tobillo_i', label:'Tobillo Izq.',      cx:79,  cy:350, r:10 },
 ]
 
 // Stroke config
