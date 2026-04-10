@@ -16,11 +16,11 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url)
     const fecha = searchParams.get('fecha') || new Date().toISOString().split('T')[0]
 
-    // Date range: ±7 days around the given date
+    // Date range: ±14 days around the given date (wider window to find nearby sessions)
     const desde = new Date(fecha)
-    desde.setDate(desde.getDate() - 7)
+    desde.setDate(desde.getDate() - 14)
     const hasta = new Date(fecha)
-    hasta.setDate(hasta.getDate() + 1)
+    hasta.setDate(hasta.getDate() + 7)
     const desdeStr = desde.toISOString().split('T')[0]
     const hastaStr = hasta.toISOString().split('T')[0]
 
@@ -29,15 +29,24 @@ export async function GET(req: NextRequest) {
     const clubId = s.clubId ? Number(s.clubId) : null
 
     // Planned training sessions
+    // Filter by admin_id OR club_id to cover sessions created by any coach of this club
     let sesiones: any[] = []
     try {
-      sesiones = await sql`
-        SELECT id, fecha::text, tipo, titulo, hora_inicio::text, objetivo
-        FROM sesiones_plan
-        WHERE admin_id = ${s.userId}
-          AND fecha BETWEEN ${desdeStr} AND ${hastaStr}
-        ORDER BY fecha DESC, hora_inicio
-      ` as any[]
+      sesiones = clubId
+        ? await sql`
+            SELECT id, fecha::text, tipo, titulo, hora_inicio::text, objetivo
+            FROM sesiones_plan
+            WHERE (admin_id = ${s.userId} OR club_id = ${clubId})
+              AND fecha BETWEEN ${desdeStr} AND ${hastaStr}
+            ORDER BY fecha DESC, hora_inicio
+          ` as any[]
+        : await sql`
+            SELECT id, fecha::text, tipo, titulo, hora_inicio::text, objetivo
+            FROM sesiones_plan
+            WHERE admin_id = ${s.userId}
+              AND fecha BETWEEN ${desdeStr} AND ${hastaStr}
+            ORDER BY fecha DESC, hora_inicio
+          ` as any[]
     } catch { /* table may not exist yet */ }
 
     // Also check for partido_logs on that date (these don't have a sesion_id)

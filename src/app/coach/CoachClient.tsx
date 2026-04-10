@@ -5470,6 +5470,9 @@ function GpsPanel({ teamData }: { teamData: any }) {
               {tipoSesion === 'entrenamiento' && sesiones.filter(s => s.tipo === 'entrenamiento').map((s: any) => (
                 <option key={s.id} value={s.id}>{s.fecha} · {s.titulo || s.objetivo || 'Entrenamiento'}</option>
               ))}
+              {tipoSesion === 'entrenamiento' && sesiones.filter(s => s.tipo === 'entrenamiento').length === 0 && (
+                <option disabled value="">— No hay sesiones planificadas en ±14 días —</option>
+              )}
               {tipoSesion === 'partido' && sesiones.filter(s => s.tipo === 'partido').map((s: any) => (
                 <option key={s.id} value={s.id}>{s.fecha} · {s.titulo || (s.rival ? `vs ${s.rival}` : 'Partido')}</option>
               ))}
