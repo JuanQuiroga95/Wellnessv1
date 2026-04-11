@@ -3970,7 +3970,7 @@ function ComparativaPanel({ teamData }: { teamData: any[] }) {
         if (!posGroups.length) return null
 
         const BAR_H = 160
-        const BOT_PAD = 52
+        const BOT_PAD = 40
         const TOP_PAD = 32
 
         return (
@@ -4052,20 +4052,22 @@ function ComparativaPanel({ teamData }: { teamData: any[] }) {
                               paddingBottom: BOT_PAD, paddingTop: TOP_PAD, overflow:'visible' }}>
                               {posPlayers.map((p: any, pi: number) => {
                                 const val = Number(p[selVar.key]) || 0
-                                const barH = Math.min(Math.max(((val - baseV) / rangeV) * BAR_H, 24), BAR_H)
+                                const barH = Math.min(Math.max(((val - baseV) / rangeV) * BAR_H, 4), BAR_H)
                                 const isAboveAvg = val >= avg
                                 const barCol = isAboveAvg ? col : `${col}99`
                                 return (
-                                  <div key={pi} style={{ flex:1, display:'flex', flexDirection:'column',
-                                    alignItems:'center', minWidth: minBarWidth, height:'100%',
-                                    justifyContent:'flex-end', overflow:'visible' }}>
-                                    {/* Bar */}
-                                    <div style={{ position:'relative', width:'65%', minWidth:32, maxWidth:72,
-                                      borderRadius:'6px 6px 0 0', height:`${barH}px`,
+                                  <div key={pi} style={{ flex:1, position:'relative', minWidth: minBarWidth, height:'100%' }}>
+                                    {/* Bar — posicionada desde el fondo, sobre el BOT_PAD */}
+                                    <div style={{
+                                      position:'absolute', bottom: BOT_PAD, left:'50%',
+                                      transform:'translateX(-50%)',
+                                      width:'65%', minWidth:32, maxWidth:72,
+                                      height:`${barH}px`,
+                                      borderRadius:'6px 6px 0 0',
                                       background: `linear-gradient(180deg, ${barCol}ee, ${barCol}77)`,
-                                      flexShrink:0, boxShadow:`0 0 14px ${barCol}50`,
-                                      overflow:'visible', display:'flex', alignItems:'center', justifyContent:'center' }}>
-                                      {/* Value inside bar */}
+                                      boxShadow:`0 0 14px ${barCol}50`,
+                                      display:'flex', alignItems:'center', justifyContent:'center'
+                                    }}>
                                       <span style={{
                                         position:'absolute', top:'50%', left:'50%',
                                         transform:'translate(-50%,-50%) rotate(-90deg)',
@@ -4077,15 +4079,15 @@ function ComparativaPanel({ teamData }: { teamData: any[] }) {
                                         pointerEvents:'none'
                                       }}>{val.toLocaleString()}</span>
                                     </div>
-                                    {/* Player name */}
-                                    <div style={{ textAlign:'center', marginTop:6, padding:'0 2px' }}>
+                                    {/* Player name — fijado al fondo */}
+                                    <div style={{ position:'absolute', bottom:4, left:0, right:0, textAlign:'center', padding:'0 2px' }}>
                                       <div style={{ fontSize:11, color:'var(--snow)', fontWeight:700,
-                                        whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', maxWidth: minBarWidth }}>
+                                        whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
                                         {p.nombre.split(' ')[0]}
                                       </div>
                                       {p.nombre.split(' ')[1] && (
                                         <div style={{ fontSize:9, color:'var(--fog)',
-                                          whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', maxWidth: minBarWidth }}>
+                                          whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
                                           {p.nombre.split(' ')[1]}
                                         </div>
                                       )}
