@@ -4060,15 +4060,18 @@ function ComparativaPanel({ teamData }: { teamData: any[] }) {
                                 const val  = Number(p[selVar.key]) || 0
                                 const pct  = Math.max(val / topV, 0.02)   // mínimo 2% para que siempre sea visible
                                 const barH = Math.round(pct * CHART_H)
-                                const barCol = val >= avg ? col : `${col}bb`
+                                const aboveAvg = val >= avg
+                                // col es siempre #rrggbb (6 dígitos) — los sufijos de alpha van directo sobre col
+                                const gradTop = aboveAvg ? `${col}ee` : `${col}99`
+                                const gradBot = aboveAvg ? `${col}77` : `${col}44`
                                 return (
                                   <div key={pi} style={{ flex:1, minWidth: minBarWidth, display:'flex', justifyContent:'center', alignItems:'flex-end', height:'100%' }}>
                                     <div style={{
                                       width:'65%', minWidth:32, maxWidth:72,
                                       height: barH,
                                       borderRadius:'6px 6px 0 0',
-                                      background:`linear-gradient(180deg, ${barCol}ff, ${barCol}88)`,
-                                      boxShadow:`0 0 12px ${barCol}55`,
+                                      background:`linear-gradient(180deg, ${gradTop}, ${gradBot})`,
+                                      boxShadow:`0 0 12px ${col}44`,
                                       display:'flex', alignItems:'center', justifyContent:'center',
                                       flexShrink:0, position:'relative'
                                     }}>
