@@ -477,7 +477,7 @@ function PlayerDetail({ player:p, logs, wellness, loading, onBack, ciclo, onCicl
             {[['Carga aguda (suma 7d)',p.acwr?.acuteLoad],['Carga crónica (prom. 4 sem.)',p.acwr?.chronicLoad]].map(([l,v])=>(
               <div key={l} style={{ background:'var(--ink3)', border:'1px solid var(--mist)', borderRadius:10, padding:'12px 16px', textAlign:'center' }}>
                 <div className="mono" style={{ fontSize:20, fontWeight:500, color:'var(--snow)' }}>{v}</div>
-                <div style={{ fontSize:11, color:'var(--silver)', marginTop:2 }}>{l} UA</div>
+                <div style={{ fontSize:11, color:'var(--silver)', marginTop:2 }}>{l} UCE</div>
               </div>
             ))}
           </div>
@@ -499,7 +499,7 @@ function PlayerDetail({ player:p, logs, wellness, loading, onBack, ciclo, onCicl
             <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12 }}>
               <thead>
                 <tr style={{ background:'rgba(255,255,255,.03)' }}>
-                  {['Día','Fecha','Carga UA','ACWR','Estado'].map(h=>(
+                  {['Día','Fecha','Carga UCE','ACWR','Estado'].map(h=>(
                     <th key={h} style={{ padding:'7px 12px', color:'var(--silver)', fontWeight:600, textTransform:'uppercase', fontSize:9, letterSpacing:'0.06em', textAlign:'center', whiteSpace:'nowrap' }}>{h}</th>
                   ))}
                 </tr>
@@ -612,7 +612,7 @@ function PlayerDetail({ player:p, logs, wellness, loading, onBack, ciclo, onCicl
       )}
       {logs.length>0 && (
         <div style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:16, padding:20 }}>
-          <p style={{ fontSize:11, fontWeight:600, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:14 }}>Últimas sesiones <span style={{ fontSize:10, color:'var(--fog)', fontWeight:400, textTransform:'none' }}>— click en ✏️ para editar minutos y recalcular UA</span></p>
+          <p style={{ fontSize:11, fontWeight:600, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:14 }}>Últimas sesiones <span style={{ fontSize:10, color:'var(--fog)', fontWeight:400, textTransform:'none' }}>— click en ✏️ para editar minutos y recalcular UCE</span></p>
           {[...logs].slice(-8).reverse().map((l,i)=>(<CoachSessionRow key={i} log={l} />))}
         </div>
       )}
@@ -736,7 +736,7 @@ function CambioCargaPanel() {
   const [gpsData, setGpsData] = useState<any>(null)
 
   const CHART_VARS = [
-    { key:'ua',         label:'UA',           color:'#c8f135', src:'rpe' },
+    { key:'ua',         label:'UCE',          color:'#a78bfa', src:'rpe' },
     { key:'rpe',        label:'RPE',          color:'#60a5fa', src:'rpe' },
     { key:'distTotal',  label:'Dist. Total',  color:'#f59e0b', src:'gps' },
     { key:'distPerMin', label:'m/min',        color:'#84cc16', src:'gps' },
@@ -845,7 +845,7 @@ function CambioCargaPanel() {
       <div>
         <h2 className="display" style={{ fontSize:48, color:'var(--snow)' }}>CAMBIO DE CARGA</h2>
         <p style={{ fontSize:12, color:'var(--silver)', marginTop:2 }}>
-          Variación de UA acumulada — jugadores con ≥{minEnt}min entrenamiento y ≥{minPart}min en partido
+          Variación de UCE acumulada — jugadores con ≥{minEnt}min entrenamiento y ≥{minPart}min en partido
         </p>
       </div>
 
@@ -976,8 +976,8 @@ function CambioCargaPanel() {
               <div style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:16, overflow:'hidden' }}>
                 <div style={{ display:'grid', gridTemplateColumns: view==='diario' ? '1fr 120px 120px 120px' : '1fr 1fr 120px 120px', gap:0, padding:'10px 18px', borderBottom:'1px solid var(--mist)' }}>
                   {(view==='diario'
-                    ? ['Fecha','Jugadores','Promedio UA','Cambio vs anterior']
-                    : ['Semana','Etiqueta','Promedio UA','Cambio vs anterior']
+                    ? ['Fecha','Jugadores','Promedio UCE','Cambio vs anterior']
+                    : ['Semana','Etiqueta','Promedio UCE','Cambio vs anterior']
                   ).map(h=>(
                     <span key={h} style={{ fontSize:9, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em' }}>{h}</span>
                   ))}
@@ -3100,7 +3100,7 @@ function CargaExternaPanel() {
         <div>
           <h2 className="display" style={{ fontSize: 48, color: 'var(--snow)' }}>MEDIA EQUIPO</h2>
           <p style={{ fontSize: 12, color: 'var(--silver)', marginTop: 2 }}>
-            Carga individual por jugador · RPE, UA y datos GPS de las sesiones
+            Carga individual por jugador · RPE, UCE y datos GPS de las sesiones
           </p>
         </div>
         <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', gap:6 }}>
@@ -3206,7 +3206,7 @@ function CargaExternaPanel() {
                         <tr style={{ background:'rgba(255,255,255,.03)' }}>
                           <SortTh field="nombre"   label="Jugador" />
                           <SortTh field="rpe"      label="RPE" />
-                          <SortTh field="ua"       label="UA" unit="media" />
+                          <SortTh field="ua"       label="UCE" unit="media" />
                           <SortTh field="sesiones" label="Ses." />
                           {GPS_COLS.map(c=><SortTh key={c.field} field={c.field} label={c.label} unit={c.unit} />)}
                         </tr>
@@ -3226,7 +3226,7 @@ function CargaExternaPanel() {
                                   ? <span style={{ fontFamily:'DM Mono,monospace', fontWeight:700, fontSize:13, color:col, background:`${col}18`, padding:'2px 8px', borderRadius:6, border:`1px solid ${col}33` }}>{rpe}</span>
                                   : <span style={{ color:'var(--fog)' }}>—</span>}
                               </td>
-                              <td style={{ padding:'8px 10px', textAlign:'center', fontFamily:'DM Mono,monospace', color:p.ua?'#60a5fa':'var(--fog)' }}>{p.ua||'—'}</td>
+                              <td style={{ padding:'8px 10px', textAlign:'center', fontFamily:'DM Mono,monospace', color:p.ua?'#a78bfa':'var(--fog)' }}>{p.ua||'—'}</td>
                               <td style={{ padding:'8px 10px', textAlign:'center', fontFamily:'DM Mono,monospace', color:'var(--silver)' }}>{p.sesiones||'—'}</td>
                               {GPS_COLS.map(c=>(
                                 <td key={c.field} style={{ padding:'8px 10px', textAlign:'center', fontFamily:'DM Mono,monospace', color:p[c.field]>0?'var(--snow)':'var(--fog)' }}>
@@ -3244,7 +3244,7 @@ function CargaExternaPanel() {
                               ? <span style={{ fontFamily:'DM Mono,monospace', fontWeight:800, fontSize:13, color:bc(da.rpe), background:`${bc(da.rpe)}18`, padding:'2px 8px', borderRadius:6 }}>{da.rpe}</span>
                               : <span style={{ color:'var(--fog)' }}>—</span>}
                           </td>
-                          <td style={{ padding:'10px 10px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, color:da.ua?'#60a5fa':'var(--fog)' }}>{da.ua||'—'}</td>
+                          <td style={{ padding:'10px 10px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, color:da.ua?'#a78bfa':'var(--fog)' }}>{da.ua||'—'}</td>
                           <td style={{ padding:'10px 10px', textAlign:'center', fontFamily:'DM Mono,monospace', color:'var(--silver)' }}>{da.sesiones||'—'}</td>
                           {GPS_COLS.map(c=>(
                             <td key={c.field} style={{ padding:'10px 10px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, color:da[c.field]>0?'var(--lime)':'var(--fog)' }}>
@@ -3270,8 +3270,8 @@ function CargaExternaPanel() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(120px,1fr))', gap: 10 }}>
           {[
             ['RPE Medio',    teamAvg.rpe,        'var(--lime)', 'escala Borg'],
-            ['UA Media',     teamAvg.ua,          '#60a5fa',    'por sesión'],
-            ['UA Total',     teamAvg.ua_total,    '#a78bfa',    'acumulado'],
+            ['UCE Media',    teamAvg.ua,          '#a78bfa',    'por sesión'],
+            ['UCE Total',    teamAvg.ua_total,    '#a78bfa',    'acumulado'],
             ['Jugadores',    players.length,      'var(--snow)', 'con datos'],
           ].map(([l, v, c, sub]) => (
             <div key={l as string} style={{ background: 'var(--ink2)', border: '1px solid var(--mist)', borderRadius: 12, padding: 14, textAlign: 'center' }}>
@@ -3305,7 +3305,7 @@ function CargaExternaPanel() {
                 <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--lime)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
                   📅 CARGA DE SESIONES · {ciclo.toUpperCase()}
                 </p>
-                <p style={{ fontSize: 10, color: 'var(--fog)', marginTop: 2 }}>RPE, UA y GPS estimado desde las tareas del Calendario</p>
+                <p style={{ fontSize: 10, color: 'var(--fog)', marginTop: 2 }}>RPE, UCE y GPS estimado desde las tareas del Calendario</p>
               </div>
               <p style={{ fontSize: 10, color: 'var(--fog)' }}>Click en columna para ordenar</p>
             </div>
@@ -3315,8 +3315,8 @@ function CargaExternaPanel() {
                   <tr style={{ background: 'rgba(255,255,255,.03)' }}>
                     <SortTh field="nombre"   label="Jugador" />
                     <SortTh field="rpe"      label="RPE" />
-                    <SortTh field="ua"       label="UA" unit="media" />
-                    <SortTh field="ua_total" label="UA" unit="total" />
+                    <SortTh field="ua"       label="UCE" unit="media" />
+                    <SortTh field="ua_total" label="UCE" unit="total" />
                     <SortTh field="sesiones" label="Ses." />
                     {GPS_COLS.map(c => <SortTh key={c.field} field={c.field} label={c.label} unit={c.unit} />)}
                   </tr>
@@ -3336,8 +3336,8 @@ function CargaExternaPanel() {
                             ? <span style={{ fontFamily: 'DM Mono,monospace', fontWeight: 700, fontSize: 13, color: bc, background: `${bc}18`, padding: '2px 8px', borderRadius: 6, border: `1px solid ${bc}33` }}>{rpe}</span>
                             : <span style={{ color: 'var(--fog)' }}>—</span>}
                         </td>
-                        <td style={{ padding: '9px 10px', textAlign: 'center', fontFamily: 'DM Mono,monospace', fontWeight: 600, color: p.ua ? '#60a5fa' : 'var(--fog)' }}>{p.ua || '—'}</td>
-                        <td style={{ padding: '9px 10px', textAlign: 'center', fontFamily: 'DM Mono,monospace', color: p.ua_total ? 'var(--snow)' : 'var(--fog)' }}>{p.ua_total || '—'}</td>
+                        <td style={{ padding: '9px 10px', textAlign: 'center', fontFamily: 'DM Mono,monospace', fontWeight: 600, color: p.ua ? '#a78bfa' : 'var(--fog)' }}>{p.ua || '—'}</td>
+                        <td style={{ padding: '9px 10px', textAlign: 'center', fontFamily: 'DM Mono,monospace', color: p.ua_total ? '#a78bfa' : 'var(--fog)' }}>{p.ua_total || '—'}</td>
                         <td style={{ padding: '9px 10px', textAlign: 'center', fontFamily: 'DM Mono,monospace', color: 'var(--silver)' }}>{p.sesiones || '—'}</td>
                         {GPS_COLS.map(c => (
                           <td key={c.field} style={{ padding: '9px 10px', textAlign: 'center', fontFamily: 'DM Mono,monospace', color: p[c.field] > 0 ? 'var(--snow)' : 'var(--fog)' }}>
@@ -3354,8 +3354,8 @@ function CargaExternaPanel() {
                         ? <span style={{ fontFamily: 'DM Mono,monospace', fontWeight: 800, fontSize: 13, color: borgColor(teamAvg.rpe), background: `${borgColor(teamAvg.rpe)}18`, padding: '2px 8px', borderRadius: 6 }}>{teamAvg.rpe}</span>
                         : '—'}
                     </td>
-                    <td style={{ padding: '10px 10px', textAlign: 'center', fontFamily: 'DM Mono,monospace', fontWeight: 800, color: '#60a5fa' }}>{teamAvg.ua || '—'}</td>
-                    <td style={{ padding: '10px 10px', textAlign: 'center', fontFamily: 'DM Mono,monospace', fontWeight: 800, color: 'var(--snow)' }}>{teamAvg.ua_total || '—'}</td>
+                    <td style={{ padding: '10px 10px', textAlign: 'center', fontFamily: 'DM Mono,monospace', fontWeight: 800, color: '#a78bfa' }}>{teamAvg.ua || '—'}</td>
+                    <td style={{ padding: '10px 10px', textAlign: 'center', fontFamily: 'DM Mono,monospace', fontWeight: 800, color: '#a78bfa' }}>{teamAvg.ua_total || '—'}</td>
                     <td style={{ padding: '10px 10px', textAlign: 'center', fontFamily: 'DM Mono,monospace', color: 'var(--silver)' }}>{teamAvg.sesiones || '—'}</td>
                     {GPS_COLS.map(c => (
                       <td key={c.field} style={{ padding: '10px 10px', textAlign: 'center', fontFamily: 'DM Mono,monospace', fontWeight: 700, color: teamAvg[c.field] > 0 ? 'var(--lime)' : 'var(--fog)' }}>
@@ -3594,7 +3594,7 @@ function ComparativaPanel({ teamData }: { teamData: any[] }) {
 
   const VARS = [
     { key:'rpe',         label:'RPE',         color:'#c8f135', unit:'',     src:'rpe' },
-    { key:'ua_total',    label:'UA Total',    color:'#60a5fa', unit:'',     src:'rpe' },
+    { key:'ua_total',    label:'UCE Total',   color:'#a78bfa', unit:'',     src:'rpe' },
     { key:'sesiones',    label:'Sesiones',    color:'var(--silver)', unit:'', src:'rpe' },
     { key:'minActivo',   label:'Min Activos', color:'#34d399', unit:'min',  src:'rpe' },
     { key:'dist_total',  label:'Dist. Total', color:'#93c5fd', unit:'m',    src:'gps' },
@@ -3951,173 +3951,6 @@ function ComparativaPanel({ teamData }: { teamData: any[] }) {
           )
         })()}
       </div>
-
-      {/* ══ GRÁFICOS INDIVIDUALES POR POSICIÓN ══════════════════════════ */}
-      {(() => {
-        const selVar = VARS.find(v=>v.key===posMetric) || VARS[0]
-
-        // Group players by position, sorted by POS_ORDER_MAP
-        const byPosition: Record<string, any[]> = {}
-        filtered.forEach((p: any) => {
-          const pos = p.posicion || 'Sin posición'
-          if (!byPosition[pos]) byPosition[pos] = []
-          if (Number(p[selVar.key]) > 0) byPosition[pos].push(p)
-        })
-        const posGroups = Object.entries(byPosition)
-          .filter(([,players]) => players.length > 0)
-          .sort(([a],[b]) => (POS_ORDER_MAP[a]??99) - (POS_ORDER_MAP[b]??99))
-
-        if (!posGroups.length) return null
-
-        const CHART_H = 180  // altura del área de barras solamente
-        const NAME_H  = 44   // altura para nombres debajo
-        const YAXIS_W = 44
-
-        return (
-          <div style={{ marginBottom:8 }}>
-            <div style={{ padding:'10px 0 16px' }}>
-              <p style={{ fontSize:11, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em' }}>
-                📊 COMPARATIVA INDIVIDUAL POR POSICIÓN — {selVar.label}
-              </p>
-              <p style={{ fontSize:10, color:'var(--fog)', marginTop:2 }}>
-                Un gráfico por posición · barra individual por jugador
-              </p>
-            </div>
-            <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
-              {posGroups.map(([pos, posPlayers]) => {
-                const col = posColor(pos)
-                const vals = posPlayers.map(p => Number(p[selVar.key]) || 0)
-                const maxV = Math.max(...vals, 1)
-                const topV  = Math.ceil(maxV * 1.12)   // techo 12% sobre el máximo
-                const yTicks = [1, 0.75, 0.5, 0.25, 0].map(f => Math.round(f * topV))
-                const avg = Math.round(vals.reduce((s,v)=>s+v,0)/vals.length)
-                const minBarWidth = 72
-                const chartMinWidth = posPlayers.length * (minBarWidth + 12)
-
-                return (
-                  <div key={pos} style={{ background:'var(--ink2)', border:`1px solid ${col}30`, borderRadius:14, overflow:'hidden' }}>
-                    {/* Header */}
-                    <div style={{ padding:'8px 16px', background:`${col}10`, borderBottom:`1px solid ${col}20`,
-                      display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-                      <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-                        <span style={{ fontSize:13, fontWeight:800, color: col, fontFamily:'Bebas Neue,sans-serif', letterSpacing:'0.1em' }}>{pos}</span>
-                        <span style={{ fontSize:10, color:'var(--fog)' }}>{posPlayers.length} jugador{posPlayers.length!==1?'es':''}</span>
-                      </div>
-                      <div style={{ fontSize:10, fontFamily:'DM Mono,monospace', color:'var(--silver)' }}>
-                        Prom: <strong style={{ color: col }}>{avg.toLocaleString()}</strong>
-                        <span style={{ marginLeft:8, color:'var(--fog)' }}>Max: {maxV.toLocaleString()}</span>
-                      </div>
-                    </div>
-
-                    {/* Body */}
-                    <div style={{ padding:'12px 16px 12px', display:'flex', gap:0 }}>
-
-                      {/* Y-axis labels — alineados con CHART_H */}
-                      <div style={{ width: YAXIS_W, flexShrink:0, display:'flex', flexDirection:'column',
-                        justifyContent:'space-between', height: CHART_H, marginBottom: NAME_H }}>
-                        {yTicks.map((t,i) => (
-                          <div key={i} style={{ fontSize:8, color:'var(--fog)', fontFamily:'DM Mono,monospace',
-                            textAlign:'right', lineHeight:1 }}>{t.toLocaleString()}</div>
-                        ))}
-                      </div>
-
-                      {/* Chart + names */}
-                      <div style={{ flex:1, overflowX:'auto' }}>
-                        <div style={{ minWidth: chartMinWidth }}>
-
-                          {/* Zona de barras con gridlines superpuestas */}
-                          <div style={{ position:'relative', height: CHART_H }}>
-
-                            {/* Gridlines — absolutas, no afectan layout */}
-                            {[0, 0.25, 0.5, 0.75, 1].map((f,i) => (
-                              <div key={i} style={{
-                                position:'absolute', left:0, right:0,
-                                top: `${(1-f) * 100}%`,
-                                borderTop:`1px solid rgba(255,255,255,${f===0||f===1?'.12':'.05'})`,
-                                pointerEvents:'none'
-                              }}/>
-                            ))}
-
-                            {/* Línea de promedio */}
-                            {posPlayers.length > 1 && (
-                              <div style={{
-                                position:'absolute', left:0, right:0,
-                                top: `${(1 - avg/topV) * 100}%`,
-                                borderTop:`1px dashed ${col}80`,
-                                pointerEvents:'none', zIndex:2
-                              }}>
-                                <span style={{ position:'absolute', right:4, top:-10, fontSize:8,
-                                  color: col, fontFamily:'DM Mono,monospace', fontWeight:700,
-                                  background:'var(--ink2)', padding:'1px 4px', borderRadius:3 }}>
-                                  prom {avg.toLocaleString()}
-                                </span>
-                              </div>
-                            )}
-
-                            {/* Barras — flexbox puro, align-items:flex-end hace que crezcan de abajo a arriba */}
-                            <div style={{ position:'absolute', inset:0, display:'flex', alignItems:'flex-end', gap:8, zIndex:1 }}>
-                              {posPlayers.map((p: any, pi: number) => {
-                                const val  = Number(p[selVar.key]) || 0
-                                const pct  = Math.max(val / topV, 0.02)   // mínimo 2% para que siempre sea visible
-                                const barH = Math.round(pct * CHART_H)
-                                const aboveAvg = val >= avg
-                                // col es siempre #rrggbb (6 dígitos) — los sufijos de alpha van directo sobre col
-                                const gradTop = aboveAvg ? `${col}ee` : `${col}99`
-                                const gradBot = aboveAvg ? `${col}77` : `${col}44`
-                                return (
-                                  <div key={pi} style={{ flex:1, minWidth: minBarWidth, display:'flex', justifyContent:'center', alignItems:'flex-end', height:'100%' }}>
-                                    <div style={{
-                                      width:'65%', minWidth:32, maxWidth:72,
-                                      height: barH,
-                                      borderRadius:'6px 6px 0 0',
-                                      background:`linear-gradient(180deg, ${gradTop}, ${gradBot})`,
-                                      boxShadow:`0 0 12px ${col}44`,
-                                      display:'flex', alignItems:'center', justifyContent:'center',
-                                      flexShrink:0, position:'relative'
-                                    }}>
-                                      <span style={{
-                                        position:'absolute', top:'50%', left:'50%',
-                                        transform:'translate(-50%,-50%) rotate(-90deg)',
-                                        fontSize: barH >= 32 ? 11 : 8,
-                                        color:'#fff', fontFamily:'DM Mono,monospace', fontWeight:800,
-                                        whiteSpace:'nowrap', textShadow:'0 1px 3px rgba(0,0,0,0.9)',
-                                        pointerEvents:'none'
-                                      }}>{val.toLocaleString()}</span>
-                                    </div>
-                                  </div>
-                                )
-                              })}
-                            </div>
-                          </div>
-
-                          {/* Nombres — fila separada debajo de las barras */}
-                          <div style={{ height: NAME_H, display:'flex', gap:8 }}>
-                            {posPlayers.map((p: any, pi: number) => (
-                              <div key={pi} style={{ flex:1, minWidth: minBarWidth, textAlign:'center', paddingTop:6 }}>
-                                <div style={{ fontSize:11, color:'var(--snow)', fontWeight:700,
-                                  whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
-                                  {p.nombre.split(' ')[0]}
-                                </div>
-                                {p.nombre.split(' ')[1] && (
-                                  <div style={{ fontSize:9, color:'var(--fog)',
-                                    whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
-                                    {p.nombre.split(' ')[1]}
-                                  </div>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-        )
-      })()}
       </>)}
     </div>
   )
@@ -5189,21 +5022,21 @@ function AcumBarChart({ players, vars, accentColor = '#c8f135' }: { players: any
               ))}
               <div style={{ display:'flex', gap:8, alignItems:'flex-end', height:TOP_PAD+BAR_H+BOT_PAD, paddingTop:TOP_PAD, paddingBottom:BOT_PAD }}>
                 {data.map((d, i) => {
-                  const barH = Math.max((d.val/maxVal)*BAR_H, 24)
+                  const barH = Math.max((d.val/maxVal)*BAR_H, 4)
+                  const showInside = barH > 28
                   return (
-                  <div key={i} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', minWidth:52, height:'100%', justifyContent:'flex-end', overflow:'visible' }}>
+                  <div key={i} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', minWidth:52, height:'100%', justifyContent:'flex-end' }}>
+                    {!showInside && <div style={{ fontSize:11, color:selVar.color, fontFamily:'DM Mono,monospace', fontWeight:800, marginBottom:3, whiteSpace:'nowrap' }}>{d.val}</div>}
                     <div style={{ width:'55%', minWidth:20, maxWidth:48, borderRadius:'5px 5px 0 0',
                       height:`${barH}px`, position:'relative',
-                      background: `linear-gradient(180deg, ${selVar.color}ee, ${selVar.color}88)`,
-                      flexShrink:0, boxShadow:`0 0 10px ${selVar.color}40`,
-                      overflow:'visible', display:'flex', alignItems:'center', justifyContent:'center' }}>
-                      <span style={{ position:'absolute', top:'50%', left:'50%',
-                        transform:'translate(-50%,-50%) rotate(-90deg)',
-                        fontSize: barH >= 28 ? 10 : 8,
-                        color:'rgba(255,255,255,0.95)', fontFamily:'DM Mono,monospace', fontWeight:800,
-                        whiteSpace:'nowrap', textShadow:'0 1px 3px rgba(0,0,0,0.9)', pointerEvents:'none' }}>
-                        {d.val}
-                      </span>
+                      background: selVar.color, flexShrink:0, opacity:0.85,
+                      display:'flex', alignItems:'center', justifyContent:'center' }}>
+                      {showInside && (
+                        <span style={{ fontSize:10, color:'#fff', fontFamily:'DM Mono,monospace', fontWeight:800,
+                          textShadow:'0 1px 3px rgba(0,0,0,.6)', whiteSpace:'nowrap', userSelect:'none' }}>
+                          {d.val}
+                        </span>
+                      )}
                     </div>
                     <div style={{ fontSize:9, color:'var(--snow)', fontWeight:600, marginTop:6, textAlign:'center', wordBreak:'break-word', lineHeight:1.2 }}>{d.nombre}</div>
                   </div>
@@ -5256,7 +5089,7 @@ function AcumPanel({ teamData }) {
   }
 
   const MICI_VARS = [
-    {key:'ua_total',   label:'UA',             color:'#60a5fa'},
+    {key:'ua_total',   label:'UCE',            color:'#a78bfa'},
     {key:'minActivo',  label:'Tiempo (min)',    color:'#34d399'},
     {key:'distTotal',  label:'DT (m)',          color:'#f59e0b'},
     {key:'distSprint', label:'Dist. Sprint (m)',color:'#f97316'},
@@ -6020,17 +5853,21 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
   const today = new Date().toISOString().split('T')[0]
   const getWeekStart = (offsetWeeks = 0) => {
     const d = new Date()
-    d.setDate(d.getDate() - d.getDay() + 1 + offsetWeeks * 7)
+    const dow = d.getDay()
+    const diffToMonday = dow === 0 ? -6 : 1 - dow
+    d.setDate(d.getDate() + diffToMonday + offsetWeeks * 7)
     return d.toISOString().split('T')[0]
   }
   const getWeekEnd = (offsetWeeks = 0) => {
     const d = new Date()
-    d.setDate(d.getDate() - d.getDay() + 7 + offsetWeeks * 7)
+    const dow = d.getDay()
+    const diffToMonday = dow === 0 ? -6 : 1 - dow
+    d.setDate(d.getDate() + diffToMonday + 6 + offsetWeeks * 7)
     return d.toISOString().split('T')[0]
   }
   const [microcicloOffset, setMicrocicloOffset] = useState(0)
   const [desde, setDesde] = useState(getWeekStart(0))
-  const [hasta, setHasta] = useState(today)
+  const [hasta, setHasta] = useState(getWeekEnd(0))
   const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(false)
   const [partidoRefs, setPartidoRefs] = useState<any[]>([{},{},{}])
@@ -6040,8 +5877,9 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
 
   useEffect(() => {
     // Recalculate date range when microciclo offset changes
+    // Siempre usar el fin de semana completo (domingo) para no cortar sesiones
     const newDesde = getWeekStart(microcicloOffset)
-    const newHasta = microcicloOffset === 0 ? today : getWeekEnd(microcicloOffset)
+    const newHasta = getWeekEnd(microcicloOffset)
     setDesde(newDesde)
     setHasta(newHasta)
   }, [microcicloOffset])
@@ -6120,7 +5958,7 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
   }
 
   const VARS = [
-    {key:'ua_total',   label:'UA',            color:'#60a5fa', unit:''},
+    {key:'ua_total',   label:'UCE',           color:'#a78bfa', unit:''},
     {key:'minActivo',  label:'Tiempo (min)',   color:'#34d399', unit:'min'},
     {key:'distTotal',  label:'DT (m)',         color:'#f59e0b', unit:'m'},
     {key:'distSprint', label:'Dist. Sprint (m)',color:'#f97316', unit:'m'},
@@ -6193,24 +6031,24 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
             ))}
           </div>
           {/* Bars + grid */}
-          <div style={{ flex:1, position:'relative', overflow:'visible' }}>
+          <div style={{ flex:1, position:'relative' }}>
             {[100,75,50,25,0].map((p,i)=>(
               <div key={i} style={{ position:'absolute', left:0, right:0, top:`${(i/4)*BAR_H}px`, borderTop:'1px solid rgba(255,255,255,.05)' }}/>
             ))}
-            <div style={{ display:'flex', gap:names.length>6?2:6, alignItems:'flex-end', height:BAR_H+22, paddingBottom:22, overflow:'visible' }}>
+            <div style={{ display:'flex', gap:names.length>6?2:6, alignItems:'flex-end', height:BAR_H+22, paddingBottom:22 }}>
               {names.map((name:string,ni:number)=>(
-                <div key={ni} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', minWidth:0, overflow:'visible' }}>
-                  <div style={{ display:'flex', gap:2, alignItems:'flex-end', height:BAR_H, overflow:'visible' }}>
+                <div key={ni} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', minWidth:0 }}>
+                  <div style={{ display:'flex', gap:2, alignItems:'flex-end', height:BAR_H }}>
                     {series.map((s,si)=>{
                       const val = (s.vals[ni] as any)?.val || 0
-                      const h = Math.max((val/maxVal)*BAR_H, val>0?24:0)
+                      const h = Math.max((val/maxVal)*BAR_H, val>0?3:0)
                       return (
                         <div key={si} title={`${name} - ${s.label}: ${val}`}
                           style={{ position:'relative', flex:1, maxWidth:18, minWidth:7, height:`${h}px`,
-                            background: val>0 ? `linear-gradient(180deg,${s.color}ee,${s.color}88)` : `${s.color}18`,
+                            background: val>0 ? s.color : `${s.color}18`,
                             borderRadius:'3px 3px 0 0', overflow:'visible' }}>
                           {val>0 && h>=18 && (
-                            <span style={{ position:'absolute', top:'50%', left:'50%', transform:'translate(-50%,-50%) rotate(-90deg)', fontSize:8, color:'rgba(255,255,255,0.95)', fontFamily:'DM Mono,monospace', fontWeight:700, whiteSpace:'nowrap', textShadow:'0 1px 2px rgba(0,0,0,.9)', pointerEvents:'none' }}>{val}</span>
+                            <span style={{ position:'absolute', top:'50%', left:'50%', transform:'translate(-50%,-50%) rotate(-90deg)', fontSize:8, color:'#fff', fontFamily:'DM Mono,monospace', fontWeight:700, whiteSpace:'nowrap', textShadow:'0 1px 2px rgba(0,0,0,.9)', pointerEvents:'none' }}>{val}</span>
                           )}
                         </div>
                       )
@@ -6231,7 +6069,7 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
       <div style={{ marginBottom:20, display:'flex', justifyContent:'space-between', alignItems:'flex-end', flexWrap:'wrap', gap:12 }}>
         <div>
           <h2 style={{ fontFamily:'Bebas Neue,sans-serif', fontSize:36, color:'var(--snow)', letterSpacing:'0.04em', marginBottom:4 }}>🏋️ CONTROL DE CARGA · CALC</h2>
-          <p style={{ fontSize:12, color:'var(--silver)' }}>Microciclo · RPE, UA y carga calculada desde sesiones planificadas</p>
+          <p style={{ fontSize:12, color:'var(--silver)' }}>Microciclo · RPE, UCE y carga calculada desde sesiones planificadas</p>
         </div>
         <div style={{ display:'flex', gap:8, flexWrap:'wrap', alignItems:'flex-end' }}>
           {/* Microciclo navigator */}
@@ -6420,6 +6258,25 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
           const ses = sesionesInfo.find((s:any) => s.titulo === md)
           const sesData = perSession[md] || {}
           const hasData = existingMdLabels.has(md)
+          // Calcular NE promedio ponderado de la sesión para UCE individual
+          const TAREA_NE_C1: Record<string, number> = {
+            'Restauración':0.2,'Activación en gimnasio':0.4,'Gimnasio':0.4,'Trabajo preventivo':0.4,
+            'Cualidades específicas':0.8,'Activación en campo':1,'Circuito condicional':1,
+            'Circuito técnico':2,'Trabajo analítico':2,'Rondo':3,'Posesión reducida':5,
+            'Juego de posesión':5,'Juego de posición':6,'Transiciones':7,'Partido reducido':7,
+            'Partido modificado':8,'Partido de entrenamiento':9,'Partido amistoso':9,'Partido oficial':10,
+          }
+          const ejerciciosC1: any[] = sesData.ejercicios || []
+          const bloqC1 = ejerciciosC1.filter((b:any) => b.ventana && (Number(b.series)||0)>0 && (Number(b.minutos)||0)>0)
+          const minTotalC1 = bloqC1.reduce((s:number,b:any) => s + (Number(b.series)||0)*(Number(b.minutos)||0), 0)
+          const ceTotalC1 = bloqC1.reduce((s:number,b:any) => {
+            const min = (Number(b.series)||0)*(Number(b.minutos)||0)
+            return s + min * (TAREA_NE_C1[b.ventana] ?? 1)
+          }, 0)
+          // NE promedio ponderado = CE_total / min_total
+          const neProm = minTotalC1 > 0 ? ceTotalC1 / minTotalC1 : 1
+          // UCE individual = minutos_jugador × RPE_jugador × neProm
+          const calcUCE = (minP: number, rpeP: number) => minP > 0 && rpeP > 0 ? Math.round(minP * rpeP * neProm) : 0
           const SESSION_VARS = [
             {key:'distTotal',  label:'DT (m)',          color:'#f59e0b'},
             {key:'distSprint', label:'Dist. Sprint (m)',color:'#f97316'},
@@ -6459,7 +6316,7 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
                         <th style={{ padding:'5px 8px', textAlign:'left', color:'var(--silver)', fontSize:8, fontWeight:700, textTransform:'uppercase', borderBottom:'1px solid var(--mist)' }}>Pos.</th>
                         <th style={{ padding:'5px 8px', textAlign:'center', color:'#c8f135', fontSize:8, fontWeight:700, textTransform:'uppercase', borderBottom:'1px solid var(--mist)' }}>RPE</th>
                         <th style={{ padding:'5px 8px', textAlign:'center', color:'#34d399', fontSize:8, fontWeight:700, textTransform:'uppercase', borderBottom:'1px solid var(--mist)' }}>Tiempo</th>
-                        <th style={{ padding:'5px 8px', textAlign:'center', color:'#60a5fa', fontSize:8, fontWeight:700, textTransform:'uppercase', borderBottom:'1px solid var(--mist)', borderRight:'2px solid rgba(200,241,53,.3)' }}>UA</th>
+                        <th style={{ padding:'5px 8px', textAlign:'center', color:'#a78bfa', fontSize:8, fontWeight:700, textTransform:'uppercase', borderBottom:'1px solid var(--mist)', borderRight:'2px solid rgba(200,241,53,.3)' }}>UCE</th>
                         {SESSION_VARS.map(sv => (
                           <th key={sv.key} style={{ padding:'5px 8px', textAlign:'center', color:sv.color, fontSize:8, fontWeight:700, textTransform:'uppercase', whiteSpace:'nowrap', borderBottom:'1px solid var(--mist)', background:'rgba(200,241,53,.03)' }}>{sv.label}</th>
                         ))}
@@ -6472,7 +6329,7 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
                           <td style={{ padding:'6px 8px', color:'var(--fog)', fontSize:10 }}>{p.posicion||'—'}</td>
                           <td style={{ padding:'6px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', color:p.rpe?'#c8f135':'var(--fog)' }}>{p.rpe||'—'}</td>
                           <td style={{ padding:'6px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', color:p.minActivo?'#34d399':'var(--fog)' }}>{p.minActivo||'—'}</td>
-                          <td style={{ padding:'6px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', color:p.ua_total?'#60a5fa':'var(--fog)', borderRight:'2px solid rgba(200,241,53,.3)' }}>{p.ua_total||'—'}</td>
+                          <td style={{ padding:'6px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', color:calcUCE(p.minActivo,p.rpe)?'#a78bfa':'var(--fog)', borderRight:'2px solid rgba(200,241,53,.3)' }}>{calcUCE(p.minActivo,p.rpe)||'—'}</td>
                           {SESSION_VARS.map((sv, si) => {
                             // Session data is the same for all players — highlight in lime
                             const val = Math.round(Number(sesData[sv.key])||0)
@@ -6493,7 +6350,7 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
                         <td/>
                         <td style={{ padding:'6px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, color:teamAvg.rpe?'#c8f135':'var(--fog)' }}>{teamAvg.rpe||'—'}</td>
                         <td style={{ padding:'6px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, color:teamAvg.minActivo?'#34d399':'var(--fog)' }}>{teamAvg.minActivo||'—'}</td>
-                        <td style={{ padding:'6px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, color:teamAvg.ua_total?'#60a5fa':'var(--fog)', borderRight:'2px solid rgba(200,241,53,.3)' }}>{teamAvg.ua_total||'—'}</td>
+                        <td style={{ padding:'6px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, color:calcUCE(teamAvg.minActivo,teamAvg.rpe)?'#a78bfa':'var(--fog)', borderRight:'2px solid rgba(200,241,53,.3)' }}>{calcUCE(teamAvg.minActivo,teamAvg.rpe)||'—'}</td>
                         {SESSION_VARS.map(sv => {
                           const val = Math.round(Number(sesData[sv.key])||0)
                           return (
@@ -6526,9 +6383,9 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
                       line: null,
                     },
                     {
-                      title: 'UA + RPE', color: '#c8f135',
+                      title: 'UCE + RPE', color: '#c8f135',
                       bars: [
-                        { key:'ua_total', label:'UA', color:'#60a5fa' },
+                        { key:'ua_total', label:'UCE', color:'#a78bfa' },
                       ],
                       line: { key:'rpe', label:'RPE', color:'#c8f135' },
                     },
@@ -7019,17 +6876,21 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
 
   const getWeekStart = (offsetWeeks = 0) => {
     const d = new Date()
-    d.setDate(d.getDate() - d.getDay() + 1 + offsetWeeks * 7)
+    const dow = d.getDay()
+    const diffToMonday = dow === 0 ? -6 : 1 - dow
+    d.setDate(d.getDate() + diffToMonday + offsetWeeks * 7)
     return d.toISOString().split('T')[0]
   }
   const getWeekEnd = (offsetWeeks = 0) => {
     const d = new Date()
-    d.setDate(d.getDate() - d.getDay() + 7 + offsetWeeks * 7)
+    const dow = d.getDay()
+    const diffToMonday = dow === 0 ? -6 : 1 - dow
+    d.setDate(d.getDate() + diffToMonday + 6 + offsetWeeks * 7)
     return d.toISOString().split('T')[0]
   }
 
   const [desde, setDesde] = useState(() => getWeekStart(0))
-  const [hasta, setHasta] = useState(today)
+  const [hasta, setHasta] = useState(() => getWeekEnd(0))
   const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(false)
   const [partidoRefs, setPartidoRefs] = useState<any[]>([{},{},{}])
@@ -7039,7 +6900,7 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
 
   useEffect(() => {
     const newDesde = getWeekStart(microcicloOffset)
-    const newHasta = microcicloOffset === 0 ? today : getWeekEnd(microcicloOffset)
+    const newHasta = getWeekEnd(microcicloOffset)
     setDesde(newDesde)
     setHasta(newHasta)
   }, [microcicloOffset])
@@ -8018,7 +7879,7 @@ function ManualPanel() {
       ]},
       { titulo: 'Analytics', icono: '📊', intro: 'Panel de análisis de carga colectiva. Muestra evolución de la carga para detectar tendencias, picos y períodos de descarga.', rows: [
         ['Período', 'Elegí el rango de fechas con los filtros Desde / Hasta.'],
-        ['Variable', 'Seleccioná qué métrica visualizar: UA, RPE, Distancia total, Sprints, Aceleraciones, etc.'],
+        ['Variable', 'Seleccioná qué métrica visualizar: UCE, RPE, Distancia total, Sprints, Aceleraciones, etc.'],
         ['Vista diaria / semanal', 'Diaria: cada sesión. Semanal: agrupa por semana para ver tendencia macro.'],
         ['Gráficos A y B', 'A: RPE vs. Total Wellness — zona verde = carga alta con buen bienestar (ideal). B: RPE vs. Dolor Muscular — detecta sesiones de alta carga con dolor muscular elevado.'],
         ['% de cambio', 'Variación respecto al período anterior. Verde = normal (−5% a +15%), rojo = aumento alto (>+15%), azul = reducción notable (<−5%).'],
@@ -8032,7 +7893,7 @@ function ManualPanel() {
       { titulo: 'Ctrl. Carga Calc', icono: '🏋️', intro: 'Carga interna calculada desde el RPE que reporta cada jugador y la calculadora del Calendario. No requiere GPS.', rows: [
         ['Navegación por semana', 'Usá las flechas ‹ › para moverte entre semanas.'],
         ['Cuadro 1 — RPE individual', 'RPE declarado por cada jugador en cada día del microciclo (MD+1 a MD). Celdas verdes = registrado, gris = sin dato.'],
-        ['Cuadro 2 — UA (Unidades de Carga)', 'Carga interna: RPE × minutos de sesión. Indicador estándar de carga interna (Foster, 1998).'],
+        ['Cuadro 2 — UCE (Unidad de Carga Específica)', 'Carga interna: Minutos × NE × RPE. Indicador de carga interna específica que considera el tipo de tarea.'],
         ['Cuadro 3 — Calculadora GPS', 'Estimación de carga externa calculada desde los bloques de tareas: distancia total, sprints, aceleraciones/deceleraciones.'],
         ['Cuadro 4 — % sobre partido', 'Compara cada sesión contra el promedio de hasta 3 partidos de referencia (= 100%). Requiere seleccionar partidos en "Ingresar partidos".'],
         ['Interpretación %', 'Verde (>80%): alta exigencia. Amarillo (50–80%): moderada. Rojo (<50%): baja exigencia relativa (normal en recuperación o MD-1).'],
@@ -8046,12 +7907,12 @@ function ManualPanel() {
       { titulo: 'Acumulado Individual', icono: '📈', intro: 'Carga acumulada de un jugador en el tiempo. Útil para detectar subcarga crónica o sobreexposición.', rows: [
         ['Selección de jugador', 'Elegí el jugador desde el selector. Los datos se cargan automáticamente.'],
         ['Período', 'Ajustá el rango de fechas.'],
-        ['Gráfico de carga acumulada', 'Línea que muestra la suma de UA a lo largo del período seleccionado.'],
+        ['Gráfico de carga acumulada', 'Línea que muestra la suma de UCE a lo largo del período seleccionado.'],
         ['ACWR individual', 'Curva del ratio agudo:crónico, con zona óptima sombreada en verde (0.8–1.3).'],
       ]},
       { titulo: 'Cambio de Carga', icono: '🔄', intro: 'Variación porcentual de cualquier variable de carga de una sesión a la siguiente. Detecta saltos de carga peligrosos.', rows: [
         ['Filtros', 'Desde / Hasta, mínimo de minutos de entrenamiento y partido para incluir al jugador.'],
-        ['Variable', 'UA, RPE, Distancia total, Sprints, Aceleraciones, Deceleraciones, Alta Potencia, Vel. máxima, Dist/min.'],
+        ['Variable', 'UCE, RPE, Distancia total, Sprints, Aceleraciones, Deceleraciones, Alta Potencia, Vel. máxima, Dist/min.'],
         ['🟢 −5% a +15%', 'Variación normal. Rango de progresión sostenible.'],
         ['🔴 > +15%', 'Aumento alto. Riesgo si se mantiene. Revisá acumulación de sesiones exigentes.'],
         ['🔵 < −5%', 'Reducción notable. Normal en semanas post-partido o pre-competición importante.'],
@@ -8207,7 +8068,7 @@ ${secciones_data.map(sec => `
         <ManualSection title="Detalle individual">
           <p style={{ fontSize:12, color:'var(--silver)', lineHeight:1.65, marginBottom:10 }}>Hacé clic en un jugador para ver su vista detallada. Podés cambiar el ciclo entre Microciclo (7 días), Mesociclo (28 días) y Macrociclo (temporada).</p>
           <ManualRow label="Gráfico ACWR" desc="Evolución del ratio a lo largo del ciclo. La banda verde sombreada = zona óptima (0.8–1.3)." />
-          <ManualRow label="Tabla de carga" desc="Historial día a día con la UA de cada sesión, el ACWR calculado y el estado resultante." />
+          <ManualRow label="Tabla de carga" desc="Historial día a día con la UCE de cada sesión, el ACWR calculado y el estado resultante." />
           <ManualRow label="Último Wellness" desc="Detalle del último registro: barras de cada parámetro, TQR, zona de dolor y si fue al gimnasio." />
           <ManualRow label="RPE — Últimas sesiones" desc="Barras con el RPE de las últimas 12 sesiones. El color indica la intensidad percibida." />
         </ManualSection>
@@ -8256,7 +8117,7 @@ ${secciones_data.map(sec => `
         <p style={{ fontSize:12, color:'var(--silver)', marginBottom:20, lineHeight:1.65 }}>Panel de análisis de carga colectiva. Muestra la evolución de la carga para detectar tendencias, picos y períodos de descarga.</p>
         <ManualSection title="Cómo usarlo">
           <ManualRow label="Período" desc="Elegí el rango de fechas a analizar con los filtros Desde / Hasta." />
-          <ManualRow label="Variable" desc="Seleccioná qué métrica visualizar: UA (carga interna por RPE), RPE, o métricas GPS como distancia total, sprints, aceleraciones, etc." />
+          <ManualRow label="Variable" desc="Seleccioná qué métrica visualizar: UCE (carga interna específica), RPE, o métricas GPS como distancia total, sprints, aceleraciones, etc." />
           <ManualRow label="Vista diaria / semanal" desc="Diaria: cada sesión. Semanal: agrupa por semana para ver la tendencia macro." />
           <ManualRow label="Gráfico A — RPE vs. Wellness" desc="Zona verde = carga alta con buen bienestar (ideal). Zona roja = carga alta con mal bienestar (riesgo)." />
           <ManualRow label="Gráfico B — RPE vs. Dolor" desc="Detecta sesiones de alta carga con dolor muscular elevado." />
@@ -8289,7 +8150,7 @@ ${secciones_data.map(sec => `
         </ManualSection>
         <ManualSection title="Cuadros que muestra">
           <ManualRow label="Cuadro 1 — RPE individual" desc="RPE declarado por cada jugador en cada día del microciclo. Celdas verdes = registrado, gris = sin dato." />
-          <ManualRow label="Cuadro 2 — UA (Unidades de Carga)" desc="Carga interna: RPE × minutos de sesión. Indicador estándar de carga interna (Foster, 1998)." />
+          <ManualRow label="Cuadro 2 — UCE (Unidad de Carga Específica)" desc="Carga interna: Minutos × NE × RPE. Considera el tipo de tarea planificada." />
           <ManualRow label="Cuadro 3 — Calculadora GPS" desc="Estimación de carga externa desde los bloques de tareas: distancia total, sprints, aceleraciones/deceleraciones. Son los mismos valores que calcula la Calculadora de Diseño de Tareas." />
           <ManualRow label="Cuadro 4 — % sobre partido" desc="Compara cada sesión contra el promedio de hasta 3 partidos de referencia (= 100%). Hacé clic en 'Ingresar partidos' para seleccionarlos." />
         </ManualSection>
@@ -8328,7 +8189,7 @@ ${secciones_data.map(sec => `
         <ManualSection title="Cómo usarlo">
           <ManualRow label="Selección de jugador" desc="Elegí el jugador desde el selector superior. Los datos se cargan automáticamente." />
           <ManualRow label="Período" desc="Ajustá el rango de fechas para ver la evolución en distintos marcos de tiempo." />
-          <ManualRow label="Gráfico de carga acumulada" desc="Línea con la suma de UA a lo largo de las sesiones del período." />
+          <ManualRow label="Gráfico de carga acumulada" desc="Línea con la suma de UCE a lo largo de las sesiones del período." />
           <ManualRow label="ACWR individual" desc="Curva del ratio agudo:crónico con la zona óptima sombreada en verde (0.8–1.3)." />
         </ManualSection>
       </div>
@@ -8341,7 +8202,7 @@ ${secciones_data.map(sec => `
         <ManualSection title="Filtros">
           <ManualRow label="Desde / Hasta" desc="Rango de fechas a analizar." />
           <ManualRow label="Min. Entrenamiento / Partido" desc="Mínimo de minutos para incluir al jugador en el análisis." />
-          <ManualRow label="Variable" desc="UA, RPE, Distancia Total, Sprints, Aceleraciones, Deceleraciones, Alta Potencia, Vel. máxima, Dist/min." />
+          <ManualRow label="Variable" desc="UCE, RPE, Distancia Total, Sprints, Aceleraciones, Deceleraciones, Alta Potencia, Vel. máxima, Dist/min." />
         </ManualSection>
         <ManualSection title="Interpretación del % de cambio">
           <ManualRow label="🟢 −5% a +15%" desc="Variación normal. Rango de progresión sostenible." />
