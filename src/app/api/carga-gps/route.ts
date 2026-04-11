@@ -496,6 +496,25 @@ export async function GET(req: NextRequest) {
         return a.fecha.localeCompare(b.fecha)
       })
 
+    // Build rpeLogsPerMD: { [mdLabel]: { [jugador_id]: { rpe, duracion_min, carga_ua } } }
+    // Cross sesiones (fecha→titulo) with logs (fecha, jugador_id, rpe, duracion_min)
+    const fechaToMD: Record<string, string> = {}
+    for (const ses of sesiones as any[]) {
+      if (ses.titulo) fechaToMD[ses.fecha] = ses.titulo
+    }
+    const rpeLogsPerMD: Record<string, Record<number, any>> = {}
+    for (const log of logs as any[]) {
+      const md = fechaToMD[log.fecha]
+      if (!md) continue
+      if (!rpeLogsPerMD[md]) rpeLogsPerMD[md] = {}
+      // If a player has multiple logs on same MD date, take the last one
+      rpeLogsPerMD[md][log.jugador_id] = {
+        rpe: Number(log.rpe) || 0,
+        duracion_min: Number(log.duracion_min) || 0,
+        carga_ua: Number(log.carga_ua) || 0,
+      }
+    }
+
     return NextResponse.json({
       players, teamAvg,
       gpsReal, teamAvgGps,
@@ -503,6 +522,7 @@ export async function GET(req: NextRequest) {
       sesionesInfo,
       perSession,
       gpsPerMD: gpsPerMDShaped,
+      rpeLogsPerMD,
       hasGpsData:    players.some((p: any) => p.hasGps),
       hasRealGps:    (gpsReal as any[]).length > 0,
       sesionesCount: sesiones.length,

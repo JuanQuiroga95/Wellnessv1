@@ -3792,7 +3792,9 @@ function ComparativaPanel({ teamData }: { teamData: any[] }) {
 
           // When a single position is selected, show individual player bars
           if (posFilter !== 'todas') {
+            const isGpsVarSingle = selVar.src === 'gps'
             const playerBars = filtered
+              .filter((p:any) => !isGpsVarSingle || p.sesiones_gps || p.hasGps)
               .map(p => ({ nombre: p.nombre, val: Number(p[selVar.key]) || 0, pos: p.posicion }))
               .filter(x => x.val > 0)
             if (!playerBars.length) return <div style={{padding:24,textAlign:'center',color:'var(--fog)',fontSize:12}}>Sin datos para esta posición en este período</div>
@@ -3855,8 +3857,11 @@ function ComparativaPanel({ teamData }: { teamData: any[] }) {
           }
 
           // "Todas" — group by position, one bar per position
+          // Para variables GPS solo usar jugadores con GPS real importado
+          const isGpsVar = selVar.src === 'gps'
           const posGroups: Record<string, number[]> = {}
           filtered.forEach((p:any) => {
+            if (isGpsVar && !p.sesiones_gps && !p.hasGps) return
             const pos = p.posicion || 'Sin pos.'
             if (!posGroups[pos]) posGroups[pos] = []
             const v = Number(p[selVar.key]) || 0
@@ -3864,6 +3869,7 @@ function ComparativaPanel({ teamData }: { teamData: any[] }) {
           })
           const posPlayerNames: Record<string, string[]> = {}
           filtered.forEach((p:any) => {
+            if (isGpsVar && !p.sesiones_gps && !p.hasGps) return
             const pos = p.posicion || 'Sin pos.'
             if (!posPlayerNames[pos]) posPlayerNames[pos] = []
             if (Number(p[selVar.key]) > 0) posPlayerNames[pos].push(p.nombre)
@@ -5062,22 +5068,26 @@ function AcumPanel({ teamData }) {
   const getMiciStart = (num: number) => {
     const offset = getMiciOffset(num)
     const d = new Date()
-    d.setDate(d.getDate() - d.getDay() + 1 + offset * 7)
+    const dow = d.getDay()
+    const diffToMonday = dow === 0 ? -6 : 1 - dow
+    d.setDate(d.getDate() + diffToMonday + offset * 7)
     return d.toISOString().split('T')[0]
   }
   const getMiciEnd = (num: number) => {
     const offset = getMiciOffset(num)
     const d = new Date()
-    d.setDate(d.getDate() - d.getDay() + 7 + offset * 7)
+    const dow = d.getDay()
+    const diffToMonday = dow === 0 ? -6 : 1 - dow
+    d.setDate(d.getDate() + diffToMonday + 6 + offset * 7)
     return d.toISOString().split('T')[0]
   }
 
   const [miciDesde, setMiciDesde] = useState(() => getMiciStart(1))
-  const [miciHasta, setMiciHasta] = useState(today)
+  const [miciHasta, setMiciHasta] = useState(() => getMiciEnd(1))
 
   useEffect(() => {
     setMiciDesde(getMiciStart(miciNum))
-    setMiciHasta(miciNum === 1 ? today : getMiciEnd(miciNum))
+    setMiciHasta(getMiciEnd(miciNum))
   }, [miciNum])
 
   useEffect(() => { loadMici() }, [miciDesde, miciHasta])
@@ -5982,6 +5992,8 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
   const teamAvg = data?.teamAvg || {}
   const perSession: Record<string,any> = data?.perSession || {}
   const sesionesInfo: any[] = data?.sesionesInfo || []
+  // rpeLogsPerMD: { [md]: { [jugador_id]: { rpe, duracion_min, carga_ua } } }
+  const rpeLogsPerMD: Record<string, Record<number, any>> = data?.rpeLogsPerMD || {}
   // Always show ALL MD columns in fixed order, filling with — where no data
   const MD_ORDER_LOCAL = ['MD+1','MD+2','MD+3','MD-4','MD-3','MD-2','MD-1','MD']
   const existingMdLabels = new Set(sesionesInfo.map((s:any) => s.titulo))
@@ -6277,6 +6289,8 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
           const neProm = minTotalC1 > 0 ? ceTotalC1 / minTotalC1 : 1
           // UCE individual = minutos_jugador × RPE_jugador × neProm
           const calcUCE = (minP: number, rpeP: number) => minP > 0 && rpeP > 0 ? Math.round(minP * rpeP * neProm) : 0
+          // Logs reales de este MD por jugador
+          const logsThisMD: Record<number, any> = rpeLogsPerMD[md] || {}
           const SESSION_VARS = [
             {key:'distTotal',  label:'DT (m)',          color:'#f59e0b'},
             {key:'distSprint', label:'Dist. Sprint (m)',color:'#f97316'},
@@ -6323,13 +6337,19 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
                       </tr>
                     </thead>
                     <tbody>
-                      {players.map((p:any, i:number) => (
+                      {players.map((p:any, i:number) => {
+                        // Usar datos reales del jugador en ESTE MD específico
+                        const logP = logsThisMD[p.jugador_id] || {}
+                        const rpeP = logP.rpe || 0
+                        const minP = logP.duracion_min || 0
+                        const uceP = calcUCE(minP, rpeP)
+                        return (
                         <tr key={i} style={{ borderTop:'1px solid var(--mist)', background:i%2===0?'transparent':'rgba(255,255,255,.01)' }}>
                           <td style={{ padding:'6px 14px', color:'var(--snow)', fontWeight:500, whiteSpace:'nowrap' }}>{p.nombre}</td>
                           <td style={{ padding:'6px 8px', color:'var(--fog)', fontSize:10 }}>{p.posicion||'—'}</td>
-                          <td style={{ padding:'6px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', color:p.rpe?'#c8f135':'var(--fog)' }}>{p.rpe||'—'}</td>
-                          <td style={{ padding:'6px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', color:p.minActivo?'#34d399':'var(--fog)' }}>{p.minActivo||'—'}</td>
-                          <td style={{ padding:'6px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', color:calcUCE(p.minActivo,p.rpe)?'#a78bfa':'var(--fog)', borderRight:'2px solid rgba(200,241,53,.3)' }}>{calcUCE(p.minActivo,p.rpe)||'—'}</td>
+                          <td style={{ padding:'6px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', color:rpeP?'#c8f135':'var(--fog)' }}>{rpeP||'—'}</td>
+                          <td style={{ padding:'6px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', color:minP?'#34d399':'var(--fog)' }}>{minP||'—'}</td>
+                          <td style={{ padding:'6px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', color:uceP?'#a78bfa':'var(--fog)', borderRight:'2px solid rgba(200,241,53,.3)' }}>{uceP||'—'}</td>
                           {SESSION_VARS.map((sv, si) => {
                             // Session data is the same for all players — highlight in lime
                             const val = Math.round(Number(sesData[sv.key])||0)
@@ -6343,14 +6363,22 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
                             )
                           })}
                         </tr>
-                      ))}
-                      {/* PROM row */}
+                        )
+                      })}
+                      {/* PROM row — promedio real de logs de este MD */}
+                      {(() => {
+                        const mdLogs = Object.values(logsThisMD) as any[]
+                        const mdLogsConDatos = mdLogs.filter((l:any) => l.rpe > 0)
+                        const promRpe = mdLogsConDatos.length > 0 ? Math.round((mdLogsConDatos.reduce((s:number,l:any)=>s+l.rpe,0)/mdLogsConDatos.length)*10)/10 : 0
+                        const promMin = mdLogsConDatos.length > 0 ? Math.round(mdLogsConDatos.reduce((s:number,l:any)=>s+l.duracion_min,0)/mdLogsConDatos.length) : 0
+                        const promUCE = calcUCE(promMin, promRpe)
+                        return (
                       <tr style={{ borderTop:'2px solid rgba(200,241,53,.3)', background:'rgba(200,241,53,.04)' }}>
                         <td style={{ padding:'6px 14px', fontWeight:800, color:'var(--lime)', fontSize:10, textTransform:'uppercase' }}>PROM.</td>
                         <td/>
-                        <td style={{ padding:'6px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, color:teamAvg.rpe?'#c8f135':'var(--fog)' }}>{teamAvg.rpe||'—'}</td>
-                        <td style={{ padding:'6px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, color:teamAvg.minActivo?'#34d399':'var(--fog)' }}>{teamAvg.minActivo||'—'}</td>
-                        <td style={{ padding:'6px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, color:calcUCE(teamAvg.minActivo,teamAvg.rpe)?'#a78bfa':'var(--fog)', borderRight:'2px solid rgba(200,241,53,.3)' }}>{calcUCE(teamAvg.minActivo,teamAvg.rpe)||'—'}</td>
+                        <td style={{ padding:'6px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, color:promRpe?'#c8f135':'var(--fog)' }}>{promRpe||'—'}</td>
+                        <td style={{ padding:'6px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, color:promMin?'#34d399':'var(--fog)' }}>{promMin||'—'}</td>
+                        <td style={{ padding:'6px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, color:promUCE?'#a78bfa':'var(--fog)', borderRight:'2px solid rgba(200,241,53,.3)' }}>{promUCE||'—'}</td>
                         {SESSION_VARS.map(sv => {
                           const val = Math.round(Number(sesData[sv.key])||0)
                           return (
@@ -6360,6 +6388,8 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
                           )
                         })}
                       </tr>
+                        )
+                      })()}
                     </tbody>
                   </table>
                 </div>
@@ -6429,11 +6459,31 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
                         {GROUPS.map(grp => {
                           // GPS bar keys use session data (same for all players from calculator)
                           const GPS_BAR_KEYS = new Set(['distTotal','distSprint','nSprints','nAcel','nDecel','distMP','nAcel3','nDecel3'])
-                          const getBarVal = (p: any, key: string) =>
-                            GPS_BAR_KEYS.has(key) ? Math.round(Number(sesData[key])||0) : (Number(p[key])||0)
+                          const getBarVal = (p: any, key: string) => {
+                            if (GPS_BAR_KEYS.has(key)) return Math.round(Number(sesData[key])||0)
+                            // Para RPE, UCE y tiempo: usar datos reales del jugador en este MD
+                            const logP2 = logsThisMD[p.jugador_id] || {}
+                            if (key === 'rpe') return Number(logP2.rpe)||0
+                            if (key === 'ua_total') {
+                              const mP2 = Number(logP2.duracion_min)||0
+                              const rP2 = Number(logP2.rpe)||0
+                              return calcUCE(mP2, rP2)
+                            }
+                            if (key === 'minActivo') return Number(logP2.duracion_min)||0
+                            return Number(p[key])||0
+                          }
                           const maxBar = Math.max(...players.flatMap((p:any) => grp.bars.map(b => getBarVal(p, b.key))), 1)
-                          const lineVals = grp.line ? players.map((p:any) => Number(p[grp.line!.key])||0) : []
+                          const lineVals = grp.line ? players.map((p:any) => {
+                            const logP3 = logsThisMD[p.jugador_id] || {}
+                            if (grp.line!.key === 'rpe') return Number(logP3.rpe)||0
+                            if (grp.line!.key === 'minActivo') return Number(logP3.duracion_min)||0
+                            return Number(p[grp.line!.key])||0
+                          }) : []
                           const maxLine = Math.max(...lineVals, 1)
+
+                          // No renderizar si no hay datos en este grupo para este MD
+                          const hasAnyData = players.some((p:any) => grp.bars.some(b => getBarVal(p, b.key) > 0))
+                          if (!hasAnyData) return null
 
                           return (
                             <div key={grp.title} style={{ background:'var(--ink2)', borderRadius:12, padding:14, border:`1px solid ${grp.color}30` }}>
@@ -7018,19 +7068,19 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
   // Chart groups for GPS comparison — only show groups for columns actually present
   const availGpsKeys = new Set(GPS_VARS.map(v => v.key))
   const GPS_CHART_GROUPS = [
-    ...(availGpsKeys.has('dist_total') || availGpsKeys.has('dist_hir') ? [{
+    ...(availGpsKeys.has('dist_total') ? [{
       title:'DISTANCIA', color:'#3b82f6',
       bars:[
-        ...(availGpsKeys.has('dist_total') ? [{key:'dist_total',label:'Tot Dist',color:'#3b82f6'}] : []),
-        ...(availGpsKeys.has('dist_hir') ? [{key:'dist_hir',label:'High Speed',color:'#f59e0b'}] : []),
+        {key:'dist_total',label:'Tot Dist',color:'#3b82f6'},
       ],
       line: availGpsKeys.has('dist_per_min') ? {key:'dist_per_min',label:'Mts/min',color:'#34d399'} : null,
     }] : []),
-    ...(availGpsKeys.has('dist_v4') || availGpsKeys.has('dist_v5') ? [{
-      title:'VELOCIDAD', color:'#ef4444',
+    ...(availGpsKeys.has('dist_v4') || availGpsKeys.has('dist_v5') || availGpsKeys.has('dist_hir') ? [{
+      title:'VELOCIDAD / HSR', color:'#ef4444',
       bars:[
         ...(availGpsKeys.has('dist_v5') ? [{key:'dist_v5',label:'Vel B6',color:'#f97316'}] : []),
         ...(availGpsKeys.has('dist_v4') ? [{key:'dist_v4',label:'Vel B4',color:'#a78bfa'}] : []),
+        ...(availGpsKeys.has('dist_hir') ? [{key:'dist_hir',label:'HSR',color:'#f59e0b'}] : []),
       ],
       line: availGpsKeys.has('max_velocity') ? {key:'max_velocity',label:'Vel Máx',color:'#ef4444'} : null,
     }] : []),
