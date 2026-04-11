@@ -3969,9 +3969,9 @@ function ComparativaPanel({ teamData }: { teamData: any[] }) {
 
         if (!posGroups.length) return null
 
-        const BAR_H = 180
+        const BAR_H = 160
         const BOT_PAD = 52
-        const TOP_PAD = 16
+        const TOP_PAD = 32
 
         return (
           <div style={{ marginBottom:8 }}>
@@ -3990,7 +3990,8 @@ function ComparativaPanel({ teamData }: { teamData: any[] }) {
                 const maxV = Math.max(...vals, 1)
                 const minV = Math.min(...vals)
                 const baseV = posPlayers.length > 1 ? Math.floor(minV * 0.80) : 0
-                const rangeV = Math.max(maxV - baseV, 1)
+                const topV = Math.ceil(maxV * 1.10)
+                const rangeV = Math.max(topV - baseV, 1)
                 const yTicks = [1, 0.75, 0.5, 0.25, 0].map(f => Math.round(baseV + f * rangeV))
                 const minBarWidth = 72
                 const chartMinWidth = posPlayers.length * (minBarWidth + 12)
@@ -3998,7 +3999,7 @@ function ComparativaPanel({ teamData }: { teamData: any[] }) {
                 const avg = Math.round(vals.reduce((s,v)=>s+v,0)/vals.length)
 
                 return (
-                  <div key={pos} style={{ background:'var(--ink2)', border:`1px solid ${col}30`, borderRadius:14, overflow:'hidden' }}>
+                  <div key={pos} style={{ background:'var(--ink2)', border:`1px solid ${col}30`, borderRadius:14 }}>
                     {/* Position header */}
                     <div style={{ padding:'8px 16px', background:`${col}10`, borderBottom:`1px solid ${col}20`,
                       display:'flex', justifyContent:'space-between', alignItems:'center' }}>
@@ -4023,7 +4024,7 @@ function ComparativaPanel({ teamData }: { teamData: any[] }) {
                           ))}
                         </div>
                         {/* Chart area */}
-                        <div style={{ flex:1, overflowX:'auto', overflowY:'hidden' }}>
+                        <div style={{ flex:1, overflowX:'auto', overflowY:'visible' }}>
                           <div style={{ position:'relative', minWidth: chartMinWidth, height: BAR_H + BOT_PAD + TOP_PAD }}>
                             {/* Grid lines */}
                             {[0,0.25,0.5,0.75,1].map((f,i) => (
