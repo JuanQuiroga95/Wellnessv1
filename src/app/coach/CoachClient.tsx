@@ -3534,19 +3534,35 @@ function ComparativaPanel({ teamData }: { teamData: any[] }) {
       .sort((a,b) => b.avg - a.avg)
     if (!posAvgs.length) return null
     const maxV = Math.max(...posAvgs.map(x=>x.avg), 1)
+    const MINI_H = 52
     return (
       <div key={varKey} style={{ background:'var(--ink2)', borderRadius:12, padding:14, border:'1px solid var(--mist)' }}>
         <div style={{ fontSize:10, fontWeight:700, color, textTransform:'uppercase', marginBottom:10 }}>{label}</div>
-        <div style={{ display:'flex', alignItems:'flex-end', gap:6, height:64 }}>
-          {posAvgs.map((x,i)=>(
-            <div key={i} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', gap:2, minWidth:0 }}>
-              <div style={{ position:'relative', width:'100%', borderRadius:'3px 3px 0 0', height:`${Math.max((x.avg/maxV)*52,14)}px`,
-                background:posColor(x.pos), opacity:0.8, display:'flex', alignItems:'center', justifyContent:'center' }}>
-                <span style={{ position:'absolute', top:'50%', left:'50%', transform:'translate(-50%,-50%)', fontSize:8, color:'#fff', fontFamily:'DM Mono,monospace', fontWeight:700, whiteSpace:'nowrap', textShadow:'0 1px 2px rgba(0,0,0,.8)' }}>{x.avg}</span>
+        <div style={{ display:'flex', alignItems:'flex-end', gap:6, height: MINI_H + 20, overflow:'visible', paddingTop:4 }}>
+          {posAvgs.map((x,i)=>{
+            const barH = Math.max((x.avg/maxV)*MINI_H, 14)
+            const c = posColor(x.pos)
+            return (
+              <div key={i} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', gap:2, minWidth:0, justifyContent:'flex-end', overflow:'visible' }}>
+                <div style={{ position:'relative', width:'100%', borderRadius:'3px 3px 0 0', height:`${barH}px`,
+                  background: `linear-gradient(180deg, ${c}ee, ${c}88)`,
+                  display:'flex', alignItems:'center', justifyContent:'center', overflow:'visible',
+                  boxShadow:`0 0 8px ${c}40` }}>
+                  <span style={{
+                    position:'absolute', top:'50%', left:'50%',
+                    transform:'translate(-50%,-50%) rotate(-90deg)',
+                    fontSize: barH >= 20 ? 7 : 6,
+                    color:'rgba(255,255,255,0.95)',
+                    fontFamily:'DM Mono,monospace', fontWeight:700,
+                    whiteSpace:'nowrap',
+                    textShadow:'0 1px 2px rgba(0,0,0,0.9)',
+                    pointerEvents:'none'
+                  }}>{x.avg}</span>
+                </div>
+                <div style={{ fontSize:7, color:'var(--fog)', whiteSpace:'nowrap', overflow:'hidden', maxWidth:36, textOverflow:'ellipsis', textAlign:'center' }}>{x.pos}</div>
               </div>
-              <div style={{ fontSize:7, color:'var(--fog)', whiteSpace:'nowrap', overflow:'hidden', maxWidth:36, textOverflow:'ellipsis', textAlign:'center' }}>{x.pos}</div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       </div>
     )
@@ -3707,13 +3723,23 @@ function ComparativaPanel({ teamData }: { teamData: any[] }) {
                         <div key={i} style={{ position:'absolute', left:0, right:0, bottom:`${BOT_PAD + f*BAR_H}px`, height:1, background:`rgba(255,255,255,${f===0||f===1?'.12':'.05'})`, pointerEvents:'none' }}/>
                       ))}
                       {playerBars.map((x,i)=>{
-                        const barH = Math.max(((x.val - baseV) / rangeV) * BAR_H, 6)
+                        const barH = Math.max(((x.val - baseV) / rangeV) * BAR_H, 24)
                         return (
-                          <div key={i} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'flex-end', height:'100%', minWidth:minBarWidth, paddingBottom:`${BOT_PAD}px` }}>
-                            <span style={{ fontSize:11, color:col, fontFamily:'DM Mono,monospace', fontWeight:800, marginBottom:4, whiteSpace:'nowrap' }}>{x.val.toLocaleString()}</span>
+                          <div key={i} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'flex-end', height:'100%', minWidth:minBarWidth, paddingBottom:`${BOT_PAD}px`, overflow:'visible' }}>
                             <div style={{ position:'relative', width:'60%', borderRadius:'4px 4px 0 0', height:`${barH}px`,
-                              background: `linear-gradient(180deg, ${col}dd, ${col}88)`,
-                              flexShrink:0, boxShadow:`0 0 12px ${col}40` }}>
+                              background: `linear-gradient(180deg, ${col}ee, ${col}88)`,
+                              flexShrink:0, boxShadow:`0 0 14px ${col}50`, overflow:'visible', display:'flex', alignItems:'center', justifyContent:'center' }}>
+                              {/* Valor centrado dentro de la barra */}
+                              <span style={{
+                                position:'absolute', top:'50%', left:'50%',
+                                transform:'translate(-50%,-50%) rotate(-90deg)',
+                                fontSize: barH >= 28 ? 11 : 8,
+                                color:'rgba(255,255,255,0.95)',
+                                fontFamily:'DM Mono,monospace', fontWeight:800,
+                                whiteSpace:'nowrap',
+                                textShadow:'0 1px 3px rgba(0,0,0,0.9)',
+                                pointerEvents:'none'
+                              }}>{x.val.toLocaleString()}</span>
                             </div>
                             <div style={{ textAlign:'center', marginTop:6 }}>
                               <div style={{ fontSize:11, color:'var(--snow)', fontWeight:600 }}>{x.nombre.split(' ')[0]}</div>
@@ -3774,7 +3800,7 @@ function ComparativaPanel({ teamData }: { teamData: any[] }) {
                 </div>
                 {/* Chart area */}
                 <div style={{ flex:1, overflowX:'auto', overflowY:'visible' }}>
-                  <div style={{ position:'relative', minWidth: chartMinWidth }}>
+                  <div style={{ position:'relative', minWidth: chartMinWidth, paddingTop: 8 }}>
                     {/* Grid lines */}
                     {[0,0.25,0.5,0.75,1].map((f,i)=>(
                       <div key={i} style={{ position:'absolute', left:0, right:0,
@@ -3782,18 +3808,29 @@ function ComparativaPanel({ teamData }: { teamData: any[] }) {
                         borderTop:`1px solid rgba(255,255,255,${f===0||f===1?'.12':'.05'})`, pointerEvents:'none' }}/>
                     ))}
                     <div style={{ display:'flex', gap:12, alignItems:'flex-end',
-                      height: BAR_H + BOT_PAD, paddingBottom: BOT_PAD }}>
+                      height: BAR_H + BOT_PAD, paddingBottom: BOT_PAD, overflow:'visible' }}>
                       {posData.map((x,i)=>{
-                        const barH = Math.max(((x.avg - baseV) / rangeV) * BAR_H, 6)
+                        const barH = Math.max(((x.avg - baseV) / rangeV) * BAR_H, 24)
+                        const col = posColor(x.pos)
                         return (
-                          <div key={i} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', minWidth:minBarWidth, height:'100%', justifyContent:'flex-end' }}>
-                            {/* Valor encima de la barra */}
-                            <span style={{ fontSize:11, color:posColor(x.pos), fontFamily:'DM Mono,monospace', fontWeight:800, marginBottom:4, whiteSpace:'nowrap' }}>{x.avg.toLocaleString()}</span>
-                            {/* Barra */}
+                          <div key={i} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', minWidth:minBarWidth, height:'100%', justifyContent:'flex-end', overflow:'visible' }}>
+                            {/* Barra — valor centrado DENTRO */}
                             <div style={{ position:'relative', width:'60%', minWidth:28, maxWidth:64, borderRadius:'6px 6px 0 0',
                               height:`${barH}px`,
-                              background: `linear-gradient(180deg, ${posColor(x.pos)}dd, ${posColor(x.pos)}88)`,
-                              flexShrink:0, boxShadow:`0 0 12px ${posColor(x.pos)}40` }}>
+                              background: `linear-gradient(180deg, ${col}ee, ${col}88)`,
+                              flexShrink:0, boxShadow:`0 0 14px ${col}50`, overflow:'visible', display:'flex', alignItems:'center', justifyContent:'center' }}>
+                              {/* Valor centrado dentro de la barra */}
+                              <span style={{
+                                position:'absolute', top:'50%', left:'50%',
+                                transform:'translate(-50%,-50%) rotate(-90deg)',
+                                fontSize: barH >= 28 ? 10 : 8,
+                                color:'rgba(255,255,255,0.95)',
+                                fontFamily:'DM Mono,monospace', fontWeight:800,
+                                whiteSpace:'nowrap',
+                                textShadow:'0 1px 3px rgba(0,0,0,0.9)',
+                                pointerEvents:'none',
+                                letterSpacing:'0.02em'
+                              }}>{x.avg.toLocaleString()}</span>
                             </div>
                             {/* Etiquetas debajo */}
                             <div style={{ fontSize:10, color:'var(--snow)', fontWeight:700, marginTop:8, textAlign:'center', wordBreak:'break-word', lineHeight:1.3 }}>{x.pos}</div>
