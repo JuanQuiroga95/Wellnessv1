@@ -464,12 +464,14 @@ export async function GET(req: NextRequest) {
       const label = ses.titulo || ses.fecha
       const m = sumarMetricasBloques(ses.ejercicios || [])
       if (!perSession[label]) {
-        perSession[label] = { fecha: ses.fecha, rpe_objetivo: ses.rpe_objetivo, ...m }
+        perSession[label] = { fecha: ses.fecha, rpe_objetivo: ses.rpe_objetivo, ...m, ejercicios: ses.ejercicios || [] }
       } else {
         // Accumulate: sum numeric values for duplicate MD labels
         for (const k of Object.keys(m)) {
           perSession[label][k] = (perSession[label][k] || 0) + (m[k] || 0)
         }
+        // Merge ejercicios arrays for sessions sharing the same MD label
+        perSession[label].ejercicios = [...(perSession[label].ejercicios || []), ...(ses.ejercicios || [])]
       }
     }
 

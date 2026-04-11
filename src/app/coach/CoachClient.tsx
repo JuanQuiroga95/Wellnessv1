@@ -1030,6 +1030,30 @@ const OBJETIVOS_FISICOS = ['Fuerza','Resistencia','Velocidad','Recuperación-Com
 const OBJETIVOS_SECUNDARIOS = ['Táctico','Técnico','Técnico-Táctico']
 const TITULOS_SESION = ['MD+1','MD+2','MD+3','MD-4','MD-3','MD-2','MD-1','MD']
 const TAREAS_PRINCIPALES = ['Activación en campo','Activación en gimnasio','Gimnasio','Rondo','Trabajo analítico','Juego de posesión','Juego de posición','Transiciones','Partido reducido','Partido modificado','Partido de entrenamiento','Partido amistoso','Partido oficial']
+// NE = Nivel de Especificidad (1-10) según escala UCE (infografía)
+// CE = minutos × NE  →  UCE = CE × RPE
+const TAREA_NE: Record<string, number> = {
+  'Restauración':           0.2,
+  'Activación en gimnasio': 0.4,
+  'Gimnasio':               0.4,
+  'Trabajo preventivo':     0.4,
+  'Cualidades específicas': 0.8,
+  'Activación en campo':    1.0,
+  'Circuito condicional':   1.0,
+  'Circuito técnico':       2.0,
+  'Trabajo analítico':      2.0,
+  'Rondo':                  3.0,
+  'Posesión reducida':      5.0,
+  'Juego de posesión':      5.0,
+  'Juego de posición':      6.0,
+  'Transiciones':           7.0,
+  'Partido reducido':       7.0,
+  'Partido modificado':     8.0,
+  'Partido de entrenamiento': 9.0,
+  'Partido amistoso':       9.0,
+  'Partido oficial':        10.0,
+}
+const getNE = (ventana: string): number => TAREA_NE[ventana] ?? 1
 const SUBTAREAS: Record<string, string[]> = { 'Activación en campo': ['Circuito técnico','Circuito neuromuscular','Pliometría','Movilidad','Trabajo Preventivo'], 'Activación en gimnasio': ['Isométricos','Pliometría','Movilidad','Excéntricos','Estabilidad','Tracción y empuje','Trabajo Preventivo'], 'Rondo': ['Rondo 4v2','Rondo 5v2','Rondo 6v2','Rondo 8v2','Rondo 4v1+1','Rondo en movimiento','Rondo conservación','Rondo orientado','Rondo dos espacios'] }
 const TAREAS_CON_ESPACIO = ['Rondo','Trabajo analítico','Juego de posesión','Juego de posición','Partido reducido','Partido modificado','Partido de entrenamiento','Partido amistoso','Partido oficial']
 const TAREAS_CON_EQUIPO = ['Rondo','Trabajo analítico','Juego de posesión','Juego de posición','Partido reducido','Partido modificado','Partido de entrenamiento','Partido amistoso','Partido oficial']
@@ -1760,10 +1784,25 @@ function BloqueMetodologia({ bloque, index, onChange, onRemove, teamPlayers = []
       </div>
 
       <div style={{ marginBottom:8 }}>
-        <label style={{ fontSize:9, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:3 }}>Tarea</label>
+        <label style={{ fontSize:9, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', display:'flex', alignItems:'center', gap:6, marginBottom:3 }}>
+          Tarea
+          {bloque.ventana && (() => {
+            const ne = getNE(bloque.ventana)
+            const neColor = ne >= 8 ? '#ef4444' : ne >= 5 ? '#f59e0b' : ne >= 3 ? '#c8f135' : '#34d399'
+            return (
+              <span style={{ fontSize:9, fontFamily:'DM Mono,monospace', fontWeight:700, color: neColor,
+                background:`${neColor}18`, border:`1px solid ${neColor}55`, borderRadius:4, padding:'1px 6px' }}>
+                NE {ne}
+              </span>
+            )
+          })()}
+        </label>
         <select className="wp-input" value={bloque.ventana||''} onChange={e=>{ onChange('ventana',e.target.value); onChange('subtarea','') }} style={{ padding:'5px 8px', fontSize:12, appearance:'none', width:'100%' }}>
           <option value="">— Seleccionar —</option>
-          {TAREAS_PRINCIPALES.map(t=><option key={t} value={t} style={{ background:'var(--ink2)' }}>{t}</option>)}
+          {TAREAS_PRINCIPALES.map(t => {
+            const ne = getNE(t)
+            return <option key={t} value={t} style={{ background:'var(--ink2)' }}>{t}  (NE {ne})</option>
+          })}
         </select>
       </div>
 
@@ -1813,12 +1852,29 @@ function BloqueMetodologia({ bloque, index, onChange, onRemove, teamPlayers = []
               <div><label style={{ fontSize:9, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:2 }}>Ancho (m)</label>{inp('ancho','m','number')}</div>
             </div>
           )}
-          {(bloque.series && bloque.minutos) && (
-            <div style={{ fontSize:10, color:'var(--lime)', fontFamily:'DM Mono,monospace', marginTop:4 }}>
-              ⏱ Tiempo activo: {(Number(bloque.series)*Number(bloque.minutos))} min
-              {bloque.pausa ? ` + ${(Number(bloque.series)*Number(bloque.pausa))} min pausa = ${(Number(bloque.series)*(Number(bloque.minutos)+Number(bloque.pausa)))} min total` : ''}
-            </div>
-          )}
+          {(bloque.series && bloque.minutos) && (() => {
+            const minActivo = Number(bloque.series) * Number(bloque.minutos)
+            const ne = bloque.ventana ? getNE(bloque.ventana) : null
+            const ce = ne !== null ? Math.round(minActivo * ne * 10) / 10 : null
+            const neColor = ne !== null ? (ne >= 8 ? '#ef4444' : ne >= 5 ? '#f59e0b' : ne >= 3 ? '#c8f135' : '#34d399') : 'var(--fog)'
+            return (
+              <div style={{ marginTop:6, display:'flex', flexDirection:'column', gap:3 }}>
+                <div style={{ fontSize:10, color:'var(--lime)', fontFamily:'DM Mono,monospace' }}>
+                  ⏱ Tiempo activo: {minActivo} min
+                  {bloque.pausa ? ` + ${(Number(bloque.series)*Number(bloque.pausa))} min pausa = ${(Number(bloque.series)*(Number(bloque.minutos)+Number(bloque.pausa)))} min total` : ''}
+                </div>
+                {ce !== null && (
+                  <div style={{ fontSize:10, fontFamily:'DM Mono,monospace', color: neColor,
+                    background:`${neColor}10`, border:`1px solid ${neColor}30`, borderRadius:5, padding:'3px 8px',
+                    display:'flex', gap:12, alignItems:'center' }}>
+                    <span>🧠 NE <strong>{ne}</strong></span>
+                    <span>CE = {minActivo} × {ne} = <strong>{ce}</strong></span>
+                    <span style={{ fontSize:9, color:'var(--fog)' }}>(UCE = CE × RPE sesión)</span>
+                  </div>
+                )}
+              </div>
+            )
+          })()}
         </div>
       )}
 
@@ -2184,6 +2240,50 @@ function SesionEditor({ sesion, defaultFecha, onSave, onDelete, onCancel, teamPl
           <label style={{ display:'block', fontSize:10, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:5 }}>RPE objetivo (1–10)</label>
           <input type="number" min="1" max="10" className="wp-input" value={f.rpe_objetivo} onChange={e=>set('rpe_objetivo',e.target.value)} placeholder="ej: 7" style={{ padding:'8px 12px', fontSize:13 }} />
         </div>
+        {/* UCE Total preview */}
+        {(() => {
+          const rpe = Number(f.rpe_objetivo) || 0
+          const rows = bloques.map(bl => {
+            const min = (Number(bl.series)||0) * (Number(bl.minutos)||0)
+            const ne = bl.ventana ? getNE(bl.ventana) : 0
+            const ce = Math.round(min * ne * 10) / 10
+            const uce = Math.round(ce * rpe * 10) / 10
+            return { label: bl.ventana || '—', min, ne, ce, uce }
+          }).filter(r => r.min > 0 && r.ne > 0)
+          const totalCE = Math.round(rows.reduce((s,r)=>s+r.ce,0)*10)/10
+          const totalUCE = Math.round(rows.reduce((s,r)=>s+r.uce,0)*10)/10
+          if (!rows.length) return null
+          const uceColor = totalUCE > 5700 ? '#ef4444' : totalUCE > 3325 ? '#f59e0b' : '#34d399'
+          const uceLabel = totalUCE > 5700 ? 'CARGA ALTA — Mejora física' : totalUCE > 3325 ? 'MANTENIMIENTO físico' : 'RECUPERACIÓN física'
+          return (
+            <div style={{ gridColumn:'span 2', background:'rgba(0,0,0,.3)', borderRadius:10, padding:'10px 14px', border:`1px solid ${uceColor}40` }}>
+              <div style={{ fontSize:9, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:8 }}>
+                🧠 UCE — Unidad de Carga Específica
+              </div>
+              <div style={{ display:'flex', flexDirection:'column', gap:3, marginBottom:8 }}>
+                {rows.map((r,i) => (
+                  <div key={i} style={{ display:'flex', alignItems:'center', gap:6, fontSize:10, fontFamily:'DM Mono,monospace' }}>
+                    <span style={{ color:'var(--fog)', minWidth:0, flex:1, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{r.label}</span>
+                    <span style={{ color:'var(--silver)', flexShrink:0 }}>{r.min}min × NE{r.ne}</span>
+                    <span style={{ color:'var(--lime)', flexShrink:0 }}>= CE {r.ce}</span>
+                    {rpe > 0 && <span style={{ color:'#60a5fa', flexShrink:0 }}>× RPE{rpe} = <strong>{r.uce} UCE</strong></span>}
+                  </div>
+                ))}
+              </div>
+              <div style={{ borderTop:'1px solid rgba(255,255,255,.08)', paddingTop:8, display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                <div style={{ fontSize:11, fontFamily:'DM Mono,monospace', color:'var(--lime)' }}>
+                  CE TOTAL: <strong>{totalCE}</strong>
+                  {rpe > 0 && <span style={{ marginLeft:12, color: uceColor }}>UCE TOTAL: <strong style={{ fontSize:14 }}>{totalUCE}</strong></span>}
+                </div>
+                {rpe > 0 && (
+                  <span style={{ fontSize:9, fontWeight:700, color: uceColor, background:`${uceColor}18`, border:`1px solid ${uceColor}55`, borderRadius:5, padding:'2px 8px' }}>
+                    {uceLabel}
+                  </span>
+                )}
+              </div>
+            </div>
+          )
+        })()}
         {/* Rival + escudo — solo para tipo partido */}
         {f.tipo === 'partido' && (<>
           <div style={{ gridColumn:'span 2' }}>
@@ -3851,6 +3951,158 @@ function ComparativaPanel({ teamData }: { teamData: any[] }) {
           )
         })()}
       </div>
+
+      {/* ══ GRÁFICOS INDIVIDUALES POR POSICIÓN ══════════════════════════ */}
+      {(() => {
+        const selVar = VARS.find(v=>v.key===posMetric) || VARS[0]
+
+        // Group players by position, sorted by POS_ORDER_MAP
+        const byPosition: Record<string, any[]> = {}
+        filtered.forEach((p: any) => {
+          const pos = p.posicion || 'Sin posición'
+          if (!byPosition[pos]) byPosition[pos] = []
+          if (Number(p[selVar.key]) > 0) byPosition[pos].push(p)
+        })
+        const posGroups = Object.entries(byPosition)
+          .filter(([,players]) => players.length > 0)
+          .sort(([a],[b]) => (POS_ORDER_MAP[a]??99) - (POS_ORDER_MAP[b]??99))
+
+        if (!posGroups.length) return null
+
+        const BAR_H = 180
+        const BOT_PAD = 52
+        const TOP_PAD = 16
+
+        return (
+          <div style={{ marginBottom:8 }}>
+            <div style={{ padding:'10px 0 16px' }}>
+              <p style={{ fontSize:11, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em' }}>
+                📊 COMPARATIVA INDIVIDUAL POR POSICIÓN — {selVar.label}
+              </p>
+              <p style={{ fontSize:10, color:'var(--fog)', marginTop:2 }}>
+                Un gráfico por posición · barra individual por jugador
+              </p>
+            </div>
+            <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+              {posGroups.map(([pos, posPlayers]) => {
+                const col = posColor(pos)
+                const vals = posPlayers.map(p => Number(p[selVar.key]) || 0)
+                const maxV = Math.max(...vals, 1)
+                const minV = Math.min(...vals)
+                const baseV = posPlayers.length > 1 ? Math.floor(minV * 0.80) : 0
+                const rangeV = Math.max(maxV - baseV, 1)
+                const yTicks = [1, 0.75, 0.5, 0.25, 0].map(f => Math.round(baseV + f * rangeV))
+                const minBarWidth = 72
+                const chartMinWidth = posPlayers.length * (minBarWidth + 12)
+                // avg for reference line
+                const avg = Math.round(vals.reduce((s,v)=>s+v,0)/vals.length)
+
+                return (
+                  <div key={pos} style={{ background:'var(--ink2)', border:`1px solid ${col}30`, borderRadius:14, overflow:'hidden' }}>
+                    {/* Position header */}
+                    <div style={{ padding:'8px 16px', background:`${col}10`, borderBottom:`1px solid ${col}20`,
+                      display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                      <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                        <span style={{ fontSize:13, fontWeight:800, color: col, fontFamily:'Bebas Neue,sans-serif', letterSpacing:'0.1em' }}>{pos}</span>
+                        <span style={{ fontSize:10, color:'var(--fog)' }}>{posPlayers.length} jugador{posPlayers.length!==1?'es':''}</span>
+                      </div>
+                      <div style={{ fontSize:10, fontFamily:'DM Mono,monospace', color:'var(--silver)' }}>
+                        Prom: <strong style={{ color: col }}>{avg.toLocaleString()}</strong>
+                        <span style={{ marginLeft:8, color:'var(--fog)' }}>Max: {maxV.toLocaleString()}</span>
+                      </div>
+                    </div>
+
+                    <div style={{ padding:'12px 16px 0' }}>
+                      <div style={{ display:'flex', gap:0 }}>
+                        {/* Y-axis */}
+                        <div style={{ display:'flex', flexDirection:'column', justifyContent:'space-between',
+                          paddingRight:8, width:44, flexShrink:0,
+                          height: BAR_H, marginBottom: BOT_PAD, marginTop: TOP_PAD }}>
+                          {yTicks.map((t,i) => (
+                            <div key={i} style={{ fontSize:8, color:'var(--fog)', fontFamily:'DM Mono,monospace', textAlign:'right', lineHeight:1 }}>{t.toLocaleString()}</div>
+                          ))}
+                        </div>
+                        {/* Chart area */}
+                        <div style={{ flex:1, overflowX:'auto', overflowY:'visible' }}>
+                          <div style={{ position:'relative', minWidth: chartMinWidth, paddingTop: TOP_PAD }}>
+                            {/* Grid lines */}
+                            {[0,0.25,0.5,0.75,1].map((f,i) => (
+                              <div key={i} style={{ position:'absolute', left:0, right:0,
+                                bottom: BOT_PAD + f*BAR_H,
+                                borderTop:`1px solid rgba(255,255,255,${f===0||f===1?'.12':'.05'})`, pointerEvents:'none' }}/>
+                            ))}
+                            {/* Average reference line */}
+                            {posPlayers.length > 1 && (() => {
+                              const avgY = BOT_PAD + ((avg - baseV) / rangeV) * BAR_H
+                              return (
+                                <div style={{ position:'absolute', left:0, right:0, bottom: avgY,
+                                  borderTop:`1px dashed ${col}80`, pointerEvents:'none', zIndex:2 }}>
+                                  <span style={{ position:'absolute', right:4, top:-10, fontSize:8,
+                                    color: col, fontFamily:'DM Mono,monospace', fontWeight:700,
+                                    background:'var(--ink2)', padding:'1px 4px', borderRadius:3 }}>
+                                    prom {avg.toLocaleString()}
+                                  </span>
+                                </div>
+                              )
+                            })()}
+                            {/* Bars */}
+                            <div style={{ display:'flex', gap:8, alignItems:'flex-end',
+                              height: BAR_H + BOT_PAD, paddingBottom: BOT_PAD, overflow:'visible' }}>
+                              {posPlayers.map((p: any, pi: number) => {
+                                const val = Number(p[selVar.key]) || 0
+                                const barH = Math.max(((val - baseV) / rangeV) * BAR_H, 24)
+                                const isAboveAvg = val >= avg
+                                const barCol = isAboveAvg ? col : `${col}99`
+                                return (
+                                  <div key={pi} style={{ flex:1, display:'flex', flexDirection:'column',
+                                    alignItems:'center', minWidth: minBarWidth, height:'100%',
+                                    justifyContent:'flex-end', overflow:'visible' }}>
+                                    {/* Bar */}
+                                    <div style={{ position:'relative', width:'65%', minWidth:32, maxWidth:72,
+                                      borderRadius:'6px 6px 0 0', height:`${barH}px`,
+                                      background: `linear-gradient(180deg, ${barCol}ee, ${barCol}77)`,
+                                      flexShrink:0, boxShadow:`0 0 14px ${barCol}50`,
+                                      overflow:'visible', display:'flex', alignItems:'center', justifyContent:'center' }}>
+                                      {/* Value inside bar */}
+                                      <span style={{
+                                        position:'absolute', top:'50%', left:'50%',
+                                        transform:'translate(-50%,-50%) rotate(-90deg)',
+                                        fontSize: barH >= 32 ? 11 : 8,
+                                        color:'rgba(255,255,255,0.95)',
+                                        fontFamily:'DM Mono,monospace', fontWeight:800,
+                                        whiteSpace:'nowrap',
+                                        textShadow:'0 1px 3px rgba(0,0,0,0.9)',
+                                        pointerEvents:'none'
+                                      }}>{val.toLocaleString()}</span>
+                                    </div>
+                                    {/* Player name */}
+                                    <div style={{ textAlign:'center', marginTop:6, padding:'0 2px' }}>
+                                      <div style={{ fontSize:11, color:'var(--snow)', fontWeight:700,
+                                        whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', maxWidth: minBarWidth }}>
+                                        {p.nombre.split(' ')[0]}
+                                      </div>
+                                      {p.nombre.split(' ')[1] && (
+                                        <div style={{ fontSize:9, color:'var(--fog)',
+                                          whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', maxWidth: minBarWidth }}>
+                                          {p.nombre.split(' ')[1]}
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )
+      })()}
       </>)}
     </div>
   )
@@ -4922,21 +5174,21 @@ function AcumBarChart({ players, vars, accentColor = '#c8f135' }: { players: any
               ))}
               <div style={{ display:'flex', gap:8, alignItems:'flex-end', height:TOP_PAD+BAR_H+BOT_PAD, paddingTop:TOP_PAD, paddingBottom:BOT_PAD }}>
                 {data.map((d, i) => {
-                  const barH = Math.max((d.val/maxVal)*BAR_H, 4)
-                  const showInside = barH > 28
+                  const barH = Math.max((d.val/maxVal)*BAR_H, 24)
                   return (
-                  <div key={i} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', minWidth:52, height:'100%', justifyContent:'flex-end' }}>
-                    {!showInside && <div style={{ fontSize:11, color:selVar.color, fontFamily:'DM Mono,monospace', fontWeight:800, marginBottom:3, whiteSpace:'nowrap' }}>{d.val}</div>}
+                  <div key={i} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', minWidth:52, height:'100%', justifyContent:'flex-end', overflow:'visible' }}>
                     <div style={{ width:'55%', minWidth:20, maxWidth:48, borderRadius:'5px 5px 0 0',
                       height:`${barH}px`, position:'relative',
-                      background: selVar.color, flexShrink:0, opacity:0.85,
-                      display:'flex', alignItems:'center', justifyContent:'center' }}>
-                      {showInside && (
-                        <span style={{ fontSize:10, color:'#fff', fontFamily:'DM Mono,monospace', fontWeight:800,
-                          textShadow:'0 1px 3px rgba(0,0,0,.6)', whiteSpace:'nowrap', userSelect:'none' }}>
-                          {d.val}
-                        </span>
-                      )}
+                      background: `linear-gradient(180deg, ${selVar.color}ee, ${selVar.color}88)`,
+                      flexShrink:0, boxShadow:`0 0 10px ${selVar.color}40`,
+                      overflow:'visible', display:'flex', alignItems:'center', justifyContent:'center' }}>
+                      <span style={{ position:'absolute', top:'50%', left:'50%',
+                        transform:'translate(-50%,-50%) rotate(-90deg)',
+                        fontSize: barH >= 28 ? 10 : 8,
+                        color:'rgba(255,255,255,0.95)', fontFamily:'DM Mono,monospace', fontWeight:800,
+                        whiteSpace:'nowrap', textShadow:'0 1px 3px rgba(0,0,0,0.9)', pointerEvents:'none' }}>
+                        {d.val}
+                      </span>
                     </div>
                     <div style={{ fontSize:9, color:'var(--snow)', fontWeight:600, marginTop:6, textAlign:'center', wordBreak:'break-word', lineHeight:1.2 }}>{d.nombre}</div>
                   </div>
@@ -5926,24 +6178,24 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
             ))}
           </div>
           {/* Bars + grid */}
-          <div style={{ flex:1, position:'relative' }}>
+          <div style={{ flex:1, position:'relative', overflow:'visible' }}>
             {[100,75,50,25,0].map((p,i)=>(
               <div key={i} style={{ position:'absolute', left:0, right:0, top:`${(i/4)*BAR_H}px`, borderTop:'1px solid rgba(255,255,255,.05)' }}/>
             ))}
-            <div style={{ display:'flex', gap:names.length>6?2:6, alignItems:'flex-end', height:BAR_H+22, paddingBottom:22 }}>
+            <div style={{ display:'flex', gap:names.length>6?2:6, alignItems:'flex-end', height:BAR_H+22, paddingBottom:22, overflow:'visible' }}>
               {names.map((name:string,ni:number)=>(
-                <div key={ni} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', minWidth:0 }}>
-                  <div style={{ display:'flex', gap:2, alignItems:'flex-end', height:BAR_H }}>
+                <div key={ni} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', minWidth:0, overflow:'visible' }}>
+                  <div style={{ display:'flex', gap:2, alignItems:'flex-end', height:BAR_H, overflow:'visible' }}>
                     {series.map((s,si)=>{
                       const val = (s.vals[ni] as any)?.val || 0
-                      const h = Math.max((val/maxVal)*BAR_H, val>0?3:0)
+                      const h = Math.max((val/maxVal)*BAR_H, val>0?24:0)
                       return (
                         <div key={si} title={`${name} - ${s.label}: ${val}`}
                           style={{ position:'relative', flex:1, maxWidth:18, minWidth:7, height:`${h}px`,
-                            background: val>0 ? s.color : `${s.color}18`,
+                            background: val>0 ? `linear-gradient(180deg,${s.color}ee,${s.color}88)` : `${s.color}18`,
                             borderRadius:'3px 3px 0 0', overflow:'visible' }}>
                           {val>0 && h>=18 && (
-                            <span style={{ position:'absolute', top:'50%', left:'50%', transform:'translate(-50%,-50%) rotate(-90deg)', fontSize:8, color:'#fff', fontFamily:'DM Mono,monospace', fontWeight:700, whiteSpace:'nowrap', textShadow:'0 1px 2px rgba(0,0,0,.9)', pointerEvents:'none' }}>{val}</span>
+                            <span style={{ position:'absolute', top:'50%', left:'50%', transform:'translate(-50%,-50%) rotate(-90deg)', fontSize:8, color:'rgba(255,255,255,0.95)', fontFamily:'DM Mono,monospace', fontWeight:700, whiteSpace:'nowrap', textShadow:'0 1px 2px rgba(0,0,0,.9)', pointerEvents:'none' }}>{val}</span>
                           )}
                         </div>
                       )
@@ -5989,6 +6241,159 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
       !players.length ? (
         <div style={{ padding:48, textAlign:'center', color:'var(--silver)', background:'var(--ink2)', borderRadius:16 }}>Sin datos para este período. Registrá sesiones con RPE en el Calendario.</div>
       ) : (<>
+
+      {/* ══ UCE: UNIDAD DE CARGA ESPECÍFICA ════════════════════════════ */}
+      {(() => {
+        // Compute UCE per MD session from ejercicios blocks
+        // UCE = CE × RPE  |  CE = minutos × NE  |  NE from TAREA_NE map
+        const TAREA_NE_LOCAL: Record<string, number> = {
+          'Restauración':0.2,'Activación en gimnasio':0.4,'Gimnasio':0.4,'Trabajo preventivo':0.4,
+          'Cualidades específicas':0.8,'Activación en campo':1,'Circuito condicional':1,
+          'Circuito técnico':2,'Trabajo analítico':2,'Rondo':3,'Posesión reducida':5,
+          'Juego de posesión':5,'Juego de posición':6,'Transiciones':7,'Partido reducido':7,
+          'Partido modificado':8,'Partido de entrenamiento':9,'Partido amistoso':9,'Partido oficial':10,
+        }
+        const getNELocal = (v: string) => TAREA_NE_LOCAL[v] ?? 1
+
+        // Build per-MD UCE data
+        const ucePerMD = mdCols.map(md => {
+          const ses = perSession[md]
+          if (!ses || !existingMdLabels.has(md)) return { md, bloques: [], ceTotal: 0, uceTotal: 0, rpe: 0, hasData: false }
+          const rpe = Number(ses.rpe_objetivo) || 0
+          const ejercicios: any[] = ses.ejercicios || []
+          const bloques = ejercicios
+            .filter(bl => bl.ventana && (Number(bl.series)||0) > 0 && (Number(bl.minutos)||0) > 0)
+            .map(bl => {
+              const min = (Number(bl.series)||0) * (Number(bl.minutos)||0)
+              const ne = getNELocal(bl.ventana)
+              const ce = Math.round(min * ne * 10) / 10
+              const uce = rpe > 0 ? Math.round(ce * rpe * 10) / 10 : null
+              return { label: bl.ventana, min, ne, ce, uce }
+            })
+          const ceTotal = Math.round(bloques.reduce((s,b)=>s+b.ce,0)*10)/10
+          const uceTotal = rpe > 0 ? Math.round(bloques.reduce((s,b)=>s+(b.uce||0),0)*10)/10 : 0
+          return { md, bloques, ceTotal, uceTotal, rpe, hasData: bloques.length > 0 }
+        }).filter(x => x.hasData)
+
+        if (!ucePerMD.length) return null
+
+        // Week totals
+        const totalCE = Math.round(ucePerMD.reduce((s,x)=>s+x.ceTotal,0)*10)/10
+        const totalUCE = Math.round(ucePerMD.filter(x=>x.rpe>0).reduce((s,x)=>s+x.uceTotal,0)*10)/10
+        const uceRef = 9500 // reference from infographic
+        const uceColor = (u: number) => u > uceRef*0.60 ? '#ef4444' : u > uceRef*0.35 ? '#f59e0b' : '#34d399'
+        const uceLabel = (u: number) => u > uceRef*0.60 ? '🔴 CARGA ALTA' : u > uceRef*0.35 ? '🟡 MANTENIMIENTO' : '🟢 RECUPERACIÓN'
+
+        return (
+          <div style={{ background:'var(--ink2)', border:'1px solid rgba(168,85,247,.25)', borderRadius:16, overflow:'hidden', marginBottom:20 }}>
+            <div style={{ padding:'10px 16px', borderBottom:'1px solid var(--mist)', display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:8 }}>
+              <div>
+                <p style={{ fontSize:11, fontWeight:700, color:'#a78bfa', textTransform:'uppercase', letterSpacing:'0.08em' }}>
+                  🧠 UCE · UNIDAD DE CARGA ESPECÍFICA · SIN GPS
+                </p>
+                <p style={{ fontSize:10, color:'var(--fog)', marginTop:2 }}>
+                  CE = Min × NE (Nivel Especificidad) · UCE = CE × RPE · Referencia: ~9.500 UCE/semana
+                </p>
+              </div>
+              {totalUCE > 0 && (
+                <div style={{ textAlign:'right' }}>
+                  <div style={{ fontSize:10, color:'var(--fog)', marginBottom:2 }}>SEMANA TOTAL</div>
+                  <div style={{ fontSize:20, fontWeight:900, fontFamily:'DM Mono,monospace', color: uceColor(totalUCE) }}>
+                    {totalUCE.toLocaleString()} UCE
+                  </div>
+                  <div style={{ fontSize:9, fontWeight:700, color: uceColor(totalUCE) }}>{uceLabel(totalUCE)}</div>
+                </div>
+              )}
+            </div>
+
+            {/* Table: rows = MD cols, cols = Bloques + CE + UCE */}
+            <div style={{ overflowX:'auto' }}>
+              <table style={{ width:'100%', borderCollapse:'collapse', fontSize:11 }}>
+                <thead>
+                  <tr style={{ background:'rgba(168,85,247,.05)' }}>
+                    <th style={{ padding:'7px 14px', textAlign:'left', color:'var(--silver)', fontSize:9, fontWeight:700, textTransform:'uppercase' }}>SESIÓN</th>
+                    <th style={{ padding:'7px 10px', textAlign:'center', color:'#34d399', fontSize:9, fontWeight:700 }}>RPE obj.</th>
+                    <th style={{ padding:'7px 10px', textAlign:'left', color:'var(--silver)', fontSize:9, fontWeight:700, textTransform:'uppercase' }}>BLOQUES (tarea · min · NE · CE)</th>
+                    <th style={{ padding:'7px 10px', textAlign:'center', color:'#c8f135', fontSize:9, fontWeight:700 }}>CE TOTAL</th>
+                    <th style={{ padding:'7px 10px', textAlign:'center', color:'#a78bfa', fontSize:9, fontWeight:700 }}>UCE TOTAL</th>
+                    <th style={{ padding:'7px 10px', textAlign:'center', color:'var(--fog)', fontSize:9, fontWeight:700 }}>% REF</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {ucePerMD.map((row, i) => {
+                    const ucePct = uceRef > 0 && row.uceTotal > 0 ? Math.round((row.uceTotal / uceRef) * 100) : null
+                    return (
+                      <tr key={row.md} style={{ borderTop:'1px solid var(--mist)', background:i%2===0?'transparent':'rgba(255,255,255,.015)' }}>
+                        <td style={{ padding:'8px 14px', color:'#a78bfa', fontWeight:700, fontFamily:'Bebas Neue,sans-serif', fontSize:14, letterSpacing:'0.1em' }}>{row.md}</td>
+                        <td style={{ padding:'8px 10px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700,
+                          color: row.rpe > 0 ? (row.rpe >= 8 ? '#ef4444' : row.rpe >= 6 ? '#f59e0b' : '#34d399') : 'var(--fog)' }}>
+                          {row.rpe > 0 ? row.rpe : '—'}
+                        </td>
+                        <td style={{ padding:'6px 10px' }}>
+                          <div style={{ display:'flex', flexWrap:'wrap', gap:4 }}>
+                            {row.bloques.map((b,bi) => {
+                              const neColor = b.ne >= 8 ? '#ef4444' : b.ne >= 5 ? '#f59e0b' : b.ne >= 3 ? '#c8f135' : '#34d399'
+                              return (
+                                <span key={bi} style={{ fontSize:10, fontFamily:'DM Mono,monospace', background:'rgba(255,255,255,.05)',
+                                  border:`1px solid ${neColor}30`, borderRadius:5, padding:'2px 7px',
+                                  color:'var(--silver)', whiteSpace:'nowrap' }}>
+                                  <span style={{ color:'var(--snow)' }}>{b.label}</span>
+                                  {' · '}{b.min}min
+                                  {' · '}<span style={{ color:neColor }}>NE{b.ne}</span>
+                                  {' · '}<span style={{ color:'#c8f135', fontWeight:700 }}>CE{b.ce}</span>
+                                  {b.uce !== null && <span style={{ color:'#a78bfa' }}> → {b.uce} UCE</span>}
+                                </span>
+                              )
+                            })}
+                          </div>
+                        </td>
+                        <td style={{ padding:'8px 10px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, color:'#c8f135' }}>
+                          {row.ceTotal}
+                        </td>
+                        <td style={{ padding:'8px 10px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:800,
+                          color: row.uceTotal > 0 ? uceColor(row.uceTotal) : 'var(--fog)', fontSize:13 }}>
+                          {row.uceTotal > 0 ? row.uceTotal.toLocaleString() : row.rpe > 0 ? '0' : '—'}
+                          {row.uceTotal > 0 && <div style={{ fontSize:8, fontWeight:700, color: uceColor(row.uceTotal) }}>{uceLabel(row.uceTotal)}</div>}
+                        </td>
+                        <td style={{ padding:'8px 10px', textAlign:'center', fontFamily:'DM Mono,monospace',
+                          color: ucePct !== null ? (ucePct > 60 ? '#ef4444' : ucePct > 35 ? '#f59e0b' : '#34d399') : 'var(--fog)' }}>
+                          {ucePct !== null ? `${ucePct}%` : '—'}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                  {/* Weekly totals row */}
+                  <tr style={{ borderTop:'2px solid rgba(168,85,247,.3)', background:'rgba(168,85,247,.06)' }}>
+                    <td style={{ padding:'8px 14px', fontWeight:800, color:'#a78bfa', fontSize:10, textTransform:'uppercase' }}>SEMANA</td>
+                    <td/>
+                    <td style={{ padding:'8px 10px', fontSize:10, color:'var(--fog)', fontStyle:'italic' }}>
+                      {ucePerMD.filter(x=>x.rpe===0).length > 0 && `⚠️ ${ucePerMD.filter(x=>x.rpe===0).length} sesión(es) sin RPE objetivo → UCE parcial`}
+                    </td>
+                    <td style={{ padding:'8px 10px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:800, color:'#c8f135', fontSize:13 }}>
+                      {totalCE}
+                    </td>
+                    <td style={{ padding:'8px 10px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:900, color: uceColor(totalUCE), fontSize:16 }}>
+                      {totalUCE > 0 ? totalUCE.toLocaleString() : '—'}
+                    </td>
+                    <td style={{ padding:'8px 10px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700,
+                      color: totalUCE > 0 ? uceColor(totalUCE) : 'var(--fog)' }}>
+                      {totalUCE > 0 ? `${Math.round((totalUCE/uceRef)*100)}%` : '—'}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            {/* Reference legend */}
+            <div style={{ padding:'10px 16px', borderTop:'1px solid var(--mist)', display:'flex', gap:16, flexWrap:'wrap', alignItems:'center' }}>
+              <span style={{ fontSize:9, color:'var(--fog)', fontWeight:700, textTransform:'uppercase' }}>Referencia (9.500 UCE/semana):</span>
+              <span style={{ fontSize:10, color:'#34d399', fontFamily:'DM Mono,monospace' }}>🟢 &lt;35% (&lt;3.325) Recuperación</span>
+              <span style={{ fontSize:10, color:'#f59e0b', fontFamily:'DM Mono,monospace' }}>🟡 35-60% (3.325–5.700) Mantenimiento</span>
+              <span style={{ fontSize:10, color:'#ef4444', fontFamily:'DM Mono,monospace' }}>🔴 &gt;60% (&gt;5.700) Carga alta</span>
+            </div>
+          </div>
+        )
+      })()}
 
       {/* ══ CUADRO 1: MICROCICLO — INDIVIDUAL + SESIÓN (CALCULADA) ══════ */}
       <div style={{ marginBottom:20 }}>
