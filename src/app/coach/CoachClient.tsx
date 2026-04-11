@@ -4023,8 +4023,8 @@ function ComparativaPanel({ teamData }: { teamData: any[] }) {
                           ))}
                         </div>
                         {/* Chart area */}
-                        <div style={{ flex:1, overflowX:'auto', overflowY:'visible' }}>
-                          <div style={{ position:'relative', minWidth: chartMinWidth, paddingTop: TOP_PAD }}>
+                        <div style={{ flex:1, overflowX:'auto', overflowY:'hidden' }}>
+                          <div style={{ position:'relative', minWidth: chartMinWidth, height: BAR_H + BOT_PAD + TOP_PAD }}>
                             {/* Grid lines */}
                             {[0,0.25,0.5,0.75,1].map((f,i) => (
                               <div key={i} style={{ position:'absolute', left:0, right:0,
@@ -4046,11 +4046,12 @@ function ComparativaPanel({ teamData }: { teamData: any[] }) {
                               )
                             })()}
                             {/* Bars */}
-                            <div style={{ display:'flex', gap:8, alignItems:'flex-end',
-                              height: BAR_H + BOT_PAD, paddingBottom: BOT_PAD, overflow:'visible' }}>
+                            <div style={{ position:'absolute', left:0, right:0, bottom:0, top:0,
+                              display:'flex', gap:8, alignItems:'flex-end',
+                              paddingBottom: BOT_PAD, paddingTop: TOP_PAD, overflow:'visible' }}>
                               {posPlayers.map((p: any, pi: number) => {
                                 const val = Number(p[selVar.key]) || 0
-                                const barH = Math.max(((val - baseV) / rangeV) * BAR_H, 24)
+                                const barH = Math.min(Math.max(((val - baseV) / rangeV) * BAR_H, 24), BAR_H)
                                 const isAboveAvg = val >= avg
                                 const barCol = isAboveAvg ? col : `${col}99`
                                 return (
