@@ -3969,9 +3969,9 @@ function ComparativaPanel({ teamData }: { teamData: any[] }) {
 
         if (!posGroups.length) return null
 
-        const BAR_H = 160
-        const BOT_PAD = 40
-        const TOP_PAD = 32
+        const CHART_H = 180  // altura del área de barras solamente
+        const NAME_H  = 44   // altura para nombres debajo
+        const YAXIS_W = 44
 
         return (
           <div style={{ marginBottom:8 }}>
@@ -3988,19 +3988,15 @@ function ComparativaPanel({ teamData }: { teamData: any[] }) {
                 const col = posColor(pos)
                 const vals = posPlayers.map(p => Number(p[selVar.key]) || 0)
                 const maxV = Math.max(...vals, 1)
-                const minV = Math.min(...vals)
-                const baseV = 0
-                const topV = Math.ceil(maxV * 1.10)
-                const rangeV = Math.max(topV - baseV, 1)
-                const yTicks = [1, 0.75, 0.5, 0.25, 0].map(f => Math.round(baseV + f * rangeV))
+                const topV  = Math.ceil(maxV * 1.12)   // techo 12% sobre el máximo
+                const yTicks = [1, 0.75, 0.5, 0.25, 0].map(f => Math.round(f * topV))
+                const avg = Math.round(vals.reduce((s,v)=>s+v,0)/vals.length)
                 const minBarWidth = 72
                 const chartMinWidth = posPlayers.length * (minBarWidth + 12)
-                // avg for reference line
-                const avg = Math.round(vals.reduce((s,v)=>s+v,0)/vals.length)
 
                 return (
-                  <div key={pos} style={{ background:'var(--ink2)', border:`1px solid ${col}30`, borderRadius:14 }}>
-                    {/* Position header */}
+                  <div key={pos} style={{ background:'var(--ink2)', border:`1px solid ${col}30`, borderRadius:14, overflow:'hidden' }}>
+                    {/* Header */}
                     <div style={{ padding:'8px 16px', background:`${col}10`, borderBottom:`1px solid ${col}20`,
                       display:'flex', justifyContent:'space-between', alignItems:'center' }}>
                       <div style={{ display:'flex', alignItems:'center', gap:10 }}>
@@ -4013,91 +4009,102 @@ function ComparativaPanel({ teamData }: { teamData: any[] }) {
                       </div>
                     </div>
 
-                    <div style={{ padding:'12px 16px 0' }}>
-                      <div style={{ display:'flex', gap:0 }}>
-                        {/* Y-axis */}
-                        <div style={{ display:'flex', flexDirection:'column', justifyContent:'space-between',
-                          paddingRight:8, width:44, flexShrink:0,
-                          height: BAR_H, marginBottom: BOT_PAD, marginTop: TOP_PAD }}>
-                          {yTicks.map((t,i) => (
-                            <div key={i} style={{ fontSize:8, color:'var(--fog)', fontFamily:'DM Mono,monospace', textAlign:'right', lineHeight:1 }}>{t.toLocaleString()}</div>
-                          ))}
-                        </div>
-                        {/* Chart area */}
-                        <div style={{ flex:1, overflowX:'auto', overflowY:'visible' }}>
-                          <div style={{ position:'relative', minWidth: chartMinWidth, height: BAR_H + BOT_PAD + TOP_PAD }}>
-                            {/* Grid lines */}
-                            {[0,0.25,0.5,0.75,1].map((f,i) => (
-                              <div key={i} style={{ position:'absolute', left:0, right:0,
-                                bottom: BOT_PAD + f*BAR_H,
-                                borderTop:`1px solid rgba(255,255,255,${f===0||f===1?'.12':'.05'})`, pointerEvents:'none' }}/>
+                    {/* Body */}
+                    <div style={{ padding:'12px 16px 12px', display:'flex', gap:0 }}>
+
+                      {/* Y-axis labels — alineados con CHART_H */}
+                      <div style={{ width: YAXIS_W, flexShrink:0, display:'flex', flexDirection:'column',
+                        justifyContent:'space-between', height: CHART_H, marginBottom: NAME_H }}>
+                        {yTicks.map((t,i) => (
+                          <div key={i} style={{ fontSize:8, color:'var(--fog)', fontFamily:'DM Mono,monospace',
+                            textAlign:'right', lineHeight:1 }}>{t.toLocaleString()}</div>
+                        ))}
+                      </div>
+
+                      {/* Chart + names */}
+                      <div style={{ flex:1, overflowX:'auto' }}>
+                        <div style={{ minWidth: chartMinWidth }}>
+
+                          {/* Zona de barras con gridlines superpuestas */}
+                          <div style={{ position:'relative', height: CHART_H }}>
+
+                            {/* Gridlines — absolutas, no afectan layout */}
+                            {[0, 0.25, 0.5, 0.75, 1].map((f,i) => (
+                              <div key={i} style={{
+                                position:'absolute', left:0, right:0,
+                                top: `${(1-f) * 100}%`,
+                                borderTop:`1px solid rgba(255,255,255,${f===0||f===1?'.12':'.05'})`,
+                                pointerEvents:'none'
+                              }}/>
                             ))}
-                            {/* Average reference line */}
-                            {posPlayers.length > 1 && (() => {
-                              const avgY = BOT_PAD + ((avg - baseV) / rangeV) * BAR_H
-                              return (
-                                <div style={{ position:'absolute', left:0, right:0, bottom: avgY,
-                                  borderTop:`1px dashed ${col}80`, pointerEvents:'none', zIndex:2 }}>
-                                  <span style={{ position:'absolute', right:4, top:-10, fontSize:8,
-                                    color: col, fontFamily:'DM Mono,monospace', fontWeight:700,
-                                    background:'var(--ink2)', padding:'1px 4px', borderRadius:3 }}>
-                                    prom {avg.toLocaleString()}
-                                  </span>
-                                </div>
-                              )
-                            })()}
-                            {/* Bars */}
-                            <div style={{ position:'absolute', left:0, right:0, bottom:0, top:0,
-                              display:'flex', gap:8 }}>
+
+                            {/* Línea de promedio */}
+                            {posPlayers.length > 1 && (
+                              <div style={{
+                                position:'absolute', left:0, right:0,
+                                top: `${(1 - avg/topV) * 100}%`,
+                                borderTop:`1px dashed ${col}80`,
+                                pointerEvents:'none', zIndex:2
+                              }}>
+                                <span style={{ position:'absolute', right:4, top:-10, fontSize:8,
+                                  color: col, fontFamily:'DM Mono,monospace', fontWeight:700,
+                                  background:'var(--ink2)', padding:'1px 4px', borderRadius:3 }}>
+                                  prom {avg.toLocaleString()}
+                                </span>
+                              </div>
+                            )}
+
+                            {/* Barras — flexbox puro, align-items:flex-end hace que crezcan de abajo a arriba */}
+                            <div style={{ position:'absolute', inset:0, display:'flex', alignItems:'flex-end', gap:8, zIndex:1 }}>
                               {posPlayers.map((p: any, pi: number) => {
-                                const val = Number(p[selVar.key]) || 0
-                                const barH = Math.min(Math.max(((val - baseV) / rangeV) * BAR_H, 6), BAR_H)
-                                const isAboveAvg = val >= avg
-                                const barCol = isAboveAvg ? col : `${col}99`
+                                const val  = Number(p[selVar.key]) || 0
+                                const pct  = Math.max(val / topV, 0.02)   // mínimo 2% para que siempre sea visible
+                                const barH = Math.round(pct * CHART_H)
+                                const barCol = val >= avg ? col : `${col}bb`
                                 return (
-                                  <div key={pi} style={{ flex:1, position:'relative', minWidth: minBarWidth, height:'100%' }}>
-                                    {/* Bar — arranca desde BOT_PAD y crece hacia arriba */}
+                                  <div key={pi} style={{ flex:1, minWidth: minBarWidth, display:'flex', justifyContent:'center', alignItems:'flex-end', height:'100%' }}>
                                     <div style={{
-                                      position:'absolute',
-                                      bottom: BOT_PAD,
-                                      left:'50%',
-                                      transform:'translateX(-50%)',
                                       width:'65%', minWidth:32, maxWidth:72,
-                                      height:`${barH}px`,
+                                      height: barH,
                                       borderRadius:'6px 6px 0 0',
-                                      background: `linear-gradient(180deg, ${barCol}ee, ${barCol}77)`,
-                                      boxShadow:`0 0 14px ${barCol}50`,
-                                      display:'flex', alignItems:'center', justifyContent:'center'
+                                      background:`linear-gradient(180deg, ${barCol}ff, ${barCol}88)`,
+                                      boxShadow:`0 0 12px ${barCol}55`,
+                                      display:'flex', alignItems:'center', justifyContent:'center',
+                                      flexShrink:0, position:'relative'
                                     }}>
                                       <span style={{
                                         position:'absolute', top:'50%', left:'50%',
                                         transform:'translate(-50%,-50%) rotate(-90deg)',
                                         fontSize: barH >= 32 ? 11 : 8,
-                                        color:'rgba(255,255,255,0.95)',
-                                        fontFamily:'DM Mono,monospace', fontWeight:800,
-                                        whiteSpace:'nowrap',
-                                        textShadow:'0 1px 3px rgba(0,0,0,0.9)',
+                                        color:'#fff', fontFamily:'DM Mono,monospace', fontWeight:800,
+                                        whiteSpace:'nowrap', textShadow:'0 1px 3px rgba(0,0,0,0.9)',
                                         pointerEvents:'none'
                                       }}>{val.toLocaleString()}</span>
-                                    </div>
-                                    {/* Nombre — fijado en la zona inferior */}
-                                    <div style={{ position:'absolute', bottom:4, left:0, right:0, textAlign:'center', padding:'0 2px' }}>
-                                      <div style={{ fontSize:11, color:'var(--snow)', fontWeight:700,
-                                        whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
-                                        {p.nombre.split(' ')[0]}
-                                      </div>
-                                      {p.nombre.split(' ')[1] && (
-                                        <div style={{ fontSize:9, color:'var(--fog)',
-                                          whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
-                                          {p.nombre.split(' ')[1]}
-                                        </div>
-                                      )}
                                     </div>
                                   </div>
                                 )
                               })}
                             </div>
                           </div>
+
+                          {/* Nombres — fila separada debajo de las barras */}
+                          <div style={{ height: NAME_H, display:'flex', gap:8 }}>
+                            {posPlayers.map((p: any, pi: number) => (
+                              <div key={pi} style={{ flex:1, minWidth: minBarWidth, textAlign:'center', paddingTop:6 }}>
+                                <div style={{ fontSize:11, color:'var(--snow)', fontWeight:700,
+                                  whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
+                                  {p.nombre.split(' ')[0]}
+                                </div>
+                                {p.nombre.split(' ')[1] && (
+                                  <div style={{ fontSize:9, color:'var(--fog)',
+                                    whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
+                                    {p.nombre.split(' ')[1]}
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+
                         </div>
                       </div>
                     </div>
