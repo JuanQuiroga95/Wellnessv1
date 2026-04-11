@@ -4048,18 +4048,19 @@ function ComparativaPanel({ teamData }: { teamData: any[] }) {
                             })()}
                             {/* Bars */}
                             <div style={{ position:'absolute', left:0, right:0, bottom:0, top:0,
-                              display:'flex', gap:8, alignItems:'flex-end',
-                              paddingBottom: BOT_PAD, paddingTop: TOP_PAD, overflow:'visible' }}>
+                              display:'flex', gap:8 }}>
                               {posPlayers.map((p: any, pi: number) => {
                                 const val = Number(p[selVar.key]) || 0
-                                const barH = Math.min(Math.max(((val - baseV) / rangeV) * BAR_H, 4), BAR_H)
+                                const barH = Math.min(Math.max(((val - baseV) / rangeV) * BAR_H, 6), BAR_H)
                                 const isAboveAvg = val >= avg
                                 const barCol = isAboveAvg ? col : `${col}99`
                                 return (
                                   <div key={pi} style={{ flex:1, position:'relative', minWidth: minBarWidth, height:'100%' }}>
-                                    {/* Bar — posicionada desde el fondo, sobre el BOT_PAD */}
+                                    {/* Bar — arranca desde BOT_PAD y crece hacia arriba */}
                                     <div style={{
-                                      position:'absolute', bottom: BOT_PAD, left:'50%',
+                                      position:'absolute',
+                                      bottom: BOT_PAD,
+                                      left:'50%',
                                       transform:'translateX(-50%)',
                                       width:'65%', minWidth:32, maxWidth:72,
                                       height:`${barH}px`,
@@ -4079,7 +4080,7 @@ function ComparativaPanel({ teamData }: { teamData: any[] }) {
                                         pointerEvents:'none'
                                       }}>{val.toLocaleString()}</span>
                                     </div>
-                                    {/* Player name — fijado al fondo */}
+                                    {/* Nombre — fijado en la zona inferior */}
                                     <div style={{ position:'absolute', bottom:4, left:0, right:0, textAlign:'center', padding:'0 2px' }}>
                                       <div style={{ fontSize:11, color:'var(--snow)', fontWeight:700,
                                         whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
