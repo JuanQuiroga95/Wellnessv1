@@ -3989,7 +3989,7 @@ function ComparativaPanel({ teamData }: { teamData: any[] }) {
                 const vals = posPlayers.map(p => Number(p[selVar.key]) || 0)
                 const maxV = Math.max(...vals, 1)
                 const minV = Math.min(...vals)
-                const baseV = posPlayers.length > 1 ? Math.floor(minV * 0.80) : 0
+                const baseV = 0
                 const topV = Math.ceil(maxV * 1.10)
                 const rangeV = Math.max(topV - baseV, 1)
                 const yTicks = [1, 0.75, 0.5, 0.25, 0].map(f => Math.round(baseV + f * rangeV))
