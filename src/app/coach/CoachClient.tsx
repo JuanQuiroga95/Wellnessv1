@@ -6,6 +6,7 @@ import Topbar from '@/components/ui/Topbar'
 import StatusBadge from '@/components/ui/StatusBadge'
 import ACWRChart from '@/components/charts/ACWRChart'
 import WellnessTrend from '@/components/charts/WellnessTrend'
+import ReadinessChart from '@/components/charts/ReadinessChart'
 import { buildACWRHistory, buildDailyDetail } from '@/lib/acwr'
 import EvaluacionesPanelFull from './EvaluacionesPanel'
 import AnalyticsPanel from './AnalyticsPanel'
@@ -100,6 +101,7 @@ export default function CoachClient({ session, teamData, today }) {
   const [playerLogs, setPlayerLogs] = useState([])
   const [playerWellness, setPlayerWellness] = useState([])
   const [loadingDetail, setLoadingDetail] = useState(false)
+  const [ciclo, setCiclo] = useState<'microciclo'|'mesociclo'|'macrociclo'>('microciclo')
   const [showNew, setShowNew] = useState(false)
   const [showImport, setShowImport] = useState(false)
   const [clubLogo, setClubLogo] = useState<string|null>(null)
@@ -111,7 +113,7 @@ export default function CoachClient({ session, teamData, today }) {
 
   // Load club logo and team name from DB on mount
   useEffect(() => {
-    fetch('/api/admin/settings')
+    fetch('/api/admin/settings', { cache: 'no-store' })
       .then(r => r.json())
       .then(d => {
         console.log('[Settings loaded]', { userId: d.debug_userId, has_foto: !!d.club_foto, club_nombre: d.club_nombre })
@@ -122,6 +124,11 @@ export default function CoachClient({ session, teamData, today }) {
         }
       })
       .catch((e) => console.error('[Settings load error]', e))
+
+    // Escuchar evento de sesión guardada para refrescar datos del servidor
+    const handleSesionGuardada = () => { router.refresh() }
+    window.addEventListener('sesion-guardada', handleSesionGuardada)
+    return () => window.removeEventListener('sesion-guardada', handleSesionGuardada)
   }, [])
 
   async function saveTeamName() {
@@ -139,8 +146,8 @@ export default function CoachClient({ session, teamData, today }) {
     const days = CICLO_DAYS[cycle]
     const wdays = CICLO_WELLNESS_DAYS[cycle]
     const [logs, well] = await Promise.all([
-      fetch(`/api/logs?jugadorId=${p.jugador_id}&days=${days}`).then(r=>r.json()),
-      fetch(`/api/wellness?jugadorId=${p.jugador_id}&days=${wdays}`).then(r=>r.json()),
+      fetch(`/api/logs?jugadorId=${p.jugador_id}&days=${days}`, { cache: 'no-store' }).then(r=>r.json()),
+      fetch(`/api/wellness?jugadorId=${p.jugador_id}&days=${wdays}`, { cache: 'no-store' }).then(r=>r.json()),
     ])
     setPlayerLogs(logs); setPlayerWellness(well); setLoadingDetail(false)
   }
@@ -756,8 +763,8 @@ function CambioCargaPanel() {
     setLoading(true)
     try {
       const [r1, r2] = await Promise.all([
-        fetch(`/api/cambio-carga?desde=${desde}&hasta=${hasta}&minEntrenamiento=${minEnt}&minPartido=${minPart}`),
-        fetch(`/api/carga-gps?desde=${desde}&hasta=${hasta}&ciclo=microciclo`),
+        fetch(`/api/cambio-carga?desde=${desde}&hasta=${hasta}&minEntrenamiento=${minEnt}&minPartido=${minPart}`, { cache: 'no-store' }),
+        fetch(`/api/carga-gps?desde=${desde}&hasta=${hasta}&ciclo=microciclo`, { cache: 'no-store' }),
       ])
       setData(await r1.json())
       setGpsData(await r2.json())
@@ -1113,7 +1120,7 @@ function CalendarioPanel({ teamData }) {
       hasta = we.toISOString().split('T')[0]
     }
     try {
-      const r = await fetch(`/api/calendario?desde=${desde}&hasta=${hasta}`)
+      const r = await fetch(`/api/calendario?desde=${desde}&hasta=${hasta}`, { cache: 'no-store' })
       setData(await r.json())
     } catch {}
     setLoading(false)
@@ -1554,6 +1561,10 @@ function CalendarioPanel({ teamData }) {
               setShowEditor(false)
               setEditSesion(null)
               await load()
+              // Refrescar server component para que teamData refleje cambios
+              if (typeof window !== 'undefined') {
+                window.dispatchEvent(new CustomEvent('sesion-guardada'))
+              }
 
               // Auto-save tasks to biblioteca in background (fire and forget)
               const bloques: any[] = data.ejercicios || []
@@ -2581,7 +2592,7 @@ function MinutosPanel({ teamData }) {
 
   async function load() {
     setLoading(true)
-    try { const r = await fetch(`/api/minutos?desde=${desde}&hasta=${hasta}`); setData(await r.json()) }
+    try { const r = await fetch(`/api/minutos?desde=${desde}&hasta=${hasta}`, { cache: 'no-store' }); setData(await r.json()) }
     finally { setLoading(false) }
   }
 
@@ -2633,7 +2644,7 @@ function MinutosPanel({ teamData }) {
       </div>
       <div style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:14, padding:16 }}>
         <div style={{ display:'flex', gap:12, flexWrap:'wrap', alignItems:'flex-end' }}>
-          {[['desde','Desde',desde,setDesde],['hasta','Hasta',hasta,setHasta]].map(([id,lbl,val,setter])=>(
+          {([['desde','Desde',desde,setDesde],['hasta','Hasta',hasta,setHasta]] as [string,string,string,React.Dispatch<React.SetStateAction<string>>][]).map(([id,lbl,val,setter])=>(
             <div key={id}>
               <label style={{ display:'block', fontSize:10, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:5 }}>{lbl}</label>
               <input type="date" className="wp-input" style={{ width:160, padding:'8px 12px', fontSize:13 }} value={val} onChange={e=>setter(e.target.value)} />
@@ -2648,12 +2659,16 @@ function MinutosPanel({ teamData }) {
         : players.length===0
           ? <div style={{ padding:40, textAlign:'center', color:'var(--silver)' }}>Sin datos. Cargá partidos o datos demo.</div>
           : <>
-              <div style={{ display:'flex', gap:16, paddingLeft:4 }}>
+              <div style={{ display:'flex', gap:16, paddingLeft:4, flexWrap:'wrap' }}>
                 {[['var(--lime)','Entrenamiento'],['#3b82f6','Competición']].map(([c,l])=>(
                   <div key={l} style={{ display:'flex', alignItems:'center', gap:6, fontSize:11, color:'var(--silver)' }}>
                     <div style={{ width:10, height:10, borderRadius:2, background:c }} />{l}
                   </div>
                 ))}
+                <div style={{ display:'flex', alignItems:'center', gap:6, fontSize:11, color:'var(--silver)' }}>
+                  <span style={{ fontSize:9, padding:'2px 6px', borderRadius:4, background:'rgba(200,241,53,.08)', color:'var(--lime)', border:'1px solid rgba(200,241,53,.2)', fontWeight:600 }}>CAL</span>
+                  <span>Estimado desde Calendario (sin RPE)</span>
+                </div>
               </div>
               <div style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:16, overflow:'hidden' }}>
                 {players.map((p,i)=>{
@@ -2667,6 +2682,9 @@ function MinutosPanel({ teamData }) {
                         <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:5 }}>
                           <span style={{ fontSize:13, fontWeight:500, color: isSelected?'var(--lime)':'var(--snow)', minWidth:160, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{p.nombre}</span>
                           <span style={{ fontSize:10, color:'var(--silver)', minWidth:80, flexShrink:0 }}>{p.posicion||'—'}</span>
+                          {p.fuente_entreno === 'calendario' && (
+                            <span style={{ fontSize:9, padding:'2px 6px', borderRadius:4, background:'rgba(200,241,53,.08)', color:'var(--lime)', border:'1px solid rgba(200,241,53,.2)', flexShrink:0, fontWeight:600, letterSpacing:'0.04em' }}>CAL</span>
+                          )}
                           <div style={{ flex:1 }}>
                             <div style={{ height:10, background:'var(--mist)', borderRadius:3, overflow:'hidden', marginBottom:3 }}>
                               <div style={{ height:'100%', width:`${(p.min_entreno/maxMin)*100}%`, background:'var(--lime)', borderRadius:3, opacity:.85 }} />
@@ -2800,7 +2818,7 @@ function AddMatchForm({ teamData, onSuccess, onCancel }) {
     const hasta = new Date().toISOString().split('T')[0]
     const desde = new Date(Date.now() - 56 * 86400000).toISOString().split('T')[0]
     setLoadingCal(true)
-    fetch(`/api/calendario?desde=${desde}&hasta=${hasta}`)
+    fetch(`/api/calendario?desde=${desde}&hasta=${hasta}`, { cache: 'no-store' })
       .then(r => r.json())
       .then(d => {
         const parts = (d.sesiones || [])
@@ -3079,7 +3097,7 @@ function CargaExternaPanel() {
     const desde = new Date(Date.now() - dias * 86400000).toISOString().split('T')[0]
     const hasta = new Date(Date.now() + dias * 86400000).toISOString().split('T')[0]
     try {
-      const r = await fetch(`/api/carga-gps?desde=${desde}&hasta=${hasta}&ciclo=${ciclo}`)
+      const r = await fetch(`/api/carga-gps?desde=${desde}&hasta=${hasta}&ciclo=${ciclo}`, { cache: 'no-store' })
       if (r.ok) setData(await r.json())
     } catch {}
     finally { setLoading(false) }
@@ -3088,7 +3106,7 @@ function CargaExternaPanel() {
   async function loadDia() {
     setDiaLoading(true)
     try {
-      const r = await fetch(`/api/carga-gps?desde=${diaSelec}&hasta=${diaSelec}&ciclo=dia`)
+      const r = await fetch(`/api/carga-gps?desde=${diaSelec}&hasta=${diaSelec}&ciclo=dia`, { cache: 'no-store' })
       if (r.ok) setDiaData(await r.json())
     } catch {}
     finally { setDiaLoading(false) }
@@ -3622,7 +3640,7 @@ function ComparativaPanel({ teamData }: { teamData: any[] }) {
   async function cargar() {
     setLoading(true)
     try {
-      const r = await fetch(`/api/carga-gps?desde=${desde}&hasta=${hasta}&ciclo=microciclo`)
+      const r = await fetch(`/api/carga-gps?desde=${desde}&hasta=${hasta}&ciclo=microciclo`, { cache: 'no-store' })
       setData(await r.json())
     } catch(e){} finally { setLoading(false) }
   }
@@ -4919,7 +4937,7 @@ function ReadinessPanel({ teamData }) {
 
   async function loadData() {
     setLoading(true)
-    try { const r = await fetch('/api/readiness?weeks=4'); setData(await r.json()) }
+    try { const r = await fetch('/api/readiness?weeks=4', { cache: 'no-store' }); setData(await r.json()) }
     finally { setLoading(false) }
   }
 
@@ -4933,7 +4951,7 @@ function ReadinessPanel({ teamData }) {
     for (const r of (data.rpeRows||[])) {
       if (!rpeMap[r.jugador_id] || r.semana > rpeMap[r.jugador_id].semana) rpeMap[r.jugador_id] = r
     }
-    return Object.values(wMap).map(w => ({
+    return Object.values(wMap).map((w: any) => ({
       jugador_id: w.jugador_id,
       nombre: w.nombre,
       posicion: w.posicion,
@@ -5163,7 +5181,7 @@ function AcumPanel({ teamData }) {
 
   async function loadMici() {
     setMiciLoading(true)
-    try { const r = await fetch(`/api/carga-gps?desde=${miciDesde}&hasta=${miciHasta}&ciclo=microciclo`); setMiciData(await r.json()) }
+    try { const r = await fetch(`/api/carga-gps?desde=${miciDesde}&hasta=${miciHasta}&ciclo=microciclo`, { cache: 'no-store' }); setMiciData(await r.json()) }
     catch(e){} finally { setMiciLoading(false) }
   }
 
@@ -5976,7 +5994,7 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
     // These come from /api/calendario GET response
     const hace1año = new Date(); hace1año.setFullYear(hace1año.getFullYear()-1)
     const desdeStr = hace1año.toISOString().split('T')[0]
-    fetch(`/api/calendario?desde=${desdeStr}&hasta=${today}`)
+    fetch(`/api/calendario?desde=${desdeStr}&hasta=${today}`, { cache: 'no-store' })
       .then(r=>r.json())
       .then(d => {
         // sesiones with tipo='partido' from calendar
@@ -6012,7 +6030,7 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
 
   async function cargar() {
     setLoading(true)
-    try { const r = await fetch(`/api/carga-gps?desde=${desde}&hasta=${hasta}&ciclo=microciclo`); setData(await r.json()) }
+    try { const r = await fetch(`/api/carga-gps?desde=${desde}&hasta=${hasta}&ciclo=microciclo`, { cache: 'no-store' }); setData(await r.json()) }
     catch(e){} finally { setLoading(false) }
   }
 
@@ -6023,7 +6041,7 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
     updated[slotIdx] = partido
     setSelectedPartidos(updated)
     try {
-      const r = await fetch(`/api/carga-gps?desde=${partido.fecha}&hasta=${partido.fecha}&ciclo=microciclo`)
+      const r = await fetch(`/api/carga-gps?desde=${partido.fecha}&hasta=${partido.fecha}&ciclo=microciclo`, { cache: 'no-store' })
       const d = await r.json()
       const avg = d?.teamAvg || {}
       const nr = [...partidoRefs]
@@ -7041,7 +7059,7 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
   useEffect(() => { cargar() }, [desde, hasta])
   useEffect(() => {
     const hace1año = new Date(); hace1año.setFullYear(hace1año.getFullYear()-1)
-    fetch(`/api/calendario?desde=${hace1año.toISOString().split('T')[0]}&hasta=${today}`)
+    fetch(`/api/calendario?desde=${hace1año.toISOString().split('T')[0]}&hasta=${today}`, { cache: 'no-store' })
       .then(r=>r.json())
       .then(d => {
         const sesPartido = (d.sesiones||[]).filter((s:any) => s.tipo === 'partido')
@@ -7057,7 +7075,7 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
 
   async function cargar() {
     setLoading(true)
-    try { const r = await fetch(`/api/carga-gps?desde=${desde}&hasta=${hasta}&ciclo=microciclo`); setData(await r.json()) }
+    try { const r = await fetch(`/api/carga-gps?desde=${desde}&hasta=${hasta}&ciclo=microciclo`, { cache: 'no-store' }); setData(await r.json()) }
     catch(e){} finally { setLoading(false) }
   }
 
@@ -7066,7 +7084,7 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
     if (!partido) { updated[slotIdx]=null; setSelectedPartidos(updated); const nr=[...partidoRefs]; nr[slotIdx]={}; setPartidoRefs(nr); return }
     updated[slotIdx] = partido; setSelectedPartidos(updated)
     try {
-      const r = await fetch(`/api/carga-gps?desde=${partido.fecha}&hasta=${partido.fecha}&ciclo=microciclo`)
+      const r = await fetch(`/api/carga-gps?desde=${partido.fecha}&hasta=${partido.fecha}&ciclo=microciclo`, { cache: 'no-store' })
       const d = await r.json()
       const avg = d?.teamAvgGps || {}
       const nr = [...partidoRefs]
@@ -7626,7 +7644,7 @@ function ExpoAIPanel({ teamData }: { teamData: any[] }) {
   useEffect(() => { cargar() }, [desde, hasta])
   useEffect(() => {
     const hace1año = new Date(); hace1año.setFullYear(hace1año.getFullYear()-1)
-    fetch(`/api/calendario?desde=${hace1año.toISOString().split('T')[0]}&hasta=${hasta}`)
+    fetch(`/api/calendario?desde=${hace1año.toISOString().split('T')[0]}&hasta=${hasta}`, { cache: 'no-store' })
       .then(r=>r.json()).then(d => {
         const all = [
           ...((d.sesiones||[]).filter((s:any)=>s.tipo==='partido').map((s:any)=>({ fecha:s.fecha, rival:s.rival||'Partido', _src:'calendar' }))),
@@ -7639,7 +7657,7 @@ function ExpoAIPanel({ teamData }: { teamData: any[] }) {
 
   async function cargar() {
     setLoading(true)
-    try { const r = await fetch(`/api/carga-gps?desde=${desde}&hasta=${hasta}&ciclo=microciclo`); setData(await r.json()) }
+    try { const r = await fetch(`/api/carga-gps?desde=${desde}&hasta=${hasta}&ciclo=microciclo`, { cache: 'no-store' }); setData(await r.json()) }
     catch(e){} finally { setLoading(false) }
   }
 
@@ -7647,7 +7665,7 @@ function ExpoAIPanel({ teamData }: { teamData: any[] }) {
     const updated = [...selectedPartidos]; updated[slotIdx] = partido || null; setSelectedPartidos(updated)
     if (!partido) { const nr=[...refData]; nr[slotIdx]={}; setRefData(nr); return }
     try {
-      const r = await fetch(`/api/carga-gps?desde=${partido.fecha}&hasta=${partido.fecha}&ciclo=microciclo`)
+      const r = await fetch(`/api/carga-gps?desde=${partido.fecha}&hasta=${partido.fecha}&ciclo=microciclo`, { cache: 'no-store' })
       const d = await r.json()
       const avg = d?.teamAvgGps || {}
       const nr = [...refData]

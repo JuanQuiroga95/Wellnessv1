@@ -68,7 +68,9 @@ export async function GET(req: NextRequest) {
       }
     } catch { logs = [] }
 
-    return NextResponse.json({ sesiones, partidos, logs })
+    return NextResponse.json({ sesiones, partidos, logs }, {
+      headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate' }
+    })
   } catch (err) {
     console.error('[calendario GET error]', err)
     return NextResponse.json({ error: String(err) }, { status: 500 })
@@ -105,7 +107,9 @@ export async function POST(req: NextRequest) {
              ${rpe_objetivo || null}, ${notas || null},
              ${rival || null}, ${rival_foto || null})
       RETURNING id, fecha::text`
-    return NextResponse.json(r)
+    return NextResponse.json(r, {
+      headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate' }
+    })
   } catch (err) {
     console.error('[calendario POST error]', err)
     return NextResponse.json({ error: String(err) }, { status: 500 })

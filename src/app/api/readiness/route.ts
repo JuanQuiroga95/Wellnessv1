@@ -67,5 +67,7 @@ export async function GET(req: NextRequest) {
       AND (${isMaster}::boolean OR (u.club_id=${clubId} AND j.club_id=${clubId}))
     ORDER BY u.nombre`
 
-  return NextResponse.json({ wRows, rpeRows, todayRows })
+  return NextResponse.json({ wRows, rpeRows, todayRows }, {
+    headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate' }
+  })
 }
