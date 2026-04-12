@@ -3539,7 +3539,7 @@ function CargaExternaPanel() {
 function ComparativaPanel({ teamData }: { teamData: any[] }) {
   const [desde, setDesde] = useState(() => { const d=new Date(); d.setDate(d.getDate()-28); return d.toISOString().split('T')[0] })
   const [hasta, setHasta] = useState(new Date().toISOString().split('T')[0])
-  const [posMetric, setPosMetric] = useState('dist_total')
+  const [posMetric, setPosMetric] = useState('ua_total')
   const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(false)
   const [posFilter, setPosFilter] = useState<string>('todas')
@@ -5060,21 +5060,19 @@ function AcumPanel({ teamData }) {
   const [miciData, setMiciData] = useState<any>(null)
   const [miciLoading, setMiciLoading] = useState(false)
   const today = new Date().toISOString().split('T')[0]
-  const [miciNum, setMiciNum] = useState(1)
+  // miciOffset: 0=semana actual, -1=semana pasada, -2=hace 2 semanas, etc.
+  // boton < retrocede (offset--), boton > avanza (offset++, max 0)
+  const [miciOffset, setMiciOffset] = useState(0)
+  const miciNum = -miciOffset + 1  // Microciclo 1=actual, 2=hace 1 semana, etc.
 
-  // miciNum 1 = this week (offset 0), 2 = last week (offset -1), etc.
-  const getMiciOffset = (num: number) => -(num - 1)
-
-  const getMiciStart = (num: number) => {
-    const offset = getMiciOffset(num)
+  const getMiciStart = (offset: number) => {
     const d = new Date()
     const dow = d.getDay()
     const diffToMonday = dow === 0 ? -6 : 1 - dow
     d.setDate(d.getDate() + diffToMonday + offset * 7)
     return d.toISOString().split('T')[0]
   }
-  const getMiciEnd = (num: number) => {
-    const offset = getMiciOffset(num)
+  const getMiciEnd = (offset: number) => {
     const d = new Date()
     const dow = d.getDay()
     const diffToMonday = dow === 0 ? -6 : 1 - dow
@@ -5082,13 +5080,13 @@ function AcumPanel({ teamData }) {
     return d.toISOString().split('T')[0]
   }
 
-  const [miciDesde, setMiciDesde] = useState(() => getMiciStart(1))
-  const [miciHasta, setMiciHasta] = useState(() => getMiciEnd(1))
+  const [miciDesde, setMiciDesde] = useState(() => getMiciStart(0))
+  const [miciHasta, setMiciHasta] = useState(() => getMiciEnd(0))
 
   useEffect(() => {
-    setMiciDesde(getMiciStart(miciNum))
-    setMiciHasta(getMiciEnd(miciNum))
-  }, [miciNum])
+    setMiciDesde(getMiciStart(miciOffset))
+    setMiciHasta(getMiciEnd(miciOffset))
+  }, [miciOffset])
 
   useEffect(() => { loadMici() }, [miciDesde, miciHasta])
 
@@ -5126,10 +5124,10 @@ function AcumPanel({ teamData }) {
                 ACUMULATIVO MICROCICLO {miciNum}
               </h2>
               <div style={{ display:'flex', gap:4 }}>
-                <button onClick={()=>setMiciNum(n=>Math.max(1,n-1))} disabled={miciNum<=1}
-                  style={{ width:28, height:28, borderRadius:6, background:'var(--ink3)', border:'1px solid var(--mist)', color: miciNum<=1?'var(--fog)':'var(--silver)', cursor:miciNum<=1?'default':'pointer', fontSize:14, fontWeight:700 }}>−</button>
-                <button onClick={()=>setMiciNum(n=>n+1)}
-                  style={{ width:28, height:28, borderRadius:6, background:'var(--ink3)', border:'1px solid var(--mist)', color:'var(--silver)', cursor:'pointer', fontSize:14, fontWeight:700 }}>+</button>
+                <button onClick={()=>setMiciOffset(o=>o-1)}
+                  style={{ width:28, height:28, borderRadius:6, background:'var(--ink3)', border:'1px solid var(--mist)', color:'var(--silver)', cursor:'pointer', fontSize:14, fontWeight:700 }}>‹</button>
+                <button onClick={()=>setMiciOffset(o=>Math.min(0,o+1))} disabled={miciOffset>=0}
+                  style={{ width:28, height:28, borderRadius:6, background:'var(--ink3)', border:'1px solid var(--mist)', color: miciOffset>=0?'var(--fog)':'var(--silver)', cursor:miciOffset>=0?'default':'pointer', fontSize:14, fontWeight:700 }}>›</button>
               </div>
             </div>
             <p style={{ fontSize:11, color:'var(--lime)', fontFamily:'DM Mono,monospace', marginTop:2 }}>
