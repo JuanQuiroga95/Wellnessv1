@@ -1,12 +1,11 @@
 'use client'
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import * as XLSX from 'xlsx'
 import { useRouter } from 'next/navigation'
 import Topbar from '@/components/ui/Topbar'
 import StatusBadge from '@/components/ui/StatusBadge'
 import ACWRChart from '@/components/charts/ACWRChart'
 import WellnessTrend from '@/components/charts/WellnessTrend'
-import ReadinessChart from '@/components/charts/ReadinessChart'
 import { buildACWRHistory, buildDailyDetail } from '@/lib/acwr'
 import EvaluacionesPanelFull from './EvaluacionesPanel'
 import AnalyticsPanel from './AnalyticsPanel'
@@ -101,7 +100,6 @@ export default function CoachClient({ session, teamData, today }) {
   const [playerLogs, setPlayerLogs] = useState([])
   const [playerWellness, setPlayerWellness] = useState([])
   const [loadingDetail, setLoadingDetail] = useState(false)
-  const [ciclo, setCiclo] = useState<'microciclo'|'mesociclo'|'macrociclo'>('microciclo')
   const [showNew, setShowNew] = useState(false)
   const [showImport, setShowImport] = useState(false)
   const [clubLogo, setClubLogo] = useState<string|null>(null)
@@ -113,7 +111,7 @@ export default function CoachClient({ session, teamData, today }) {
 
   // Load club logo and team name from DB on mount
   useEffect(() => {
-    fetch('/api/admin/settings', { cache: 'no-store' })
+    fetch('/api/admin/settings')
       .then(r => r.json())
       .then(d => {
         console.log('[Settings loaded]', { userId: d.debug_userId, has_foto: !!d.club_foto, club_nombre: d.club_nombre })
@@ -124,11 +122,6 @@ export default function CoachClient({ session, teamData, today }) {
         }
       })
       .catch((e) => console.error('[Settings load error]', e))
-
-    // Escuchar evento de sesión guardada para refrescar datos del servidor
-    const handleSesionGuardada = () => { router.refresh() }
-    window.addEventListener('sesion-guardada', handleSesionGuardada)
-    return () => window.removeEventListener('sesion-guardada', handleSesionGuardada)
   }, [])
 
   async function saveTeamName() {
@@ -146,8 +139,8 @@ export default function CoachClient({ session, teamData, today }) {
     const days = CICLO_DAYS[cycle]
     const wdays = CICLO_WELLNESS_DAYS[cycle]
     const [logs, well] = await Promise.all([
-      fetch(`/api/logs?jugadorId=${p.jugador_id}&days=${days}`, { cache: 'no-store' }).then(r=>r.json()),
-      fetch(`/api/wellness?jugadorId=${p.jugador_id}&days=${wdays}`, { cache: 'no-store' }).then(r=>r.json()),
+      fetch(`/api/logs?jugadorId=${p.jugador_id}&days=${days}`).then(r=>r.json()),
+      fetch(`/api/wellness?jugadorId=${p.jugador_id}&days=${wdays}`).then(r=>r.json()),
     ])
     setPlayerLogs(logs); setPlayerWellness(well); setLoadingDetail(false)
   }
@@ -484,7 +477,7 @@ function PlayerDetail({ player:p, logs, wellness, loading, onBack, ciclo, onCicl
             {[['Carga aguda (suma 7d)',p.acwr?.acuteLoad],['Carga crónica (prom. 4 sem.)',p.acwr?.chronicLoad]].map(([l,v])=>(
               <div key={l} style={{ background:'var(--ink3)', border:'1px solid var(--mist)', borderRadius:10, padding:'12px 16px', textAlign:'center' }}>
                 <div className="mono" style={{ fontSize:20, fontWeight:500, color:'var(--snow)' }}>{v}</div>
-                <div style={{ fontSize:11, color:'var(--silver)', marginTop:2 }}>{l} UCE</div>
+                <div style={{ fontSize:11, color:'var(--silver)', marginTop:2 }}>{l} UA</div>
               </div>
             ))}
           </div>
@@ -506,7 +499,7 @@ function PlayerDetail({ player:p, logs, wellness, loading, onBack, ciclo, onCicl
             <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12 }}>
               <thead>
                 <tr style={{ background:'rgba(255,255,255,.03)' }}>
-                  {['Día','Fecha','Carga UCE','ACWR','Estado'].map(h=>(
+                  {['Día','Fecha','Carga UA','ACWR','Estado'].map(h=>(
                     <th key={h} style={{ padding:'7px 12px', color:'var(--silver)', fontWeight:600, textTransform:'uppercase', fontSize:9, letterSpacing:'0.06em', textAlign:'center', whiteSpace:'nowrap' }}>{h}</th>
                   ))}
                 </tr>
@@ -619,7 +612,7 @@ function PlayerDetail({ player:p, logs, wellness, loading, onBack, ciclo, onCicl
       )}
       {logs.length>0 && (
         <div style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:16, padding:20 }}>
-          <p style={{ fontSize:11, fontWeight:600, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:14 }}>Últimas sesiones <span style={{ fontSize:10, color:'var(--fog)', fontWeight:400, textTransform:'none' }}>— click en ✏️ para editar minutos y recalcular UCE</span></p>
+          <p style={{ fontSize:11, fontWeight:600, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:14 }}>Últimas sesiones <span style={{ fontSize:10, color:'var(--fog)', fontWeight:400, textTransform:'none' }}>— click en ✏️ para editar minutos y recalcular UA</span></p>
           {[...logs].slice(-8).reverse().map((l,i)=>(<CoachSessionRow key={i} log={l} />))}
         </div>
       )}
@@ -743,7 +736,7 @@ function CambioCargaPanel() {
   const [gpsData, setGpsData] = useState<any>(null)
 
   const CHART_VARS = [
-    { key:'ua',         label:'UCE',          color:'#a78bfa', src:'rpe' },
+    { key:'ua',         label:'UA',           color:'#c8f135', src:'rpe' },
     { key:'rpe',        label:'RPE',          color:'#60a5fa', src:'rpe' },
     { key:'distTotal',  label:'Dist. Total',  color:'#f59e0b', src:'gps' },
     { key:'distPerMin', label:'m/min',        color:'#84cc16', src:'gps' },
@@ -763,8 +756,8 @@ function CambioCargaPanel() {
     setLoading(true)
     try {
       const [r1, r2] = await Promise.all([
-        fetch(`/api/cambio-carga?desde=${desde}&hasta=${hasta}&minEntrenamiento=${minEnt}&minPartido=${minPart}`, { cache: 'no-store' }),
-        fetch(`/api/carga-gps?desde=${desde}&hasta=${hasta}&ciclo=microciclo`, { cache: 'no-store' }),
+        fetch(`/api/cambio-carga?desde=${desde}&hasta=${hasta}&minEntrenamiento=${minEnt}&minPartido=${minPart}`),
+        fetch(`/api/carga-gps?desde=${desde}&hasta=${hasta}&ciclo=microciclo`),
       ])
       setData(await r1.json())
       setGpsData(await r2.json())
@@ -852,7 +845,7 @@ function CambioCargaPanel() {
       <div>
         <h2 className="display" style={{ fontSize:48, color:'var(--snow)' }}>CAMBIO DE CARGA</h2>
         <p style={{ fontSize:12, color:'var(--silver)', marginTop:2 }}>
-          Variación de UCE acumulada — jugadores con ≥{minEnt}min entrenamiento y ≥{minPart}min en partido
+          Variación de UA acumulada — jugadores con ≥{minEnt}min entrenamiento y ≥{minPart}min en partido
         </p>
       </div>
 
@@ -983,8 +976,8 @@ function CambioCargaPanel() {
               <div style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:16, overflow:'hidden' }}>
                 <div style={{ display:'grid', gridTemplateColumns: view==='diario' ? '1fr 120px 120px 120px' : '1fr 1fr 120px 120px', gap:0, padding:'10px 18px', borderBottom:'1px solid var(--mist)' }}>
                   {(view==='diario'
-                    ? ['Fecha','Jugadores','Promedio UCE','Cambio vs anterior']
-                    : ['Semana','Etiqueta','Promedio UCE','Cambio vs anterior']
+                    ? ['Fecha','Jugadores','Promedio UA','Cambio vs anterior']
+                    : ['Semana','Etiqueta','Promedio UA','Cambio vs anterior']
                   ).map(h=>(
                     <span key={h} style={{ fontSize:9, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em' }}>{h}</span>
                   ))}
@@ -1037,33 +1030,9 @@ const OBJETIVOS_FISICOS = ['Fuerza','Resistencia','Velocidad','Recuperación-Com
 const OBJETIVOS_SECUNDARIOS = ['Táctico','Técnico','Técnico-Táctico']
 const TITULOS_SESION = ['MD+1','MD+2','MD+3','MD-4','MD-3','MD-2','MD-1','MD']
 const TAREAS_PRINCIPALES = ['Activación en campo','Activación en gimnasio','Gimnasio','Rondo','Trabajo analítico','Juego de posesión','Juego de posición','Transiciones','Partido reducido','Partido modificado','Partido de entrenamiento','Partido amistoso','Partido oficial']
-// NE = Nivel de Especificidad (1-10) según escala UCE (infografía)
-// CE = minutos × NE  →  UCE = CE × RPE
-const TAREA_NE: Record<string, number> = {
-  'Restauración':           0.2,
-  'Activación en gimnasio': 0.4,
-  'Gimnasio':               0.4,
-  'Trabajo preventivo':     0.4,
-  'Cualidades específicas': 0.8,
-  'Activación en campo':    1.0,
-  'Circuito condicional':   1.0,
-  'Circuito técnico':       2.0,
-  'Trabajo analítico':      2.0,
-  'Rondo':                  3.0,
-  'Posesión reducida':      5.0,
-  'Juego de posesión':      5.0,
-  'Juego de posición':      6.0,
-  'Transiciones':           7.0,
-  'Partido reducido':       7.0,
-  'Partido modificado':     8.0,
-  'Partido de entrenamiento': 9.0,
-  'Partido amistoso':       9.0,
-  'Partido oficial':        10.0,
-}
-const getNE = (ventana: string): number => TAREA_NE[ventana] ?? 1
 const SUBTAREAS: Record<string, string[]> = { 'Activación en campo': ['Circuito técnico','Circuito neuromuscular','Pliometría','Movilidad','Trabajo Preventivo'], 'Activación en gimnasio': ['Isométricos','Pliometría','Movilidad','Excéntricos','Estabilidad','Tracción y empuje','Trabajo Preventivo'], 'Rondo': ['Rondo 4v2','Rondo 5v2','Rondo 6v2','Rondo 8v2','Rondo 4v1+1','Rondo en movimiento','Rondo conservación','Rondo orientado','Rondo dos espacios'] }
-const TAREAS_CON_ESPACIO = ['Rondo','Trabajo analítico','Juego de posesión','Juego de posición','Transiciones','Partido reducido','Partido modificado','Partido de entrenamiento','Partido amistoso','Partido oficial']
-const TAREAS_CON_EQUIPO = ['Rondo','Trabajo analítico','Juego de posesión','Juego de posición','Transiciones','Partido reducido','Partido modificado','Partido de entrenamiento','Partido amistoso','Partido oficial']
+const TAREAS_CON_ESPACIO = ['Rondo','Trabajo analítico','Juego de posesión','Juego de posición','Partido reducido','Partido modificado','Partido de entrenamiento','Partido amistoso','Partido oficial']
+const TAREAS_CON_EQUIPO = ['Rondo','Trabajo analítico','Juego de posesión','Juego de posición','Partido reducido','Partido modificado','Partido de entrenamiento','Partido amistoso','Partido oficial']
 const TAREAS_PARTIDO_SIMPLE = ['Partido amistoso','Partido oficial','Partido de entrenamiento']
 const TAREAS_MOSTRAR_FORM = [...TAREAS_CON_ESPACIO, 'Activación en campo','Activación en gimnasio','Gimnasio']
 const TIPO_COLORES = { entrenamiento:'#c8f135', partido:'#3b82f6', recuperacion:'#f59e0b', descanso:'#555' }
@@ -1120,7 +1089,7 @@ function CalendarioPanel({ teamData }) {
       hasta = we.toISOString().split('T')[0]
     }
     try {
-      const r = await fetch(`/api/calendario?desde=${desde}&hasta=${hasta}`, { cache: 'no-store' })
+      const r = await fetch(`/api/calendario?desde=${desde}&hasta=${hasta}`)
       setData(await r.json())
     } catch {}
     setLoading(false)
@@ -1216,20 +1185,6 @@ function CalendarioPanel({ teamData }) {
           <p style={{ fontSize:12, color:'var(--silver)', marginTop:2 }}>Planificación de sesiones y recuperación</p>
         </div>
         <div style={{ display:'flex', gap:8, alignItems:'center' }}>
-          <button onClick={async()=>{
-            if (!confirm('⚠️ BORRAR TODO\n\nEsto eliminará: sesiones del calendario, registros de RPE de jugadores y partidos registrados.\n\nNo se puede deshacer. ¿Confirmar?')) return
-            try {
-              const r = await fetch('/api/calendario?all=true', { method: 'DELETE' })
-              if (r.ok) {
-                window.location.reload()
-              } else {
-                const body = await r.json().catch(()=>({}))
-                alert('Error al borrar: ' + (body?.error || r.status))
-              }
-            } catch(e) {
-              alert('Error de red al borrar. Intentá de nuevo.')
-            }
-          }} style={{ fontSize:12, padding:'10px 18px', borderRadius:8, background:'rgba(239,68,68,.1)', border:'1px solid rgba(239,68,68,.3)', color:'#f87171', cursor:'pointer' }}>🗑 Borrar todo</button>
           <button onClick={()=>setShowEditor(true)} className="btn-lime" style={{ fontSize:12, padding:'10px 18px' }}>+ Nueva sesión</button>
         </div>
       </div>
@@ -1343,11 +1298,8 @@ function CalendarioPanel({ teamData }) {
                         </div>
                       ))}
                       {parts.map((p,i)=>(
-                        <div key={i} style={{ display:'flex', alignItems:'center', gap:2, fontSize:10, padding:'2px 5px', borderRadius:4, width:'100%', background:'rgba(59,130,246,.2)', color:'#60a5fa', border:'1px solid rgba(59,130,246,.35)', overflow:'hidden', whiteSpace:'nowrap' }}>
-                          <span style={{ flex:1, overflow:'hidden', textOverflow:'ellipsis' }}>🏆 {p.rival||'Partido'}</span>
-                          <button onClick={async(e)=>{ e.stopPropagation(); if(!confirm(`Borrar partido "${p.rival||'Partido'}" del ${p.fecha}?
-
-Esto elimina los minutos registrados de todos los jugadores.`)) return; await fetch(`/api/partidos?fecha=${p.fecha}&rival=${encodeURIComponent(p.rival||'')}`,{method:'DELETE'}); load() }} style={{ background:'transparent', border:'none', color:'#f87171', cursor:'pointer', fontSize:10, padding:'0 2px', lineHeight:1, flexShrink:0 }} title="Borrar partido">✕</button>
+                        <div key={i} style={{ fontSize:10, padding:'2px 5px', borderRadius:4, width:'100%', background:'rgba(59,130,246,.2)', color:'#60a5fa', border:'1px solid rgba(59,130,246,.35)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                          🏆 {p.rival||'Partido'}
                         </div>
                       ))}
                       {log && (() => {
@@ -1373,11 +1325,8 @@ Esto elimina los minutos registrados de todos los jugadores.`)) return; await fe
                         </div>
                       ))}
                       {parts.map((p,i)=>(
-                        <div key={i} style={{ display:'flex', alignItems:'center', gap:2, fontSize:10, padding:'2px 5px', borderRadius:4, background:'rgba(59,130,246,.2)', color:'#60a5fa', border:'1px solid rgba(59,130,246,.35)', overflow:'hidden', whiteSpace:'nowrap' }}>
-                          <span style={{ flex:1, overflow:'hidden', textOverflow:'ellipsis' }}>🏆 {p.rival||'Partido'}</span>
-                          <button onClick={async(e)=>{ e.stopPropagation(); if(!confirm(`Borrar partido "${p.rival||'Partido'}" del ${p.fecha}?
-
-Esto elimina los minutos de todos los jugadores.`)) return; await fetch(`/api/partidos?fecha=${p.fecha}&rival=${encodeURIComponent(p.rival||'')}`,{method:'DELETE'}); load() }} style={{ background:'transparent', border:'none', color:'#f87171', cursor:'pointer', fontSize:10, padding:'0 2px', lineHeight:1, flexShrink:0 }} title="Borrar partido">✕</button>
+                        <div key={i} style={{ fontSize:10, padding:'2px 5px', borderRadius:4, background:'rgba(59,130,246,.2)', color:'#60a5fa', border:'1px solid rgba(59,130,246,.35)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                          🏆 {p.rival||'Partido'}
                         </div>
                       ))}
                       {log && (() => {
@@ -1423,11 +1372,8 @@ Esto elimina los minutos de todos los jugadores.`)) return; await fetch(`/api/pa
                       </button>
                     ))}
                     {parts.map((p,i)=>(
-                      <span key={i} style={{ display:'inline-flex', alignItems:'center', gap:4, fontSize:12, padding:'4px 10px', borderRadius:8, background:'rgba(59,130,246,.15)', color:'#60a5fa', border:'1px solid rgba(59,130,246,.3)' }}>
+                      <span key={i} style={{ fontSize:12, padding:'4px 10px', borderRadius:8, background:'rgba(59,130,246,.15)', color:'#60a5fa', border:'1px solid rgba(59,130,246,.3)' }}>
                         🏆 {p.rival||'Partido'} · {p.tipo_partido}
-                        <button onClick={async(e)=>{ e.stopPropagation(); if(!confirm(`Borrar partido "${p.rival||'Partido'}" del ${p.fecha}?
-
-Esto elimina los minutos de todos los jugadores.`)) return; await fetch(`/api/partidos?fecha=${p.fecha}&rival=${encodeURIComponent(p.rival||'')}`,{method:'DELETE'}); load() }} style={{ background:'transparent', border:'none', color:'#f87171', cursor:'pointer', fontSize:11, padding:'0', lineHeight:1 }} title="Borrar partido">✕</button>
                       </span>
                     ))}
                   </div>
@@ -1537,11 +1483,8 @@ Esto elimina los minutos de todos los jugadores.`)) return; await fetch(`/api/pa
               </div>
             ))}
             {parts.map((p,i)=>(
-              <div key={i} style={{ background:'rgba(59,130,246,.08)', border:'1px solid rgba(59,130,246,.25)', borderRadius:10, padding:'10px 14px', display:'flex', alignItems:'center', justifyContent:'space-between', gap:8 }}>
+              <div key={i} style={{ background:'rgba(59,130,246,.08)', border:'1px solid rgba(59,130,246,.25)', borderRadius:10, padding:'10px 14px' }}>
                 <span style={{ fontWeight:700, color:'#60a5fa', fontSize:13 }}>🏆 {p.rival||'Partido'} · {p.tipo_partido}</span>
-                <button onClick={async()=>{ if(!confirm(`Borrar partido "${p.rival||'Partido'}" del ${p.fecha}?
-
-Esto elimina los minutos de todos los jugadores.`)) return; await fetch(`/api/partidos?fecha=${p.fecha}&rival=${encodeURIComponent(p.rival||'')}`,{method:'DELETE'}); load(); setSelectedDay(null) }} style={{ background:'rgba(239,68,68,.1)', border:'1px solid rgba(239,68,68,.3)', color:'#f87171', borderRadius:6, cursor:'pointer', fontSize:11, padding:'4px 10px' }}>🗑 Borrar partido</button>
               </div>
             ))}
           </div>
@@ -1577,10 +1520,6 @@ Esto elimina los minutos de todos los jugadores.`)) return; await fetch(`/api/pa
               setShowEditor(false)
               setEditSesion(null)
               await load()
-              // Refrescar server component para que teamData refleje cambios
-              if (typeof window !== 'undefined') {
-                window.dispatchEvent(new CustomEvent('sesion-guardada'))
-              }
 
               // Auto-save tasks to biblioteca in background (fire and forget)
               const bloques: any[] = data.ejercicios || []
@@ -1806,63 +1745,9 @@ function BloqueMetodologia({ bloque, index, onChange, onRemove, teamPlayers = []
   }
 
   const inp = (field, placeholder, type='text') => (
-    <input className="wp-input" type={type} placeholder={placeholder} value={bloque[field]||''}
-      onChange={e=>onChange(field,e.target.value)}
+    <input className="wp-input" type={type} placeholder={placeholder} value={bloque[field]||''} onChange={e=>onChange(field,e.target.value)}
       style={{ padding:'5px 8px', fontSize:11, width:'100%' }} />
   )
-
-  // MM:SS input — stores decimal minutes internally (4:30 → 4.5, 4:45 → 4.75)
-  // Accepts typing: "4", "4:", "4:3", "4:30" — validates on blur
-  const inpTime = (field) => {
-    const decToDisplay = (val) => {
-      if (!val && val !== 0) return ''
-      const n = parseFloat(val)
-      if (isNaN(n)) return String(val)
-      const mins = Math.floor(n)
-      const secs = Math.round((n - mins) * 60)
-      return secs === 0 ? String(mins) : `${mins}:${String(secs).padStart(2,'0')}`
-    }
-    const displayToDecimal = (str) => {
-      if (!str) return ''
-      if (str.includes(':')) {
-        const [m, s] = str.split(':')
-        const mins = parseInt(m) || 0
-        const secs = parseInt(s) || 0
-        return String(mins + Math.round(secs / 60 * 100) / 100)
-      }
-      return str
-    }
-    // Show MM:SS from stored decimal; on change store raw text; on blur convert
-    const raw = bloque[field + '_raw'] !== undefined ? bloque[field + '_raw'] : decToDisplay(bloque[field])
-    return (
-      <input
-        className="wp-input"
-        type="text"
-        inputMode="numeric"
-        placeholder="MM:SS"
-        value={raw}
-        onChange={e => {
-          const v = e.target.value
-          // Allow only digits and one colon
-          if (!/^[0-9]{0,3}:?[0-9]{0,2}$/.test(v)) return
-          onChange(field + '_raw', v)
-          // Live-update decimal if already valid
-          if (/^[0-9]+(:[0-9]{0,2})?$/.test(v) && !v.endsWith(':')) {
-            onChange(field, displayToDecimal(v))
-          }
-        }}
-        onBlur={e => {
-          const v = e.target.value
-          if (!v) { onChange(field, ''); onChange(field + '_raw', ''); return }
-          const dec = displayToDecimal(v)
-          onChange(field, dec)
-          // Normalize display: "4:3" → "4:30"
-          onChange(field + '_raw', decToDisplay(dec))
-        }}
-        style={{ padding:'5px 8px', fontSize:11, width:'100%', fontFamily:'DM Mono,monospace' }}
-      />
-    )
-  }
 
   const EQUIPO_COLORS = ['#22c55e','#3b82f6','#f59e0b','#ef4444']
   const EQUIPO_LABELS = ['Equipo 1','Equipo 2','Equipo 3','Equipo 4']
@@ -1875,25 +1760,10 @@ function BloqueMetodologia({ bloque, index, onChange, onRemove, teamPlayers = []
       </div>
 
       <div style={{ marginBottom:8 }}>
-        <label style={{ fontSize:9, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', display:'flex', alignItems:'center', gap:6, marginBottom:3 }}>
-          Tarea
-          {bloque.ventana && (() => {
-            const ne = getNE(bloque.ventana)
-            const neColor = ne >= 8 ? '#ef4444' : ne >= 5 ? '#f59e0b' : ne >= 3 ? '#c8f135' : '#34d399'
-            return (
-              <span style={{ fontSize:9, fontFamily:'DM Mono,monospace', fontWeight:700, color: neColor,
-                background:`${neColor}18`, border:`1px solid ${neColor}55`, borderRadius:4, padding:'1px 6px' }}>
-                NE {ne}
-              </span>
-            )
-          })()}
-        </label>
+        <label style={{ fontSize:9, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:3 }}>Tarea</label>
         <select className="wp-input" value={bloque.ventana||''} onChange={e=>{ onChange('ventana',e.target.value); onChange('subtarea','') }} style={{ padding:'5px 8px', fontSize:12, appearance:'none', width:'100%' }}>
           <option value="">— Seleccionar —</option>
-          {TAREAS_PRINCIPALES.map(t => {
-            const ne = getNE(t)
-            return <option key={t} value={t} style={{ background:'var(--ink2)' }}>{t}  (NE {ne})</option>
-          })}
+          {TAREAS_PRINCIPALES.map(t=><option key={t} value={t} style={{ background:'var(--ink2)' }}>{t}</option>)}
         </select>
       </div>
 
@@ -1934,8 +1804,8 @@ function BloqueMetodologia({ bloque, index, onChange, onRemove, teamPlayers = []
               }
             </div>
             <div><label style={{ fontSize:9, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:2 }}>Bloques</label>{inp('series','Nº bloques','number')}</div>
-            <div><label style={{ fontSize:9, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:2 }}>Duración / bloque</label>{inpTime('minutos')}</div>
-            <div><label style={{ fontSize:9, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:2 }}>Pausa / bloque</label>{inpTime('pausa')}</div>
+            <div><label style={{ fontSize:9, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:2 }}>Min / bloque</label>{inp('minutos','Min','number')}</div>
+            <div><label style={{ fontSize:9, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:2 }}>Pausa x bloque (min)</label>{inp('pausa','Min descanso','number')}</div>
           </div>
           {esConEspacio && (
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:6, marginBottom:4 }}>
@@ -1943,29 +1813,12 @@ function BloqueMetodologia({ bloque, index, onChange, onRemove, teamPlayers = []
               <div><label style={{ fontSize:9, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:2 }}>Ancho (m)</label>{inp('ancho','m','number')}</div>
             </div>
           )}
-          {(bloque.series && bloque.minutos) && (() => {
-            const minActivo = Number(bloque.series) * Number(bloque.minutos)
-            const ne = bloque.ventana ? getNE(bloque.ventana) : null
-            const ce = ne !== null ? Math.round(minActivo * ne * 10) / 10 : null
-            const neColor = ne !== null ? (ne >= 8 ? '#ef4444' : ne >= 5 ? '#f59e0b' : ne >= 3 ? '#c8f135' : '#34d399') : 'var(--fog)'
-            return (
-              <div style={{ marginTop:6, display:'flex', flexDirection:'column', gap:3 }}>
-                <div style={{ fontSize:10, color:'var(--lime)', fontFamily:'DM Mono,monospace' }}>
-                  ⏱ Tiempo activo: {minActivo} min
-                  {bloque.pausa ? ` + ${(Number(bloque.series)*Number(bloque.pausa))} min pausa = ${(Number(bloque.series)*(Number(bloque.minutos)+Number(bloque.pausa)))} min total` : ''}
-                </div>
-                {ce !== null && (
-                  <div style={{ fontSize:10, fontFamily:'DM Mono,monospace', color: neColor,
-                    background:`${neColor}10`, border:`1px solid ${neColor}30`, borderRadius:5, padding:'3px 8px',
-                    display:'flex', gap:12, alignItems:'center' }}>
-                    <span>🧠 NE <strong>{ne}</strong></span>
-                    <span>CE = {minActivo} × {ne} = <strong>{ce}</strong></span>
-                    <span style={{ fontSize:9, color:'var(--fog)' }}>(UCE = CE × RPE sesión)</span>
-                  </div>
-                )}
-              </div>
-            )
-          })()}
+          {(bloque.series && bloque.minutos) && (
+            <div style={{ fontSize:10, color:'var(--lime)', fontFamily:'DM Mono,monospace', marginTop:4 }}>
+              ⏱ Tiempo activo: {(Number(bloque.series)*Number(bloque.minutos))} min
+              {bloque.pausa ? ` + ${(Number(bloque.series)*Number(bloque.pausa))} min pausa = ${(Number(bloque.series)*(Number(bloque.minutos)+Number(bloque.pausa)))} min total` : ''}
+            </div>
+          )}
         </div>
       )}
 
@@ -2263,14 +2116,7 @@ function SesionEditor({ sesion, defaultFecha, onSave, onDelete, onCancel, teamPl
     if (!f.fecha) return
     setLoading(true); setSaveError('')
     try {
-      // Strip _raw display fields before saving (they're only for UI rendering)
-      const bloquesClean = bloques.map(bl => {
-        const clean = {...bl}
-        delete clean.minutos_raw
-        delete clean.pausa_raw
-        return clean
-      })
-      await onSave({ ...f, hora_inicio: f.hora_inicio||null, hora_fin: f.hora_fin||null, rpe_objetivo:f.rpe_objetivo?Number(f.rpe_objetivo):null, ejercicios: bloquesClean })
+      await onSave({ ...f, hora_inicio: f.hora_inicio||null, hora_fin: f.hora_fin||null, rpe_objetivo:f.rpe_objetivo?Number(f.rpe_objetivo):null, ejercicios: bloques })
     } catch(e) {
       setSaveError('Error al guardar. Intentá de nuevo.')
     }
@@ -2338,50 +2184,6 @@ function SesionEditor({ sesion, defaultFecha, onSave, onDelete, onCancel, teamPl
           <label style={{ display:'block', fontSize:10, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:5 }}>RPE objetivo (1–10)</label>
           <input type="number" min="1" max="10" className="wp-input" value={f.rpe_objetivo} onChange={e=>set('rpe_objetivo',e.target.value)} placeholder="ej: 7" style={{ padding:'8px 12px', fontSize:13 }} />
         </div>
-        {/* UCE Total preview */}
-        {(() => {
-          const rpe = Number(f.rpe_objetivo) || 0
-          const rows = bloques.map(bl => {
-            const min = (Number(bl.series)||0) * (Number(bl.minutos)||0)
-            const ne = bl.ventana ? getNE(bl.ventana) : 0
-            const ce = Math.round(min * ne * 10) / 10
-            const uce = Math.round(ce * rpe * 10) / 10
-            return { label: bl.ventana || '—', min, ne, ce, uce }
-          }).filter(r => r.min > 0 && r.ne > 0)
-          const totalCE = Math.round(rows.reduce((s,r)=>s+r.ce,0)*10)/10
-          const totalUCE = Math.round(rows.reduce((s,r)=>s+r.uce,0)*10)/10
-          if (!rows.length) return null
-          const uceColor = totalUCE > 5700 ? '#ef4444' : totalUCE > 3325 ? '#f59e0b' : '#34d399'
-          const uceLabel = totalUCE > 5700 ? 'CARGA ALTA — Mejora física' : totalUCE > 3325 ? 'MANTENIMIENTO físico' : 'RECUPERACIÓN física'
-          return (
-            <div style={{ gridColumn:'span 2', background:'rgba(0,0,0,.3)', borderRadius:10, padding:'10px 14px', border:`1px solid ${uceColor}40` }}>
-              <div style={{ fontSize:9, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:8 }}>
-                🧠 UCE — Unidad de Carga Específica
-              </div>
-              <div style={{ display:'flex', flexDirection:'column', gap:3, marginBottom:8 }}>
-                {rows.map((r,i) => (
-                  <div key={i} style={{ display:'flex', alignItems:'center', gap:6, fontSize:10, fontFamily:'DM Mono,monospace' }}>
-                    <span style={{ color:'var(--fog)', minWidth:0, flex:1, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{r.label}</span>
-                    <span style={{ color:'var(--silver)', flexShrink:0 }}>{r.min}min × NE{r.ne}</span>
-                    <span style={{ color:'var(--lime)', flexShrink:0 }}>= CE {r.ce}</span>
-                    {rpe > 0 && <span style={{ color:'#60a5fa', flexShrink:0 }}>× RPE{rpe} = <strong>{r.uce} UCE</strong></span>}
-                  </div>
-                ))}
-              </div>
-              <div style={{ borderTop:'1px solid rgba(255,255,255,.08)', paddingTop:8, display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-                <div style={{ fontSize:11, fontFamily:'DM Mono,monospace', color:'var(--lime)' }}>
-                  CE TOTAL: <strong>{totalCE}</strong>
-                  {rpe > 0 && <span style={{ marginLeft:12, color: uceColor }}>UCE TOTAL: <strong style={{ fontSize:14 }}>{totalUCE}</strong></span>}
-                </div>
-                {rpe > 0 && (
-                  <span style={{ fontSize:9, fontWeight:700, color: uceColor, background:`${uceColor}18`, border:`1px solid ${uceColor}55`, borderRadius:5, padding:'2px 8px' }}>
-                    {uceLabel}
-                  </span>
-                )}
-              </div>
-            </div>
-          )
-        })()}
         {/* Rival + escudo — solo para tipo partido */}
         {f.tipo === 'partido' && (<>
           <div style={{ gridColumn:'span 2' }}>
@@ -2608,7 +2410,7 @@ function MinutosPanel({ teamData }) {
 
   async function load() {
     setLoading(true)
-    try { const r = await fetch(`/api/minutos?desde=${desde}&hasta=${hasta}`, { cache: 'no-store' }); setData(await r.json()) }
+    try { const r = await fetch(`/api/minutos?desde=${desde}&hasta=${hasta}`); setData(await r.json()) }
     finally { setLoading(false) }
   }
 
@@ -2660,7 +2462,7 @@ function MinutosPanel({ teamData }) {
       </div>
       <div style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:14, padding:16 }}>
         <div style={{ display:'flex', gap:12, flexWrap:'wrap', alignItems:'flex-end' }}>
-          {([['desde','Desde',desde,setDesde],['hasta','Hasta',hasta,setHasta]] as [string,string,string,React.Dispatch<React.SetStateAction<string>>][]).map(([id,lbl,val,setter])=>(
+          {[['desde','Desde',desde,setDesde],['hasta','Hasta',hasta,setHasta]].map(([id,lbl,val,setter])=>(
             <div key={id}>
               <label style={{ display:'block', fontSize:10, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:5 }}>{lbl}</label>
               <input type="date" className="wp-input" style={{ width:160, padding:'8px 12px', fontSize:13 }} value={val} onChange={e=>setter(e.target.value)} />
@@ -2675,16 +2477,12 @@ function MinutosPanel({ teamData }) {
         : players.length===0
           ? <div style={{ padding:40, textAlign:'center', color:'var(--silver)' }}>Sin datos. Cargá partidos o datos demo.</div>
           : <>
-              <div style={{ display:'flex', gap:16, paddingLeft:4, flexWrap:'wrap' }}>
+              <div style={{ display:'flex', gap:16, paddingLeft:4 }}>
                 {[['var(--lime)','Entrenamiento'],['#3b82f6','Competición']].map(([c,l])=>(
                   <div key={l} style={{ display:'flex', alignItems:'center', gap:6, fontSize:11, color:'var(--silver)' }}>
                     <div style={{ width:10, height:10, borderRadius:2, background:c }} />{l}
                   </div>
                 ))}
-                <div style={{ display:'flex', alignItems:'center', gap:6, fontSize:11, color:'var(--silver)' }}>
-                  <span style={{ fontSize:9, padding:'2px 6px', borderRadius:4, background:'rgba(200,241,53,.08)', color:'var(--lime)', border:'1px solid rgba(200,241,53,.2)', fontWeight:600 }}>CAL</span>
-                  <span>Estimado desde Calendario (sin RPE)</span>
-                </div>
               </div>
               <div style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:16, overflow:'hidden' }}>
                 {players.map((p,i)=>{
@@ -2698,9 +2496,6 @@ function MinutosPanel({ teamData }) {
                         <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:5 }}>
                           <span style={{ fontSize:13, fontWeight:500, color: isSelected?'var(--lime)':'var(--snow)', minWidth:160, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{p.nombre}</span>
                           <span style={{ fontSize:10, color:'var(--silver)', minWidth:80, flexShrink:0 }}>{p.posicion||'—'}</span>
-                          {p.fuente_entreno === 'calendario' && (
-                            <span style={{ fontSize:9, padding:'2px 6px', borderRadius:4, background:'rgba(200,241,53,.08)', color:'var(--lime)', border:'1px solid rgba(200,241,53,.2)', flexShrink:0, fontWeight:600, letterSpacing:'0.04em' }}>CAL</span>
-                          )}
                           <div style={{ flex:1 }}>
                             <div style={{ height:10, background:'var(--mist)', borderRadius:3, overflow:'hidden', marginBottom:3 }}>
                               <div style={{ height:'100%', width:`${(p.min_entreno/maxMin)*100}%`, background:'var(--lime)', borderRadius:3, opacity:.85 }} />
@@ -2834,7 +2629,7 @@ function AddMatchForm({ teamData, onSuccess, onCancel }) {
     const hasta = new Date().toISOString().split('T')[0]
     const desde = new Date(Date.now() - 56 * 86400000).toISOString().split('T')[0]
     setLoadingCal(true)
-    fetch(`/api/calendario?desde=${desde}&hasta=${hasta}`, { cache: 'no-store' })
+    fetch(`/api/calendario?desde=${desde}&hasta=${hasta}`)
       .then(r => r.json())
       .then(d => {
         const parts = (d.sesiones || [])
@@ -3113,7 +2908,7 @@ function CargaExternaPanel() {
     const desde = new Date(Date.now() - dias * 86400000).toISOString().split('T')[0]
     const hasta = new Date(Date.now() + dias * 86400000).toISOString().split('T')[0]
     try {
-      const r = await fetch(`/api/carga-gps?desde=${desde}&hasta=${hasta}&ciclo=${ciclo}`, { cache: 'no-store' })
+      const r = await fetch(`/api/carga-gps?desde=${desde}&hasta=${hasta}&ciclo=${ciclo}`)
       if (r.ok) setData(await r.json())
     } catch {}
     finally { setLoading(false) }
@@ -3122,7 +2917,7 @@ function CargaExternaPanel() {
   async function loadDia() {
     setDiaLoading(true)
     try {
-      const r = await fetch(`/api/carga-gps?desde=${diaSelec}&hasta=${diaSelec}&ciclo=dia`, { cache: 'no-store' })
+      const r = await fetch(`/api/carga-gps?desde=${diaSelec}&hasta=${diaSelec}&ciclo=dia`)
       if (r.ok) setDiaData(await r.json())
     } catch {}
     finally { setDiaLoading(false) }
@@ -3205,7 +3000,7 @@ function CargaExternaPanel() {
         <div>
           <h2 className="display" style={{ fontSize: 48, color: 'var(--snow)' }}>MEDIA EQUIPO</h2>
           <p style={{ fontSize: 12, color: 'var(--silver)', marginTop: 2 }}>
-            Carga individual por jugador · RPE, UCE y datos GPS de las sesiones
+            Carga individual por jugador · RPE, UA y datos GPS de las sesiones
           </p>
         </div>
         <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', gap:6 }}>
@@ -3311,7 +3106,7 @@ function CargaExternaPanel() {
                         <tr style={{ background:'rgba(255,255,255,.03)' }}>
                           <SortTh field="nombre"   label="Jugador" />
                           <SortTh field="rpe"      label="RPE" />
-                          <SortTh field="ua"       label="UCE" unit="media" />
+                          <SortTh field="ua"       label="UA" unit="media" />
                           <SortTh field="sesiones" label="Ses." />
                           {GPS_COLS.map(c=><SortTh key={c.field} field={c.field} label={c.label} unit={c.unit} />)}
                         </tr>
@@ -3331,7 +3126,7 @@ function CargaExternaPanel() {
                                   ? <span style={{ fontFamily:'DM Mono,monospace', fontWeight:700, fontSize:13, color:col, background:`${col}18`, padding:'2px 8px', borderRadius:6, border:`1px solid ${col}33` }}>{rpe}</span>
                                   : <span style={{ color:'var(--fog)' }}>—</span>}
                               </td>
-                              <td style={{ padding:'8px 10px', textAlign:'center', fontFamily:'DM Mono,monospace', color:p.ua?'#a78bfa':'var(--fog)' }}>{p.ua||'—'}</td>
+                              <td style={{ padding:'8px 10px', textAlign:'center', fontFamily:'DM Mono,monospace', color:p.ua?'#60a5fa':'var(--fog)' }}>{p.ua||'—'}</td>
                               <td style={{ padding:'8px 10px', textAlign:'center', fontFamily:'DM Mono,monospace', color:'var(--silver)' }}>{p.sesiones||'—'}</td>
                               {GPS_COLS.map(c=>(
                                 <td key={c.field} style={{ padding:'8px 10px', textAlign:'center', fontFamily:'DM Mono,monospace', color:p[c.field]>0?'var(--snow)':'var(--fog)' }}>
@@ -3349,7 +3144,7 @@ function CargaExternaPanel() {
                               ? <span style={{ fontFamily:'DM Mono,monospace', fontWeight:800, fontSize:13, color:bc(da.rpe), background:`${bc(da.rpe)}18`, padding:'2px 8px', borderRadius:6 }}>{da.rpe}</span>
                               : <span style={{ color:'var(--fog)' }}>—</span>}
                           </td>
-                          <td style={{ padding:'10px 10px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, color:da.ua?'#a78bfa':'var(--fog)' }}>{da.ua||'—'}</td>
+                          <td style={{ padding:'10px 10px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, color:da.ua?'#60a5fa':'var(--fog)' }}>{da.ua||'—'}</td>
                           <td style={{ padding:'10px 10px', textAlign:'center', fontFamily:'DM Mono,monospace', color:'var(--silver)' }}>{da.sesiones||'—'}</td>
                           {GPS_COLS.map(c=>(
                             <td key={c.field} style={{ padding:'10px 10px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, color:da[c.field]>0?'var(--lime)':'var(--fog)' }}>
@@ -3375,8 +3170,8 @@ function CargaExternaPanel() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(120px,1fr))', gap: 10 }}>
           {[
             ['RPE Medio',    teamAvg.rpe,        'var(--lime)', 'escala Borg'],
-            ['UCE Media',    teamAvg.ua,          '#a78bfa',    'por sesión'],
-            ['UCE Total',    teamAvg.ua_total,    '#a78bfa',    'acumulado'],
+            ['UA Media',     teamAvg.ua,          '#60a5fa',    'por sesión'],
+            ['UA Total',     teamAvg.ua_total,    '#a78bfa',    'acumulado'],
             ['Jugadores',    players.length,      'var(--snow)', 'con datos'],
           ].map(([l, v, c, sub]) => (
             <div key={l as string} style={{ background: 'var(--ink2)', border: '1px solid var(--mist)', borderRadius: 12, padding: 14, textAlign: 'center' }}>
@@ -3410,7 +3205,7 @@ function CargaExternaPanel() {
                 <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--lime)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
                   📅 CARGA DE SESIONES · {ciclo.toUpperCase()}
                 </p>
-                <p style={{ fontSize: 10, color: 'var(--fog)', marginTop: 2 }}>RPE, UCE y GPS estimado desde las tareas del Calendario</p>
+                <p style={{ fontSize: 10, color: 'var(--fog)', marginTop: 2 }}>RPE, UA y GPS estimado desde las tareas del Calendario</p>
               </div>
               <p style={{ fontSize: 10, color: 'var(--fog)' }}>Click en columna para ordenar</p>
             </div>
@@ -3420,8 +3215,8 @@ function CargaExternaPanel() {
                   <tr style={{ background: 'rgba(255,255,255,.03)' }}>
                     <SortTh field="nombre"   label="Jugador" />
                     <SortTh field="rpe"      label="RPE" />
-                    <SortTh field="ua"       label="UCE" unit="media" />
-                    <SortTh field="ua_total" label="UCE" unit="total" />
+                    <SortTh field="ua"       label="UA" unit="media" />
+                    <SortTh field="ua_total" label="UA" unit="total" />
                     <SortTh field="sesiones" label="Ses." />
                     {GPS_COLS.map(c => <SortTh key={c.field} field={c.field} label={c.label} unit={c.unit} />)}
                   </tr>
@@ -3441,8 +3236,8 @@ function CargaExternaPanel() {
                             ? <span style={{ fontFamily: 'DM Mono,monospace', fontWeight: 700, fontSize: 13, color: bc, background: `${bc}18`, padding: '2px 8px', borderRadius: 6, border: `1px solid ${bc}33` }}>{rpe}</span>
                             : <span style={{ color: 'var(--fog)' }}>—</span>}
                         </td>
-                        <td style={{ padding: '9px 10px', textAlign: 'center', fontFamily: 'DM Mono,monospace', fontWeight: 600, color: p.ua ? '#a78bfa' : 'var(--fog)' }}>{p.ua || '—'}</td>
-                        <td style={{ padding: '9px 10px', textAlign: 'center', fontFamily: 'DM Mono,monospace', color: p.ua_total ? '#a78bfa' : 'var(--fog)' }}>{p.ua_total || '—'}</td>
+                        <td style={{ padding: '9px 10px', textAlign: 'center', fontFamily: 'DM Mono,monospace', fontWeight: 600, color: p.ua ? '#60a5fa' : 'var(--fog)' }}>{p.ua || '—'}</td>
+                        <td style={{ padding: '9px 10px', textAlign: 'center', fontFamily: 'DM Mono,monospace', color: p.ua_total ? 'var(--snow)' : 'var(--fog)' }}>{p.ua_total || '—'}</td>
                         <td style={{ padding: '9px 10px', textAlign: 'center', fontFamily: 'DM Mono,monospace', color: 'var(--silver)' }}>{p.sesiones || '—'}</td>
                         {GPS_COLS.map(c => (
                           <td key={c.field} style={{ padding: '9px 10px', textAlign: 'center', fontFamily: 'DM Mono,monospace', color: p[c.field] > 0 ? 'var(--snow)' : 'var(--fog)' }}>
@@ -3459,8 +3254,8 @@ function CargaExternaPanel() {
                         ? <span style={{ fontFamily: 'DM Mono,monospace', fontWeight: 800, fontSize: 13, color: borgColor(teamAvg.rpe), background: `${borgColor(teamAvg.rpe)}18`, padding: '2px 8px', borderRadius: 6 }}>{teamAvg.rpe}</span>
                         : '—'}
                     </td>
-                    <td style={{ padding: '10px 10px', textAlign: 'center', fontFamily: 'DM Mono,monospace', fontWeight: 800, color: '#a78bfa' }}>{teamAvg.ua || '—'}</td>
-                    <td style={{ padding: '10px 10px', textAlign: 'center', fontFamily: 'DM Mono,monospace', fontWeight: 800, color: '#a78bfa' }}>{teamAvg.ua_total || '—'}</td>
+                    <td style={{ padding: '10px 10px', textAlign: 'center', fontFamily: 'DM Mono,monospace', fontWeight: 800, color: '#60a5fa' }}>{teamAvg.ua || '—'}</td>
+                    <td style={{ padding: '10px 10px', textAlign: 'center', fontFamily: 'DM Mono,monospace', fontWeight: 800, color: 'var(--snow)' }}>{teamAvg.ua_total || '—'}</td>
                     <td style={{ padding: '10px 10px', textAlign: 'center', fontFamily: 'DM Mono,monospace', color: 'var(--silver)' }}>{teamAvg.sesiones || '—'}</td>
                     {GPS_COLS.map(c => (
                       <td key={c.field} style={{ padding: '10px 10px', textAlign: 'center', fontFamily: 'DM Mono,monospace', fontWeight: 700, color: teamAvg[c.field] > 0 ? 'var(--lime)' : 'var(--fog)' }}>
@@ -3644,7 +3439,7 @@ function CargaExternaPanel() {
 function ComparativaPanel({ teamData }: { teamData: any[] }) {
   const [desde, setDesde] = useState(() => { const d=new Date(); d.setDate(d.getDate()-28); return d.toISOString().split('T')[0] })
   const [hasta, setHasta] = useState(new Date().toISOString().split('T')[0])
-  const [posMetric, setPosMetric] = useState('ua_total')
+  const [posMetric, setPosMetric] = useState('dist_total')
   const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(false)
   const [posFilter, setPosFilter] = useState<string>('todas')
@@ -3656,7 +3451,7 @@ function ComparativaPanel({ teamData }: { teamData: any[] }) {
   async function cargar() {
     setLoading(true)
     try {
-      const r = await fetch(`/api/carga-gps?desde=${desde}&hasta=${hasta}&ciclo=microciclo`, { cache: 'no-store' })
+      const r = await fetch(`/api/carga-gps?desde=${desde}&hasta=${hasta}&ciclo=microciclo`)
       setData(await r.json())
     } catch(e){} finally { setLoading(false) }
   }
@@ -3699,7 +3494,7 @@ function ComparativaPanel({ teamData }: { teamData: any[] }) {
 
   const VARS = [
     { key:'rpe',         label:'RPE',         color:'#c8f135', unit:'',     src:'rpe' },
-    { key:'ua_total',    label:'UCE Total',   color:'#a78bfa', unit:'',     src:'rpe' },
+    { key:'ua_total',    label:'UA Total',    color:'#60a5fa', unit:'',     src:'rpe' },
     { key:'sesiones',    label:'Sesiones',    color:'var(--silver)', unit:'', src:'rpe' },
     { key:'minActivo',   label:'Min Activos', color:'#34d399', unit:'min',  src:'rpe' },
     { key:'dist_total',  label:'Dist. Total', color:'#93c5fd', unit:'m',    src:'gps' },
@@ -3739,35 +3534,19 @@ function ComparativaPanel({ teamData }: { teamData: any[] }) {
       .sort((a,b) => b.avg - a.avg)
     if (!posAvgs.length) return null
     const maxV = Math.max(...posAvgs.map(x=>x.avg), 1)
-    const MINI_H = 52
     return (
       <div key={varKey} style={{ background:'var(--ink2)', borderRadius:12, padding:14, border:'1px solid var(--mist)' }}>
         <div style={{ fontSize:10, fontWeight:700, color, textTransform:'uppercase', marginBottom:10 }}>{label}</div>
-        <div style={{ display:'flex', alignItems:'flex-end', gap:6, height: MINI_H + 20, overflow:'visible', paddingTop:4 }}>
-          {posAvgs.map((x,i)=>{
-            const barH = Math.max((x.avg/maxV)*MINI_H, 14)
-            const c = posColor(x.pos)
-            return (
-              <div key={i} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', gap:2, minWidth:0, justifyContent:'flex-end', overflow:'visible' }}>
-                <div style={{ position:'relative', width:'100%', borderRadius:'3px 3px 0 0', height:`${barH}px`,
-                  background: `linear-gradient(180deg, ${c}ee, ${c}88)`,
-                  display:'flex', alignItems:'center', justifyContent:'center', overflow:'visible',
-                  boxShadow:`0 0 8px ${c}40` }}>
-                  <span style={{
-                    position:'absolute', top:'50%', left:'50%',
-                    transform:'translate(-50%,-50%) rotate(-90deg)',
-                    fontSize: barH >= 20 ? 7 : 6,
-                    color:'rgba(255,255,255,0.95)',
-                    fontFamily:'DM Mono,monospace', fontWeight:700,
-                    whiteSpace:'nowrap',
-                    textShadow:'0 1px 2px rgba(0,0,0,0.9)',
-                    pointerEvents:'none'
-                  }}>{x.avg}</span>
-                </div>
-                <div style={{ fontSize:7, color:'var(--fog)', whiteSpace:'nowrap', overflow:'hidden', maxWidth:36, textOverflow:'ellipsis', textAlign:'center' }}>{x.pos}</div>
+        <div style={{ display:'flex', alignItems:'flex-end', gap:6, height:64 }}>
+          {posAvgs.map((x,i)=>(
+            <div key={i} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', gap:2, minWidth:0 }}>
+              <div style={{ position:'relative', width:'100%', borderRadius:'3px 3px 0 0', height:`${Math.max((x.avg/maxV)*52,14)}px`,
+                background:posColor(x.pos), opacity:0.8, display:'flex', alignItems:'center', justifyContent:'center' }}>
+                <span style={{ position:'absolute', top:'50%', left:'50%', transform:'translate(-50%,-50%)', fontSize:8, color:'#fff', fontFamily:'DM Mono,monospace', fontWeight:700, whiteSpace:'nowrap', textShadow:'0 1px 2px rgba(0,0,0,.8)' }}>{x.avg}</span>
               </div>
-            )
-          })}
+              <div style={{ fontSize:7, color:'var(--fog)', whiteSpace:'nowrap', overflow:'hidden', maxWidth:36, textOverflow:'ellipsis', textAlign:'center' }}>{x.pos}</div>
+            </div>
+          ))}
         </div>
       </div>
     )
@@ -3897,9 +3676,7 @@ function ComparativaPanel({ teamData }: { teamData: any[] }) {
 
           // When a single position is selected, show individual player bars
           if (posFilter !== 'todas') {
-            const isGpsVarSingle = selVar.src === 'gps'
             const playerBars = filtered
-              .filter((p:any) => !isGpsVarSingle || p.sesiones_gps || p.hasGps)
               .map(p => ({ nombre: p.nombre, val: Number(p[selVar.key]) || 0, pos: p.posicion }))
               .filter(x => x.val > 0)
             if (!playerBars.length) return <div style={{padding:24,textAlign:'center',color:'var(--fog)',fontSize:12}}>Sin datos para esta posición en este período</div>
@@ -3930,23 +3707,13 @@ function ComparativaPanel({ teamData }: { teamData: any[] }) {
                         <div key={i} style={{ position:'absolute', left:0, right:0, bottom:`${BOT_PAD + f*BAR_H}px`, height:1, background:`rgba(255,255,255,${f===0||f===1?'.12':'.05'})`, pointerEvents:'none' }}/>
                       ))}
                       {playerBars.map((x,i)=>{
-                        const barH = Math.max(((x.val - baseV) / rangeV) * BAR_H, 24)
+                        const barH = Math.max(((x.val - baseV) / rangeV) * BAR_H, 6)
                         return (
-                          <div key={i} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'flex-end', height:'100%', minWidth:minBarWidth, paddingBottom:`${BOT_PAD}px`, overflow:'visible' }}>
+                          <div key={i} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'flex-end', height:'100%', minWidth:minBarWidth, paddingBottom:`${BOT_PAD}px` }}>
+                            <span style={{ fontSize:11, color:col, fontFamily:'DM Mono,monospace', fontWeight:800, marginBottom:4, whiteSpace:'nowrap' }}>{x.val.toLocaleString()}</span>
                             <div style={{ position:'relative', width:'60%', borderRadius:'4px 4px 0 0', height:`${barH}px`,
-                              background: `linear-gradient(180deg, ${col}ee, ${col}88)`,
-                              flexShrink:0, boxShadow:`0 0 14px ${col}50`, overflow:'visible', display:'flex', alignItems:'center', justifyContent:'center' }}>
-                              {/* Valor centrado dentro de la barra */}
-                              <span style={{
-                                position:'absolute', top:'50%', left:'50%',
-                                transform:'translate(-50%,-50%) rotate(-90deg)',
-                                fontSize: barH >= 28 ? 11 : 8,
-                                color:'rgba(255,255,255,0.95)',
-                                fontFamily:'DM Mono,monospace', fontWeight:800,
-                                whiteSpace:'nowrap',
-                                textShadow:'0 1px 3px rgba(0,0,0,0.9)',
-                                pointerEvents:'none'
-                              }}>{x.val.toLocaleString()}</span>
+                              background: `linear-gradient(180deg, ${col}dd, ${col}88)`,
+                              flexShrink:0, boxShadow:`0 0 12px ${col}40` }}>
                             </div>
                             <div style={{ textAlign:'center', marginTop:6 }}>
                               <div style={{ fontSize:11, color:'var(--snow)', fontWeight:600 }}>{x.nombre.split(' ')[0]}</div>
@@ -3962,11 +3729,8 @@ function ComparativaPanel({ teamData }: { teamData: any[] }) {
           }
 
           // "Todas" — group by position, one bar per position
-          // Para variables GPS solo usar jugadores con GPS real importado
-          const isGpsVar = selVar.src === 'gps'
           const posGroups: Record<string, number[]> = {}
           filtered.forEach((p:any) => {
-            if (isGpsVar && !p.sesiones_gps && !p.hasGps) return
             const pos = p.posicion || 'Sin pos.'
             if (!posGroups[pos]) posGroups[pos] = []
             const v = Number(p[selVar.key]) || 0
@@ -3974,7 +3738,6 @@ function ComparativaPanel({ teamData }: { teamData: any[] }) {
           })
           const posPlayerNames: Record<string, string[]> = {}
           filtered.forEach((p:any) => {
-            if (isGpsVar && !p.sesiones_gps && !p.hasGps) return
             const pos = p.posicion || 'Sin pos.'
             if (!posPlayerNames[pos]) posPlayerNames[pos] = []
             if (Number(p[selVar.key]) > 0) posPlayerNames[pos].push(p.nombre)
@@ -4011,7 +3774,7 @@ function ComparativaPanel({ teamData }: { teamData: any[] }) {
                 </div>
                 {/* Chart area */}
                 <div style={{ flex:1, overflowX:'auto', overflowY:'visible' }}>
-                  <div style={{ position:'relative', minWidth: chartMinWidth, paddingTop: 8 }}>
+                  <div style={{ position:'relative', minWidth: chartMinWidth }}>
                     {/* Grid lines */}
                     {[0,0.25,0.5,0.75,1].map((f,i)=>(
                       <div key={i} style={{ position:'absolute', left:0, right:0,
@@ -4019,29 +3782,18 @@ function ComparativaPanel({ teamData }: { teamData: any[] }) {
                         borderTop:`1px solid rgba(255,255,255,${f===0||f===1?'.12':'.05'})`, pointerEvents:'none' }}/>
                     ))}
                     <div style={{ display:'flex', gap:12, alignItems:'flex-end',
-                      height: BAR_H + BOT_PAD, paddingBottom: BOT_PAD, overflow:'visible' }}>
+                      height: BAR_H + BOT_PAD, paddingBottom: BOT_PAD }}>
                       {posData.map((x,i)=>{
-                        const barH = Math.max(((x.avg - baseV) / rangeV) * BAR_H, 24)
-                        const col = posColor(x.pos)
+                        const barH = Math.max(((x.avg - baseV) / rangeV) * BAR_H, 6)
                         return (
-                          <div key={i} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', minWidth:minBarWidth, height:'100%', justifyContent:'flex-end', overflow:'visible' }}>
-                            {/* Barra — valor centrado DENTRO */}
+                          <div key={i} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', minWidth:minBarWidth, height:'100%', justifyContent:'flex-end' }}>
+                            {/* Valor encima de la barra */}
+                            <span style={{ fontSize:11, color:posColor(x.pos), fontFamily:'DM Mono,monospace', fontWeight:800, marginBottom:4, whiteSpace:'nowrap' }}>{x.avg.toLocaleString()}</span>
+                            {/* Barra */}
                             <div style={{ position:'relative', width:'60%', minWidth:28, maxWidth:64, borderRadius:'6px 6px 0 0',
                               height:`${barH}px`,
-                              background: `linear-gradient(180deg, ${col}ee, ${col}88)`,
-                              flexShrink:0, boxShadow:`0 0 14px ${col}50`, overflow:'visible', display:'flex', alignItems:'center', justifyContent:'center' }}>
-                              {/* Valor centrado dentro de la barra */}
-                              <span style={{
-                                position:'absolute', top:'50%', left:'50%',
-                                transform:'translate(-50%,-50%) rotate(-90deg)',
-                                fontSize: barH >= 28 ? 10 : 8,
-                                color:'rgba(255,255,255,0.95)',
-                                fontFamily:'DM Mono,monospace', fontWeight:800,
-                                whiteSpace:'nowrap',
-                                textShadow:'0 1px 3px rgba(0,0,0,0.9)',
-                                pointerEvents:'none',
-                                letterSpacing:'0.02em'
-                              }}>{x.avg.toLocaleString()}</span>
+                              background: `linear-gradient(180deg, ${posColor(x.pos)}dd, ${posColor(x.pos)}88)`,
+                              flexShrink:0, boxShadow:`0 0 12px ${posColor(x.pos)}40` }}>
                             </div>
                             {/* Etiquetas debajo */}
                             <div style={{ fontSize:10, color:'var(--snow)', fontWeight:700, marginTop:8, textAlign:'center', wordBreak:'break-word', lineHeight:1.3 }}>{x.pos}</div>
@@ -4953,7 +4705,7 @@ function ReadinessPanel({ teamData }) {
 
   async function loadData() {
     setLoading(true)
-    try { const r = await fetch('/api/readiness?weeks=4', { cache: 'no-store' }); setData(await r.json()) }
+    try { const r = await fetch('/api/readiness?weeks=4'); setData(await r.json()) }
     finally { setLoading(false) }
   }
 
@@ -4967,7 +4719,7 @@ function ReadinessPanel({ teamData }) {
     for (const r of (data.rpeRows||[])) {
       if (!rpeMap[r.jugador_id] || r.semana > rpeMap[r.jugador_id].semana) rpeMap[r.jugador_id] = r
     }
-    return Object.values(wMap).map((w: any) => ({
+    return Object.values(wMap).map(w => ({
       jugador_id: w.jugador_id,
       nombre: w.nombre,
       posicion: w.posicion,
@@ -5165,47 +4917,42 @@ function AcumPanel({ teamData }) {
   const [miciData, setMiciData] = useState<any>(null)
   const [miciLoading, setMiciLoading] = useState(false)
   const today = new Date().toISOString().split('T')[0]
-  // miciOffset: 0=semana actual, -1=semana pasada, -2=hace 2 semanas, etc.
-  // boton < retrocede (offset--), boton > avanza (offset++, max 0)
-  const [miciOffset, setMiciOffset] = useState(0)
-  const miciNum = -miciOffset + 1  // Microciclo 1=actual, 2=hace 1 semana, etc.
+  const [miciNum, setMiciNum] = useState(1)
 
-  const getMiciStart = (offset: number) => {
+  // miciNum 1 = this week (offset 0), 2 = last week (offset -1), etc.
+  const getMiciOffset = (num: number) => -(num - 1)
+
+  const getMiciStart = (num: number) => {
+    const offset = getMiciOffset(num)
     const d = new Date()
-    const dow = d.getDay()
-    const diffToMonday = dow === 0 ? -6 : 1 - dow
-    d.setDate(d.getDate() + diffToMonday + offset * 7)
+    d.setDate(d.getDate() - d.getDay() + 1 + offset * 7)
     return d.toISOString().split('T')[0]
   }
-  const getMiciEnd = (offset: number) => {
+  const getMiciEnd = (num: number) => {
+    const offset = getMiciOffset(num)
     const d = new Date()
-    const dow = d.getDay()
-    const diffToMonday = dow === 0 ? -6 : 1 - dow
-    d.setDate(d.getDate() + diffToMonday + 6 + offset * 7)
+    d.setDate(d.getDate() - d.getDay() + 7 + offset * 7)
     return d.toISOString().split('T')[0]
   }
 
-  const [miciDesde, setMiciDesde] = useState(() => getMiciStart(0))
-  const [miciHasta, setMiciHasta] = useState(() => getMiciEnd(0))
+  const [miciDesde, setMiciDesde] = useState(() => getMiciStart(1))
+  const [miciHasta, setMiciHasta] = useState(today)
 
   useEffect(() => {
-    setMiciDesde(getMiciStart(miciOffset))
-    setMiciHasta(getMiciEnd(miciOffset))
-  }, [miciOffset])
+    setMiciDesde(getMiciStart(miciNum))
+    setMiciHasta(miciNum === 1 ? today : getMiciEnd(miciNum))
+  }, [miciNum])
 
   useEffect(() => { loadMici() }, [miciDesde, miciHasta])
 
   async function loadMici() {
     setMiciLoading(true)
-    try {
-      const r = await fetch(`/api/carga-gps?desde=${miciDesde}&hasta=${miciHasta}&ciclo=microciclo`, { cache: 'no-store' })
-      if (r.ok) { const d = await r.json(); if (!d?.error) setMiciData(d) }
-    }
+    try { const r = await fetch(`/api/carga-gps?desde=${miciDesde}&hasta=${miciHasta}&ciclo=microciclo`); setMiciData(await r.json()) }
     catch(e){} finally { setMiciLoading(false) }
   }
 
   const MICI_VARS = [
-    {key:'ua_total',   label:'UCE',            color:'#a78bfa'},
+    {key:'ua_total',   label:'UA',             color:'#60a5fa'},
     {key:'minActivo',  label:'Tiempo (min)',    color:'#34d399'},
     {key:'distTotal',  label:'DT (m)',          color:'#f59e0b'},
     {key:'distSprint', label:'Dist. Sprint (m)',color:'#f97316'},
@@ -5232,10 +4979,10 @@ function AcumPanel({ teamData }) {
                 ACUMULATIVO MICROCICLO {miciNum}
               </h2>
               <div style={{ display:'flex', gap:4 }}>
-                <button onClick={()=>setMiciOffset(o=>o-1)}
-                  style={{ width:28, height:28, borderRadius:6, background:'var(--ink3)', border:'1px solid var(--mist)', color:'var(--silver)', cursor:'pointer', fontSize:14, fontWeight:700 }}>‹</button>
-                <button onClick={()=>setMiciOffset(o=>Math.min(0,o+1))} disabled={miciOffset>=0}
-                  style={{ width:28, height:28, borderRadius:6, background:'var(--ink3)', border:'1px solid var(--mist)', color: miciOffset>=0?'var(--fog)':'var(--silver)', cursor:miciOffset>=0?'default':'pointer', fontSize:14, fontWeight:700 }}>›</button>
+                <button onClick={()=>setMiciNum(n=>Math.max(1,n-1))} disabled={miciNum<=1}
+                  style={{ width:28, height:28, borderRadius:6, background:'var(--ink3)', border:'1px solid var(--mist)', color: miciNum<=1?'var(--fog)':'var(--silver)', cursor:miciNum<=1?'default':'pointer', fontSize:14, fontWeight:700 }}>−</button>
+                <button onClick={()=>setMiciNum(n=>n+1)}
+                  style={{ width:28, height:28, borderRadius:6, background:'var(--ink3)', border:'1px solid var(--mist)', color:'var(--silver)', cursor:'pointer', fontSize:14, fontWeight:700 }}>+</button>
               </div>
             </div>
             <p style={{ fontSize:11, color:'var(--lime)', fontFamily:'DM Mono,monospace', marginTop:2 }}>
@@ -5967,30 +5714,19 @@ const MD_ORDER = ['MD+1','MD+2','MD+3','MD-4','MD-3','MD-2','MD-1','MD']
 
 function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
   const today = new Date().toISOString().split('T')[0]
-  // Use local date formatting to avoid UTC offset shifting the date
-  const localDateStr = (d: Date) => {
-    const y = d.getFullYear()
-    const m = String(d.getMonth()+1).padStart(2,'0')
-    const day = String(d.getDate()).padStart(2,'0')
-    return `${y}-${m}-${day}`
-  }
   const getWeekStart = (offsetWeeks = 0) => {
     const d = new Date()
-    const dow = d.getDay()
-    const diffToMonday = dow === 0 ? -6 : 1 - dow
-    d.setDate(d.getDate() + diffToMonday + offsetWeeks * 7)
-    return localDateStr(d)
+    d.setDate(d.getDate() - d.getDay() + 1 + offsetWeeks * 7)
+    return d.toISOString().split('T')[0]
   }
   const getWeekEnd = (offsetWeeks = 0) => {
     const d = new Date()
-    const dow = d.getDay()
-    const diffToMonday = dow === 0 ? -6 : 1 - dow
-    d.setDate(d.getDate() + diffToMonday + 6 + offsetWeeks * 7)
-    return localDateStr(d)
+    d.setDate(d.getDate() - d.getDay() + 7 + offsetWeeks * 7)
+    return d.toISOString().split('T')[0]
   }
   const [microcicloOffset, setMicrocicloOffset] = useState(0)
   const [desde, setDesde] = useState(getWeekStart(0))
-  const [hasta, setHasta] = useState(getWeekEnd(0))
+  const [hasta, setHasta] = useState(today)
   const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(false)
   const [partidoRefs, setPartidoRefs] = useState<any[]>([{},{},{}])
@@ -6000,9 +5736,8 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
 
   useEffect(() => {
     // Recalculate date range when microciclo offset changes
-    // Siempre usar el fin de semana completo (domingo) para no cortar sesiones
     const newDesde = getWeekStart(microcicloOffset)
-    const newHasta = getWeekEnd(microcicloOffset)
+    const newHasta = microcicloOffset === 0 ? today : getWeekEnd(microcicloOffset)
     setDesde(newDesde)
     setHasta(newHasta)
   }, [microcicloOffset])
@@ -6013,7 +5748,7 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
     // These come from /api/calendario GET response
     const hace1año = new Date(); hace1año.setFullYear(hace1año.getFullYear()-1)
     const desdeStr = hace1año.toISOString().split('T')[0]
-    fetch(`/api/calendario?desde=${desdeStr}&hasta=${today}`, { cache: 'no-store' })
+    fetch(`/api/calendario?desde=${desdeStr}&hasta=${today}`)
       .then(r=>r.json())
       .then(d => {
         // sesiones with tipo='partido' from calendar
@@ -6049,13 +5784,8 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
 
   async function cargar() {
     setLoading(true)
-    try {
-      const r = await fetch(`/api/carga-gps?desde=${desde}&hasta=${hasta}&ciclo=microciclo`, { cache: 'no-store' })
-      if (!r.ok) { setData(null); return }
-      const d = await r.json()
-      if (d?.error) { setData(null); return }
-      setData(d)
-    } catch(e) { setData(null) } finally { setLoading(false) }
+    try { const r = await fetch(`/api/carga-gps?desde=${desde}&hasta=${hasta}&ciclo=microciclo`); setData(await r.json()) }
+    catch(e){} finally { setLoading(false) }
   }
 
   // When a match is selected, load its metrics automatically
@@ -6065,7 +5795,7 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
     updated[slotIdx] = partido
     setSelectedPartidos(updated)
     try {
-      const r = await fetch(`/api/carga-gps?desde=${partido.fecha}&hasta=${partido.fecha}&ciclo=microciclo`, { cache: 'no-store' })
+      const r = await fetch(`/api/carga-gps?desde=${partido.fecha}&hasta=${partido.fecha}&ciclo=microciclo`)
       const d = await r.json()
       const avg = d?.teamAvg || {}
       const nr = [...partidoRefs]
@@ -6086,7 +5816,7 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
   }
 
   const VARS = [
-    {key:'ua_total',   label:'UCE',           color:'#a78bfa', unit:''},
+    {key:'ua_total',   label:'UA',            color:'#60a5fa', unit:''},
     {key:'minActivo',  label:'Tiempo (min)',   color:'#34d399', unit:'min'},
     {key:'distTotal',  label:'DT (m)',         color:'#f59e0b', unit:'m'},
     {key:'distSprint', label:'Dist. Sprint (m)',color:'#f97316', unit:'m'},
@@ -6110,8 +5840,6 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
   const teamAvg = data?.teamAvg || {}
   const perSession: Record<string,any> = data?.perSession || {}
   const sesionesInfo: any[] = data?.sesionesInfo || []
-  // rpeLogsPerMD: { [md]: { [jugador_id]: { rpe, duracion_min, carga_ua } } }
-  const rpeLogsPerMD: Record<string, Record<number, any>> = data?.rpeLogsPerMD || {}
   // Always show ALL MD columns in fixed order, filling with — where no data
   const MD_ORDER_LOCAL = ['MD+1','MD+2','MD+3','MD-4','MD-3','MD-2','MD-1','MD']
   const existingMdLabels = new Set(sesionesInfo.map((s:any) => s.titulo))
@@ -6126,32 +5854,17 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
   const pct = (val:number, key:string) => { const ref = refMedia[key]; if(!ref||ref===0) return null; return Math.round((val/ref)*100) }
   const pctColor = (p:number|null) => p===null?'var(--fog)':p>=85?'#22c55e':p>=65?'#f59e0b':'#ef4444'
 
-  const renderGrupoBar = (
-  grupo: { label: string, vars: string[], colors: string[] },
-  dataSource: 'jugador' | 'md'
-) => {
-
-  const series = grupo.vars.map((vk, ci) => {
-    const varDef = VARS.find(v => v.key === vk)!
-
-    return {
-      label: varDef?.label || vk,
-      color: grupo.colors[ci] || '#888',
-      vals: dataSource === 'jugador'
-        ? players.map((p:any)=>({
-            name: p.nombre.split(' ')[0],
-            val: Number(p[vk]) || 0
-          }))
-        : mdCols.map(md=>({
-            name: md,
-            val: Math.round(Number(perSession[md]?.[vk]) || 0)
-          }))
-    }
-  });
-
-  // 👇 ESTE RETURN FALTABA SEGURO
-  return series;
-};
+  const renderGrupoBar = (grupo: {label:string,vars:string[],colors:string[]}, dataSource: 'jugador'|'md') => {
+    const series = grupo.vars.map((vk, ci) => {
+      const varDef = VARS.find(v=>v.key===vk)!
+      return {
+        label: varDef?.label || vk,
+        color: grupo.colors[ci] || '#888',
+        vals: dataSource === 'jugador'
+          ? players.map((p:any)=>({ name: p.nombre.split(' ')[0], val: Number(p[vk])||0 }))
+          : mdCols.map(md=>({ name: md, val: Math.round(Number(perSession[md]?.[vk])||0) }))
+      }
+    })
     const allVals = series.flatMap(s=>s.vals.map((v:any)=>v.val))
     const maxVal = Math.max(...allVals, 1)
     const names = series[0]?.vals.map((v:any)=>v.name) || []
@@ -6207,14 +5920,14 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
         </div>
       </div>
     )
-  };
+  }
 
   return (
     <div style={{ padding:'24px 20px', maxWidth:1400, margin:'0 auto' }}>
       <div style={{ marginBottom:20, display:'flex', justifyContent:'space-between', alignItems:'flex-end', flexWrap:'wrap', gap:12 }}>
         <div>
           <h2 style={{ fontFamily:'Bebas Neue,sans-serif', fontSize:36, color:'var(--snow)', letterSpacing:'0.04em', marginBottom:4 }}>🏋️ CONTROL DE CARGA · CALC</h2>
-          <p style={{ fontSize:12, color:'var(--silver)' }}>Microciclo · RPE, UCE y carga calculada desde sesiones planificadas</p>
+          <p style={{ fontSize:12, color:'var(--silver)' }}>Microciclo · RPE, UA y carga calculada desde sesiones planificadas</p>
         </div>
         <div style={{ display:'flex', gap:8, flexWrap:'wrap', alignItems:'flex-end' }}>
           {/* Microciclo navigator */}
@@ -6235,200 +5948,21 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
         </div>
       </div>
 
-      {loading ? <div style={{ padding:48, textAlign:'center', color:'var(--silver)' }}>Cargando...</div> : (<>
-
-      {/* ══ UCE: UNIDAD DE CARGA ESPECÍFICA ════════════════════════════ */}
-      {(() => {
-        // Compute UCE per MD session from ejercicios blocks
-        // UCE = CE × RPE  |  CE = minutos × NE  |  NE from TAREA_NE map
-        const TAREA_NE_LOCAL: Record<string, number> = {
-          'Restauración':0.2,'Activación en gimnasio':0.4,'Gimnasio':0.4,'Trabajo preventivo':0.4,
-          'Cualidades específicas':0.8,'Activación en campo':1,'Circuito condicional':1,
-          'Circuito técnico':2,'Trabajo analítico':2,'Rondo':3,'Posesión reducida':5,
-          'Juego de posesión':5,'Juego de posición':6,'Transiciones':7,'Partido reducido':7,
-          'Partido modificado':8,'Partido de entrenamiento':9,'Partido amistoso':9,'Partido oficial':10,
-        }
-        const getNELocal = (v: string) => TAREA_NE_LOCAL[v] ?? 1
-
-        // Build per-MD UCE data
-        const ucePerMD = mdCols.map(md => {
-          const ses = perSession[md]
-          if (!ses || !existingMdLabels.has(md)) return { md, bloques: [], ceTotal: 0, uceTotal: 0, rpe: 0, hasData: false }
-          const rpe = Number(ses.rpe_objetivo) || 0
-          const ejercicios: any[] = ses.ejercicios || []
-          const bloques = ejercicios
-            .filter(bl => bl.ventana && (Number(bl.series)||0) > 0 && (Number(bl.minutos)||0) > 0)
-            .map(bl => {
-              const min = (Number(bl.series)||0) * (Number(bl.minutos)||0)
-              const ne = getNELocal(bl.ventana)
-              const ce = Math.round(min * ne * 10) / 10
-              const uce = rpe > 0 ? Math.round(ce * rpe * 10) / 10 : null
-              return { label: bl.ventana, min, ne, ce, uce }
-            })
-          const ceTotal = Math.round(bloques.reduce((s,b)=>s+b.ce,0)*10)/10
-          const uceTotal = rpe > 0 ? Math.round(bloques.reduce((s,b)=>s+(b.uce||0),0)*10)/10 : 0
-          return { md, bloques, ceTotal, uceTotal, rpe, hasData: bloques.length > 0 }
-        }).filter(x => x.hasData)
-
-        if (!ucePerMD.length) return (
-          <div style={{ padding:48, textAlign:'center', color:'var(--silver)', background:'var(--ink2)', borderRadius:16, marginBottom:20 }}>
-            Sin sesiones planificadas para este período. Creá sesiones con tareas en el Calendario.
-          </div>
-        )
-
-        // Week totals
-        const totalCE = Math.round(ucePerMD.reduce((s,x)=>s+x.ceTotal,0)*10)/10
-        const totalUCE = Math.round(ucePerMD.filter(x=>x.rpe>0).reduce((s,x)=>s+x.uceTotal,0)*10)/10
-        const uceRef = 9500 // reference from infographic
-        const uceColor = (u: number) => u > uceRef*0.60 ? '#ef4444' : u > uceRef*0.35 ? '#f59e0b' : '#34d399'
-        const uceLabel = (u: number) => u > uceRef*0.60 ? '🔴 CARGA ALTA' : u > uceRef*0.35 ? '🟡 MANTENIMIENTO' : '🟢 RECUPERACIÓN'
-
-        return (
-          <div style={{ background:'var(--ink2)', border:'1px solid rgba(168,85,247,.25)', borderRadius:16, overflow:'hidden', marginBottom:20 }}>
-            <div style={{ padding:'10px 16px', borderBottom:'1px solid var(--mist)', display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:8 }}>
-              <div>
-                <p style={{ fontSize:11, fontWeight:700, color:'#a78bfa', textTransform:'uppercase', letterSpacing:'0.08em' }}>
-                  🧠 UCE · UNIDAD DE CARGA ESPECÍFICA · SIN GPS
-                </p>
-                <p style={{ fontSize:10, color:'var(--fog)', marginTop:2 }}>
-                  CE = Min × NE (Nivel Especificidad) · UCE = CE × RPE · Referencia: ~9.500 UCE/semana
-                </p>
-              </div>
-              {totalUCE > 0 && (
-                <div style={{ textAlign:'right' }}>
-                  <div style={{ fontSize:10, color:'var(--fog)', marginBottom:2 }}>SEMANA TOTAL</div>
-                  <div style={{ fontSize:20, fontWeight:900, fontFamily:'DM Mono,monospace', color: uceColor(totalUCE) }}>
-                    {totalUCE.toLocaleString()} UCE
-                  </div>
-                  <div style={{ fontSize:9, fontWeight:700, color: uceColor(totalUCE) }}>{uceLabel(totalUCE)}</div>
-                </div>
-              )}
-            </div>
-
-            {/* Table: rows = MD cols, cols = Bloques + CE + UCE */}
-            <div style={{ overflowX:'auto' }}>
-              <table style={{ width:'100%', borderCollapse:'collapse', fontSize:11 }}>
-                <thead>
-                  <tr style={{ background:'rgba(168,85,247,.05)' }}>
-                    <th style={{ padding:'7px 14px', textAlign:'left', color:'var(--silver)', fontSize:9, fontWeight:700, textTransform:'uppercase' }}>SESIÓN</th>
-                    <th style={{ padding:'7px 10px', textAlign:'center', color:'#34d399', fontSize:9, fontWeight:700 }}>RPE obj.</th>
-                    <th style={{ padding:'7px 10px', textAlign:'left', color:'var(--silver)', fontSize:9, fontWeight:700, textTransform:'uppercase' }}>BLOQUES (tarea · min · NE · CE)</th>
-                    <th style={{ padding:'7px 10px', textAlign:'center', color:'#c8f135', fontSize:9, fontWeight:700 }}>CE TOTAL</th>
-                    <th style={{ padding:'7px 10px', textAlign:'center', color:'#a78bfa', fontSize:9, fontWeight:700 }}>UCE TOTAL</th>
-                    <th style={{ padding:'7px 10px', textAlign:'center', color:'var(--fog)', fontSize:9, fontWeight:700 }}>% REF</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {ucePerMD.map((row, i) => {
-                    const ucePct = uceRef > 0 && row.uceTotal > 0 ? Math.round((row.uceTotal / uceRef) * 100) : null
-                    return (
-                      <tr key={row.md} style={{ borderTop:'1px solid var(--mist)', background:i%2===0?'transparent':'rgba(255,255,255,.015)' }}>
-                        <td style={{ padding:'8px 14px', color:'#a78bfa', fontWeight:700, fontFamily:'Bebas Neue,sans-serif', fontSize:14, letterSpacing:'0.1em' }}>{row.md}</td>
-                        <td style={{ padding:'8px 10px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700,
-                          color: row.rpe > 0 ? (row.rpe >= 8 ? '#ef4444' : row.rpe >= 6 ? '#f59e0b' : '#34d399') : 'var(--fog)' }}>
-                          {row.rpe > 0 ? row.rpe : '—'}
-                        </td>
-                        <td style={{ padding:'6px 10px' }}>
-                          <div style={{ display:'flex', flexWrap:'wrap', gap:4 }}>
-                            {row.bloques.map((b,bi) => {
-                              const neColor = b.ne >= 8 ? '#ef4444' : b.ne >= 5 ? '#f59e0b' : b.ne >= 3 ? '#c8f135' : '#34d399'
-                              return (
-                                <span key={bi} style={{ fontSize:10, fontFamily:'DM Mono,monospace', background:'rgba(255,255,255,.05)',
-                                  border:`1px solid ${neColor}30`, borderRadius:5, padding:'2px 7px',
-                                  color:'var(--silver)', whiteSpace:'nowrap' }}>
-                                  <span style={{ color:'var(--snow)' }}>{b.label}</span>
-                                  {' · '}{b.min}min
-                                  {' · '}<span style={{ color:neColor }}>NE{b.ne}</span>
-                                  {' · '}<span style={{ color:'#c8f135', fontWeight:700 }}>CE{b.ce}</span>
-                                  {b.uce !== null && <span style={{ color:'#a78bfa' }}> → {b.uce} UCE</span>}
-                                </span>
-                              )
-                            })}
-                          </div>
-                        </td>
-                        <td style={{ padding:'8px 10px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, color:'#c8f135' }}>
-                          {row.ceTotal}
-                        </td>
-                        <td style={{ padding:'8px 10px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:800,
-                          color: row.uceTotal > 0 ? uceColor(row.uceTotal) : 'var(--fog)', fontSize:13 }}>
-                          {row.uceTotal > 0 ? row.uceTotal.toLocaleString() : row.rpe > 0 ? '0' : '—'}
-                          {row.uceTotal > 0 && <div style={{ fontSize:8, fontWeight:700, color: uceColor(row.uceTotal) }}>{uceLabel(row.uceTotal)}</div>}
-                        </td>
-                        <td style={{ padding:'8px 10px', textAlign:'center', fontFamily:'DM Mono,monospace',
-                          color: ucePct !== null ? (ucePct > 60 ? '#ef4444' : ucePct > 35 ? '#f59e0b' : '#34d399') : 'var(--fog)' }}>
-                          {ucePct !== null ? `${ucePct}%` : '—'}
-                        </td>
-                      </tr>
-                    )
-                  })}
-                  {/* Weekly totals row */}
-                  <tr style={{ borderTop:'2px solid rgba(168,85,247,.3)', background:'rgba(168,85,247,.06)' }}>
-                    <td style={{ padding:'8px 14px', fontWeight:800, color:'#a78bfa', fontSize:10, textTransform:'uppercase' }}>SEMANA</td>
-                    <td/>
-                    <td style={{ padding:'8px 10px', fontSize:10, color:'var(--fog)', fontStyle:'italic' }}>
-                      {ucePerMD.filter(x=>x.rpe===0).length > 0 && `⚠️ ${ucePerMD.filter(x=>x.rpe===0).length} sesión(es) sin RPE objetivo → UCE parcial`}
-                    </td>
-                    <td style={{ padding:'8px 10px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:800, color:'#c8f135', fontSize:13 }}>
-                      {totalCE}
-                    </td>
-                    <td style={{ padding:'8px 10px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:900, color: uceColor(totalUCE), fontSize:16 }}>
-                      {totalUCE > 0 ? totalUCE.toLocaleString() : '—'}
-                    </td>
-                    <td style={{ padding:'8px 10px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700,
-                      color: totalUCE > 0 ? uceColor(totalUCE) : 'var(--fog)' }}>
-                      {totalUCE > 0 ? `${Math.round((totalUCE/uceRef)*100)}%` : '—'}
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-
-            {/* Reference legend */}
-            <div style={{ padding:'10px 16px', borderTop:'1px solid var(--mist)', display:'flex', gap:16, flexWrap:'wrap', alignItems:'center' }}>
-              <span style={{ fontSize:9, color:'var(--fog)', fontWeight:700, textTransform:'uppercase' }}>Referencia (9.500 UCE/semana):</span>
-              <span style={{ fontSize:10, color:'#34d399', fontFamily:'DM Mono,monospace' }}>🟢 &lt;35% (&lt;3.325) Recuperación</span>
-              <span style={{ fontSize:10, color:'#f59e0b', fontFamily:'DM Mono,monospace' }}>🟡 35-60% (3.325–5.700) Mantenimiento</span>
-              <span style={{ fontSize:10, color:'#ef4444', fontFamily:'DM Mono,monospace' }}>🔴 &gt;60% (&gt;5.700) Carga alta</span>
-            </div>
-          </div>
-        )
-      })()}
+      {loading ? <div style={{ padding:48, textAlign:'center', color:'var(--silver)' }}>Cargando...</div> :
+      !players.length ? (
+        <div style={{ padding:48, textAlign:'center', color:'var(--silver)', background:'var(--ink2)', borderRadius:16 }}>Sin datos para este período. Registrá sesiones con RPE en el Calendario.</div>
+      ) : (<>
 
       {/* ══ CUADRO 1: MICROCICLO — INDIVIDUAL + SESIÓN (CALCULADA) ══════ */}
-      {(sesionesInfo.length > 0) && <div style={{ marginBottom:20 }}>
+      <div style={{ marginBottom:20 }}>
         <div style={{ padding:'10px 0 12px' }}>
           <p style={{ fontSize:11, fontWeight:700, color:'var(--lime)', textTransform:'uppercase', letterSpacing:'0.08em' }}>CUADRO 1 · MICROCICLO — DATOS POR SESIÓN · MD+1 → MD</p>
           <p style={{ fontSize:10, color:'var(--fog)', marginTop:2 }}>Izquierda: datos individuales por jugador · Derecha: datos de sesión calculada (iguales para todos)</p>
         </div>
-        {existingMdLabels.size === 0 ? (
-          <div style={{ padding:'32px', textAlign:'center', color:'var(--fog)', fontSize:13, background:'var(--ink2)', borderRadius:14, border:'1px solid var(--mist)' }}>
-            Sin sesiones con tareas en este período. Creá sesiones desde el Calendario con bloques de ejercicios para ver el Cuadro 1.
-          </div>
-        ) : mdCols.map((md:string) => {
+        {mdCols.map((md:string) => {
           const ses = sesionesInfo.find((s:any) => s.titulo === md)
           const sesData = perSession[md] || {}
           const hasData = existingMdLabels.has(md)
-          // Calcular NE promedio ponderado de la sesión para UCE individual
-          const TAREA_NE_C1: Record<string, number> = {
-            'Restauración':0.2,'Activación en gimnasio':0.4,'Gimnasio':0.4,'Trabajo preventivo':0.4,
-            'Cualidades específicas':0.8,'Activación en campo':1,'Circuito condicional':1,
-            'Circuito técnico':2,'Trabajo analítico':2,'Rondo':3,'Posesión reducida':5,
-            'Juego de posesión':5,'Juego de posición':6,'Transiciones':7,'Partido reducido':7,
-            'Partido modificado':8,'Partido de entrenamiento':9,'Partido amistoso':9,'Partido oficial':10,
-          }
-          const ejerciciosC1: any[] = sesData.ejercicios || []
-          const bloqC1 = ejerciciosC1.filter((b:any) => b.ventana && (Number(b.series)||0)>0 && (Number(b.minutos)||0)>0)
-          const minTotalC1 = bloqC1.reduce((s:number,b:any) => s + (Number(b.series)||0)*(Number(b.minutos)||0), 0)
-          const ceTotalC1 = bloqC1.reduce((s:number,b:any) => {
-            const min = (Number(b.series)||0)*(Number(b.minutos)||0)
-            return s + min * (TAREA_NE_C1[b.ventana] ?? 1)
-          }, 0)
-          // NE promedio ponderado = CE_total / min_total
-          const neProm = minTotalC1 > 0 ? ceTotalC1 / minTotalC1 : 1
-          // UCE individual = minutos_jugador × RPE_jugador × neProm
-          const calcUCE = (minP: number, rpeP: number) => minP > 0 && rpeP > 0 ? Math.round(minP * rpeP * neProm) : 0
-          // Logs reales de este MD por jugador
-          const logsThisMD: Record<number, any> = rpeLogsPerMD[md] || {}
           const SESSION_VARS = [
             {key:'distTotal',  label:'DT (m)',          color:'#f59e0b'},
             {key:'distSprint', label:'Dist. Sprint (m)',color:'#f97316'},
@@ -6468,26 +6002,20 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
                         <th style={{ padding:'5px 8px', textAlign:'left', color:'var(--silver)', fontSize:8, fontWeight:700, textTransform:'uppercase', borderBottom:'1px solid var(--mist)' }}>Pos.</th>
                         <th style={{ padding:'5px 8px', textAlign:'center', color:'#c8f135', fontSize:8, fontWeight:700, textTransform:'uppercase', borderBottom:'1px solid var(--mist)' }}>RPE</th>
                         <th style={{ padding:'5px 8px', textAlign:'center', color:'#34d399', fontSize:8, fontWeight:700, textTransform:'uppercase', borderBottom:'1px solid var(--mist)' }}>Tiempo</th>
-                        <th style={{ padding:'5px 8px', textAlign:'center', color:'#a78bfa', fontSize:8, fontWeight:700, textTransform:'uppercase', borderBottom:'1px solid var(--mist)', borderRight:'2px solid rgba(200,241,53,.3)' }}>UCE</th>
+                        <th style={{ padding:'5px 8px', textAlign:'center', color:'#60a5fa', fontSize:8, fontWeight:700, textTransform:'uppercase', borderBottom:'1px solid var(--mist)', borderRight:'2px solid rgba(200,241,53,.3)' }}>UA</th>
                         {SESSION_VARS.map(sv => (
                           <th key={sv.key} style={{ padding:'5px 8px', textAlign:'center', color:sv.color, fontSize:8, fontWeight:700, textTransform:'uppercase', whiteSpace:'nowrap', borderBottom:'1px solid var(--mist)', background:'rgba(200,241,53,.03)' }}>{sv.label}</th>
                         ))}
                       </tr>
                     </thead>
                     <tbody>
-                      {players.map((p:any, i:number) => {
-                        // Usar datos reales del jugador en ESTE MD específico
-                        const logP = logsThisMD[p.jugador_id] || {}
-                        const rpeP = logP.rpe || 0
-                        const minP = logP.duracion_min || 0
-                        const uceP = calcUCE(minP, rpeP)
-                        return (
+                      {players.map((p:any, i:number) => (
                         <tr key={i} style={{ borderTop:'1px solid var(--mist)', background:i%2===0?'transparent':'rgba(255,255,255,.01)' }}>
                           <td style={{ padding:'6px 14px', color:'var(--snow)', fontWeight:500, whiteSpace:'nowrap' }}>{p.nombre}</td>
                           <td style={{ padding:'6px 8px', color:'var(--fog)', fontSize:10 }}>{p.posicion||'—'}</td>
-                          <td style={{ padding:'6px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', color:rpeP?'#c8f135':'var(--fog)' }}>{rpeP||'—'}</td>
-                          <td style={{ padding:'6px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', color:minP?'#34d399':'var(--fog)' }}>{minP||'—'}</td>
-                          <td style={{ padding:'6px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', color:uceP?'#a78bfa':'var(--fog)', borderRight:'2px solid rgba(200,241,53,.3)' }}>{uceP||'—'}</td>
+                          <td style={{ padding:'6px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', color:p.rpe?'#c8f135':'var(--fog)' }}>{p.rpe||'—'}</td>
+                          <td style={{ padding:'6px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', color:p.minActivo?'#34d399':'var(--fog)' }}>{p.minActivo||'—'}</td>
+                          <td style={{ padding:'6px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', color:p.ua_total?'#60a5fa':'var(--fog)', borderRight:'2px solid rgba(200,241,53,.3)' }}>{p.ua_total||'—'}</td>
                           {SESSION_VARS.map((sv, si) => {
                             // Session data is the same for all players — highlight in lime
                             const val = Math.round(Number(sesData[sv.key])||0)
@@ -6501,22 +6029,14 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
                             )
                           })}
                         </tr>
-                        )
-                      })}
-                      {/* PROM row — promedio real de logs de este MD */}
-                      {(() => {
-                        const mdLogs = Object.values(logsThisMD) as any[]
-                        const mdLogsConDatos = mdLogs.filter((l:any) => l.rpe > 0)
-                        const promRpe = mdLogsConDatos.length > 0 ? Math.round((mdLogsConDatos.reduce((s:number,l:any)=>s+l.rpe,0)/mdLogsConDatos.length)*10)/10 : 0
-                        const promMin = mdLogsConDatos.length > 0 ? Math.round(mdLogsConDatos.reduce((s:number,l:any)=>s+l.duracion_min,0)/mdLogsConDatos.length) : 0
-                        const promUCE = calcUCE(promMin, promRpe)
-                        return (
+                      ))}
+                      {/* PROM row */}
                       <tr style={{ borderTop:'2px solid rgba(200,241,53,.3)', background:'rgba(200,241,53,.04)' }}>
                         <td style={{ padding:'6px 14px', fontWeight:800, color:'var(--lime)', fontSize:10, textTransform:'uppercase' }}>PROM.</td>
                         <td/>
-                        <td style={{ padding:'6px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, color:promRpe?'#c8f135':'var(--fog)' }}>{promRpe||'—'}</td>
-                        <td style={{ padding:'6px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, color:promMin?'#34d399':'var(--fog)' }}>{promMin||'—'}</td>
-                        <td style={{ padding:'6px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, color:promUCE?'#a78bfa':'var(--fog)', borderRight:'2px solid rgba(200,241,53,.3)' }}>{promUCE||'—'}</td>
+                        <td style={{ padding:'6px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, color:teamAvg.rpe?'#c8f135':'var(--fog)' }}>{teamAvg.rpe||'—'}</td>
+                        <td style={{ padding:'6px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, color:teamAvg.minActivo?'#34d399':'var(--fog)' }}>{teamAvg.minActivo||'—'}</td>
+                        <td style={{ padding:'6px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, color:teamAvg.ua_total?'#60a5fa':'var(--fog)', borderRight:'2px solid rgba(200,241,53,.3)' }}>{teamAvg.ua_total||'—'}</td>
                         {SESSION_VARS.map(sv => {
                           const val = Math.round(Number(sesData[sv.key])||0)
                           return (
@@ -6526,8 +6046,6 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
                           )
                         })}
                       </tr>
-                        )
-                      })()}
                     </tbody>
                   </table>
                 </div>
@@ -6551,9 +6069,9 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
                       line: null,
                     },
                     {
-                      title: 'UCE + RPE', color: '#c8f135',
+                      title: 'UA + RPE', color: '#c8f135',
                       bars: [
-                        { key:'ua_total', label:'UCE', color:'#a78bfa' },
+                        { key:'ua_total', label:'UA', color:'#60a5fa' },
                       ],
                       line: { key:'rpe', label:'RPE', color:'#c8f135' },
                     },
@@ -6597,31 +6115,11 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
                         {GROUPS.map(grp => {
                           // GPS bar keys use session data (same for all players from calculator)
                           const GPS_BAR_KEYS = new Set(['distTotal','distSprint','nSprints','nAcel','nDecel','distMP','nAcel3','nDecel3'])
-                          const getBarVal = (p: any, key: string) => {
-                            if (GPS_BAR_KEYS.has(key)) return Math.round(Number(sesData[key])||0)
-                            // Para RPE, UCE y tiempo: usar datos reales del jugador en este MD
-                            const logP2 = logsThisMD[p.jugador_id] || {}
-                            if (key === 'rpe') return Number(logP2.rpe)||0
-                            if (key === 'ua_total') {
-                              const mP2 = Number(logP2.duracion_min)||0
-                              const rP2 = Number(logP2.rpe)||0
-                              return calcUCE(mP2, rP2)
-                            }
-                            if (key === 'minActivo') return Number(logP2.duracion_min)||0
-                            return Number(p[key])||0
-                          }
+                          const getBarVal = (p: any, key: string) =>
+                            GPS_BAR_KEYS.has(key) ? Math.round(Number(sesData[key])||0) : (Number(p[key])||0)
                           const maxBar = Math.max(...players.flatMap((p:any) => grp.bars.map(b => getBarVal(p, b.key))), 1)
-                          const lineVals = grp.line ? players.map((p:any) => {
-                            const logP3 = logsThisMD[p.jugador_id] || {}
-                            if (grp.line!.key === 'rpe') return Number(logP3.rpe)||0
-                            if (grp.line!.key === 'minActivo') return Number(logP3.duracion_min)||0
-                            return Number(p[grp.line!.key])||0
-                          }) : []
+                          const lineVals = grp.line ? players.map((p:any) => Number(p[grp.line!.key])||0) : []
                           const maxLine = Math.max(...lineVals, 1)
-
-                          // No renderizar si no hay datos en este grupo para este MD
-                          const hasAnyData = players.some((p:any) => grp.bars.some(b => getBarVal(p, b.key) > 0))
-                          if (!hasAnyData) return null
 
                           return (
                             <div key={grp.title} style={{ background:'var(--ink2)', borderRadius:12, padding:14, border:`1px solid ${grp.color}30` }}>
@@ -6763,8 +6261,6 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
           )
         })}
       </div>
-
-      </div>}
 
       {/* ══ CUADRO 2: TOTALES POR MD (filas=métricas, cols=MD) ════════ */}
       <div style={{ background:'var(--ink2)', border:'1px solid rgba(96,165,250,.2)', borderRadius:16, overflow:'hidden', marginBottom:20 }}>
@@ -7064,29 +6560,19 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
   const today = new Date().toISOString().split('T')[0]
   const [microcicloOffset, setMicrocicloOffset] = useState(0)
 
-  const localDateStr = (d: Date) => {
-    const y = d.getFullYear()
-    const m = String(d.getMonth()+1).padStart(2,'0')
-    const day = String(d.getDate()).padStart(2,'0')
-    return `${y}-${m}-${day}`
-  }
   const getWeekStart = (offsetWeeks = 0) => {
     const d = new Date()
-    const dow = d.getDay()
-    const diffToMonday = dow === 0 ? -6 : 1 - dow
-    d.setDate(d.getDate() + diffToMonday + offsetWeeks * 7)
-    return localDateStr(d)
+    d.setDate(d.getDate() - d.getDay() + 1 + offsetWeeks * 7)
+    return d.toISOString().split('T')[0]
   }
   const getWeekEnd = (offsetWeeks = 0) => {
     const d = new Date()
-    const dow = d.getDay()
-    const diffToMonday = dow === 0 ? -6 : 1 - dow
-    d.setDate(d.getDate() + diffToMonday + 6 + offsetWeeks * 7)
-    return localDateStr(d)
+    d.setDate(d.getDate() - d.getDay() + 7 + offsetWeeks * 7)
+    return d.toISOString().split('T')[0]
   }
 
   const [desde, setDesde] = useState(() => getWeekStart(0))
-  const [hasta, setHasta] = useState(() => getWeekEnd(0))
+  const [hasta, setHasta] = useState(today)
   const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(false)
   const [partidoRefs, setPartidoRefs] = useState<any[]>([{},{},{}])
@@ -7096,7 +6582,7 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
 
   useEffect(() => {
     const newDesde = getWeekStart(microcicloOffset)
-    const newHasta = getWeekEnd(microcicloOffset)
+    const newHasta = microcicloOffset === 0 ? today : getWeekEnd(microcicloOffset)
     setDesde(newDesde)
     setHasta(newHasta)
   }, [microcicloOffset])
@@ -7104,7 +6590,7 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
   useEffect(() => { cargar() }, [desde, hasta])
   useEffect(() => {
     const hace1año = new Date(); hace1año.setFullYear(hace1año.getFullYear()-1)
-    fetch(`/api/calendario?desde=${hace1año.toISOString().split('T')[0]}&hasta=${today}`, { cache: 'no-store' })
+    fetch(`/api/calendario?desde=${hace1año.toISOString().split('T')[0]}&hasta=${today}`)
       .then(r=>r.json())
       .then(d => {
         const sesPartido = (d.sesiones||[]).filter((s:any) => s.tipo === 'partido')
@@ -7120,13 +6606,8 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
 
   async function cargar() {
     setLoading(true)
-    try {
-      const r = await fetch(`/api/carga-gps?desde=${desde}&hasta=${hasta}&ciclo=microciclo`, { cache: 'no-store' })
-      if (!r.ok) { setData(null); return }
-      const d = await r.json()
-      if (d?.error) { setData(null); return }
-      setData(d)
-    } catch(e) { setData(null) } finally { setLoading(false) }
+    try { const r = await fetch(`/api/carga-gps?desde=${desde}&hasta=${hasta}&ciclo=microciclo`); setData(await r.json()) }
+    catch(e){} finally { setLoading(false) }
   }
 
   async function selectPartido(slotIdx: number, partido: any) {
@@ -7134,7 +6615,7 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
     if (!partido) { updated[slotIdx]=null; setSelectedPartidos(updated); const nr=[...partidoRefs]; nr[slotIdx]={}; setPartidoRefs(nr); return }
     updated[slotIdx] = partido; setSelectedPartidos(updated)
     try {
-      const r = await fetch(`/api/carga-gps?desde=${partido.fecha}&hasta=${partido.fecha}&ciclo=microciclo`, { cache: 'no-store' })
+      const r = await fetch(`/api/carga-gps?desde=${partido.fecha}&hasta=${partido.fecha}&ciclo=microciclo`)
       const d = await r.json()
       const avg = d?.teamAvgGps || {}
       const nr = [...partidoRefs]
@@ -7219,19 +6700,19 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
   // Chart groups for GPS comparison — only show groups for columns actually present
   const availGpsKeys = new Set(GPS_VARS.map(v => v.key))
   const GPS_CHART_GROUPS = [
-    ...(availGpsKeys.has('dist_total') ? [{
+    ...(availGpsKeys.has('dist_total') || availGpsKeys.has('dist_hir') ? [{
       title:'DISTANCIA', color:'#3b82f6',
       bars:[
-        {key:'dist_total',label:'Tot Dist',color:'#3b82f6'},
+        ...(availGpsKeys.has('dist_total') ? [{key:'dist_total',label:'Tot Dist',color:'#3b82f6'}] : []),
+        ...(availGpsKeys.has('dist_hir') ? [{key:'dist_hir',label:'High Speed',color:'#f59e0b'}] : []),
       ],
       line: availGpsKeys.has('dist_per_min') ? {key:'dist_per_min',label:'Mts/min',color:'#34d399'} : null,
     }] : []),
-    ...(availGpsKeys.has('dist_v4') || availGpsKeys.has('dist_v5') || availGpsKeys.has('dist_hir') ? [{
-      title:'VELOCIDAD / HSR', color:'#ef4444',
+    ...(availGpsKeys.has('dist_v4') || availGpsKeys.has('dist_v5') ? [{
+      title:'VELOCIDAD', color:'#ef4444',
       bars:[
         ...(availGpsKeys.has('dist_v5') ? [{key:'dist_v5',label:'Vel B6',color:'#f97316'}] : []),
         ...(availGpsKeys.has('dist_v4') ? [{key:'dist_v4',label:'Vel B4',color:'#a78bfa'}] : []),
-        ...(availGpsKeys.has('dist_hir') ? [{key:'dist_hir',label:'HSR',color:'#f59e0b'}] : []),
       ],
       line: availGpsKeys.has('max_velocity') ? {key:'max_velocity',label:'Vel Máx',color:'#ef4444'} : null,
     }] : []),
@@ -7694,7 +7175,7 @@ function ExpoAIPanel({ teamData }: { teamData: any[] }) {
   useEffect(() => { cargar() }, [desde, hasta])
   useEffect(() => {
     const hace1año = new Date(); hace1año.setFullYear(hace1año.getFullYear()-1)
-    fetch(`/api/calendario?desde=${hace1año.toISOString().split('T')[0]}&hasta=${hasta}`, { cache: 'no-store' })
+    fetch(`/api/calendario?desde=${hace1año.toISOString().split('T')[0]}&hasta=${hasta}`)
       .then(r=>r.json()).then(d => {
         const all = [
           ...((d.sesiones||[]).filter((s:any)=>s.tipo==='partido').map((s:any)=>({ fecha:s.fecha, rival:s.rival||'Partido', _src:'calendar' }))),
@@ -7707,20 +7188,15 @@ function ExpoAIPanel({ teamData }: { teamData: any[] }) {
 
   async function cargar() {
     setLoading(true)
-    try {
-      const r = await fetch(`/api/carga-gps?desde=${desde}&hasta=${hasta}&ciclo=microciclo`, { cache: 'no-store' })
-      if (!r.ok) { setData(null); return }
-      const d = await r.json()
-      if (d?.error) { setData(null); return }
-      setData(d)
-    } catch(e) { setData(null) } finally { setLoading(false) }
+    try { const r = await fetch(`/api/carga-gps?desde=${desde}&hasta=${hasta}&ciclo=microciclo`); setData(await r.json()) }
+    catch(e){} finally { setLoading(false) }
   }
 
   async function selectPartido(slotIdx: number, partido: any) {
     const updated = [...selectedPartidos]; updated[slotIdx] = partido || null; setSelectedPartidos(updated)
     if (!partido) { const nr=[...refData]; nr[slotIdx]={}; setRefData(nr); return }
     try {
-      const r = await fetch(`/api/carga-gps?desde=${partido.fecha}&hasta=${partido.fecha}&ciclo=microciclo`, { cache: 'no-store' })
+      const r = await fetch(`/api/carga-gps?desde=${partido.fecha}&hasta=${partido.fecha}&ciclo=microciclo`)
       const d = await r.json()
       const avg = d?.teamAvgGps || {}
       const nr = [...refData]
@@ -8085,7 +7561,7 @@ function ManualPanel() {
       ]},
       { titulo: 'Analytics', icono: '📊', intro: 'Panel de análisis de carga colectiva. Muestra evolución de la carga para detectar tendencias, picos y períodos de descarga.', rows: [
         ['Período', 'Elegí el rango de fechas con los filtros Desde / Hasta.'],
-        ['Variable', 'Seleccioná qué métrica visualizar: UCE, RPE, Distancia total, Sprints, Aceleraciones, etc.'],
+        ['Variable', 'Seleccioná qué métrica visualizar: UA, RPE, Distancia total, Sprints, Aceleraciones, etc.'],
         ['Vista diaria / semanal', 'Diaria: cada sesión. Semanal: agrupa por semana para ver tendencia macro.'],
         ['Gráficos A y B', 'A: RPE vs. Total Wellness — zona verde = carga alta con buen bienestar (ideal). B: RPE vs. Dolor Muscular — detecta sesiones de alta carga con dolor muscular elevado.'],
         ['% de cambio', 'Variación respecto al período anterior. Verde = normal (−5% a +15%), rojo = aumento alto (>+15%), azul = reducción notable (<−5%).'],
@@ -8099,7 +7575,7 @@ function ManualPanel() {
       { titulo: 'Ctrl. Carga Calc', icono: '🏋️', intro: 'Carga interna calculada desde el RPE que reporta cada jugador y la calculadora del Calendario. No requiere GPS.', rows: [
         ['Navegación por semana', 'Usá las flechas ‹ › para moverte entre semanas.'],
         ['Cuadro 1 — RPE individual', 'RPE declarado por cada jugador en cada día del microciclo (MD+1 a MD). Celdas verdes = registrado, gris = sin dato.'],
-        ['Cuadro 2 — UCE (Unidad de Carga Específica)', 'Carga interna: Minutos × NE × RPE. Indicador de carga interna específica que considera el tipo de tarea.'],
+        ['Cuadro 2 — UA (Unidades de Carga)', 'Carga interna: RPE × minutos de sesión. Indicador estándar de carga interna (Foster, 1998).'],
         ['Cuadro 3 — Calculadora GPS', 'Estimación de carga externa calculada desde los bloques de tareas: distancia total, sprints, aceleraciones/deceleraciones.'],
         ['Cuadro 4 — % sobre partido', 'Compara cada sesión contra el promedio de hasta 3 partidos de referencia (= 100%). Requiere seleccionar partidos en "Ingresar partidos".'],
         ['Interpretación %', 'Verde (>80%): alta exigencia. Amarillo (50–80%): moderada. Rojo (<50%): baja exigencia relativa (normal en recuperación o MD-1).'],
@@ -8113,12 +7589,12 @@ function ManualPanel() {
       { titulo: 'Acumulado Individual', icono: '📈', intro: 'Carga acumulada de un jugador en el tiempo. Útil para detectar subcarga crónica o sobreexposición.', rows: [
         ['Selección de jugador', 'Elegí el jugador desde el selector. Los datos se cargan automáticamente.'],
         ['Período', 'Ajustá el rango de fechas.'],
-        ['Gráfico de carga acumulada', 'Línea que muestra la suma de UCE a lo largo del período seleccionado.'],
+        ['Gráfico de carga acumulada', 'Línea que muestra la suma de UA a lo largo del período seleccionado.'],
         ['ACWR individual', 'Curva del ratio agudo:crónico, con zona óptima sombreada en verde (0.8–1.3).'],
       ]},
       { titulo: 'Cambio de Carga', icono: '🔄', intro: 'Variación porcentual de cualquier variable de carga de una sesión a la siguiente. Detecta saltos de carga peligrosos.', rows: [
         ['Filtros', 'Desde / Hasta, mínimo de minutos de entrenamiento y partido para incluir al jugador.'],
-        ['Variable', 'UCE, RPE, Distancia total, Sprints, Aceleraciones, Deceleraciones, Alta Potencia, Vel. máxima, Dist/min.'],
+        ['Variable', 'UA, RPE, Distancia total, Sprints, Aceleraciones, Deceleraciones, Alta Potencia, Vel. máxima, Dist/min.'],
         ['🟢 −5% a +15%', 'Variación normal. Rango de progresión sostenible.'],
         ['🔴 > +15%', 'Aumento alto. Riesgo si se mantiene. Revisá acumulación de sesiones exigentes.'],
         ['🔵 < −5%', 'Reducción notable. Normal en semanas post-partido o pre-competición importante.'],
@@ -8274,7 +7750,7 @@ ${secciones_data.map(sec => `
         <ManualSection title="Detalle individual">
           <p style={{ fontSize:12, color:'var(--silver)', lineHeight:1.65, marginBottom:10 }}>Hacé clic en un jugador para ver su vista detallada. Podés cambiar el ciclo entre Microciclo (7 días), Mesociclo (28 días) y Macrociclo (temporada).</p>
           <ManualRow label="Gráfico ACWR" desc="Evolución del ratio a lo largo del ciclo. La banda verde sombreada = zona óptima (0.8–1.3)." />
-          <ManualRow label="Tabla de carga" desc="Historial día a día con la UCE de cada sesión, el ACWR calculado y el estado resultante." />
+          <ManualRow label="Tabla de carga" desc="Historial día a día con la UA de cada sesión, el ACWR calculado y el estado resultante." />
           <ManualRow label="Último Wellness" desc="Detalle del último registro: barras de cada parámetro, TQR, zona de dolor y si fue al gimnasio." />
           <ManualRow label="RPE — Últimas sesiones" desc="Barras con el RPE de las últimas 12 sesiones. El color indica la intensidad percibida." />
         </ManualSection>
@@ -8323,7 +7799,7 @@ ${secciones_data.map(sec => `
         <p style={{ fontSize:12, color:'var(--silver)', marginBottom:20, lineHeight:1.65 }}>Panel de análisis de carga colectiva. Muestra la evolución de la carga para detectar tendencias, picos y períodos de descarga.</p>
         <ManualSection title="Cómo usarlo">
           <ManualRow label="Período" desc="Elegí el rango de fechas a analizar con los filtros Desde / Hasta." />
-          <ManualRow label="Variable" desc="Seleccioná qué métrica visualizar: UCE (carga interna específica), RPE, o métricas GPS como distancia total, sprints, aceleraciones, etc." />
+          <ManualRow label="Variable" desc="Seleccioná qué métrica visualizar: UA (carga interna por RPE), RPE, o métricas GPS como distancia total, sprints, aceleraciones, etc." />
           <ManualRow label="Vista diaria / semanal" desc="Diaria: cada sesión. Semanal: agrupa por semana para ver la tendencia macro." />
           <ManualRow label="Gráfico A — RPE vs. Wellness" desc="Zona verde = carga alta con buen bienestar (ideal). Zona roja = carga alta con mal bienestar (riesgo)." />
           <ManualRow label="Gráfico B — RPE vs. Dolor" desc="Detecta sesiones de alta carga con dolor muscular elevado." />
@@ -8356,7 +7832,7 @@ ${secciones_data.map(sec => `
         </ManualSection>
         <ManualSection title="Cuadros que muestra">
           <ManualRow label="Cuadro 1 — RPE individual" desc="RPE declarado por cada jugador en cada día del microciclo. Celdas verdes = registrado, gris = sin dato." />
-          <ManualRow label="Cuadro 2 — UCE (Unidad de Carga Específica)" desc="Carga interna: Minutos × NE × RPE. Considera el tipo de tarea planificada." />
+          <ManualRow label="Cuadro 2 — UA (Unidades de Carga)" desc="Carga interna: RPE × minutos de sesión. Indicador estándar de carga interna (Foster, 1998)." />
           <ManualRow label="Cuadro 3 — Calculadora GPS" desc="Estimación de carga externa desde los bloques de tareas: distancia total, sprints, aceleraciones/deceleraciones. Son los mismos valores que calcula la Calculadora de Diseño de Tareas." />
           <ManualRow label="Cuadro 4 — % sobre partido" desc="Compara cada sesión contra el promedio de hasta 3 partidos de referencia (= 100%). Hacé clic en 'Ingresar partidos' para seleccionarlos." />
         </ManualSection>
@@ -8395,7 +7871,7 @@ ${secciones_data.map(sec => `
         <ManualSection title="Cómo usarlo">
           <ManualRow label="Selección de jugador" desc="Elegí el jugador desde el selector superior. Los datos se cargan automáticamente." />
           <ManualRow label="Período" desc="Ajustá el rango de fechas para ver la evolución en distintos marcos de tiempo." />
-          <ManualRow label="Gráfico de carga acumulada" desc="Línea con la suma de UCE a lo largo de las sesiones del período." />
+          <ManualRow label="Gráfico de carga acumulada" desc="Línea con la suma de UA a lo largo de las sesiones del período." />
           <ManualRow label="ACWR individual" desc="Curva del ratio agudo:crónico con la zona óptima sombreada en verde (0.8–1.3)." />
         </ManualSection>
       </div>
@@ -8408,7 +7884,7 @@ ${secciones_data.map(sec => `
         <ManualSection title="Filtros">
           <ManualRow label="Desde / Hasta" desc="Rango de fechas a analizar." />
           <ManualRow label="Min. Entrenamiento / Partido" desc="Mínimo de minutos para incluir al jugador en el análisis." />
-          <ManualRow label="Variable" desc="UCE, RPE, Distancia Total, Sprints, Aceleraciones, Deceleraciones, Alta Potencia, Vel. máxima, Dist/min." />
+          <ManualRow label="Variable" desc="UA, RPE, Distancia Total, Sprints, Aceleraciones, Deceleraciones, Alta Potencia, Vel. máxima, Dist/min." />
         </ManualSection>
         <ManualSection title="Interpretación del % de cambio">
           <ManualRow label="🟢 −5% a +15%" desc="Variación normal. Rango de progresión sostenible." />
@@ -8860,20 +8336,6 @@ function BibliotecaPanel() {
                   </div>
                 </div>
               ))}
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  )
-}
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  )
-}
             </div>
           )}
         </div>

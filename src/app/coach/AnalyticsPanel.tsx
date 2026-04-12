@@ -62,7 +62,9 @@ export default function AnalyticsPanel() {
   async function load() {
     setLoading(true)
     try {
-      const ar = await fetch(`/api/readiness?weeks=${weeks}`, { cache: 'no-store' }).then(r=>r.json())
+      const ar = await fetch(`/api/readiness?weeks=${weeks}`).then(r=>r.json())
+      // Normalize: readiness endpoint returns {wRows, rpeRows, todayRows}
+      // Map to consistent shape used throughout the component
       setData({
         readiness: { todayRows: ar.todayRows || [] },
         analytics: {
