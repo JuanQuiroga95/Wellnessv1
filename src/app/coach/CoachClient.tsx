@@ -1217,13 +1217,24 @@ function CalendarioPanel({ teamData }) {
         </div>
         <div style={{ display:'flex', gap:8, alignItems:'center' }}>
           <button onClick={async()=>{
-            if (!confirm('⚠️ Esto borrará TODAS las sesiones del calendario permanentemente. ¿Estás seguro?')) return
-            const r = await fetch('/api/calendario?all=true', { method:'DELETE' })
+            const modo = window.confirm(
+              '⚠️ BORRAR TODO\n\n' +
+              '• OK → Reset completo: borra sesiones, RPE de jugadores Y partidos registrados\n' +
+              '• Cancelar → Solo borrar sesiones del calendario (mantiene datos de jugadores)'
+            )
+            const includeData = modo
+            const confirmMsg = includeData
+              ? '🚨 Esto borrará ABSOLUTAMENTE TODO (sesiones, RPE, partidos). Esta acción no se puede deshacer. ¿Confirmar reset completo?'
+              : '⚠️ Esto borrará todas las sesiones del calendario. Los datos de RPE y partidos de jugadores se mantienen. ¿Continuar?'
+            if (!confirm(confirmMsg)) return
+            const r = await fetch(
+              `/api/calendario?all=true${includeData ? '&includeData=true' : ''}`,
+              { method: 'DELETE' }
+            )
             if (r.ok) {
-              // Hard reload so Ctrl Carga Calc and other panels also reflect the deletion
               window.location.reload()
             } else {
-              alert('Error al borrar sesiones')
+              alert('Error al borrar. Intentá de nuevo.')
             }
           }} style={{ fontSize:12, padding:'10px 18px', borderRadius:8, background:'rgba(239,68,68,.1)', border:'1px solid rgba(239,68,68,.3)', color:'#f87171', cursor:'pointer' }}>🗑 Borrar todo</button>
           <button onClick={()=>setShowEditor(true)} className="btn-lime" style={{ fontSize:12, padding:'10px 18px' }}>+ Nueva sesión</button>
@@ -1339,8 +1350,11 @@ function CalendarioPanel({ teamData }) {
                         </div>
                       ))}
                       {parts.map((p,i)=>(
-                        <div key={i} style={{ fontSize:10, padding:'2px 5px', borderRadius:4, width:'100%', background:'rgba(59,130,246,.2)', color:'#60a5fa', border:'1px solid rgba(59,130,246,.35)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-                          🏆 {p.rival||'Partido'}
+                        <div key={i} style={{ display:'flex', alignItems:'center', gap:2, fontSize:10, padding:'2px 5px', borderRadius:4, width:'100%', background:'rgba(59,130,246,.2)', color:'#60a5fa', border:'1px solid rgba(59,130,246,.35)', overflow:'hidden', whiteSpace:'nowrap' }}>
+                          <span style={{ flex:1, overflow:'hidden', textOverflow:'ellipsis' }}>🏆 {p.rival||'Partido'}</span>
+                          <button onClick={async(e)=>{ e.stopPropagation(); if(!confirm(`Borrar partido "${p.rival||'Partido'}" del ${p.fecha}?
+
+Esto elimina los minutos registrados de todos los jugadores.`)) return; await fetch(`/api/partidos?fecha=${p.fecha}&rival=${encodeURIComponent(p.rival||'')}`,{method:'DELETE'}); load() }} style={{ background:'transparent', border:'none', color:'#f87171', cursor:'pointer', fontSize:10, padding:'0 2px', lineHeight:1, flexShrink:0 }} title="Borrar partido">✕</button>
                         </div>
                       ))}
                       {log && (() => {
@@ -1366,8 +1380,11 @@ function CalendarioPanel({ teamData }) {
                         </div>
                       ))}
                       {parts.map((p,i)=>(
-                        <div key={i} style={{ fontSize:10, padding:'2px 5px', borderRadius:4, background:'rgba(59,130,246,.2)', color:'#60a5fa', border:'1px solid rgba(59,130,246,.35)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-                          🏆 {p.rival||'Partido'}
+                        <div key={i} style={{ display:'flex', alignItems:'center', gap:2, fontSize:10, padding:'2px 5px', borderRadius:4, background:'rgba(59,130,246,.2)', color:'#60a5fa', border:'1px solid rgba(59,130,246,.35)', overflow:'hidden', whiteSpace:'nowrap' }}>
+                          <span style={{ flex:1, overflow:'hidden', textOverflow:'ellipsis' }}>🏆 {p.rival||'Partido'}</span>
+                          <button onClick={async(e)=>{ e.stopPropagation(); if(!confirm(`Borrar partido "${p.rival||'Partido'}" del ${p.fecha}?
+
+Esto elimina los minutos de todos los jugadores.`)) return; await fetch(`/api/partidos?fecha=${p.fecha}&rival=${encodeURIComponent(p.rival||'')}`,{method:'DELETE'}); load() }} style={{ background:'transparent', border:'none', color:'#f87171', cursor:'pointer', fontSize:10, padding:'0 2px', lineHeight:1, flexShrink:0 }} title="Borrar partido">✕</button>
                         </div>
                       ))}
                       {log && (() => {
@@ -1413,8 +1430,11 @@ function CalendarioPanel({ teamData }) {
                       </button>
                     ))}
                     {parts.map((p,i)=>(
-                      <span key={i} style={{ fontSize:12, padding:'4px 10px', borderRadius:8, background:'rgba(59,130,246,.15)', color:'#60a5fa', border:'1px solid rgba(59,130,246,.3)' }}>
+                      <span key={i} style={{ display:'inline-flex', alignItems:'center', gap:4, fontSize:12, padding:'4px 10px', borderRadius:8, background:'rgba(59,130,246,.15)', color:'#60a5fa', border:'1px solid rgba(59,130,246,.3)' }}>
                         🏆 {p.rival||'Partido'} · {p.tipo_partido}
+                        <button onClick={async(e)=>{ e.stopPropagation(); if(!confirm(`Borrar partido "${p.rival||'Partido'}" del ${p.fecha}?
+
+Esto elimina los minutos de todos los jugadores.`)) return; await fetch(`/api/partidos?fecha=${p.fecha}&rival=${encodeURIComponent(p.rival||'')}`,{method:'DELETE'}); load() }} style={{ background:'transparent', border:'none', color:'#f87171', cursor:'pointer', fontSize:11, padding:'0', lineHeight:1 }} title="Borrar partido">✕</button>
                       </span>
                     ))}
                   </div>
@@ -1524,8 +1544,11 @@ function CalendarioPanel({ teamData }) {
               </div>
             ))}
             {parts.map((p,i)=>(
-              <div key={i} style={{ background:'rgba(59,130,246,.08)', border:'1px solid rgba(59,130,246,.25)', borderRadius:10, padding:'10px 14px' }}>
+              <div key={i} style={{ background:'rgba(59,130,246,.08)', border:'1px solid rgba(59,130,246,.25)', borderRadius:10, padding:'10px 14px', display:'flex', alignItems:'center', justifyContent:'space-between', gap:8 }}>
                 <span style={{ fontWeight:700, color:'#60a5fa', fontSize:13 }}>🏆 {p.rival||'Partido'} · {p.tipo_partido}</span>
+                <button onClick={async()=>{ if(!confirm(`Borrar partido "${p.rival||'Partido'}" del ${p.fecha}?
+
+Esto elimina los minutos de todos los jugadores.`)) return; await fetch(`/api/partidos?fecha=${p.fecha}&rival=${encodeURIComponent(p.rival||'')}`,{method:'DELETE'}); load(); setSelectedDay(null) }} style={{ background:'rgba(239,68,68,.1)', border:'1px solid rgba(239,68,68,.3)', color:'#f87171', borderRadius:6, cursor:'pointer', fontSize:11, padding:'4px 10px' }}>🗑 Borrar partido</button>
               </div>
             ))}
           </div>

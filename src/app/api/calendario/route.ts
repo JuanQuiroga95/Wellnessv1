@@ -166,25 +166,48 @@ export async function DELETE(req: NextRequest) {
     const clubId = s.clubId ? Number(s.clubId) : null
 
     if (borrarTodo) {
-      // Nuclear delete: remove ALL sessions for this club, covering 3 cases:
-      // 1. Sessions created by current admin (any club_id)
-      // 2. Sessions with correct club_id (any admin_id)
-      // 3. Sessions from other admins of the same club (admin_id IN club's admins)
+      // Nuclear delete — supports two modes:
+      // includeData=true: also wipes entrenamiento_logs + partido_logs (full reset)
+      // includeData=false (default): only wipes sesiones_plan
+      const includeData = searchParams.get('includeData') === 'true'
+
       if (clubId) {
-        // Get all admin user IDs for this club
         const clubAdmins = await sql`
           SELECT id FROM usuarios
           WHERE club_id = ${clubId} AND rol IN ('admin','master_admin')`
         const adminIds = (clubAdmins as any[]).map((r: any) => r.id)
-        adminIds.push(s.userId) // always include current user
+        adminIds.push(s.userId)
 
         await sql`DELETE FROM sesiones_plan
           WHERE club_id = ${clubId}
              OR admin_id = ANY(${adminIds}::int[])`
+
+        if (includeData) {
+          await sql`
+            DELETE FROM entrenamiento_logs el
+            USING jugadores j JOIN usuarios u ON u.id = j.usuario_id
+            WHERE el.jugador_id = j.id
+              AND (u.club_id = ${clubId} OR j.club_id = ${clubId})`
+          await sql`
+            DELETE FROM partido_logs pl
+            USING jugadores j JOIN usuarios u ON u.id = j.usuario_id
+            WHERE pl.jugador_id = j.id
+              AND (u.club_id = ${clubId} OR j.club_id = ${clubId})`
+        }
       } else {
         await sql`DELETE FROM sesiones_plan WHERE admin_id = ${s.userId}`
+        if (includeData) {
+          await sql`
+            DELETE FROM entrenamiento_logs el
+            USING jugadores j
+            WHERE el.jugador_id = j.id AND j.usuario_id = ${s.userId}`
+          await sql`
+            DELETE FROM partido_logs pl
+            USING jugadores j
+            WHERE pl.jugador_id = j.id AND j.usuario_id = ${s.userId}`
+        }
       }
-      return NextResponse.json({ ok: true, deleted: 'all' })
+      return NextResponse.json({ ok: true, deleted: includeData ? 'all_with_data' : 'all' })
     }
 
     if (!id) return NextResponse.json({ error: 'id requerido' }, { status: 400 })
