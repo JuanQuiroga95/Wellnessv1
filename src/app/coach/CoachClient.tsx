@@ -6192,7 +6192,7 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
         </div>
       </div>
     )
-  }
+  };
 
   return (
     <div style={{ padding:'24px 20px', maxWidth:1400, margin:'0 auto' }}>
@@ -8845,6 +8845,20 @@ function BibliotecaPanel() {
                   </div>
                 </div>
               ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
             </div>
           )}
         </div>
