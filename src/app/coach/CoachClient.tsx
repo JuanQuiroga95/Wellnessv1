@@ -500,7 +500,7 @@ function PlayerDetail({ player:p, logs, wellness, loading, onBack, ciclo, onCicl
             <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12 }}>
               <thead>
                 <tr style={{ background:'rgba(255,255,255,.03)' }}>
-                  {['Día','Fecha','Carga UCE','ACWR','Estado'].map(h=>(
+                  {['MD','Fecha','UA','ACWR','Estado'].map(h=>(
                     <th key={h} style={{ padding:'7px 12px', color:'var(--silver)', fontWeight:600, textTransform:'uppercase', fontSize:9, letterSpacing:'0.06em', textAlign:'center', whiteSpace:'nowrap' }}>{h}</th>
                   ))}
                 </tr>
@@ -510,12 +510,19 @@ function PlayerDetail({ player:p, logs, wellness, loading, onBack, ciclo, onCicl
                   const SC2={optimo:'#22c55e',precaucion:'#f59e0b',peligro:'#ef4444',peligro_bajo:'#3b82f6',sin_datos:'#444'}
                   const SL2={optimo:'Óptimo',precaucion:'Precaución',peligro:'Riesgo alto',peligro_bajo:'Carga baja',sin_datos:'—'}
                   const col = SC2[row.status]||'#444'
+                  // Find the log for this date to get md_label and carga_uce
+                  const dayLog = logs.find((l:any) => String(l.fecha) === row.date)
+                  const mdLabel = (dayLog as any)?.md_label || null
+                  const cargaUce = (dayLog as any)?.carga_uce ?? null
+                  const cargaShow = cargaUce !== null ? cargaUce : row.carga
                   return (
                     <tr key={i} style={{ borderTop:'1px solid var(--mist)', background: row.hasSesion?'transparent':'rgba(0,0,0,.2)' }}>
-                      <td style={{ padding:'8px 12px', textAlign:'center', fontWeight:600, color:'var(--silver)' }}>{row.dia}</td>
+                      <td style={{ padding:'8px 12px', textAlign:'center', fontWeight:700, color: mdLabel?'var(--lime)':'var(--silver)', fontFamily:'DM Mono,monospace', fontSize:11 }}>
+                        {mdLabel || row.dia}
+                      </td>
                       <td style={{ padding:'8px 12px', textAlign:'center', fontFamily:'DM Mono,monospace', fontSize:11, color:'var(--fog)' }}>{row.date.slice(5)}</td>
                       <td style={{ padding:'8px 12px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, color: row.hasSesion?'var(--lime)':'var(--fog)' }}>
-                        {row.hasSesion ? row.carga : '—'}
+                        {row.hasSesion ? cargaShow : '—'}
                       </td>
                       <td style={{ padding:'8px 12px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, color: col }}>
                         {row.ratio > 0 ? row.ratio.toFixed(2) : '—'}
@@ -1193,6 +1200,14 @@ function CalendarioPanel({ teamData }) {
           <p style={{ fontSize:12, color:'var(--silver)', marginTop:2 }}>Planificación de sesiones y recuperación</p>
         </div>
         <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+          <button onClick={async()=>{
+            if (!confirm('⚠️ BORRAR TODO\n\nEsto eliminará TODAS las sesiones del calendario de este club.\n\nNo se puede deshacer. ¿Confirmar?')) return
+            try {
+              const r = await fetch('/api/calendario?all=true', { method: 'DELETE' })
+              if (r.ok) { await load() }
+              else { const b = await r.json().catch(()=>({})); alert('Error: ' + (b?.error||r.status)) }
+            } catch { alert('Error de red.') }
+          }} style={{ fontSize:12, padding:'10px 18px', borderRadius:8, background:'rgba(239,68,68,.1)', border:'1px solid rgba(239,68,68,.3)', color:'#f87171', cursor:'pointer' }}>🗑 Borrar todo</button>
           <button onClick={()=>setShowEditor(true)} className="btn-lime" style={{ fontSize:12, padding:'10px 18px' }}>+ Nueva sesión</button>
         </div>
       </div>
@@ -1489,16 +1504,17 @@ function CalendarioPanel({ teamData }) {
                           const minTotal = (Number(bl.series)||1) * (Number(bl.minutos)||0)
                           if (!minTotal) return null
                           const ce = Math.round(minTotal * ne)
-                          const rpe = Number(s.rpe_objetivo) || 0
+                          const rpeParaUCE = rpeLog > 0 ? rpeLog : (Number(s.rpe_objetivo) || 0)
+                          const rpeEsReal = rpeLog > 0
                           return (
                             <div style={{ marginTop:4, fontSize:10, fontFamily:'DM Mono,monospace', color:'var(--silver)' }}>
                               <span style={{ color:'var(--fog)' }}>{minTotal}min × </span>
                               <span style={{ color:'var(--lime)' }}>NE{ne}</span>
                               <span style={{ color:'var(--fog)' }}> = </span>
                               <span style={{ color:'#c8f135', fontWeight:700 }}>CE {ce}</span>
-                              {rpe > 0 && <>
-                                <span style={{ color:'var(--fog)' }}> × RPE{rpe} = </span>
-                                <span style={{ color:'#f59e0b', fontWeight:700 }}>{Math.round(ce*rpe)} UCE</span>
+                              {rpeParaUCE > 0 && <>
+                                <span style={{ color:'var(--fog)' }}> × RPE{rpeParaUCE}{rpeEsReal ? '' : ' obj'} = </span>
+                                <span style={{ color:'#f59e0b', fontWeight:700 }}>{Math.round(ce*rpeParaUCE)} UCE</span>
                               </>}
                             </div>
                           )
@@ -1507,7 +1523,8 @@ function CalendarioPanel({ teamData }) {
                     ))}
                     {/* CE/UCE session total in card */}
                     {(() => {
-                      const rpe = Number(s.rpe_objetivo) || 0
+                      const rpeParaUCE = rpeLog > 0 ? rpeLog : (Number(s.rpe_objetivo) || 0)
+                      const rpeEsReal = rpeLog > 0
                       let ceTotal = 0
                       s.ejercicios.forEach((bl:any) => {
                         if (!bl.ventana) return
@@ -1519,7 +1536,7 @@ function CalendarioPanel({ teamData }) {
                       return (
                         <div style={{ marginTop:8, padding:'8px 10px', background:'rgba(200,241,53,.06)', border:'1px solid rgba(200,241,53,.2)', borderRadius:8, fontFamily:'DM Mono,monospace', display:'flex', gap:16, alignItems:'center' }}>
                           <div><span style={{ fontSize:9, color:'var(--silver)', textTransform:'uppercase' }}>CE TOTAL </span><span style={{ fontSize:13, fontWeight:700, color:'#c8f135' }}>{ceTotal}</span></div>
-                          {rpe > 0 && <div><span style={{ fontSize:9, color:'var(--silver)', textTransform:'uppercase' }}>UCE TOTAL </span><span style={{ fontSize:13, fontWeight:700, color:'#f59e0b' }}>{Math.round(ceTotal*rpe)}</span></div>}
+                          {rpeParaUCE > 0 && <div><span style={{ fontSize:9, color:'var(--silver)', textTransform:'uppercase' }}>UCE TOTAL </span><span style={{ fontSize:13, fontWeight:700, color:'#f59e0b' }}>{Math.round(ceTotal*rpeParaUCE)}</span><span style={{ fontSize:8, color:'var(--fog)', marginLeft:3 }}>{rpeEsReal ? '(RPE real)' : '(RPE obj)'}</span></div>}
                         </div>
                       )
                     })()}
@@ -1538,9 +1555,13 @@ function CalendarioPanel({ teamData }) {
       })()}
 
       {/* Session Editor Modal */}
-      {showEditor && (
+      {showEditor && (() => {
+        const _editorLog = selectedDay ? logs.find(l => l.fecha === selectedDay) : null
+        const _rpeReal = _editorLog ? Number(_editorLog.avg_rpe || _editorLog.max_rpe) || 0 : 0
+        return (
         <SesionEditor
           sesion={editSesion}
+          rpeReal={_rpeReal}
           defaultFecha={selectedDay||today}
           onSave={async(data)=>{
             try {
@@ -1624,7 +1645,8 @@ function CalendarioPanel({ teamData }) {
           onCancel={()=>{ setShowEditor(false); setEditSesion(null) }}
           teamPlayers={teamData}
         />
-      )}
+        )
+      })()}
     </div>
   )
 }
@@ -2138,7 +2160,7 @@ function imprimirSesion(f: any, bloques: any[], teamPlayers: any[] = []) {
   if (win) { win.document.write(html); win.document.close() }
 }
 
-function SesionEditor({ sesion, defaultFecha, onSave, onDelete, onCancel, teamPlayers = [] }) {
+function SesionEditor({ sesion, defaultFecha, rpeReal = 0, onSave, onDelete, onCancel, teamPlayers = [] }) {
   const [f, setF] = useState({
     fecha: sesion?.fecha || defaultFecha,
     hora_inicio: sesion?.hora_inicio?.slice(0,5) || '',
@@ -2392,7 +2414,12 @@ function SesionEditor({ sesion, defaultFecha, onSave, onDelete, onCancel, teamPl
 
       {/* ── CE / UCE TOTAL de la sesión ── */}
       {bloques.length > 0 && (() => {
+        // rpeReal = RPE medio real reportado por jugadores (avg_rpe de wellness logs)
+        // rpeObj  = RPE objetivo planificado por el coach
+        // La UCE se calcula con el RPE real si está disponible, sino con el objetivo como fallback
         const rpeObj = Number(f.rpe_objetivo) || 0
+        const rpeParaUCE = rpeReal > 0 ? rpeReal : rpeObj
+        const rpeEsReal = rpeReal > 0
         let ceTotal = 0
         const lineas: any[] = []
         bloques.forEach(bl => {
@@ -2405,12 +2432,18 @@ function SesionEditor({ sesion, defaultFecha, onSave, onDelete, onCancel, teamPl
           lineas.push({ label: bl.ventana, minTotal, ne, ce })
         })
         if (!ceTotal) return null
-        const uceTotal = rpeObj ? Math.round(ceTotal * rpeObj) : null
+        const uceTotal = rpeParaUCE ? Math.round(ceTotal * rpeParaUCE) : null
         return (
           <div style={{ background:'rgba(200,241,53,.08)', border:'2px solid rgba(200,241,53,.35)', borderRadius:12, padding:'14px 16px', marginBottom:16 }}>
             <p style={{ fontSize:10, fontWeight:700, color:'var(--lime)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:10 }}>
               🏋️ UCE · UNIDAD DE CARGA ESPECÍFICA
             </p>
+            {rpeEsReal && (
+              <div style={{ fontSize:10, color:'#f59e0b', marginBottom:8, fontFamily:'DM Mono,monospace' }}>
+                ✓ Usando RPE medio real ({rpeReal}) reportado por jugadores
+                {rpeObj > 0 && rpeObj !== rpeReal && <span style={{ color:'var(--fog)' }}> · RPE objetivo era {rpeObj}</span>}
+              </div>
+            )}
             <div style={{ fontFamily:'DM Mono,monospace', marginBottom:8 }}>
               {lineas.map((l, i) => (
                 <div key={i} style={{ fontSize:11, color:'var(--silver)', marginBottom:3 }}>
@@ -2420,9 +2453,9 @@ function SesionEditor({ sesion, defaultFecha, onSave, onDelete, onCancel, teamPl
                   <span style={{ color:'var(--lime)' }}>NE{l.ne}</span>
                   <span style={{ color:'var(--fog)' }}> = </span>
                   <span style={{ color:'#c8f135', fontWeight:700 }}>CE {l.ce}</span>
-                  {rpeObj > 0 && <>
-                    <span style={{ color:'var(--fog)' }}> × RPE{rpeObj} = </span>
-                    <span style={{ color:'#f59e0b', fontWeight:700 }}>{Math.round(l.ce * rpeObj)} UCE</span>
+                  {rpeParaUCE > 0 && <>
+                    <span style={{ color:'var(--fog)' }}> × RPE{rpeParaUCE}{rpeEsReal ? '' : ' obj'} = </span>
+                    <span style={{ color:'#f59e0b', fontWeight:700 }}>{Math.round(l.ce * rpeParaUCE)} UCE</span>
                   </>}
                 </div>
               ))}
@@ -2434,11 +2467,13 @@ function SesionEditor({ sesion, defaultFecha, onSave, onDelete, onCancel, teamPl
               </div>
               {uceTotal !== null && (
                 <div>
-                  <div style={{ fontSize:10, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.05em' }}>UCE TOTAL (×RPE{rpeObj})</div>
+                  <div style={{ fontSize:10, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.05em' }}>
+                    UCE TOTAL (×RPE{rpeParaUCE}{rpeEsReal ? ' real' : ' obj'})
+                  </div>
                   <div style={{ fontSize:22, fontWeight:900, color:'#f59e0b', fontFamily:'DM Mono,monospace' }}>{uceTotal} <span style={{ fontSize:12, color:'var(--fog)' }}>UCE</span></div>
                 </div>
               )}
-              {!rpeObj && <div style={{ fontSize:10, color:'var(--fog)', fontStyle:'italic' }}>Cargá el RPE objetivo para ver UCE total</div>}
+              {!rpeParaUCE && <div style={{ fontSize:10, color:'var(--fog)', fontStyle:'italic' }}>Cargá el RPE objetivo para ver UCE total (se actualizará con el RPE real al reportar)</div>}
             </div>
           </div>
         )
