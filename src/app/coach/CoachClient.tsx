@@ -1211,8 +1211,13 @@ function CalendarioPanel({ teamData }) {
         <div style={{ display:'flex', gap:8, alignItems:'center' }}>
           <button onClick={async()=>{
             if (!confirm('⚠️ Esto borrará TODAS las sesiones del calendario permanentemente. ¿Estás seguro?')) return
-            await fetch('/api/calendario?all=true', { method:'DELETE' })
-            load()
+            const r = await fetch('/api/calendario?all=true', { method:'DELETE' })
+            if (r.ok) {
+              // Hard reload so Ctrl Carga Calc and other panels also reflect the deletion
+              window.location.reload()
+            } else {
+              alert('Error al borrar sesiones')
+            }
           }} style={{ fontSize:12, padding:'10px 18px', borderRadius:8, background:'rgba(239,68,68,.1)', border:'1px solid rgba(239,68,68,.3)', color:'#f87171', cursor:'pointer' }}>🗑 Borrar todo</button>
           <button onClick={()=>setShowEditor(true)} className="btn-lime" style={{ fontSize:12, padding:'10px 18px' }}>+ Nueva sesión</button>
         </div>

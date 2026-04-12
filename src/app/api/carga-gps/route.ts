@@ -98,12 +98,20 @@ export async function GET(req: NextRequest) {
     }
 
     // 1. All planned sessions in range with their task blocks
-    const sesiones = await sql`
-      SELECT id, fecha::text, ejercicios, rpe_objetivo, titulo
-      FROM sesiones_plan
-      WHERE admin_id = ${s.userId}
-        AND fecha BETWEEN ${desde} AND ${hasta}
-      ORDER BY fecha`
+    // Use same filter as calendario: admin_id OR club_id — keeps both in sync
+    const sesiones = clubId
+      ? await sql`
+          SELECT id, fecha::text, ejercicios, rpe_objetivo, titulo, tipo
+          FROM sesiones_plan
+          WHERE (admin_id = ${s.userId} OR club_id = ${clubId})
+            AND fecha BETWEEN ${desde} AND ${hasta}
+          ORDER BY fecha`
+      : await sql`
+          SELECT id, fecha::text, ejercicios, rpe_objetivo, titulo, tipo
+          FROM sesiones_plan
+          WHERE admin_id = ${s.userId}
+            AND fecha BETWEEN ${desde} AND ${hasta}
+          ORDER BY fecha`
 
     // 2. All active players from this club
     // Check both u.club_id and j.club_id to handle legacy data where one may be NULL

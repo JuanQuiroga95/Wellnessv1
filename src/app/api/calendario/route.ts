@@ -162,9 +162,21 @@ export async function DELETE(req: NextRequest) {
     const clubId = s.clubId ? Number(s.clubId) : null
 
     if (borrarTodo) {
-      // Bulk delete: remove ALL sessions for this coach/club
+      // Nuclear delete: remove ALL sessions for this club, covering 3 cases:
+      // 1. Sessions created by current admin (any club_id)
+      // 2. Sessions with correct club_id (any admin_id)
+      // 3. Sessions from other admins of the same club (admin_id IN club's admins)
       if (clubId) {
-        await sql`DELETE FROM sesiones_plan WHERE admin_id = ${s.userId} OR club_id = ${clubId}`
+        // Get all admin user IDs for this club
+        const clubAdmins = await sql`
+          SELECT id FROM usuarios
+          WHERE club_id = ${clubId} AND rol IN ('admin','master_admin')`
+        const adminIds = (clubAdmins as any[]).map((r: any) => r.id)
+        adminIds.push(s.userId) // always include current user
+
+        await sql`DELETE FROM sesiones_plan
+          WHERE club_id = ${clubId}
+             OR admin_id = ANY(${adminIds}::int[])`
       } else {
         await sql`DELETE FROM sesiones_plan WHERE admin_id = ${s.userId}`
       }
