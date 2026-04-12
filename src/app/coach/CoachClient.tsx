@@ -6127,16 +6127,17 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
   const pctColor = (p:number|null) => p===null?'var(--fog)':p>=85?'#22c55e':p>=65?'#f59e0b':'#ef4444'
 
   const renderGrupoBar = (grupo: {label:string,vars:string[],colors:string[]}, dataSource: 'jugador'|'md') => {
-    const series = grupo.vars.map((vk, ci) => {
-      const varDef = VARS.find(v=>v.key===vk)!
-      return {
-        label: varDef?.label || vk,
-        color: grupo.colors[ci] || '#888',
-        vals: dataSource === 'jugador'
-          ? players.map((p:any)=>({ name: p.nombre.split(' ')[0], val: Number(p[vk])||0 }))
-          : mdCols.map(md=>({ name: md, val: Math.round(Number(perSession[md]?.[vk])||0) }))
-      }
-    })
+   const series = grupo.vars.map((vk, ci) => {
+  const varDef = VARS.find(v => v.key === vk)!
+
+  return {
+    label: varDef?.label || vk,
+    color: grupo.colors[ci] || '#888',
+    vals: dataSource === 'jugador'
+      ? players.map((p:any)=>({ name: p.nombre.split(' ')[0], val: Number(p[vk])||0 }))
+      : mdCols.map(md=>({ name: md, val: Math.round(Number(perSession[md]?.[vk])||0) }))
+  }
+}); 
     const allVals = series.flatMap(s=>s.vals.map((v:any)=>v.val))
     const maxVal = Math.max(...allVals, 1)
     const names = series[0]?.vals.map((v:any)=>v.name) || []
