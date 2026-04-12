@@ -18,6 +18,14 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ wRows: [], rpeRows: [], todayRows: [] })
   }
 
+  // Auto-reparar jugadores sin club_id asignado (legacy data)
+  if (clubId) {
+    try {
+      await sql`UPDATE jugadores j SET club_id = ${clubId} FROM usuarios u WHERE u.id = j.usuario_id AND u.club_id = ${clubId} AND j.club_id IS NULL`
+      await sql`UPDATE usuarios u SET club_id = ${clubId} FROM jugadores j WHERE j.usuario_id = u.id AND j.club_id = ${clubId} AND u.club_id IS NULL`
+    } catch {}
+  }
+
   const wRows = await sql`
     SELECT j.id AS jugador_id, u.nombre, j.posicion, j.foto_url,
            DATE_TRUNC('week', w.fecha)::text AS semana,
@@ -36,7 +44,7 @@ export async function GET(req: NextRequest) {
       AND w.fatiga IS NOT NULL
       AND u.activo = true
       AND u.rol = 'jugador'
-      AND (${isMaster}::boolean OR (u.club_id = ${clubId} AND j.club_id = ${clubId}))
+      AND (${isMaster}::boolean OR (u.club_id = ${clubId} OR j.club_id = ${clubId}))
     GROUP BY j.id, u.nombre, j.posicion, j.foto_url, DATE_TRUNC('week',w.fecha)
     ORDER BY semana DESC, u.nombre`
 
@@ -52,7 +60,7 @@ export async function GET(req: NextRequest) {
     WHERE el.fecha >= CURRENT_DATE - (${weeks}*7)
       AND u.activo = true
       AND u.rol = 'jugador'
-      AND (${isMaster}::boolean OR (u.club_id = ${clubId} AND j.club_id = ${clubId}))
+      AND (${isMaster}::boolean OR (u.club_id = ${clubId} OR j.club_id = ${clubId}))
     GROUP BY el.jugador_id, DATE_TRUNC('week',el.fecha)
     ORDER BY semana DESC`
 
@@ -64,7 +72,7 @@ export async function GET(req: NextRequest) {
     FROM jugadores j JOIN usuarios u ON u.id=j.usuario_id
     LEFT JOIN wellness_logs w ON w.jugador_id=j.id AND w.fecha=CURRENT_DATE
     WHERE u.rol='jugador' AND u.activo=true
-      AND (${isMaster}::boolean OR (u.club_id=${clubId} AND j.club_id=${clubId}))
+      AND (${isMaster}::boolean OR (u.club_id=${clubId} OR j.club_id=${clubId}))
     ORDER BY u.nombre`
 
   return NextResponse.json({ wRows, rpeRows, todayRows })

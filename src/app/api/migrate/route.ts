@@ -169,6 +169,10 @@ export async function POST(req: NextRequest) {
         END AS lado_dominante
       FROM iso_sessions s`, 'view iso_con_asimetria'],
     [`ALTER TABLE wellness_logs ADD COLUMN IF NOT EXISTS dolor_descripcion TEXT`, 'wellness_logs.dolor_descripcion'],
+    [`ALTER TABLE gps_logs ADD COLUMN IF NOT EXISTS n_sprints INTEGER`, 'gps_logs.n_sprints'],
+    [`ALTER TABLE gps_logs ADD COLUMN IF NOT EXISTS duracion_min NUMERIC(6,1)`, 'gps_logs.duracion_min'],
+    [`ALTER TABLE sesiones_plan ADD COLUMN IF NOT EXISTS rival VARCHAR(100)`, 'sesiones_plan.rival'],
+    [`ALTER TABLE sesiones_plan ADD COLUMN IF NOT EXISTS rival_foto TEXT`, 'sesiones_plan.rival_foto'],
     [`CREATE UNIQUE INDEX IF NOT EXISTS idx_partido_logs_jugador_fecha_rival ON partido_logs(jugador_id, fecha, COALESCE(rival,''))`, 'partido_logs unique index jugador_fecha_rival'],
   ]
 

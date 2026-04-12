@@ -21,7 +21,7 @@ const GPS_METRIC_META: Record<string, { label: string; unit: string; group: stri
   dist_v3:             { label: 'Vel B3',           unit: 'm',      group: 'Distancia' },
   dist_v4:             { label: 'Vel B4',           unit: 'm',      group: 'Distancia' },
   dist_v5:             { label: 'Vel B5/B6',        unit: 'm',      group: 'Distancia' },
-  player_load:         { label: 'Player Load',      unit: 'UA',     group: 'Carga' },
+  player_load:         { label: 'Player Load',      unit: 'UCE',     group: 'Carga' },
   metabolic_power:     { label: 'Pot. Metabólica',  unit: 'W/kg',   group: 'Carga' },
   avg_metabolic_power: { label: 'Pot. Metab. Med.', unit: 'W/kg',   group: 'Carga' },
   equiv_distance:      { label: 'Dist. Equiv.',     unit: 'm',      group: 'Carga' },
@@ -107,6 +107,7 @@ export default function CoachClient({ session, teamData, today }) {
   const [teamName, setTeamName] = useState<string>('PLANTEL')
   const [editingTeamName, setEditingTeamName] = useState(false)
   const [teamNameDraft, setTeamNameDraft] = useState<string>('PLANTEL')
+  const [ciclo, setCiclo] = useState<'microciclo'|'mesociclo'|'macrociclo'>('microciclo')
   const router = useRouter()
 
   // Load club logo and team name from DB on mount
@@ -499,7 +500,7 @@ function PlayerDetail({ player:p, logs, wellness, loading, onBack, ciclo, onCicl
             <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12 }}>
               <thead>
                 <tr style={{ background:'rgba(255,255,255,.03)' }}>
-                  {['Día','Fecha','Carga UA','ACWR','Estado'].map(h=>(
+                  {['Día','Fecha','Carga UCE','ACWR','Estado'].map(h=>(
                     <th key={h} style={{ padding:'7px 12px', color:'var(--silver)', fontWeight:600, textTransform:'uppercase', fontSize:9, letterSpacing:'0.06em', textAlign:'center', whiteSpace:'nowrap' }}>{h}</th>
                   ))}
                 </tr>
@@ -845,7 +846,7 @@ function CambioCargaPanel() {
       <div>
         <h2 className="display" style={{ fontSize:48, color:'var(--snow)' }}>CAMBIO DE CARGA</h2>
         <p style={{ fontSize:12, color:'var(--silver)', marginTop:2 }}>
-          Variación de UA acumulada — jugadores con ≥{minEnt}min entrenamiento y ≥{minPart}min en partido
+          Variación de UCE acumulada — jugadores con ≥{minEnt}min entrenamiento y ≥{minPart}min en partido
         </p>
       </div>
 
@@ -976,8 +977,8 @@ function CambioCargaPanel() {
               <div style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:16, overflow:'hidden' }}>
                 <div style={{ display:'grid', gridTemplateColumns: view==='diario' ? '1fr 120px 120px 120px' : '1fr 1fr 120px 120px', gap:0, padding:'10px 18px', borderBottom:'1px solid var(--mist)' }}>
                   {(view==='diario'
-                    ? ['Fecha','Jugadores','Promedio UA','Cambio vs anterior']
-                    : ['Semana','Etiqueta','Promedio UA','Cambio vs anterior']
+                    ? ['Fecha','Jugadores','Promedio UCE','Cambio vs anterior']
+                    : ['Semana','Etiqueta','Promedio UCE','Cambio vs anterior']
                   ).map(h=>(
                     <span key={h} style={{ fontSize:9, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em' }}>{h}</span>
                   ))}
@@ -1029,7 +1030,7 @@ function CambioCargaPanel() {
 const OBJETIVOS_FISICOS = ['Fuerza','Resistencia','Velocidad','Recuperación-Compensación','Recuperación','Competición']
 const OBJETIVOS_SECUNDARIOS = ['Táctico','Técnico','Técnico-Táctico']
 const TITULOS_SESION = ['MD+1','MD+2','MD+3','MD-4','MD-3','MD-2','MD-1','MD']
-const TAREAS_PRINCIPALES = ['Activación en campo','Activación en gimnasio','Gimnasio','Rondo','Trabajo analítico','Juego de posesión','Juego de posición','Transiciones','Partido reducido','Partido modificado','Partido de entrenamiento','Partido amistoso','Partido oficial']
+const TAREAS_PRINCIPALES = ['CE — Carga Específica','Activación en campo','Activación en gimnasio','Gimnasio','Rondo','Trabajo analítico','Juego de posesión','Juego de posición','Transiciones','Partido reducido','Partido modificado','Partido de entrenamiento','Partido amistoso','Partido oficial']
 const SUBTAREAS: Record<string, string[]> = { 'Activación en campo': ['Circuito técnico','Circuito neuromuscular','Pliometría','Movilidad','Trabajo Preventivo'], 'Activación en gimnasio': ['Isométricos','Pliometría','Movilidad','Excéntricos','Estabilidad','Tracción y empuje','Trabajo Preventivo'], 'Rondo': ['Rondo 4v2','Rondo 5v2','Rondo 6v2','Rondo 8v2','Rondo 4v1+1','Rondo en movimiento','Rondo conservación','Rondo orientado','Rondo dos espacios'] }
 const TAREAS_CON_ESPACIO = ['Rondo','Trabajo analítico','Juego de posesión','Juego de posición','Partido reducido','Partido modificado','Partido de entrenamiento','Partido amistoso','Partido oficial']
 const TAREAS_CON_EQUIPO = ['Rondo','Trabajo analítico','Juego de posesión','Juego de posición','Partido reducido','Partido modificado','Partido de entrenamiento','Partido amistoso','Partido oficial']
@@ -2931,11 +2932,12 @@ function CargaExternaPanel() {
   const hasRealGps: boolean = data?.hasRealGps || false
   const allMetricCols: string[] = data?.allMetricCols || []
   const sesionesInfo: any[] = data?.sesionesInfo || []
-  // Always show ALL MD columns in fixed order, filling with — where no data
+  // Only show MD columns that actually exist in sesionesInfo (no ghost columns)
   const MD_ORDER_LOCAL = ['MD+1','MD+2','MD+3','MD-4','MD-3','MD-2','MD-1','MD']
   const existingMdLabels = new Set(sesionesInfo.map((s:any) => s.titulo))
-  // mdCols = full sequence always; mark which have data
-  const mdCols = MD_ORDER_LOCAL
+  // mdCols = only columns with real planned sessions (filters out ghost MDs)
+  const mdCols = MD_ORDER_LOCAL.filter(md => existingMdLabels.has(md))
+    .concat(sesionesInfo.map((s:any) => s.titulo).filter((t:string) => !MD_ORDER_LOCAL.includes(t)))
   // All columns present in the data, sorted by canonical order (known first, then alphabetical)
   const availableCols: string[] = (() => {
     const raw = allMetricCols.length > 0 ? allMetricCols : (
@@ -3170,8 +3172,8 @@ function CargaExternaPanel() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(120px,1fr))', gap: 10 }}>
           {[
             ['RPE Medio',    teamAvg.rpe,        'var(--lime)', 'escala Borg'],
-            ['UA Media',     teamAvg.ua,          '#60a5fa',    'por sesión'],
-            ['UA Total',     teamAvg.ua_total,    '#a78bfa',    'acumulado'],
+            ['UCE Media',     teamAvg.ua,          '#60a5fa',    'por sesión'],
+            ['UCE Total',     teamAvg.ua_total,    '#a78bfa',    'acumulado'],
             ['Jugadores',    players.length,      'var(--snow)', 'con datos'],
           ].map(([l, v, c, sub]) => (
             <div key={l as string} style={{ background: 'var(--ink2)', border: '1px solid var(--mist)', borderRadius: 12, padding: 14, textAlign: 'center' }}>
@@ -3494,7 +3496,7 @@ function ComparativaPanel({ teamData }: { teamData: any[] }) {
 
   const VARS = [
     { key:'rpe',         label:'RPE',         color:'#c8f135', unit:'',     src:'rpe' },
-    { key:'ua_total',    label:'UA Total',    color:'#60a5fa', unit:'',     src:'rpe' },
+    { key:'ua_total',    label:'UCE Total',    color:'#60a5fa', unit:'',     src:'rpe' },
     { key:'sesiones',    label:'Sesiones',    color:'var(--silver)', unit:'', src:'rpe' },
     { key:'minActivo',   label:'Min Activos', color:'#34d399', unit:'min',  src:'rpe' },
     { key:'dist_total',  label:'Dist. Total', color:'#93c5fd', unit:'m',    src:'gps' },
@@ -5472,18 +5474,14 @@ function GpsPanel({ teamData }: { teamData: any }) {
             </label>
             <select className="wp-input" value={sesionId ?? ''} onChange={e => setSesionId(e.target.value ? Number(e.target.value) : null)} style={{ width: '100%' }}>
               <option value="">Sin vincular</option>
-              {tipoSesion === 'entrenamiento' && sesiones.filter(s => s.tipo === 'entrenamiento').map((s: any) => (
-                <option key={s.id} value={s.id}>{s.fecha} · {s.titulo || s.objetivo || 'Entrenamiento'}</option>
-              ))}
-              {tipoSesion === 'entrenamiento' && sesiones.filter(s => s.tipo === 'entrenamiento').length === 0 && (
-                <option disabled value="">— No hay sesiones planificadas en ±14 días —</option>
+              {sesiones.length === 0 && (
+                <option disabled value="">— No hay sesiones en ±14 días —</option>
               )}
-              {tipoSesion === 'partido' && sesiones.filter(s => s.tipo === 'partido').map((s: any) => (
-                <option key={s.id} value={s.id}>{s.fecha} · {s.titulo || (s.rival ? `vs ${s.rival}` : 'Partido')}</option>
-              ))}
-              {tipoSesion === 'partido' && sesiones.filter(s => s.tipo === 'partido').length === 0 && (
-                <option disabled value="">— Creá primero el partido en el Calendario —</option>
-              )}
+              {sesiones.map((s: any) => {
+                const icon = s.tipo === 'partido' ? '⚽' : '🏋️'
+                const label = s.titulo || (s.rival ? `vs ${s.rival}` : s.tipo === 'partido' ? 'Partido' : 'Entrenamiento')
+                return <option key={s.id} value={s.id}>{icon} {s.fecha} · {label}</option>
+              })}
             </select>
           </div>
         </div>
@@ -5840,11 +5838,12 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
   const teamAvg = data?.teamAvg || {}
   const perSession: Record<string,any> = data?.perSession || {}
   const sesionesInfo: any[] = data?.sesionesInfo || []
-  // Always show ALL MD columns in fixed order, filling with — where no data
+  // Only show MD columns that actually exist in sesionesInfo (no ghost columns)
   const MD_ORDER_LOCAL = ['MD+1','MD+2','MD+3','MD-4','MD-3','MD-2','MD-1','MD']
   const existingMdLabels = new Set(sesionesInfo.map((s:any) => s.titulo))
-  // mdCols = full sequence always; mark which have data
-  const mdCols = MD_ORDER_LOCAL
+  // mdCols = only columns with real planned sessions (filters out ghost MDs)
+  const mdCols = MD_ORDER_LOCAL.filter(md => existingMdLabels.has(md))
+    .concat(sesionesInfo.map((s:any) => s.titulo).filter((t:string) => !MD_ORDER_LOCAL.includes(t)))
 
   const refMedia: Record<string,number> = {}
   VARS.forEach(v => {
@@ -6002,7 +6001,7 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
                         <th style={{ padding:'5px 8px', textAlign:'left', color:'var(--silver)', fontSize:8, fontWeight:700, textTransform:'uppercase', borderBottom:'1px solid var(--mist)' }}>Pos.</th>
                         <th style={{ padding:'5px 8px', textAlign:'center', color:'#c8f135', fontSize:8, fontWeight:700, textTransform:'uppercase', borderBottom:'1px solid var(--mist)' }}>RPE</th>
                         <th style={{ padding:'5px 8px', textAlign:'center', color:'#34d399', fontSize:8, fontWeight:700, textTransform:'uppercase', borderBottom:'1px solid var(--mist)' }}>Tiempo</th>
-                        <th style={{ padding:'5px 8px', textAlign:'center', color:'#60a5fa', fontSize:8, fontWeight:700, textTransform:'uppercase', borderBottom:'1px solid var(--mist)', borderRight:'2px solid rgba(200,241,53,.3)' }}>UA</th>
+                        <th style={{ padding:'5px 8px', textAlign:'center', color:'#60a5fa', fontSize:8, fontWeight:700, textTransform:'uppercase', borderBottom:'1px solid var(--mist)', borderRight:'2px solid rgba(200,241,53,.3)' }}>UCE</th>
                         {SESSION_VARS.map(sv => (
                           <th key={sv.key} style={{ padding:'5px 8px', textAlign:'center', color:sv.color, fontSize:8, fontWeight:700, textTransform:'uppercase', whiteSpace:'nowrap', borderBottom:'1px solid var(--mist)', background:'rgba(200,241,53,.03)' }}>{sv.label}</th>
                         ))}
@@ -6069,7 +6068,7 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
                       line: null,
                     },
                     {
-                      title: 'UA + RPE', color: '#c8f135',
+                      title: 'UCE + RPE', color: '#c8f135',
                       bars: [
                         { key:'ua_total', label:'UA', color:'#60a5fa' },
                       ],

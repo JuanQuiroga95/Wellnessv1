@@ -74,8 +74,9 @@ export async function POST(req: NextRequest) {
   const { jugador_id, fecha, rival, tipo_partido, minutos, titular, notas, rival_foto } = await req.json()
   const sql = getDb()
   const d = fecha || new Date().toISOString().split('T')[0]
-  const [r] = await sql`INSERT INTO partido_logs(jugador_id, fecha, rival, tipo_partido, minutos, titular, notas, rival_foto)
-    VALUES(${jugador_id}, ${d}, ${rival||null}, ${tipo_partido||'Oficial'}, ${minutos||0}, ${titular!==false}, ${notas||null}, ${rival_foto||null})
+  const clubId = s.clubId ? Number(s.clubId) : null
+  const [r] = await sql`INSERT INTO partido_logs(jugador_id, fecha, rival, tipo_partido, minutos, titular, notas, rival_foto, club_id)
+    VALUES(${jugador_id}, ${d}, ${rival||null}, ${tipo_partido||'Oficial'}, ${minutos||0}, ${titular!==false}, ${notas||null}, ${rival_foto||null}, ${clubId})
     RETURNING id, fecha::text`
   return NextResponse.json(r)
 }
