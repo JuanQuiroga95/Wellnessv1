@@ -473,6 +473,37 @@ export async function GET(req: NextRequest) {
       }
     }
 
+    // Compute CE (NE-based) per session — sum(min_bloque × ne_bloque)
+    const NE_DEFAULT_SRV: Record<string,number> = {
+      'Partido oficial':10,'Partido amistoso':9,'Partido de entrenamiento':8,
+      'Partido modificado':7,'Partido reducido':7,'Juego de posición':6,
+      'Juego de posesión':6,'Transiciones':5,'Rondo':5,'Trabajo analítico':4,
+      'Gimnasio':3,'Activación en campo':2,'Activación en gimnasio':2,
+    }
+    const cePerSession: Record<string, { ce_total: number; bloques: any[]; rpe_objetivo: number }> = {}
+    for (const ses of sesiones as any[]) {
+      const label = ses.titulo || ses.fecha
+      let ceTotal = 0
+      const bloques: any[] = []
+      for (const bl of (ses.ejercicios || [])) {
+        if (!bl.ventana) continue
+        const ne = bl.ne ?? NE_DEFAULT_SRV[bl.ventana] ?? 5
+        const minTotal = (Number(bl.series)||1) * (Number(bl.minutos)||0)
+        if (!minTotal) continue
+        const ce = Math.round(minTotal * ne)
+        ceTotal += ce
+        bloques.push({ ventana: bl.ventana, minTotal, ne, ce })
+      }
+      if (!cePerSession[label]) {
+        cePerSession[label] = { ce_total: ceTotal, bloques, rpe_objetivo: Number(ses.rpe_objetivo)||0 }
+      } else {
+        cePerSession[label].ce_total += ceTotal
+        cePerSession[label].bloques.push(...bloques)
+        if (!cePerSession[label].rpe_objetivo && ses.rpe_objetivo)
+          cePerSession[label].rpe_objetivo = Number(ses.rpe_objetivo)
+      }
+    }
+
     // Deduplicate sesionesInfo by MD label (keep first occurrence per label)
     const seenTitulos = new Set<string>()
     const sesionesInfo = (sesiones as any[])
@@ -500,6 +531,7 @@ export async function GET(req: NextRequest) {
       allMetricCols,
       sesionesInfo,
       perSession,
+      cePerSession,
       gpsPerMD: gpsPerMDShaped,
       hasGpsData:    players.some((p: any) => p.hasGps),
       hasRealGps:    (gpsReal as any[]).length > 0,

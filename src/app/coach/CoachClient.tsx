@@ -1030,12 +1030,19 @@ function CambioCargaPanel() {
 const OBJETIVOS_FISICOS = ['Fuerza','Resistencia','Velocidad','Recuperación-Compensación','Recuperación','Competición']
 const OBJETIVOS_SECUNDARIOS = ['Táctico','Técnico','Técnico-Táctico']
 const TITULOS_SESION = ['MD+1','MD+2','MD+3','MD-4','MD-3','MD-2','MD-1','MD']
-const TAREAS_PRINCIPALES = ['CE — Carga Específica','Activación en campo','Activación en gimnasio','Gimnasio','Rondo','Trabajo analítico','Juego de posesión','Juego de posición','Transiciones','Partido reducido','Partido modificado','Partido de entrenamiento','Partido amistoso','Partido oficial']
+const TAREAS_PRINCIPALES = ['Activación en campo','Activación en gimnasio','Gimnasio','Rondo','Trabajo analítico','Juego de posesión','Juego de posición','Transiciones','Partido reducido','Partido modificado','Partido de entrenamiento','Partido amistoso','Partido oficial']
 const SUBTAREAS: Record<string, string[]> = { 'Activación en campo': ['Circuito técnico','Circuito neuromuscular','Pliometría','Movilidad','Trabajo Preventivo'], 'Activación en gimnasio': ['Isométricos','Pliometría','Movilidad','Excéntricos','Estabilidad','Tracción y empuje','Trabajo Preventivo'], 'Rondo': ['Rondo 4v2','Rondo 5v2','Rondo 6v2','Rondo 8v2','Rondo 4v1+1','Rondo en movimiento','Rondo conservación','Rondo orientado','Rondo dos espacios'] }
 const TAREAS_CON_ESPACIO = ['Rondo','Trabajo analítico','Juego de posesión','Juego de posición','Partido reducido','Partido modificado','Partido de entrenamiento','Partido amistoso','Partido oficial']
 const TAREAS_CON_EQUIPO = ['Rondo','Trabajo analítico','Juego de posesión','Juego de posición','Partido reducido','Partido modificado','Partido de entrenamiento','Partido amistoso','Partido oficial']
 const TAREAS_PARTIDO_SIMPLE = ['Partido amistoso','Partido oficial','Partido de entrenamiento']
 const TAREAS_MOSTRAR_FORM = [...TAREAS_CON_ESPACIO, 'Activación en campo','Activación en gimnasio','Gimnasio']
+// NE default por tipo de tarea (Nivel de Especificidad 1-10)
+const NE_DEFAULT: Record<string, number> = {
+  'Partido oficial': 10, 'Partido amistoso': 9, 'Partido de entrenamiento': 8,
+  'Partido modificado': 7, 'Partido reducido': 7, 'Juego de posición': 6,
+  'Juego de posesión': 6, 'Transiciones': 5, 'Rondo': 5, 'Trabajo analítico': 4,
+  'Gimnasio': 3, 'Activación en campo': 2, 'Activación en gimnasio': 2,
+}
 const TIPO_COLORES = { entrenamiento:'#c8f135', partido:'#3b82f6', recuperacion:'#f59e0b', descanso:'#555' }
 const TIPO_ICONOS = { entrenamiento:'⚽', partido:'🏆', recuperacion:'🔄', descanso:'😴' }
 
@@ -1476,8 +1483,46 @@ function CalendarioPanel({ teamData }) {
                         </div>
                         {bl.descripcion && <p style={{ fontSize:11, color:'var(--silver)', lineHeight:1.5, margin:0 }}>{bl.descripcion}</p>}
                         {bl.imagen && <img src={bl.imagen} style={{ marginTop:6, maxWidth:'100%', maxHeight:120, borderRadius:6, objectFit:'contain' }} />}
+                        {/* CE inline in card */}
+                        {bl.ventana && (() => {
+                          const ne = bl.ne ?? NE_DEFAULT[bl.ventana] ?? 5
+                          const minTotal = (Number(bl.series)||1) * (Number(bl.minutos)||0)
+                          if (!minTotal) return null
+                          const ce = Math.round(minTotal * ne)
+                          const rpe = Number(s.rpe_objetivo) || 0
+                          return (
+                            <div style={{ marginTop:4, fontSize:10, fontFamily:'DM Mono,monospace', color:'var(--silver)' }}>
+                              <span style={{ color:'var(--fog)' }}>{minTotal}min × </span>
+                              <span style={{ color:'var(--lime)' }}>NE{ne}</span>
+                              <span style={{ color:'var(--fog)' }}> = </span>
+                              <span style={{ color:'#c8f135', fontWeight:700 }}>CE {ce}</span>
+                              {rpe > 0 && <>
+                                <span style={{ color:'var(--fog)' }}> × RPE{rpe} = </span>
+                                <span style={{ color:'#f59e0b', fontWeight:700 }}>{Math.round(ce*rpe)} UCE</span>
+                              </>}
+                            </div>
+                          )
+                        })()}
                       </div>
                     ))}
+                    {/* CE/UCE session total in card */}
+                    {(() => {
+                      const rpe = Number(s.rpe_objetivo) || 0
+                      let ceTotal = 0
+                      s.ejercicios.forEach((bl:any) => {
+                        if (!bl.ventana) return
+                        const ne = bl.ne ?? NE_DEFAULT[bl.ventana] ?? 5
+                        const minTotal = (Number(bl.series)||1) * (Number(bl.minutos)||0)
+                        ceTotal += Math.round(minTotal * ne)
+                      })
+                      if (!ceTotal) return null
+                      return (
+                        <div style={{ marginTop:8, padding:'8px 10px', background:'rgba(200,241,53,.06)', border:'1px solid rgba(200,241,53,.2)', borderRadius:8, fontFamily:'DM Mono,monospace', display:'flex', gap:16, alignItems:'center' }}>
+                          <div><span style={{ fontSize:9, color:'var(--silver)', textTransform:'uppercase' }}>CE TOTAL </span><span style={{ fontSize:13, fontWeight:700, color:'#c8f135' }}>{ceTotal}</span></div>
+                          {rpe > 0 && <div><span style={{ fontSize:9, color:'var(--silver)', textTransform:'uppercase' }}>UCE TOTAL </span><span style={{ fontSize:13, fontWeight:700, color:'#f59e0b' }}>{Math.round(ceTotal*rpe)}</span></div>}
+                        </div>
+                      )
+                    })()}
                   </div>
                 )}
                 {s.notas && <p style={{ fontSize:11, color:'var(--silver)', marginTop:4, fontStyle:'italic' }}>📝 {s.notas}</p>}
@@ -1778,6 +1823,28 @@ function BloqueMetodologia({ bloque, index, onChange, onRemove, teamPlayers = []
         </div>
       )}
 
+      {/* NE — Nivel de Especificidad */}
+      {bloque.ventana && (
+        <div style={{ marginBottom:8, background:'rgba(200,241,53,.04)', border:'1px solid rgba(200,241,53,.15)', borderRadius:8, padding:'8px 10px' }}>
+          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:6 }}>
+            <label style={{ fontSize:9, fontWeight:700, color:'var(--lime)', textTransform:'uppercase', letterSpacing:'0.06em' }}>
+              NE · Nivel de Especificidad
+              <span style={{ fontWeight:400, color:'var(--silver)', marginLeft:6, textTransform:'none', letterSpacing:0 }}>
+                (1 = Restauración → 10 = Partido oficial)
+              </span>
+            </label>
+            <span style={{ fontSize:16, fontWeight:900, color:'var(--lime)', fontFamily:'DM Mono,monospace', minWidth:28, textAlign:'right' }}>{bloque.ne ?? NE_DEFAULT[bloque.ventana] ?? 5}</span>
+          </div>
+          <input type="range" min={1} max={10} step={0.5}
+            value={bloque.ne ?? NE_DEFAULT[bloque.ventana] ?? 5}
+            onChange={e => onChange('ne', parseFloat(e.target.value))}
+            style={{ width:'100%', accentColor:'var(--lime)' }} />
+          <div style={{ display:'flex', justifyContent:'space-between', fontSize:8, color:'var(--fog)', marginTop:2 }}>
+            <span>1 Restauración</span><span>5 Técnico-táctico</span><span>10 Partido oficial</span>
+          </div>
+        </div>
+      )}
+
       {mostrarForm && (
         <div style={{ marginBottom:8 }}>
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:6, marginBottom:6 }}>
@@ -1913,6 +1980,25 @@ function BloqueMetodologia({ bloque, index, onChange, onRemove, teamPlayers = []
                 )
               })}
             </div>
+          </div>
+        )
+      })()}
+
+      {/* CE / UCE inline calculation display */}
+      {bloque.ventana && (() => {
+        const ne = bloque.ne ?? NE_DEFAULT[bloque.ventana] ?? 5
+        const minutos = Number(bloque.minutos) || 0
+        const bloques = Number(bloque.series) || 1
+        const minTotal = minutos * bloques
+        const ce = Math.round(minTotal * ne)
+        if (!minTotal) return null
+        return (
+          <div style={{ background:'rgba(200,241,53,.06)', border:'1px solid rgba(200,241,53,.2)', borderRadius:8, padding:'8px 12px', marginBottom:8, fontFamily:'DM Mono,monospace' }}>
+            <span style={{ fontSize:10, color:'var(--silver)' }}>{minTotal}min</span>
+            <span style={{ fontSize:10, color:'var(--fog)' }}> × </span>
+            <span style={{ fontSize:10, color:'var(--lime)', fontWeight:700 }}>NE{ne}</span>
+            <span style={{ fontSize:10, color:'var(--fog)' }}> = </span>
+            <span style={{ fontSize:11, color:'#c8f135', fontWeight:700 }}>CE {ce}</span>
           </div>
         )
       })()}
@@ -2303,6 +2389,60 @@ function SesionEditor({ sesion, defaultFecha, onSave, onDelete, onCancel, teamPl
           <BloqueMetodologia key={i} bloque={bl} index={i} onChange={(k,v)=>updateBloque(i,k,v)} onRemove={()=>removeBloque(i)} teamPlayers={teamPlayers} />
         ))}
       </div>
+
+      {/* ── CE / UCE TOTAL de la sesión ── */}
+      {bloques.length > 0 && (() => {
+        const rpeObj = Number(f.rpe_objetivo) || 0
+        let ceTotal = 0
+        const lineas: any[] = []
+        bloques.forEach(bl => {
+          if (!bl.ventana) return
+          const ne = bl.ne ?? NE_DEFAULT[bl.ventana] ?? 5
+          const minTotal = (Number(bl.series)||1) * (Number(bl.minutos)||0)
+          if (!minTotal) return
+          const ce = Math.round(minTotal * ne)
+          ceTotal += ce
+          lineas.push({ label: bl.ventana, minTotal, ne, ce })
+        })
+        if (!ceTotal) return null
+        const uceTotal = rpeObj ? Math.round(ceTotal * rpeObj) : null
+        return (
+          <div style={{ background:'rgba(200,241,53,.08)', border:'2px solid rgba(200,241,53,.35)', borderRadius:12, padding:'14px 16px', marginBottom:16 }}>
+            <p style={{ fontSize:10, fontWeight:700, color:'var(--lime)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:10 }}>
+              🏋️ UCE · UNIDAD DE CARGA ESPECÍFICA
+            </p>
+            <div style={{ fontFamily:'DM Mono,monospace', marginBottom:8 }}>
+              {lineas.map((l, i) => (
+                <div key={i} style={{ fontSize:11, color:'var(--silver)', marginBottom:3 }}>
+                  <span style={{ color:'var(--fog)', fontSize:9 }}>{l.label.slice(0,20)}:</span>{' '}
+                  <span style={{ color:'var(--snow)' }}>{l.minTotal}min</span>
+                  <span style={{ color:'var(--fog)' }}> × </span>
+                  <span style={{ color:'var(--lime)' }}>NE{l.ne}</span>
+                  <span style={{ color:'var(--fog)' }}> = </span>
+                  <span style={{ color:'#c8f135', fontWeight:700 }}>CE {l.ce}</span>
+                  {rpeObj > 0 && <>
+                    <span style={{ color:'var(--fog)' }}> × RPE{rpeObj} = </span>
+                    <span style={{ color:'#f59e0b', fontWeight:700 }}>{Math.round(l.ce * rpeObj)} UCE</span>
+                  </>}
+                </div>
+              ))}
+            </div>
+            <div style={{ display:'flex', gap:20, alignItems:'center', paddingTop:8, borderTop:'1px solid rgba(200,241,53,.2)' }}>
+              <div>
+                <div style={{ fontSize:10, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.05em' }}>CE TOTAL</div>
+                <div style={{ fontSize:22, fontWeight:900, color:'#c8f135', fontFamily:'DM Mono,monospace' }}>{ceTotal} <span style={{ fontSize:12, color:'var(--fog)' }}>UCE</span></div>
+              </div>
+              {uceTotal !== null && (
+                <div>
+                  <div style={{ fontSize:10, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.05em' }}>UCE TOTAL (×RPE{rpeObj})</div>
+                  <div style={{ fontSize:22, fontWeight:900, color:'#f59e0b', fontFamily:'DM Mono,monospace' }}>{uceTotal} <span style={{ fontSize:12, color:'var(--fog)' }}>UCE</span></div>
+                </div>
+              )}
+              {!rpeObj && <div style={{ fontSize:10, color:'var(--fog)', fontStyle:'italic' }}>Cargá el RPE objetivo para ver UCE total</div>}
+            </div>
+          </div>
+        )
+      })()}
 
       {/* Resumen de tiempo total de sesión */}
       {bloques.length > 0 && (() => {
@@ -5838,6 +5978,7 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
   const teamAvg = data?.teamAvg || {}
   const perSession: Record<string,any> = data?.perSession || {}
   const sesionesInfo: any[] = data?.sesionesInfo || []
+  const cePerSession: Record<string,any> = data?.cePerSession || {}
   // Only show MD columns that actually exist in sesionesInfo (no ghost columns)
   const MD_ORDER_LOCAL = ['MD+1','MD+2','MD+3','MD-4','MD-3','MD-2','MD-1','MD']
   const existingMdLabels = new Set(sesionesInfo.map((s:any) => s.titulo))
@@ -5951,6 +6092,135 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
       !players.length ? (
         <div style={{ padding:48, textAlign:'center', color:'var(--silver)', background:'var(--ink2)', borderRadius:16 }}>Sin datos para este período. Registrá sesiones con RPE en el Calendario.</div>
       ) : (<>
+
+      {/* ══ UCE SIN GPS — TABLA PRINCIPAL ══════════════════════════════ */}
+      {(() => {
+        const REF_UCE_SEMANA = 9500
+        // Compute semana totals
+        let ceTotalSemana = 0, uceTotalSemana = 0
+        const rows = mdCols.map(md => {
+          const ce = cePerSession[md]
+          if (!ce || !ce.ce_total) return { md, ce_total: 0, uce_total: 0, rpe: 0, bloques: [] }
+          const uce = ce.rpe_objetivo ? Math.round(ce.ce_total * ce.rpe_objetivo) : 0
+          ceTotalSemana += ce.ce_total
+          uceTotalSemana += uce
+          return { md, ce_total: ce.ce_total, uce_total: uce, rpe: ce.rpe_objetivo, bloques: ce.bloques || [] }
+        }).filter(r => r.ce_total > 0)
+
+        const pctSemana = REF_UCE_SEMANA > 0 ? Math.round((uceTotalSemana / REF_UCE_SEMANA) * 100) : 0
+        const statusColor = pctSemana < 35 ? '#22c55e' : pctSemana < 60 ? '#f59e0b' : '#ef4444'
+        const statusLabel = pctSemana < 35 ? 'RECUPERACIÓN' : pctSemana < 60 ? 'MANTENIMIENTO' : 'CARGA ALTA'
+
+        return (
+          <div style={{ marginBottom:28, background:'var(--ink2)', border:'1px solid rgba(200,241,53,.25)', borderRadius:16, overflow:'hidden' }}>
+            {/* Header */}
+            <div style={{ background:'rgba(200,241,53,.06)', borderBottom:'1px solid rgba(200,241,53,.15)', padding:'14px 20px', display:'flex', justifyContent:'space-between', alignItems:'flex-start' }}>
+              <div>
+                <p style={{ fontSize:13, fontWeight:800, color:'var(--lime)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:3 }}>
+                  🏋️ UCE · UNIDAD DE CARGA ESPECÍFICA · SIN GPS
+                </p>
+                <p style={{ fontSize:10, color:'var(--fog)', fontFamily:'DM Mono,monospace' }}>
+                  CE = Min × NE (Nivel Especificidad) · UCE = CE × RPE · Referencia: ~{REF_UCE_SEMANA.toLocaleString()} UCE/semana
+                </p>
+              </div>
+              <div style={{ textAlign:'right' }}>
+                <p style={{ fontSize:9, color:'var(--fog)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:2 }}>SEMANA TOTAL</p>
+                <p style={{ fontSize:32, fontWeight:900, color: uceTotalSemana > 0 ? statusColor : 'var(--fog)', fontFamily:'Bebas Neue,sans-serif', lineHeight:1 }}>
+                  {uceTotalSemana > 0 ? `${uceTotalSemana.toLocaleString()} UCE` : '— UCE'}
+                </p>
+                {uceTotalSemana > 0 && (
+                  <p style={{ fontSize:10, fontWeight:700, color: statusColor }}>● {statusLabel}</p>
+                )}
+              </div>
+            </div>
+
+            {/* Table */}
+            <div style={{ overflowX:'auto' }}>
+              <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12 }}>
+                <thead>
+                  <tr style={{ borderBottom:'1px solid var(--mist)' }}>
+                    {['SESIÓN','RPE obj.','BLOQUES (TAREA · MIN · NE · CE)','CE TOTAL','UCE TOTAL','% REF'].map((h,i) => (
+                      <th key={h} style={{ padding:'8px 12px', textAlign: i<=2?'left':'center', fontSize:9, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', whiteSpace:'nowrap' }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.length === 0 && (
+                    <tr><td colSpan={6} style={{ padding:'24px', textAlign:'center', color:'var(--fog)', fontSize:12, fontStyle:'italic' }}>
+                      Sin datos CE. Agregá tareas con Minutos y NE en las sesiones del Calendario.
+                    </td></tr>
+                  )}
+                  {rows.map((row, ri) => {
+                    const pctRow = row.uce_total && REF_UCE_SEMANA ? Math.round((row.uce_total/REF_UCE_SEMANA)*100) : null
+                    const rowColor = !pctRow ? 'var(--fog)' : pctRow < 35 ? '#22c55e' : pctRow < 60 ? '#f59e0b' : '#ef4444'
+                    const rowStatus = !pctRow ? '' : pctRow < 35 ? 'RECUPERACIÓN' : pctRow < 60 ? 'MANTENIMIENTO' : 'CARGA ALTA'
+                    return (
+                      <tr key={ri} style={{ borderBottom:'1px solid rgba(255,255,255,.04)', background: ri%2===0?'transparent':'rgba(255,255,255,.02)' }}>
+                        <td style={{ padding:'10px 12px' }}>
+                          <span style={{ fontFamily:'Bebas Neue,sans-serif', fontSize:16, color:'var(--lime)', letterSpacing:'0.06em' }}>{row.md}</span>
+                        </td>
+                        <td style={{ padding:'10px 12px' }}>
+                          {row.rpe ? <span style={{ fontSize:13, fontWeight:700, color:'#f97316', fontFamily:'DM Mono,monospace' }}>{row.rpe}</span> : <span style={{ color:'var(--fog)' }}>—</span>}
+                        </td>
+                        <td style={{ padding:'10px 12px' }}>
+                          <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
+                            {row.bloques.map((bl:any, bi:number) => (
+                              <span key={bi} style={{ background:'rgba(200,241,53,.08)', border:'1px solid rgba(200,241,53,.2)', borderRadius:6, padding:'3px 8px', fontSize:11, fontFamily:'DM Mono,monospace', whiteSpace:'nowrap' }}>
+                                <span style={{ color:'var(--snow)' }}>{bl.ventana?.slice(0,18)}</span>
+                                <span style={{ color:'var(--fog)' }}> · {bl.minTotal}min · </span>
+                                <span style={{ color:'var(--lime)' }}>NE{bl.ne}</span>
+                                <span style={{ color:'var(--fog)' }}> · </span>
+                                <span style={{ color:'#c8f135', fontWeight:700 }}>CE{bl.ce}</span>
+                                {row.rpe > 0 && <>
+                                  <span style={{ color:'var(--fog)' }}> → </span>
+                                  <span style={{ color:'#f59e0b', fontWeight:700 }}>{Math.round(bl.ce*row.rpe)} UCE</span>
+                                </>}
+                              </span>
+                            ))}
+                          </div>
+                        </td>
+                        <td style={{ padding:'10px 12px', textAlign:'center' }}>
+                          <span style={{ fontFamily:'DM Mono,monospace', fontWeight:700, color:'#c8f135' }}>{row.ce_total}</span>
+                        </td>
+                        <td style={{ padding:'10px 12px', textAlign:'center' }}>
+                          {row.uce_total > 0 ? (
+                            <div>
+                              <div style={{ fontFamily:'DM Mono,monospace', fontWeight:700, color:rowColor, fontSize:15 }}>{row.uce_total.toLocaleString()}</div>
+                              {rowStatus && <div style={{ fontSize:8, color:rowColor, fontWeight:700 }}>● {rowStatus}</div>}
+                            </div>
+                          ) : <span style={{ color:'var(--fog)' }}>—</span>}
+                        </td>
+                        <td style={{ padding:'10px 12px', textAlign:'center' }}>
+                          {pctRow !== null ? <span style={{ fontFamily:'DM Mono,monospace', fontWeight:700, color:rowColor }}>{pctRow}%</span> : <span style={{ color:'var(--fog)' }}>—</span>}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+                {/* Semana total row */}
+                {rows.length > 0 && (
+                  <tfoot>
+                    <tr style={{ borderTop:'2px solid rgba(200,241,53,.3)', background:'rgba(200,241,53,.04)' }}>
+                      <td colSpan={3} style={{ padding:'10px 12px', fontWeight:800, color:'var(--lime)', fontSize:12, textTransform:'uppercase', letterSpacing:'0.06em' }}>SEMANA</td>
+                      <td style={{ padding:'10px 12px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, color:'#c8f135', fontSize:14 }}>{ceTotalSemana}</td>
+                      <td style={{ padding:'10px 12px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, color:statusColor, fontSize:18 }}>{uceTotalSemana > 0 ? uceTotalSemana.toLocaleString() : '—'}</td>
+                      <td style={{ padding:'10px 12px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, color:statusColor }}>{pctSemana > 0 ? `${pctSemana}%` : '—'}</td>
+                    </tr>
+                  </tfoot>
+                )}
+              </table>
+            </div>
+
+            {/* Reference legend */}
+            <div style={{ padding:'10px 20px', borderTop:'1px solid var(--mist)', display:'flex', gap:16, flexWrap:'wrap', alignItems:'center' }}>
+              <span style={{ fontSize:9, color:'var(--fog)', textTransform:'uppercase', letterSpacing:'0.06em' }}>REFERENCIA ({REF_UCE_SEMANA.toLocaleString()} UCE/semana):</span>
+              <span style={{ fontSize:11, color:'#22c55e' }}>● &lt;35% (&lt;{Math.round(REF_UCE_SEMANA*.35).toLocaleString()}) Recuperación</span>
+              <span style={{ fontSize:11, color:'#f59e0b' }}>● 35-60% ({Math.round(REF_UCE_SEMANA*.35).toLocaleString()}–{Math.round(REF_UCE_SEMANA*.6).toLocaleString()}) Mantenimiento</span>
+              <span style={{ fontSize:11, color:'#ef4444' }}>● &gt;60% (&gt;{Math.round(REF_UCE_SEMANA*.6).toLocaleString()}) Carga alta</span>
+            </div>
+          </div>
+        )
+      })()}
 
       {/* ══ CUADRO 1: MICROCICLO — INDIVIDUAL + SESIÓN (CALCULADA) ══════ */}
       <div style={{ marginBottom:20 }}>
