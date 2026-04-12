@@ -6102,10 +6102,7 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
         </div>
       </div>
 
-      {loading ? <div style={{ padding:48, textAlign:'center', color:'var(--silver)' }}>Cargando...</div> :
-      !players.length ? (
-        <div style={{ padding:48, textAlign:'center', color:'var(--silver)', background:'var(--ink2)', borderRadius:16 }}>Sin datos para este período. Registrá sesiones con RPE en el Calendario.</div>
-      ) : (<>
+      {loading ? <div style={{ padding:48, textAlign:'center', color:'var(--silver)' }}>Cargando...</div> : (<>
 
       {/* ══ UCE: UNIDAD DE CARGA ESPECÍFICA ════════════════════════════ */}
       {(() => {
@@ -6140,7 +6137,11 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
           return { md, bloques, ceTotal, uceTotal, rpe, hasData: bloques.length > 0 }
         }).filter(x => x.hasData)
 
-        if (!ucePerMD.length) return null
+        if (!ucePerMD.length) return (
+          <div style={{ padding:48, textAlign:'center', color:'var(--silver)', background:'var(--ink2)', borderRadius:16, marginBottom:20 }}>
+            Sin sesiones planificadas para este período. Creá sesiones con tareas en el Calendario.
+          </div>
+        )
 
         // Week totals
         const totalCE = Math.round(ucePerMD.reduce((s,x)=>s+x.ceTotal,0)*10)/10
