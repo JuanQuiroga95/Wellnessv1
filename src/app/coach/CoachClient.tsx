@@ -6298,18 +6298,21 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
             {key:'nDecel',     label:'DEC >2',          color:'#14b8a6'},
             {key:'distMP',     label:'Alta Pot.',       color:'#fbbf24'},
           ]
+          // Si no hay sesión para este MD en el calendario, no mostrar el bloque
+          if (!hasData) return null
+
           return (
-            <div key={md} style={{ background:'var(--ink2)', border:`1px solid ${hasData?'rgba(200,241,53,.2)':'var(--mist)'}`, borderRadius:14, overflow:'hidden', marginBottom:12, opacity:hasData?1:0.5 }}>
+            <div key={md} style={{ background:'var(--ink2)', border:'1px solid rgba(200,241,53,.2)', borderRadius:14, overflow:'hidden', marginBottom:12 }}>
               {/* MD Header */}
-              <div style={{ padding:'8px 16px', background:hasData?'rgba(200,241,53,.06)':'rgba(255,255,255,.02)', borderBottom:'1px solid var(--mist)', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-                <span style={{ fontSize:12, fontWeight:800, color:hasData?'var(--lime)':'var(--fog)', fontFamily:'Bebas Neue,sans-serif', letterSpacing:'0.1em' }}>{md}</span>
+              <div style={{ padding:'8px 16px', background:'rgba(200,241,53,.06)', borderBottom:'1px solid var(--mist)', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                <span style={{ fontSize:12, fontWeight:800, color:'var(--lime)', fontFamily:'Bebas Neue,sans-serif', letterSpacing:'0.1em' }}>{md}</span>
                 {ses ? (
                   <span style={{ fontSize:10, color:'var(--fog)', fontFamily:'DM Mono,monospace' }}>{ses.fecha}</span>
                 ) : (
                   <span style={{ fontSize:10, color:'var(--fog)', fontStyle:'italic' }}>Sin sesión asignada</span>
                 )}
               </div>
-              {hasData ? (
+              {true ? (
                 <>
                 <div style={{ overflowX:'auto' }}>
                   <table style={{ width:'100%', borderCollapse:'collapse', fontSize:11 }}>
@@ -6617,8 +6620,6 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
                   )
                 })()}
                 </>
-              ) : (
-                <div style={{ padding:'10px 16px', color:'var(--fog)', fontSize:11, fontStyle:'italic' }}>Sin sesión registrada para {md}</div>
               )}
             </div>
           )
@@ -7211,15 +7212,18 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
           const POS_COLS: Record<string,string> = {}
           mdPlayers.forEach((p:any,i:number) => { POS_COLS[p.nombre] = POS_LIST[i%POS_LIST.length] })
 
+          // Si no hay datos GPS para este MD, no mostrar el bloque
+          if (!hasData) return null
+
           return (
-            <div key={md} style={{ background:'var(--ink2)', border:`1px solid ${hasData?'rgba(96,165,250,.25)':'var(--mist)'}`, borderRadius:14, overflow:'hidden', marginBottom:12, opacity:hasData?1:0.45 }}>
+            <div key={md} style={{ background:'var(--ink2)', border:'1px solid rgba(96,165,250,.25)', borderRadius:14, overflow:'hidden', marginBottom:12 }}>
               {/* MD Header */}
-              <div style={{ padding:'8px 16px', background:hasData?'rgba(96,165,250,.06)':'rgba(255,255,255,.02)', borderBottom:'1px solid var(--mist)', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-                <span style={{ fontSize:13, fontWeight:800, color:hasData?'#60a5fa':'var(--fog)', fontFamily:'Bebas Neue,sans-serif', letterSpacing:'0.1em' }}>{md}</span>
+              <div style={{ padding:'8px 16px', background:'rgba(96,165,250,.06)', borderBottom:'1px solid var(--mist)', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                <span style={{ fontSize:13, fontWeight:800, color:'#60a5fa', fontFamily:'Bebas Neue,sans-serif', letterSpacing:'0.1em' }}>{md}</span>
                 {ses ? <span style={{ fontSize:10, color:'var(--fog)', fontFamily:'DM Mono,monospace' }}>{ses.fecha}</span>
                      : <span style={{ fontSize:10, color:'var(--fog)', fontStyle:'italic' }}>Sin sesión asignada</span>}
               </div>
-              {hasData ? (
+              {true ? (
                 <>
                 <div style={{ overflowX:'auto' }}>
                   <table style={{ width:'100%', borderCollapse:'collapse', fontSize:11 }}>
@@ -7388,8 +7392,6 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
                   )
                 })()}
                 </>
-              ) : (
-                <div style={{ padding:'10px 16px', color:'var(--fog)', fontSize:11, fontStyle:'italic' }}>Sin datos GPS importados para {md}</div>
               )}
             </div>
           )
