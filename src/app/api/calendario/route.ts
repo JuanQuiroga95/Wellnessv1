@@ -15,28 +15,14 @@ export async function GET(req: NextRequest) {
     const hasta = searchParams.get('hasta') || new Date().toISOString().split('T')[0]
     const sql = getDb()
 
-    const clubId = s.clubId ? Number(s.clubId) : null
-    // Auto-repair sessions created before club_id fix
-    if (clubId) {
-      try { await sql`UPDATE sesiones_plan SET club_id = ${clubId} WHERE admin_id = ${s.userId} AND club_id IS NULL` } catch {}
-    }
-    const sesiones = clubId
-      ? await sql`
-          SELECT id, fecha::text, hora_inicio::text, hora_fin::text, tipo, titulo,
-                 objetivo, objetivo_secundario, descripcion, ejercicios, rpe_objetivo, notas,
-                 rival, rival_foto
-          FROM sesiones_plan
-          WHERE (admin_id = ${s.userId} OR club_id = ${clubId})
-            AND fecha BETWEEN ${desde} AND ${hasta}
-          ORDER BY fecha, hora_inicio NULLS LAST`
-      : await sql`
-          SELECT id, fecha::text, hora_inicio::text, hora_fin::text, tipo, titulo,
-                 objetivo, objetivo_secundario, descripcion, ejercicios, rpe_objetivo, notas,
-                 rival, rival_foto
-          FROM sesiones_plan
-          WHERE admin_id = ${s.userId}
-            AND fecha BETWEEN ${desde} AND ${hasta}
-          ORDER BY fecha, hora_inicio NULLS LAST`
+    const sesiones = await sql`
+      SELECT id, fecha::text, hora_inicio::text, hora_fin::text, tipo, titulo,
+             objetivo, objetivo_secundario, descripcion, ejercicios, rpe_objetivo, notas,
+             rival, rival_foto
+      FROM sesiones_plan
+      WHERE admin_id = ${s.userId}
+        AND fecha BETWEEN ${desde} AND ${hasta}
+      ORDER BY fecha, hora_inicio NULLS LAST`
 
     let partidos: any[] = []
     try {
@@ -72,9 +58,7 @@ export async function GET(req: NextRequest) {
       }
     } catch { logs = [] }
 
-    return NextResponse.json({ sesiones, partidos, logs }, {
-      headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate' }
-    })
+    return NextResponse.json({ sesiones, partidos, logs })
   } catch (err) {
     console.error('[calendario GET error]', err)
     return NextResponse.json({ error: String(err) }, { status: 500 })
@@ -111,9 +95,7 @@ export async function POST(req: NextRequest) {
              ${rpe_objetivo || null}, ${notas || null},
              ${rival || null}, ${rival_foto || null})
       RETURNING id, fecha::text`
-    return NextResponse.json(r, {
-      headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate' }
-    })
+    return NextResponse.json(r)
   } catch (err) {
     console.error('[calendario POST error]', err)
     return NextResponse.json({ error: String(err) }, { status: 500 })
@@ -165,61 +147,9 @@ export async function DELETE(req: NextRequest) {
     if (!s || !isAdmin(s)) return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
     const { searchParams } = new URL(req.url)
     const id = searchParams.get('id')
-    const borrarTodo = searchParams.get('all') === 'true'
-    const sql = getDb()
-    const clubId = s.clubId ? Number(s.clubId) : null
-
-    if (borrarTodo) {
-      // Nuclear delete — supports two modes:
-      // includeData=true: also wipes entrenamiento_logs + partido_logs (full reset)
-      // includeData=false (default): only wipes sesiones_plan
-      const includeData = searchParams.get('includeData') === 'true'
-
-      if (clubId) {
-        // Use subqueries instead of ANY(array) to avoid Neon driver serialization issues
-        // 1. Delete sessions linked to this club directly
-        await sql`DELETE FROM sesiones_plan WHERE club_id = ${clubId}`
-        // 2. Delete sessions created by admins of this club (even without club_id set)
-        await sql`
-          DELETE FROM sesiones_plan sp
-          WHERE EXISTS (
-            SELECT 1 FROM usuarios u
-            WHERE u.id = sp.admin_id AND u.club_id = ${clubId}
-          )`
-        // 3. Always clear entrenamiento_logs — removes "ghost" data in other panels
-        await sql`
-          DELETE FROM entrenamiento_logs el
-          USING jugadores j JOIN usuarios u ON u.id = j.usuario_id
-          WHERE el.jugador_id = j.id
-            AND (u.club_id = ${clubId} OR j.club_id = ${clubId})`
-        // 4. Always clear partido_logs — complete reset
-        await sql`
-            DELETE FROM partido_logs pl
-            USING jugadores j JOIN usuarios u ON u.id = j.usuario_id
-            WHERE pl.jugador_id = j.id
-              AND (u.club_id = ${clubId} OR j.club_id = ${clubId})`
-      } else {
-        await sql`DELETE FROM sesiones_plan WHERE admin_id = ${s.userId}`
-        await sql`
-          DELETE FROM entrenamiento_logs el
-          USING jugadores j
-          WHERE el.jugador_id = j.id AND j.usuario_id = ${s.userId}`
-        await sql`
-          DELETE FROM partido_logs pl
-          USING jugadores j
-          WHERE pl.jugador_id = j.id AND j.usuario_id = ${s.userId}`
-      }
-      return NextResponse.json({ ok: true, deleted: 'all' })
-    }
-
     if (!id) return NextResponse.json({ error: 'id requerido' }, { status: 400 })
-
-    // Single delete — also match by club_id to cover sessions with different admin_id
-    if (clubId) {
-      await sql`DELETE FROM sesiones_plan WHERE id = ${id} AND (admin_id = ${s.userId} OR club_id = ${clubId})`
-    } else {
-      await sql`DELETE FROM sesiones_plan WHERE id = ${id} AND admin_id = ${s.userId}`
-    }
+    const sql = getDb()
+    await sql`DELETE FROM sesiones_plan WHERE id = ${id} AND admin_id = ${s.userId}`
     return NextResponse.json({ ok: true })
   } catch (err) {
     console.error('[calendario DELETE error]', err)

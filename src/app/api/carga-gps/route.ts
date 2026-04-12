@@ -94,27 +94,16 @@ export async function GET(req: NextRequest) {
         await sql`
           UPDATE usuarios u SET club_id = ${clubId}
           FROM jugadores j WHERE j.usuario_id = u.id AND j.club_id = ${clubId} AND u.club_id IS NULL`
-        // Repair sessions created without club_id
-        await sql`UPDATE sesiones_plan SET club_id = ${clubId} WHERE admin_id = ${s.userId} AND club_id IS NULL`
       } catch {}
     }
 
     // 1. All planned sessions in range with their task blocks
-    // Use same filter as calendario: admin_id OR club_id — keeps both in sync
-    // Use >= and <= explicitly (BETWEEN is inclusive but being explicit avoids any driver quirks)
-    const sesiones = clubId
-      ? await sql`
-          SELECT id, fecha::text, ejercicios, rpe_objetivo, titulo, tipo
-          FROM sesiones_plan
-          WHERE (admin_id = ${s.userId} OR club_id = ${clubId})
-            AND fecha >= ${desde}::date AND fecha <= ${hasta}::date
-          ORDER BY fecha`
-      : await sql`
-          SELECT id, fecha::text, ejercicios, rpe_objetivo, titulo, tipo
-          FROM sesiones_plan
-          WHERE admin_id = ${s.userId}
-            AND fecha >= ${desde}::date AND fecha <= ${hasta}::date
-          ORDER BY fecha`
+    const sesiones = await sql`
+      SELECT id, fecha::text, ejercicios, rpe_objetivo, titulo
+      FROM sesiones_plan
+      WHERE admin_id = ${s.userId}
+        AND fecha BETWEEN ${desde} AND ${hasta}
+      ORDER BY fecha`
 
     // 2. All active players from this club
     // Check both u.club_id and j.club_id to handle legacy data where one may be NULL
@@ -132,7 +121,7 @@ export async function GET(req: NextRequest) {
       FROM entrenamiento_logs el
       JOIN jugadores j ON j.id = el.jugador_id
       JOIN usuarios u ON u.id = j.usuario_id
-      WHERE el.fecha >= ${desde}::date AND el.fecha <= ${hasta}::date
+      WHERE el.fecha BETWEEN ${desde} AND ${hasta}
         AND u.activo = true
         AND (u.club_id = ${clubId} OR j.club_id = ${clubId})
       ORDER BY el.fecha` : []
@@ -475,12 +464,14 @@ export async function GET(req: NextRequest) {
       const label = ses.titulo || ses.fecha
       const m = sumarMetricasBloques(ses.ejercicios || [])
       if (!perSession[label]) {
-        perSession[label] = { fecha: ses.fecha, rpe_objetivo: ses.rpe_objetivo, ...m }
+        perSession[label] = { fecha: ses.fecha, rpe_objetivo: ses.rpe_objetivo, ...m, ejercicios: ses.ejercicios || [] }
       } else {
         // Accumulate: sum numeric values for duplicate MD labels
         for (const k of Object.keys(m)) {
           perSession[label][k] = (perSession[label][k] || 0) + (m[k] || 0)
         }
+        // Merge ejercicios arrays for sessions sharing the same MD label
+        perSession[label].ejercicios = [...(perSession[label].ejercicios || []), ...(ses.ejercicios || [])]
       }
     }
 
@@ -505,35 +496,12 @@ export async function GET(req: NextRequest) {
         return a.fecha.localeCompare(b.fecha)
       })
 
-    // Build rpeLogsPerMD: { [md_label]: { [jugador_id]: { rpe, duracion_min, carga_ua } } }
-    // Cross-reference entrenamiento_logs (by fecha) with sesiones_plan (by fecha → titulo)
-    const rpeLogsPerMD: Record<string, Record<number, any>> = {}
-    // Pre-populate all known MD labels
-    for (const ses of sesiones as any[]) {
-      const md = ses.titulo || ses.fecha
-      if (!rpeLogsPerMD[md]) rpeLogsPerMD[md] = {}
-    }
-    // Map each RPE log to its MD label via date match with sesiones_plan
-    for (const log of logs as any[]) {
-      const matchingSes = (sesiones as any[]).find((s: any) => s.fecha === log.fecha)
-      if (!matchingSes) continue
-      const md = matchingSes.titulo || matchingSes.fecha
-      if (!rpeLogsPerMD[md]) rpeLogsPerMD[md] = {}
-      // If multiple logs on same day/MD (shouldn't happen but guard anyway — keep last)
-      rpeLogsPerMD[md][log.jugador_id] = {
-        rpe:          Number(log.rpe)          || 0,
-        duracion_min: Number(log.duracion_min) || 0,
-        carga_ua:     Number(log.carga_ua)     || 0,
-      }
-    }
-
     return NextResponse.json({
       players, teamAvg,
       gpsReal, teamAvgGps,
       allMetricCols,
       sesionesInfo,
       perSession,
-      rpeLogsPerMD,
       gpsPerMD: gpsPerMDShaped,
       hasGpsData:    players.some((p: any) => p.hasGps),
       hasRealGps:    (gpsReal as any[]).length > 0,

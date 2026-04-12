@@ -52,7 +52,7 @@ export async function GET(req: NextRequest) {
            (COALESCE(w.fatiga,0)+COALESCE(w.calidad_sueno,0)+COALESCE(w.dolor_muscular,0)+COALESCE(w.nivel_estres,0)+COALESCE(w.estado_animo,0))::int AS total_wellness
     FROM jugadores j JOIN usuarios u ON u.id=j.usuario_id
     LEFT JOIN wellness_logs w ON w.jugador_id=j.id AND w.fecha=CURRENT_DATE
-    WHERE u.rol='jugador' AND u.activo=true AND (${isMaster}::boolean OR (u.club_id=${clubId} AND j.club_id=${clubId}))
+    WHERE u.rol='jugador' AND u.activo=true AND (${isMaster}::boolean OR u.club_id=${clubId})
     ORDER BY total_wellness DESC NULLS LAST`
 
   return NextResponse.json({

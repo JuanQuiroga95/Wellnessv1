@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
       FROM jugadores j
       JOIN usuarios u ON u.id = j.usuario_id
       LEFT JOIN lesiones l ON l.jugador_id = j.id
-      WHERE (${isMaster}::boolean OR (u.club_id = ${clubId} AND j.club_id = ${clubId}))
+      WHERE (${isMaster}::boolean OR u.club_id = ${clubId})
         AND u.activo = true
       GROUP BY j.id, u.nombre
       HAVING COUNT(l.id) > 0

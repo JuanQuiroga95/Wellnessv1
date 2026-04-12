@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
                j.peso_kg::text AS peso_kg,j.estatura_cm,j.pie_habil,j.foto_url,j.email,j.fecha_nacimiento,j.hora_recordatorio,
                j.peso_ideal_min::text AS peso_ideal_min,j.peso_ideal_max::text AS peso_ideal_max
                FROM usuarios u LEFT JOIN jugadores j ON j.usuario_id=u.id
-               WHERE u.rol='jugador' AND u.activo=true AND u.club_id=${clubId}
+               WHERE u.rol='jugador' AND (u.club_id=${clubId} OR j.club_id=${clubId})
                ORDER BY u.nombre`
   return NextResponse.json(r)
 }
