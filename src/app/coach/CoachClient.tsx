@@ -5197,7 +5197,10 @@ function AcumPanel({ teamData }) {
 
   async function loadMici() {
     setMiciLoading(true)
-    try { const r = await fetch(`/api/carga-gps?desde=${miciDesde}&hasta=${miciHasta}&ciclo=microciclo`, { cache: 'no-store' }); setMiciData(await r.json()) }
+    try {
+      const r = await fetch(`/api/carga-gps?desde=${miciDesde}&hasta=${miciHasta}&ciclo=microciclo`, { cache: 'no-store' })
+      if (r.ok) { const d = await r.json(); if (!d?.error) setMiciData(d) }
+    }
     catch(e){} finally { setMiciLoading(false) }
   }
 
@@ -6046,8 +6049,13 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
 
   async function cargar() {
     setLoading(true)
-    try { const r = await fetch(`/api/carga-gps?desde=${desde}&hasta=${hasta}&ciclo=microciclo`, { cache: 'no-store' }); setData(await r.json()) }
-    catch(e){} finally { setLoading(false) }
+    try {
+      const r = await fetch(`/api/carga-gps?desde=${desde}&hasta=${hasta}&ciclo=microciclo`, { cache: 'no-store' })
+      if (!r.ok) { setData(null); return }
+      const d = await r.json()
+      if (d?.error) { setData(null); return }
+      setData(d)
+    } catch(e) { setData(null) } finally { setLoading(false) }
   }
 
   // When a match is selected, load its metrics automatically
@@ -6372,7 +6380,7 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
       })()}
 
       {/* ══ CUADRO 1: MICROCICLO — INDIVIDUAL + SESIÓN (CALCULADA) ══════ */}
-      <div style={{ marginBottom:20 }}>
+      {(sesionesInfo.length > 0) && <div style={{ marginBottom:20 }}>
         <div style={{ padding:'10px 0 12px' }}>
           <p style={{ fontSize:11, fontWeight:700, color:'var(--lime)', textTransform:'uppercase', letterSpacing:'0.08em' }}>CUADRO 1 · MICROCICLO — DATOS POR SESIÓN · MD+1 → MD</p>
           <p style={{ fontSize:10, color:'var(--fog)', marginTop:2 }}>Izquierda: datos individuales por jugador · Derecha: datos de sesión calculada (iguales para todos)</p>
@@ -6741,6 +6749,8 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
         })}
       </div>
 
+      </div>}
+
       {/* ══ CUADRO 2: TOTALES POR MD (filas=métricas, cols=MD) ════════ */}
       <div style={{ background:'var(--ink2)', border:'1px solid rgba(96,165,250,.2)', borderRadius:16, overflow:'hidden', marginBottom:20 }}>
         <div style={{ padding:'10px 16px', borderBottom:'1px solid var(--mist)' }}>
@@ -7095,8 +7105,13 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
 
   async function cargar() {
     setLoading(true)
-    try { const r = await fetch(`/api/carga-gps?desde=${desde}&hasta=${hasta}&ciclo=microciclo`, { cache: 'no-store' }); setData(await r.json()) }
-    catch(e){} finally { setLoading(false) }
+    try {
+      const r = await fetch(`/api/carga-gps?desde=${desde}&hasta=${hasta}&ciclo=microciclo`, { cache: 'no-store' })
+      if (!r.ok) { setData(null); return }
+      const d = await r.json()
+      if (d?.error) { setData(null); return }
+      setData(d)
+    } catch(e) { setData(null) } finally { setLoading(false) }
   }
 
   async function selectPartido(slotIdx: number, partido: any) {
@@ -7677,8 +7692,13 @@ function ExpoAIPanel({ teamData }: { teamData: any[] }) {
 
   async function cargar() {
     setLoading(true)
-    try { const r = await fetch(`/api/carga-gps?desde=${desde}&hasta=${hasta}&ciclo=microciclo`, { cache: 'no-store' }); setData(await r.json()) }
-    catch(e){} finally { setLoading(false) }
+    try {
+      const r = await fetch(`/api/carga-gps?desde=${desde}&hasta=${hasta}&ciclo=microciclo`, { cache: 'no-store' })
+      if (!r.ok) { setData(null); return }
+      const d = await r.json()
+      if (d?.error) { setData(null); return }
+      setData(d)
+    } catch(e) { setData(null) } finally { setLoading(false) }
   }
 
   async function selectPartido(slotIdx: number, partido: any) {

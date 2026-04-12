@@ -31,6 +31,8 @@ export async function GET(req: NextRequest) {
     try {
       await sql`UPDATE jugadores j SET club_id = ${clubId} FROM usuarios u WHERE u.id = j.usuario_id AND u.club_id = ${clubId} AND j.club_id IS NULL`
       await sql`UPDATE usuarios u SET club_id = ${clubId} FROM jugadores j WHERE j.usuario_id = u.id AND j.club_id = ${clubId} AND u.club_id IS NULL`
+      // Repair sessions created without club_id (e.g. first deploy before fix)
+      await sql`UPDATE sesiones_plan SET club_id = ${clubId} WHERE admin_id = ${s.userId} AND club_id IS NULL`
     } catch {}
   }
 
@@ -57,7 +59,7 @@ export async function GET(req: NextRequest) {
         FROM sesiones_plan sp
         WHERE sp.fecha BETWEEN ${desde} AND ${hasta}
           AND sp.tipo = 'entrenamiento'
-          AND (${isMaster}::boolean OR sp.club_id = ${clubId})
+          AND (${isMaster}::boolean OR sp.club_id = ${clubId} OR sp.admin_id = ${s.userId})
         ORDER BY sp.fecha`,
 
     sql`SELECT e.jugador_id::int, TO_CHAR(DATE_TRUNC('month',e.fecha),'YYYY-MM') AS mes,

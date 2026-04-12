@@ -127,4 +127,50 @@ export const SCHEMA_STATEMENTS = [
   `ALTER TABLE biblioteca_tareas ADD COLUMN IF NOT EXISTS intensidad INTEGER`,
   `ALTER TABLE biblioteca_tareas ADD COLUMN IF NOT EXISTS objetivo VARCHAR(50)`,
   `ALTER TABLE biblioteca_tareas ADD COLUMN IF NOT EXISTS imagen TEXT`,
+  // ── One-time ghost player cleanup ──────────────────────────────────────────
+  // Delete jugadores whose u.club_id doesn't match j.club_id (orphaned cross-club rows)
+  // Safe: only removes mismatch when BOTH are non-null and different
+  `DO $$ BEGIN
+    DELETE FROM wellness_logs wl
+    USING jugadores j
+    JOIN usuarios u ON u.id = j.usuario_id
+    WHERE wl.jugador_id = j.id
+      AND j.club_id IS NOT NULL
+      AND u.club_id IS NOT NULL
+      AND j.club_id <> u.club_id;
+
+    DELETE FROM entrenamiento_logs el
+    USING jugadores j
+    JOIN usuarios u ON u.id = j.usuario_id
+    WHERE el.jugador_id = j.id
+      AND j.club_id IS NOT NULL
+      AND u.club_id IS NOT NULL
+      AND j.club_id <> u.club_id;
+
+    DELETE FROM partido_logs pl
+    USING jugadores j
+    JOIN usuarios u ON u.id = j.usuario_id
+    WHERE pl.jugador_id = j.id
+      AND j.club_id IS NOT NULL
+      AND u.club_id IS NOT NULL
+      AND j.club_id <> u.club_id;
+
+    DELETE FROM jugadores j
+    USING usuarios u
+    WHERE j.usuario_id = u.id
+      AND j.club_id IS NOT NULL
+      AND u.club_id IS NOT NULL
+      AND j.club_id <> u.club_id;
+  END $$`,
+  // Sync jugadores.club_id = usuarios.club_id when one is null
+  `UPDATE jugadores j SET club_id = u.club_id
+   FROM usuarios u WHERE u.id = j.usuario_id
+   AND u.club_id IS NOT NULL AND j.club_id IS NULL`,
+  `UPDATE usuarios u SET club_id = j.club_id
+   FROM jugadores j WHERE j.usuario_id = u.id
+   AND j.club_id IS NOT NULL AND u.club_id IS NULL`,
+  // Sync sesiones_plan.club_id from admin's club when null
+  `UPDATE sesiones_plan sp SET club_id = u.club_id
+   FROM usuarios u WHERE u.id = sp.admin_id
+   AND u.club_id IS NOT NULL AND sp.club_id IS NULL`,
 ]

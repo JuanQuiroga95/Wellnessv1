@@ -94,6 +94,8 @@ export async function GET(req: NextRequest) {
         await sql`
           UPDATE usuarios u SET club_id = ${clubId}
           FROM jugadores j WHERE j.usuario_id = u.id AND j.club_id = ${clubId} AND u.club_id IS NULL`
+        // Repair sessions created without club_id
+        await sql`UPDATE sesiones_plan SET club_id = ${clubId} WHERE admin_id = ${s.userId} AND club_id IS NULL`
       } catch {}
     }
 

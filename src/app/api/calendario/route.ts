@@ -16,6 +16,10 @@ export async function GET(req: NextRequest) {
     const sql = getDb()
 
     const clubId = s.clubId ? Number(s.clubId) : null
+    // Auto-repair sessions created before club_id fix
+    if (clubId) {
+      try { await sql`UPDATE sesiones_plan SET club_id = ${clubId} WHERE admin_id = ${s.userId} AND club_id IS NULL` } catch {}
+    }
     const sesiones = clubId
       ? await sql`
           SELECT id, fecha::text, hora_inicio::text, hora_fin::text, tipo, titulo,

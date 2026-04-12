@@ -35,7 +35,7 @@ export async function GET(req: NextRequest) {
     JOIN usuarios u ON u.id = j.usuario_id
     WHERE el.fecha BETWEEN ${desde} AND ${hasta}
       AND u.activo = true
-      AND (${isMaster}::boolean OR u.club_id = ${clubId})
+      AND (${isMaster}::boolean OR (u.club_id = ${clubId} AND j.club_id = ${clubId}))
     ORDER BY el.fecha ASC
   `
 
@@ -50,7 +50,7 @@ export async function GET(req: NextRequest) {
     JOIN usuarios u ON u.id = j.usuario_id
     WHERE pl.fecha BETWEEN ${desde} AND ${hasta}
       AND u.activo = true
-      AND (${isMaster}::boolean OR u.club_id = ${clubId})
+      AND (${isMaster}::boolean OR (u.club_id = ${clubId} AND j.club_id = ${clubId}))
     ORDER BY pl.fecha ASC
   `
 

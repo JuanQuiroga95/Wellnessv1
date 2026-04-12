@@ -170,6 +170,21 @@ export async function POST(req: NextRequest) {
       FROM iso_sessions s`, 'view iso_con_asimetria'],
     [`ALTER TABLE wellness_logs ADD COLUMN IF NOT EXISTS dolor_descripcion TEXT`, 'wellness_logs.dolor_descripcion'],
     [`CREATE UNIQUE INDEX IF NOT EXISTS idx_partido_logs_jugador_fecha_rival ON partido_logs(jugador_id, fecha, COALESCE(rival,''))`, 'partido_logs unique index jugador_fecha_rival'],
+    // Ghost player cleanup: remove jugadores whose j.club_id != u.club_id
+    [`DO $$ BEGIN
+      DELETE FROM wellness_logs wl USING jugadores j JOIN usuarios u ON u.id=j.usuario_id
+      WHERE wl.jugador_id=j.id AND j.club_id IS NOT NULL AND u.club_id IS NOT NULL AND j.club_id<>u.club_id;
+      DELETE FROM entrenamiento_logs el USING jugadores j JOIN usuarios u ON u.id=j.usuario_id
+      WHERE el.jugador_id=j.id AND j.club_id IS NOT NULL AND u.club_id IS NOT NULL AND j.club_id<>u.club_id;
+      DELETE FROM partido_logs pl USING jugadores j JOIN usuarios u ON u.id=j.usuario_id
+      WHERE pl.jugador_id=j.id AND j.club_id IS NOT NULL AND u.club_id IS NOT NULL AND j.club_id<>u.club_id;
+      DELETE FROM jugadores j USING usuarios u WHERE j.usuario_id=u.id
+      AND j.club_id IS NOT NULL AND u.club_id IS NOT NULL AND j.club_id<>u.club_id;
+    END $$`, 'ghost player cross-club cleanup'],
+    // Sync null club_ids
+    [`UPDATE jugadores j SET club_id=u.club_id FROM usuarios u WHERE u.id=j.usuario_id AND u.club_id IS NOT NULL AND j.club_id IS NULL`, 'sync jugadores.club_id'],
+    [`UPDATE usuarios u SET club_id=j.club_id FROM jugadores j WHERE j.usuario_id=u.id AND j.club_id IS NOT NULL AND u.club_id IS NULL`, 'sync usuarios.club_id'],
+    [`UPDATE sesiones_plan sp SET club_id=u.club_id FROM usuarios u WHERE u.id=sp.admin_id AND u.club_id IS NOT NULL AND sp.club_id IS NULL`, 'sync sesiones_plan.club_id'],
   ]
 
   for (const [sql_stmt, label] of migrations) {
