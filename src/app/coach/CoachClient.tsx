@@ -1055,8 +1055,8 @@ const TAREA_NE: Record<string, number> = {
 }
 const getNE = (ventana: string): number => TAREA_NE[ventana] ?? 1
 const SUBTAREAS: Record<string, string[]> = { 'Activación en campo': ['Circuito técnico','Circuito neuromuscular','Pliometría','Movilidad','Trabajo Preventivo'], 'Activación en gimnasio': ['Isométricos','Pliometría','Movilidad','Excéntricos','Estabilidad','Tracción y empuje','Trabajo Preventivo'], 'Rondo': ['Rondo 4v2','Rondo 5v2','Rondo 6v2','Rondo 8v2','Rondo 4v1+1','Rondo en movimiento','Rondo conservación','Rondo orientado','Rondo dos espacios'] }
-const TAREAS_CON_ESPACIO = ['Rondo','Trabajo analítico','Juego de posesión','Juego de posición','Partido reducido','Partido modificado','Partido de entrenamiento','Partido amistoso','Partido oficial']
-const TAREAS_CON_EQUIPO = ['Rondo','Trabajo analítico','Juego de posesión','Juego de posición','Partido reducido','Partido modificado','Partido de entrenamiento','Partido amistoso','Partido oficial']
+const TAREAS_CON_ESPACIO = ['Rondo','Trabajo analítico','Juego de posesión','Juego de posición','Transiciones','Partido reducido','Partido modificado','Partido de entrenamiento','Partido amistoso','Partido oficial']
+const TAREAS_CON_EQUIPO = ['Rondo','Trabajo analítico','Juego de posesión','Juego de posición','Transiciones','Partido reducido','Partido modificado','Partido de entrenamiento','Partido amistoso','Partido oficial']
 const TAREAS_PARTIDO_SIMPLE = ['Partido amistoso','Partido oficial','Partido de entrenamiento']
 const TAREAS_MOSTRAR_FORM = [...TAREAS_CON_ESPACIO, 'Activación en campo','Activación en gimnasio','Gimnasio']
 const TIPO_COLORES = { entrenamiento:'#c8f135', partido:'#3b82f6', recuperacion:'#f59e0b', descanso:'#555' }
@@ -1779,9 +1779,63 @@ function BloqueMetodologia({ bloque, index, onChange, onRemove, teamPlayers = []
   }
 
   const inp = (field, placeholder, type='text') => (
-    <input className="wp-input" type={type} placeholder={placeholder} value={bloque[field]||''} onChange={e=>onChange(field,e.target.value)}
+    <input className="wp-input" type={type} placeholder={placeholder} value={bloque[field]||''}
+      onChange={e=>onChange(field,e.target.value)}
       style={{ padding:'5px 8px', fontSize:11, width:'100%' }} />
   )
+
+  // MM:SS input — stores decimal minutes internally (4:30 → 4.5, 4:45 → 4.75)
+  // Accepts typing: "4", "4:", "4:3", "4:30" — validates on blur
+  const inpTime = (field) => {
+    const decToDisplay = (val) => {
+      if (!val && val !== 0) return ''
+      const n = parseFloat(val)
+      if (isNaN(n)) return String(val)
+      const mins = Math.floor(n)
+      const secs = Math.round((n - mins) * 60)
+      return secs === 0 ? String(mins) : `${mins}:${String(secs).padStart(2,'0')}`
+    }
+    const displayToDecimal = (str) => {
+      if (!str) return ''
+      if (str.includes(':')) {
+        const [m, s] = str.split(':')
+        const mins = parseInt(m) || 0
+        const secs = parseInt(s) || 0
+        return String(mins + Math.round(secs / 60 * 100) / 100)
+      }
+      return str
+    }
+    // Show MM:SS from stored decimal; on change store raw text; on blur convert
+    const raw = bloque[field + '_raw'] !== undefined ? bloque[field + '_raw'] : decToDisplay(bloque[field])
+    return (
+      <input
+        className="wp-input"
+        type="text"
+        inputMode="numeric"
+        placeholder="MM:SS"
+        value={raw}
+        onChange={e => {
+          const v = e.target.value
+          // Allow only digits and one colon
+          if (!/^[0-9]{0,3}:?[0-9]{0,2}$/.test(v)) return
+          onChange(field + '_raw', v)
+          // Live-update decimal if already valid
+          if (/^[0-9]+(:[0-9]{0,2})?$/.test(v) && !v.endsWith(':')) {
+            onChange(field, displayToDecimal(v))
+          }
+        }}
+        onBlur={e => {
+          const v = e.target.value
+          if (!v) { onChange(field, ''); onChange(field + '_raw', ''); return }
+          const dec = displayToDecimal(v)
+          onChange(field, dec)
+          // Normalize display: "4:3" → "4:30"
+          onChange(field + '_raw', decToDisplay(dec))
+        }}
+        style={{ padding:'5px 8px', fontSize:11, width:'100%', fontFamily:'DM Mono,monospace' }}
+      />
+    )
+  }
 
   const EQUIPO_COLORS = ['#22c55e','#3b82f6','#f59e0b','#ef4444']
   const EQUIPO_LABELS = ['Equipo 1','Equipo 2','Equipo 3','Equipo 4']
@@ -1853,8 +1907,8 @@ function BloqueMetodologia({ bloque, index, onChange, onRemove, teamPlayers = []
               }
             </div>
             <div><label style={{ fontSize:9, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:2 }}>Bloques</label>{inp('series','Nº bloques','number')}</div>
-            <div><label style={{ fontSize:9, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:2 }}>Min / bloque</label>{inp('minutos','Min','number')}</div>
-            <div><label style={{ fontSize:9, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:2 }}>Pausa x bloque (min)</label>{inp('pausa','Min descanso','number')}</div>
+            <div><label style={{ fontSize:9, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:2 }}>Duración / bloque</label>{inpTime('minutos')}</div>
+            <div><label style={{ fontSize:9, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:2 }}>Pausa / bloque</label>{inpTime('pausa')}</div>
           </div>
           {esConEspacio && (
             <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:6, marginBottom:4 }}>
@@ -2182,7 +2236,14 @@ function SesionEditor({ sesion, defaultFecha, onSave, onDelete, onCancel, teamPl
     if (!f.fecha) return
     setLoading(true); setSaveError('')
     try {
-      await onSave({ ...f, hora_inicio: f.hora_inicio||null, hora_fin: f.hora_fin||null, rpe_objetivo:f.rpe_objetivo?Number(f.rpe_objetivo):null, ejercicios: bloques })
+      // Strip _raw display fields before saving (they're only for UI rendering)
+      const bloquesClean = bloques.map(bl => {
+        const clean = {...bl}
+        delete clean.minutos_raw
+        delete clean.pausa_raw
+        return clean
+      })
+      await onSave({ ...f, hora_inicio: f.hora_inicio||null, hora_fin: f.hora_fin||null, rpe_objetivo:f.rpe_objetivo?Number(f.rpe_objetivo):null, ejercicios: bloquesClean })
     } catch(e) {
       setSaveError('Error al guardar. Intentá de nuevo.')
     }
