@@ -15,14 +15,24 @@ export async function GET(req: NextRequest) {
     const hasta = searchParams.get('hasta') || new Date().toISOString().split('T')[0]
     const sql = getDb()
 
-    const sesiones = await sql`
-      SELECT id, fecha::text, hora_inicio::text, hora_fin::text, tipo, titulo,
-             objetivo, objetivo_secundario, descripcion, ejercicios, rpe_objetivo, notas,
-             rival, rival_foto
-      FROM sesiones_plan
-      WHERE admin_id = ${s.userId}
-        AND fecha BETWEEN ${desde} AND ${hasta}
-      ORDER BY fecha, hora_inicio NULLS LAST`
+    const clubId = s.clubId ? Number(s.clubId) : null
+    const sesiones = clubId
+      ? await sql`
+          SELECT id, fecha::text, hora_inicio::text, hora_fin::text, tipo, titulo,
+                 objetivo, objetivo_secundario, descripcion, ejercicios, rpe_objetivo, notas,
+                 rival, rival_foto
+          FROM sesiones_plan
+          WHERE (admin_id = ${s.userId} OR club_id = ${clubId})
+            AND fecha BETWEEN ${desde} AND ${hasta}
+          ORDER BY fecha, hora_inicio NULLS LAST`
+      : await sql`
+          SELECT id, fecha::text, hora_inicio::text, hora_fin::text, tipo, titulo,
+                 objetivo, objetivo_secundario, descripcion, ejercicios, rpe_objetivo, notas,
+                 rival, rival_foto
+          FROM sesiones_plan
+          WHERE admin_id = ${s.userId}
+            AND fecha BETWEEN ${desde} AND ${hasta}
+          ORDER BY fecha, hora_inicio NULLS LAST`
 
     let partidos: any[] = []
     try {
@@ -147,9 +157,28 @@ export async function DELETE(req: NextRequest) {
     if (!s || !isAdmin(s)) return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
     const { searchParams } = new URL(req.url)
     const id = searchParams.get('id')
-    if (!id) return NextResponse.json({ error: 'id requerido' }, { status: 400 })
+    const borrarTodo = searchParams.get('all') === 'true'
     const sql = getDb()
-    await sql`DELETE FROM sesiones_plan WHERE id = ${id} AND admin_id = ${s.userId}`
+    const clubId = s.clubId ? Number(s.clubId) : null
+
+    if (borrarTodo) {
+      // Bulk delete: remove ALL sessions for this coach/club
+      if (clubId) {
+        await sql`DELETE FROM sesiones_plan WHERE admin_id = ${s.userId} OR club_id = ${clubId}`
+      } else {
+        await sql`DELETE FROM sesiones_plan WHERE admin_id = ${s.userId}`
+      }
+      return NextResponse.json({ ok: true, deleted: 'all' })
+    }
+
+    if (!id) return NextResponse.json({ error: 'id requerido' }, { status: 400 })
+
+    // Single delete — also match by club_id to cover sessions with different admin_id
+    if (clubId) {
+      await sql`DELETE FROM sesiones_plan WHERE id = ${id} AND (admin_id = ${s.userId} OR club_id = ${clubId})`
+    } else {
+      await sql`DELETE FROM sesiones_plan WHERE id = ${id} AND admin_id = ${s.userId}`
+    }
     return NextResponse.json({ ok: true })
   } catch (err) {
     console.error('[calendario DELETE error]', err)

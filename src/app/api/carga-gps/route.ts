@@ -464,20 +464,11 @@ export async function GET(req: NextRequest) {
       const label = ses.titulo || ses.fecha
       const m = sumarMetricasBloques(ses.ejercicios || [])
       if (!perSession[label]) {
-        perSession[label] = { fecha: ses.fecha, rpe_objetivo: ses.rpe_objetivo, ...m, ejercicios: ses.ejercicios || [] }
+        perSession[label] = { fecha: ses.fecha, rpe_objetivo: ses.rpe_objetivo, ...m }
       } else {
         // Accumulate: sum numeric values for duplicate MD labels
         for (const k of Object.keys(m)) {
           perSession[label][k] = (perSession[label][k] || 0) + (m[k] || 0)
-        }
-        // NO mergear ejercicios: usar solo los de la primera sesion con ese MD label
-        // para no duplicar bloques en el calculo UCE
-        if (!perSession[label].ejercicios?.length && ses.ejercicios?.length) {
-          perSession[label].ejercicios = ses.ejercicios || []
-        }
-        // Usar el rpe_objetivo de la primera sesion que lo tenga definido
-        if (!perSession[label].rpe_objetivo && ses.rpe_objetivo) {
-          perSession[label].rpe_objetivo = ses.rpe_objetivo
         }
       }
     }
@@ -503,26 +494,6 @@ export async function GET(req: NextRequest) {
         return a.fecha.localeCompare(b.fecha)
       })
 
-    // Build rpeLogsPerMD: { [mdLabel]: { [jugador_id]: { rpe, duracion_min, carga_ua } } }
-    // Cross sesiones (fecha→titulo) with logs (fecha, jugador_id, rpe, duracion_min)
-    const fechaToMD: Record<string, string> = {}
-    for (const ses of sesiones as any[]) {
-      // Use titulo if available, otherwise use the date as the MD key
-      fechaToMD[ses.fecha] = ses.titulo || ses.fecha
-    }
-    const rpeLogsPerMD: Record<string, Record<number, any>> = {}
-    for (const log of logs as any[]) {
-      // Use the MD label if the day has a planned session, otherwise use the date directly
-      const md = fechaToMD[log.fecha] || log.fecha
-      if (!rpeLogsPerMD[md]) rpeLogsPerMD[md] = {}
-      // If a player has multiple logs on same MD date, take the last one
-      rpeLogsPerMD[md][log.jugador_id] = {
-        rpe: Number(log.rpe) || 0,
-        duracion_min: Number(log.duracion_min) || 0,
-        carga_ua: Number(log.carga_ua) || 0,
-      }
-    }
-
     return NextResponse.json({
       players, teamAvg,
       gpsReal, teamAvgGps,
@@ -530,7 +501,6 @@ export async function GET(req: NextRequest) {
       sesionesInfo,
       perSession,
       gpsPerMD: gpsPerMDShaped,
-      rpeLogsPerMD,
       hasGpsData:    players.some((p: any) => p.hasGps),
       hasRealGps:    (gpsReal as any[]).length > 0,
       sesionesCount: sesiones.length,
