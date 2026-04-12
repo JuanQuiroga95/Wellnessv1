@@ -132,7 +132,7 @@ export default function CoachClient({ session, teamData, today }) {
   }
 
   const CICLO_DAYS = { microciclo:7, mesociclo:28, macrociclo:365 }
-  const CICLO_WELLNESS_DAYS = { microciclo:7, mesociclo:28, macrociclo:90 }
+  const CICLO_WELLNESS_DAYS = { microciclo:28, mesociclo:56, macrociclo:120 }
 
   async function openPlayer(p, c) {
     const cycle = c || ciclo
@@ -569,7 +569,7 @@ function PlayerDetail({ player:p, logs, wellness, loading, onBack, ciclo, onCicl
           </div>
         </div>
       )}
-      {wellness.length>1 && (
+      {wellness.length>0 && (
         <div style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:16, padding:20 }}>
           <p style={{ fontSize:11, fontWeight:600, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:14 }}>Tendencia Wellness</p>
           <WellnessTrend data={wellness} />
