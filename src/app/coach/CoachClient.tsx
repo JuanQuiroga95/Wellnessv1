@@ -5934,8 +5934,9 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
 
   async function cargar() {
     setLoading(true)
+    setData(null)
     try { const r = await fetch(`/api/carga-gps?desde=${desde}&hasta=${hasta}&ciclo=microciclo`); setData(await r.json()) }
-    catch(e){} finally { setLoading(false) }
+    catch(e){ setData(null) } finally { setLoading(false) }
   }
 
   // When a match is selected, load its metrics automatically
@@ -6312,8 +6313,7 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
                   <span style={{ fontSize:10, color:'var(--fog)', fontStyle:'italic' }}>Sin sesión asignada</span>
                 )}
               </div>
-              {true ? (
-                <>
+              <>
                 <div style={{ overflowX:'auto' }}>
                   <table style={{ width:'100%', borderCollapse:'collapse', fontSize:11 }}>
                     <thead>
@@ -6620,7 +6620,6 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
                   )
                 })()}
                 </>
-              )}
             </div>
           )
         })}
@@ -6974,8 +6973,9 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
 
   async function cargar() {
     setLoading(true)
+    setData(null)
     try { const r = await fetch(`/api/carga-gps?desde=${desde}&hasta=${hasta}&ciclo=microciclo`); setData(await r.json()) }
-    catch(e){} finally { setLoading(false) }
+    catch(e){ setData(null) } finally { setLoading(false) }
   }
 
   async function selectPartido(slotIdx: number, partido: any) {
@@ -7223,8 +7223,7 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
                 {ses ? <span style={{ fontSize:10, color:'var(--fog)', fontFamily:'DM Mono,monospace' }}>{ses.fecha}</span>
                      : <span style={{ fontSize:10, color:'var(--fog)', fontStyle:'italic' }}>Sin sesión asignada</span>}
               </div>
-              {true ? (
-                <>
+              <>
                 <div style={{ overflowX:'auto' }}>
                   <table style={{ width:'100%', borderCollapse:'collapse', fontSize:11 }}>
                     <thead>
@@ -7392,7 +7391,6 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
                   )
                 })()}
                 </>
-              )}
             </div>
           )
         })}
@@ -7557,8 +7555,9 @@ function ExpoAIPanel({ teamData }: { teamData: any[] }) {
 
   async function cargar() {
     setLoading(true)
+    setData(null)
     try { const r = await fetch(`/api/carga-gps?desde=${desde}&hasta=${hasta}&ciclo=microciclo`); setData(await r.json()) }
-    catch(e){} finally { setLoading(false) }
+    catch(e){ setData(null) } finally { setLoading(false) }
   }
 
   async function selectPartido(slotIdx: number, partido: any) {
