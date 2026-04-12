@@ -99,18 +99,19 @@ export async function GET(req: NextRequest) {
 
     // 1. All planned sessions in range with their task blocks
     // Use same filter as calendario: admin_id OR club_id — keeps both in sync
+    // Use >= and <= explicitly (BETWEEN is inclusive but being explicit avoids any driver quirks)
     const sesiones = clubId
       ? await sql`
           SELECT id, fecha::text, ejercicios, rpe_objetivo, titulo, tipo
           FROM sesiones_plan
           WHERE (admin_id = ${s.userId} OR club_id = ${clubId})
-            AND fecha BETWEEN ${desde} AND ${hasta}
+            AND fecha >= ${desde}::date AND fecha <= ${hasta}::date
           ORDER BY fecha`
       : await sql`
           SELECT id, fecha::text, ejercicios, rpe_objetivo, titulo, tipo
           FROM sesiones_plan
           WHERE admin_id = ${s.userId}
-            AND fecha BETWEEN ${desde} AND ${hasta}
+            AND fecha >= ${desde}::date AND fecha <= ${hasta}::date
           ORDER BY fecha`
 
     // 2. All active players from this club
@@ -129,7 +130,7 @@ export async function GET(req: NextRequest) {
       FROM entrenamiento_logs el
       JOIN jugadores j ON j.id = el.jugador_id
       JOIN usuarios u ON u.id = j.usuario_id
-      WHERE el.fecha BETWEEN ${desde} AND ${hasta}
+      WHERE el.fecha >= ${desde}::date AND el.fecha <= ${hasta}::date
         AND u.activo = true
         AND (u.club_id = ${clubId} OR j.club_id = ${clubId})
       ORDER BY el.fecha` : []

@@ -5930,19 +5930,26 @@ const MD_ORDER = ['MD+1','MD+2','MD+3','MD-4','MD-3','MD-2','MD-1','MD']
 
 function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
   const today = new Date().toISOString().split('T')[0]
+  // Use local date formatting to avoid UTC offset shifting the date
+  const localDateStr = (d: Date) => {
+    const y = d.getFullYear()
+    const m = String(d.getMonth()+1).padStart(2,'0')
+    const day = String(d.getDate()).padStart(2,'0')
+    return `${y}-${m}-${day}`
+  }
   const getWeekStart = (offsetWeeks = 0) => {
     const d = new Date()
     const dow = d.getDay()
     const diffToMonday = dow === 0 ? -6 : 1 - dow
     d.setDate(d.getDate() + diffToMonday + offsetWeeks * 7)
-    return d.toISOString().split('T')[0]
+    return localDateStr(d)
   }
   const getWeekEnd = (offsetWeeks = 0) => {
     const d = new Date()
     const dow = d.getDay()
     const diffToMonday = dow === 0 ? -6 : 1 - dow
     d.setDate(d.getDate() + diffToMonday + 6 + offsetWeeks * 7)
-    return d.toISOString().split('T')[0]
+    return localDateStr(d)
   }
   const [microcicloOffset, setMicrocicloOffset] = useState(0)
   const [desde, setDesde] = useState(getWeekStart(0))
@@ -6994,19 +7001,25 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
   const today = new Date().toISOString().split('T')[0]
   const [microcicloOffset, setMicrocicloOffset] = useState(0)
 
+  const localDateStr = (d: Date) => {
+    const y = d.getFullYear()
+    const m = String(d.getMonth()+1).padStart(2,'0')
+    const day = String(d.getDate()).padStart(2,'0')
+    return `${y}-${m}-${day}`
+  }
   const getWeekStart = (offsetWeeks = 0) => {
     const d = new Date()
     const dow = d.getDay()
     const diffToMonday = dow === 0 ? -6 : 1 - dow
     d.setDate(d.getDate() + diffToMonday + offsetWeeks * 7)
-    return d.toISOString().split('T')[0]
+    return localDateStr(d)
   }
   const getWeekEnd = (offsetWeeks = 0) => {
     const d = new Date()
     const dow = d.getDay()
     const diffToMonday = dow === 0 ? -6 : 1 - dow
     d.setDate(d.getDate() + diffToMonday + 6 + offsetWeeks * 7)
-    return d.toISOString().split('T')[0]
+    return localDateStr(d)
   }
 
   const [desde, setDesde] = useState(() => getWeekStart(0))
