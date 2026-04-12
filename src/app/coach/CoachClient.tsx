@@ -1217,24 +1217,17 @@ function CalendarioPanel({ teamData }) {
         </div>
         <div style={{ display:'flex', gap:8, alignItems:'center' }}>
           <button onClick={async()=>{
-            const modo = window.confirm(
-              '⚠️ BORRAR TODO\n\n' +
-              '• OK → Reset completo: borra sesiones, RPE de jugadores Y partidos registrados\n' +
-              '• Cancelar → Solo borrar sesiones del calendario (mantiene datos de jugadores)'
-            )
-            const includeData = modo
-            const confirmMsg = includeData
-              ? '🚨 Esto borrará ABSOLUTAMENTE TODO (sesiones, RPE, partidos). Esta acción no se puede deshacer. ¿Confirmar reset completo?'
-              : '⚠️ Esto borrará todas las sesiones del calendario. Los datos de RPE y partidos de jugadores se mantienen. ¿Continuar?'
-            if (!confirm(confirmMsg)) return
-            const r = await fetch(
-              `/api/calendario?all=true${includeData ? '&includeData=true' : ''}`,
-              { method: 'DELETE' }
-            )
-            if (r.ok) {
-              window.location.reload()
-            } else {
-              alert('Error al borrar. Intentá de nuevo.')
+            if (!confirm('⚠️ BORRAR TODO\n\nEsto eliminará: sesiones del calendario, registros de RPE de jugadores y partidos registrados.\n\nNo se puede deshacer. ¿Confirmar?')) return
+            try {
+              const r = await fetch('/api/calendario?all=true', { method: 'DELETE' })
+              if (r.ok) {
+                window.location.reload()
+              } else {
+                const body = await r.json().catch(()=>({}))
+                alert('Error al borrar: ' + (body?.error || r.status))
+              }
+            } catch(e) {
+              alert('Error de red al borrar. Intentá de nuevo.')
             }
           }} style={{ fontSize:12, padding:'10px 18px', borderRadius:8, background:'rgba(239,68,68,.1)', border:'1px solid rgba(239,68,68,.3)', color:'#f87171', cursor:'pointer' }}>🗑 Borrar todo</button>
           <button onClick={()=>setShowEditor(true)} className="btn-lime" style={{ fontSize:12, padding:'10px 18px' }}>+ Nueva sesión</button>
@@ -6384,7 +6377,11 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
           <p style={{ fontSize:11, fontWeight:700, color:'var(--lime)', textTransform:'uppercase', letterSpacing:'0.08em' }}>CUADRO 1 · MICROCICLO — DATOS POR SESIÓN · MD+1 → MD</p>
           <p style={{ fontSize:10, color:'var(--fog)', marginTop:2 }}>Izquierda: datos individuales por jugador · Derecha: datos de sesión calculada (iguales para todos)</p>
         </div>
-        {mdCols.map((md:string) => {
+        {existingMdLabels.size === 0 ? (
+          <div style={{ padding:'32px', textAlign:'center', color:'var(--fog)', fontSize:13, background:'var(--ink2)', borderRadius:14, border:'1px solid var(--mist)' }}>
+            Sin sesiones con tareas en este período. Creá sesiones desde el Calendario con bloques de ejercicios para ver el Cuadro 1.
+          </div>
+        ) : mdCols.map((md:string) => {
           const ses = sesionesInfo.find((s:any) => s.titulo === md)
           const sesData = perSession[md] || {}
           const hasData = existingMdLabels.has(md)

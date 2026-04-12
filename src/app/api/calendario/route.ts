@@ -172,42 +172,40 @@ export async function DELETE(req: NextRequest) {
       const includeData = searchParams.get('includeData') === 'true'
 
       if (clubId) {
-        const clubAdmins = await sql`
-          SELECT id FROM usuarios
-          WHERE club_id = ${clubId} AND rol IN ('admin','master_admin')`
-        const adminIds = (clubAdmins as any[]).map((r: any) => r.id)
-        adminIds.push(s.userId)
-
-        await sql`DELETE FROM sesiones_plan
-          WHERE club_id = ${clubId}
-             OR admin_id = ANY(${adminIds}::int[])`
-
-        if (includeData) {
-          await sql`
-            DELETE FROM entrenamiento_logs el
-            USING jugadores j JOIN usuarios u ON u.id = j.usuario_id
-            WHERE el.jugador_id = j.id
-              AND (u.club_id = ${clubId} OR j.club_id = ${clubId})`
-          await sql`
+        // Use subqueries instead of ANY(array) to avoid Neon driver serialization issues
+        // 1. Delete sessions linked to this club directly
+        await sql`DELETE FROM sesiones_plan WHERE club_id = ${clubId}`
+        // 2. Delete sessions created by admins of this club (even without club_id set)
+        await sql`
+          DELETE FROM sesiones_plan sp
+          WHERE EXISTS (
+            SELECT 1 FROM usuarios u
+            WHERE u.id = sp.admin_id AND u.club_id = ${clubId}
+          )`
+        // 3. Always clear entrenamiento_logs — removes "ghost" data in other panels
+        await sql`
+          DELETE FROM entrenamiento_logs el
+          USING jugadores j JOIN usuarios u ON u.id = j.usuario_id
+          WHERE el.jugador_id = j.id
+            AND (u.club_id = ${clubId} OR j.club_id = ${clubId})`
+        // 4. Always clear partido_logs — complete reset
+        await sql`
             DELETE FROM partido_logs pl
             USING jugadores j JOIN usuarios u ON u.id = j.usuario_id
             WHERE pl.jugador_id = j.id
               AND (u.club_id = ${clubId} OR j.club_id = ${clubId})`
-        }
       } else {
         await sql`DELETE FROM sesiones_plan WHERE admin_id = ${s.userId}`
-        if (includeData) {
-          await sql`
-            DELETE FROM entrenamiento_logs el
-            USING jugadores j
-            WHERE el.jugador_id = j.id AND j.usuario_id = ${s.userId}`
-          await sql`
-            DELETE FROM partido_logs pl
-            USING jugadores j
-            WHERE pl.jugador_id = j.id AND j.usuario_id = ${s.userId}`
-        }
+        await sql`
+          DELETE FROM entrenamiento_logs el
+          USING jugadores j
+          WHERE el.jugador_id = j.id AND j.usuario_id = ${s.userId}`
+        await sql`
+          DELETE FROM partido_logs pl
+          USING jugadores j
+          WHERE pl.jugador_id = j.id AND j.usuario_id = ${s.userId}`
       }
-      return NextResponse.json({ ok: true, deleted: includeData ? 'all_with_data' : 'all' })
+      return NextResponse.json({ ok: true, deleted: 'all' })
     }
 
     if (!id) return NextResponse.json({ error: 'id requerido' }, { status: 400 })
