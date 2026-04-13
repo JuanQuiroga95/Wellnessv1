@@ -743,9 +743,12 @@ function CambioCargaPanel() {
   const [chartVar, setChartVar] = useState<string>('ua')
   const [gpsData, setGpsData] = useState<any>(null)
 
-  const CHART_VARS = [
+  const CHART_VARS_CALC = [
     { key:'ua',         label:'UA',           color:'#c8f135', src:'rpe' },
-    { key:'rpe',        label:'RPE',          color:'#60a5fa', src:'rpe' },
+    { key:'uce',        label:'UCE',           color:'#f59e0b', src:'rpe' },
+    { key:'rpe',        label:'RPE',           color:'#60a5fa', src:'rpe' },
+  ]
+  const CHART_VARS_GPS = [
     { key:'distTotal',  label:'Dist. Total',  color:'#f59e0b', src:'gps' },
     { key:'distPerMin', label:'m/min',        color:'#84cc16', src:'gps' },
     { key:'distSprint', label:'Dist. Sprint', color:'#f97316', src:'gps' },
@@ -757,6 +760,7 @@ function CambioCargaPanel() {
     { key:'distMP',     label:'Alta Pot.',    color:'#fbbf24', src:'gps' },
     { key:'maxVelocity',label:'Vel. Máx',     color:'#ef4444', src:'gps' },
   ]
+  const CHART_VARS = [...CHART_VARS_CALC, ...CHART_VARS_GPS]
 
   useEffect(() => { load() }, [desde, hasta, minEnt, minPart])
 
@@ -802,6 +806,7 @@ function CambioCargaPanel() {
   const GPS_KEYS = ['distTotal','distSprint','nSprints','nAcel','nDecel','nAcel3','nDecel3','distMP','maxVelocity','distPerMin']
   const getRowVal = (row: any) => {
     if (chartVar === 'ua') return row.avg_ua||0
+    if (chartVar === 'uce') return row.avg_uce||0
     if (chartVar === 'rpe') return row.avg_rpe||0
     if (GPS_KEYS.includes(chartVar)) {
       const fecha = row.fecha || row.semana
@@ -887,21 +892,37 @@ function CambioCargaPanel() {
         ))}
       </div>
 
-      {/* Variable selector — uniform width grid */}
-      <div>
-        <div style={{ fontSize:10, color:'var(--fog)', textTransform:'uppercase', letterSpacing:'0.06em', fontWeight:600, marginBottom:8 }}>Variable:</div>
-        <div style={{ display:'grid', gridTemplateColumns:'repeat(6,1fr)', gap:6 }}>
-          {CHART_VARS.map(v=>(
-            <button key={v.key} onClick={()=>setChartVar(v.key as any)}
-              style={{ fontSize:11, padding:'7px 4px', borderRadius:8, cursor:'pointer', textAlign:'center', lineHeight:1.3,
-                border:chartVar===v.key?`2px solid ${v.color}`:'1px solid var(--mist)',
-                background:chartVar===v.key?`${v.color}18`:'var(--ink2)',
-                color:chartVar===v.key?v.color:'var(--silver)',
-                fontWeight:chartVar===v.key?700:400,
-                minHeight:44 }}>
-              {v.label}
-            </button>
-          ))}
+      {/* Variable selector — dos grupos: Calculadora y GPS */}
+      <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+        <div>
+          <div style={{ fontSize:10, color:'#c8f135', textTransform:'uppercase', letterSpacing:'0.06em', fontWeight:700, marginBottom:6 }}>🏋️ Calculadora</div>
+          <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
+            {CHART_VARS_CALC.map(v=>(
+              <button key={v.key} onClick={()=>setChartVar(v.key as any)}
+                style={{ fontSize:11, padding:'7px 16px', borderRadius:8, cursor:'pointer', textAlign:'center',
+                  border:chartVar===v.key?`2px solid ${v.color}`:'1px solid var(--mist)',
+                  background:chartVar===v.key?`${v.color}18`:'var(--ink2)',
+                  color:chartVar===v.key?v.color:'var(--silver)',
+                  fontWeight:chartVar===v.key?700:400 }}>
+                {v.label}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div>
+          <div style={{ fontSize:10, color:'#60a5fa', textTransform:'uppercase', letterSpacing:'0.06em', fontWeight:700, marginBottom:6 }}>📡 GPS</div>
+          <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
+            {CHART_VARS_GPS.map(v=>(
+              <button key={v.key} onClick={()=>setChartVar(v.key as any)}
+                style={{ fontSize:11, padding:'7px 16px', borderRadius:8, cursor:'pointer', textAlign:'center',
+                  border:chartVar===v.key?`2px solid ${v.color}`:'1px solid var(--mist)',
+                  background:chartVar===v.key?`${v.color}18`:'var(--ink2)',
+                  color:chartVar===v.key?v.color:'var(--silver)',
+                  fontWeight:chartVar===v.key?700:400 }}>
+                {v.label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 

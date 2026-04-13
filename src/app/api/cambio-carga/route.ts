@@ -35,7 +35,7 @@ export async function GET(req: NextRequest) {
     JOIN usuarios u ON u.id = j.usuario_id
     WHERE el.fecha BETWEEN ${desde} AND ${hasta}
       AND u.activo = true
-      AND (${isMaster}::boolean OR u.club_id = ${clubId})
+      AND (${isMaster}::boolean OR (u.club_id = ${clubId} AND j.club_id = ${clubId}))
     ORDER BY el.fecha ASC
   `
 
@@ -50,7 +50,7 @@ export async function GET(req: NextRequest) {
     JOIN usuarios u ON u.id = j.usuario_id
     WHERE pl.fecha BETWEEN ${desde} AND ${hasta}
       AND u.activo = true
-      AND (${isMaster}::boolean OR u.club_id = ${clubId})
+      AND (${isMaster}::boolean OR (u.club_id = ${clubId} AND j.club_id = ${clubId}))
     ORDER BY pl.fecha ASC
   `
 
@@ -66,6 +66,41 @@ export async function GET(req: NextRequest) {
     for (const m of matchLogs as any[]) {
       if (m.minutos >= minPartido) qualifyingPlayers.add(m.jugador_id)
     }
+  }
+
+  // Load planned sessions to compute CE per date (for UCE = CE × RPE_real)
+  const NE_DEFAULT_API: Record<string,number> = {
+    'Partido oficial':10,'Partido amistoso':9,'Partido de entrenamiento':8,
+    'Partido modificado':7,'Partido reducido':7,'Juego de posición':6,
+    'Juego de posesión':6,'Transiciones':5,'Rondo':5,'Trabajo analítico':4,
+    'Gimnasio':3,'Activación en campo':2,'Activación en gimnasio':2,
+  }
+  const sesionesParaUCE = clubId ? await sql`
+    SELECT fecha::text, ejercicios
+    FROM sesiones_plan
+    WHERE club_id = ${clubId}
+      AND fecha BETWEEN ${desde} AND ${hasta}
+    ORDER BY fecha`
+  : await sql`
+    SELECT fecha::text, ejercicios
+    FROM sesiones_plan
+    WHERE admin_id = ${s.userId}
+      AND club_id IS NULL
+      AND fecha BETWEEN ${desde} AND ${hasta}
+    ORDER BY fecha`
+
+  // Build CE per date from session blocks
+  const ceByDate: Record<string, number> = {}
+  for (const ses of sesionesParaUCE as any[]) {
+    let ceTotal = 0
+    for (const bl of (ses.ejercicios || [])) {
+      if (!bl.ventana) continue
+      const ne = bl.ne ?? NE_DEFAULT_API[bl.ventana] ?? 5
+      const minTotal = (Number(bl.series)||1) * (Number(bl.minutos)||0)
+      if (!minTotal) continue
+      ceTotal += Math.round(minTotal * ne)
+    }
+    if (ceTotal > 0) ceByDate[ses.fecha] = (ceByDate[ses.fecha] || 0) + ceTotal
   }
 
   // Group by date: only sessions where player qualifies and trained >= minEntrenamiento
@@ -88,6 +123,8 @@ export async function GET(req: NextRequest) {
   const daily = dailyDates.map((fecha, i) => {
     const avg = byDate[fecha].count > 0 ? Math.round(byDate[fecha].total_ua / byDate[fecha].count) : 0
     const avg_rpe = byDate[fecha].count > 0 ? byDate[fecha].total_rpe / byDate[fecha].count : 0
+    const ce = ceByDate[fecha] || 0
+    const avg_uce = ce > 0 && avg_rpe > 0 ? Math.round(ce * avg_rpe) : 0
     // Find last previous date that had actual data (ua > 0)
     let prevAvg: number | null = null
     for (let j = i - 1; j >= 0; j--) {
@@ -109,6 +146,7 @@ export async function GET(req: NextRequest) {
       label: fecha,
       avg_ua: avg,
       avg_rpe: Math.round(avg_rpe * 10) / 10,
+      avg_uce,
       n: byDate[fecha].count,
       count: byDate[fecha].count,
       players: byDate[fecha].players,
