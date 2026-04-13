@@ -379,7 +379,7 @@ export default function AnalyticsPanel() {
         {[
           ['readiness', 'Readiness Hoy'],
           ['scatter',   'Scatter Plots'],
-          ['acum',      'Acum.M1 Tabla'],
+          ['acum',      'Bienestar Microciclo'],
         ].map(([id,lbl]) => (
           <button key={id} type="button" onClick={()=>setView(id)} style={{
             flex:1, padding:'8px 12px', borderRadius:9, cursor:'pointer', fontSize:12, fontWeight:600,

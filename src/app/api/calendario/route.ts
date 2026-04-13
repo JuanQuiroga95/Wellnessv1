@@ -15,12 +15,23 @@ export async function GET(req: NextRequest) {
     const hasta = searchParams.get('hasta') || new Date().toISOString().split('T')[0]
     const sql = getDb()
 
-    const sesiones = await sql`
+    const clubId = s.clubId ? Number(s.clubId) : null
+
+    const sesiones = clubId ? await sql`
+      SELECT id, fecha::text, hora_inicio::text, hora_fin::text, tipo, titulo,
+             objetivo, objetivo_secundario, descripcion, ejercicios, rpe_objetivo, notas,
+             rival, rival_foto
+      FROM sesiones_plan
+      WHERE club_id = ${clubId}
+        AND fecha BETWEEN ${desde} AND ${hasta}
+      ORDER BY fecha, hora_inicio NULLS LAST`
+    : await sql`
       SELECT id, fecha::text, hora_inicio::text, hora_fin::text, tipo, titulo,
              objetivo, objetivo_secundario, descripcion, ejercicios, rpe_objetivo, notas,
              rival, rival_foto
       FROM sesiones_plan
       WHERE admin_id = ${s.userId}
+        AND club_id IS NULL
         AND fecha BETWEEN ${desde} AND ${hasta}
       ORDER BY fecha, hora_inicio NULLS LAST`
 
@@ -146,9 +157,25 @@ export async function DELETE(req: NextRequest) {
     const s = await getSessionFromRequest(req)
     if (!s || !isAdmin(s)) return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
     const { searchParams } = new URL(req.url)
+    const borrarTodo = searchParams.get('all') === 'true'
+    const sql = getDb()
+
+    if (borrarTodo) {
+      // Delete all sessions for this admin's club — use two subquery deletes to avoid ANY(array) driver bug
+      const clubId = s.clubId ? Number(s.clubId) : null
+      if (clubId) {
+        // 1. Sessions with explicit club_id
+        await sql`DELETE FROM sesiones_plan WHERE club_id = ${clubId}`
+        // 2. Sessions created by this admin without club_id set
+        await sql`DELETE FROM sesiones_plan WHERE admin_id = ${s.userId} AND club_id IS NULL`
+      } else {
+        await sql`DELETE FROM sesiones_plan WHERE admin_id = ${s.userId}`
+      }
+      return NextResponse.json({ ok: true, deleted: 'all' })
+    }
+
     const id = searchParams.get('id')
     if (!id) return NextResponse.json({ error: 'id requerido' }, { status: 400 })
-    const sql = getDb()
     await sql`DELETE FROM sesiones_plan WHERE id = ${id} AND admin_id = ${s.userId}`
     return NextResponse.json({ ok: true })
   } catch (err) {

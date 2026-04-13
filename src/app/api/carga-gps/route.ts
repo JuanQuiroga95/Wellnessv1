@@ -98,10 +98,17 @@ export async function GET(req: NextRequest) {
     }
 
     // 1. All planned sessions in range with their task blocks
-    const sesiones = await sql`
+    const sesiones = clubId ? await sql`
+      SELECT id, fecha::text, ejercicios, rpe_objetivo, titulo
+      FROM sesiones_plan
+      WHERE club_id = ${clubId}
+        AND fecha BETWEEN ${desde} AND ${hasta}
+      ORDER BY fecha`
+    : await sql`
       SELECT id, fecha::text, ejercicios, rpe_objetivo, titulo
       FROM sesiones_plan
       WHERE admin_id = ${s.userId}
+        AND club_id IS NULL
         AND fecha BETWEEN ${desde} AND ${hasta}
       ORDER BY fecha`
 
