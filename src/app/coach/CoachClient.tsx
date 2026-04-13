@@ -3174,10 +3174,16 @@ function CargaExternaPanel() {
   const sesionesInfo: any[] = data?.sesionesInfo || []
   // Only show MD columns that actually exist in sesionesInfo (no ghost columns)
   const MD_ORDER_LOCAL = ['MD+1','MD+2','MD+3','MD-4','MD-3','MD-2','MD-1','MD']
-  const existingMdLabels = new Set(sesionesInfo.map((s:any) => s.titulo))
-  // mdCols = only columns with real planned sessions (filters out ghost MDs)
+  // Filter sesionesInfo to only sessions the calendar actually shows.
+  // calSesiones is built from /api/calendario (same source of truth as the UI).
+  // This prevents "ghost" MD sessions that exist in sesiones_plan but are not
+  // visible in the calendar from appearing in the UCE/GPS panels.
+  const filteredSesionesInfo = calSesiones.size > 0
+    ? sesionesInfo.filter((s: any) => calSesiones.has(String(s.titulo)))
+    : sesionesInfo // fallback: show all if calendario fetch hasn't loaded yet
+  const existingMdLabels = new Set(filteredSesionesInfo.map((s:any) => s.titulo))
   const mdCols = MD_ORDER_LOCAL.filter(md => existingMdLabels.has(md))
-    .concat(sesionesInfo.map((s:any) => s.titulo).filter((t:string) => !MD_ORDER_LOCAL.includes(t)))
+    .concat(filteredSesionesInfo.map((s:any) => s.titulo).filter((t:string) => !MD_ORDER_LOCAL.includes(t)))
   // All columns present in the data, sorted by canonical order (known first, then alphabetical)
   const availableCols: string[] = (() => {
     const raw = allMetricCols.length > 0 ? allMetricCols : (
@@ -5241,7 +5247,6 @@ function AcumPanel({ teamData }) {
               <label style={{ fontSize:9, color:'var(--fog)', display:'block', marginBottom:3, textTransform:'uppercase' }}>Hasta</label>
               <input className="wp-input" type="date" value={miciHasta} onChange={e=>setMiciHasta(e.target.value)} />
             </div>
-            <button onClick={loadMici} style={{ fontSize:11, padding:'8px 12px', borderRadius:8, background:'rgba(96,165,250,.1)', color:'#60a5fa', border:'1px solid rgba(96,165,250,.3)', cursor:'pointer' }}>🔄</button>
             <button onClick={()=>window.print()} style={{ fontSize:11, padding:'8px 12px', borderRadius:8, background:'rgba(200,241,53,.1)', color:'var(--lime)', border:'1px solid rgba(200,241,53,.3)', cursor:'pointer' }}>🖨️ PDF</button>
           </div>
         </div>
@@ -5267,8 +5272,8 @@ function AcumPanel({ teamData }) {
                     <td style={{ padding:'8px 14px', color:'var(--snow)', fontWeight:500, whiteSpace:'nowrap' }}>{p.nombre}</td>
                     <td style={{ padding:'8px 8px', color:'var(--fog)', fontSize:10 }}>{p.posicion||'—'}</td>
                     {MICI_VARS.map(v=>(
-                      <td key={v.key} style={{ padding:'8px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', color:(p[v.key]!=null&&p[v.key]!==0)?v.color:'var(--fog)' }}>
-                        {(p[v.key]!=null&&p[v.key]!==0)?p[v.key]:'—'}
+                      <td key={v.key} style={{ padding:'8px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', color:p[v.key]?v.color:'var(--fog)' }}>
+                        {p[v.key]||'—'}
                       </td>
                     ))}
                   </tr>
@@ -5278,7 +5283,7 @@ function AcumPanel({ teamData }) {
                   <td/>
                   {MICI_VARS.map(v=>(
                     <td key={v.key} style={{ padding:'8px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, color:'var(--lime)' }}>
-                      {(miciTeamAvg[v.key]!=null&&miciTeamAvg[v.key]!==0)?miciTeamAvg[v.key]:'—'}
+                      {miciTeamAvg[v.key]||'—'}
                     </td>
                   ))}
                 </tr>
@@ -5972,6 +5977,7 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
   const [hasta, setHasta] = useState(today)
   const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(false)
+  const [calSesiones, setCalSesiones] = useState<Set<string>>(new Set()) // fechas+titulos visible in calendar
   const [partidoRefs, setPartidoRefs] = useState<any[]>([{},{},{}])
   const [showRefInput, setShowRefInput] = useState(false)
   const [partidos, setPartidos] = useState<any[]>([])
@@ -6034,7 +6040,22 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
 
   async function cargar() {
     setLoading(true)
-    try { const r = await fetch(`/api/carga-gps?desde=${desde}&hasta=${hasta}&ciclo=microciclo`); setData(await r.json()) }
+    try {
+      const [gpsRes, calRes] = await Promise.all([
+        fetch(`/api/carga-gps?desde=${desde}&hasta=${hasta}&ciclo=microciclo`),
+        fetch(`/api/calendario?desde=${desde}&hasta=${hasta}`),
+      ])
+      const [gpsData, calData] = await Promise.all([gpsRes.json(), calRes.json()])
+      setData(gpsData)
+      // Build a set of "titulo" values that are actually in the calendar
+      // so we can filter ghost MD sessions from carga-gps
+      const calSet = new Set<string>(
+        ((calData?.sesiones || []) as any[])
+          .filter((s: any) => s.titulo)
+          .map((s: any) => String(s.titulo))
+      )
+      setCalSesiones(calSet)
+    }
     catch(e){} finally { setLoading(false) }
   }
 
@@ -6101,12 +6122,14 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
   const perSession: Record<string,any> = data?.perSession || {}
   const sesionesInfo: any[] = data?.sesionesInfo || []
   const cePerSession: Record<string,any> = data?.cePerSession || {}
-  // Only show MD columns that actually exist in sesionesInfo (no ghost columns)
+  // Filter to sessions visible in calendar (prevents ghost MD sessions from carga-gps)
   const MD_ORDER_LOCAL = ['MD+1','MD+2','MD+3','MD-4','MD-3','MD-2','MD-1','MD']
-  const existingMdLabels = new Set(sesionesInfo.map((s:any) => s.titulo))
-  // mdCols = only columns with real planned sessions (filters out ghost MDs)
+  const filteredSesionesInfo = calSesiones.size > 0
+    ? sesionesInfo.filter((s: any) => calSesiones.has(String(s.titulo)))
+    : sesionesInfo
+  const existingMdLabels = new Set(filteredSesionesInfo.map((s:any) => s.titulo))
   const mdCols = MD_ORDER_LOCAL.filter(md => existingMdLabels.has(md))
-    .concat(sesionesInfo.map((s:any) => s.titulo).filter((t:string) => !MD_ORDER_LOCAL.includes(t)))
+    .concat(filteredSesionesInfo.map((s:any) => s.titulo).filter((t:string) => !MD_ORDER_LOCAL.includes(t)))
 
   const refMedia: Record<string,number> = {}
   VARS.forEach(v => {
