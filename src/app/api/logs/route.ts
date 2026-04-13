@@ -6,6 +6,29 @@ import { rateLimit, sanitizeInt, verifyJugadorOwnership } from '@/lib/security'
 
 function isAdmin(s: any) { return s?.rol === 'admin' || s?.rol === 'master_admin' }
 
+// NE lookup — same table as ControlCargaCalcPanel
+const NE_TABLE: Record<string, number> = {
+  'Partido oficial': 10, 'Partido amistoso': 9, 'Partido de entrenamiento': 9,
+  'Partido modificado': 8, 'Partido reducido': 7, 'Juego de posición': 6,
+  'Juego de posesión': 6, 'Transiciones': 7, 'Rondo': 5, 'Posesión reducida': 5,
+  'Trabajo analítico': 2, 'Circuito técnico': 2, 'Circuito condicional': 1,
+  'Activación en campo': 1, 'Gimnasio': 0.4, 'Activación en gimnasio': 0.4,
+  'Trabajo preventivo': 0.4, 'Restauración': 0.2, 'Cualidades específicas': 0.8,
+}
+
+function calcNeProm(ejercicios: any[]): number {
+  if (!Array.isArray(ejercicios) || !ejercicios.length) return 1
+  let totalMin = 0, totalCE = 0
+  for (const bl of ejercicios) {
+    if (!bl.ventana) continue
+    const min = (Number(bl.series) || 1) * (Number(bl.minutos) || 0)
+    const ne = bl.ne ?? NE_TABLE[bl.ventana] ?? 1
+    totalMin += min
+    totalCE += min * ne
+  }
+  return totalMin > 0 ? totalCE / totalMin : 1
+}
+
 export async function GET(req: NextRequest) {
   const s = await getSessionFromRequest(req)
   if (!s) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
@@ -18,29 +41,51 @@ export async function GET(req: NextRequest) {
 
   const sql = getDb()
 
-  // Players can only see their own logs
   if (s.rol === 'jugador') {
     if (s.jugadorId !== jid) return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
-  }
-  // Admins can only see logs of players in their own club
-  else if (isAdmin(s)) {
+  } else if (isAdmin(s)) {
     if (s.clubId && !(await verifyJugadorOwnership(sql, jid, s.clubId))) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
     }
   }
 
+  // Fetch logs joined with sesion plan (for md_label and ejercicios for UCE)
   const r = await sql`
     SELECT el.id, el.fecha::text, el.carga_ua::int, el.rpe::int, el.duracion_min::int, el.tipo_sesion,
-           sp.titulo AS md_label
+           sp.titulo   AS md_label,
+           sp.ejercicios AS sp_ejercicios
     FROM entrenamiento_logs el
     LEFT JOIN sesiones_plan sp
-      ON sp.fecha = el.fecha AND sp.club_id = (
-        SELECT club_id FROM jugadores WHERE id = ${jid} LIMIT 1
+      ON sp.fecha = el.fecha
+      AND sp.admin_id = (
+        SELECT u.id FROM jugadores j JOIN usuarios u ON u.id = j.usuario_id WHERE j.id = ${jid} LIMIT 1
       )
+      AND sp.club_id = el.club_id
     WHERE el.jugador_id = ${jid}
       AND el.fecha >= CURRENT_DATE - ${days}::int
     ORDER BY el.fecha ASC`
-  return NextResponse.json(r)
+
+  // Compute UCE = rpe × duracion × NE_prom for each log
+  const enriched = (r as any[]).map(row => {
+    const ejercicios = Array.isArray(row.sp_ejercicios) ? row.sp_ejercicios : []
+    const neProm = calcNeProm(ejercicios)
+    const rpe = Number(row.rpe) || 0
+    const dur = Number(row.duracion_min) || 0
+    const carga_uce = rpe > 0 && dur > 0 ? Math.round(rpe * dur * neProm) : null
+    return {
+      id: row.id,
+      fecha: row.fecha,
+      carga_ua: row.carga_ua,
+      carga_uce,       // UCE = RPE × min × NE_prom
+      ne_prom: Math.round(neProm * 100) / 100,
+      rpe: row.rpe,
+      duracion_min: row.duracion_min,
+      tipo_sesion: row.tipo_sesion,
+      md_label: row.md_label ?? null,
+    }
+  })
+
+  return NextResponse.json(enriched)
 }
 
 export async function POST(req: NextRequest) {
@@ -58,14 +103,12 @@ export async function POST(req: NextRequest) {
   if (!jugador_id) return NextResponse.json({ error: 'jugador_id inválido' }, { status: 400 })
   if (rpe === null) return NextResponse.json({ error: 'RPE requerido (1-10)' }, { status: 400 })
 
-  // Players can only post their own logs
   if (s.rol === 'jugador' && s.jugadorId !== jugador_id) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
   }
 
   const sql = getDb()
 
-  // Admins must own the player
   if (isAdmin(s) && s.clubId) {
     if (!(await verifyJugadorOwnership(sql, jugador_id, s.clubId))) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
@@ -96,7 +139,6 @@ export async function PATCH(req: NextRequest) {
 
   const sql = getDb()
 
-  // Verify the log belongs to the coach's club before updating
   const existing = await sql`
     SELECT el.id FROM entrenamiento_logs el
     JOIN jugadores j ON j.id = el.jugador_id

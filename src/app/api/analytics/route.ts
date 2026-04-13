@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
            COUNT(w.id)::int AS registros
     FROM jugadores j JOIN usuarios u ON u.id=j.usuario_id
     JOIN wellness_logs w ON w.jugador_id=j.id AND w.fecha>=CURRENT_DATE-(${weeks}*7)
-    WHERE u.rol='jugador' AND u.activo=true AND (${isMaster}::boolean OR u.club_id=${clubId})
+    WHERE u.rol='jugador' AND u.activo=true AND (${isMaster}::boolean OR (u.club_id=${clubId} AND j.club_id=${clubId}))
     GROUP BY j.id, u.nombre, j.posicion, j.foto_url, DATE_TRUNC('week', w.fecha)
     ORDER BY u.nombre, semana`
 
@@ -41,7 +41,7 @@ export async function GET(req: NextRequest) {
     FROM entrenamiento_logs el
     JOIN jugadores j ON j.id=el.jugador_id
     JOIN usuarios u ON u.id=j.usuario_id
-    WHERE el.fecha>=CURRENT_DATE-(${weeks}*7) AND u.activo=true AND (${isMaster}::boolean OR u.club_id=${clubId})
+    WHERE el.fecha>=CURRENT_DATE-(${weeks}*7) AND u.activo=true AND (${isMaster}::boolean OR (u.club_id=${clubId} AND j.club_id=${clubId}))
     GROUP BY el.jugador_id, DATE_TRUNC('week', el.fecha)
     ORDER BY el.jugador_id, semana`
 
@@ -52,7 +52,7 @@ export async function GET(req: NextRequest) {
            (COALESCE(w.fatiga,0)+COALESCE(w.calidad_sueno,0)+COALESCE(w.dolor_muscular,0)+COALESCE(w.nivel_estres,0)+COALESCE(w.estado_animo,0))::int AS total_wellness
     FROM jugadores j JOIN usuarios u ON u.id=j.usuario_id
     LEFT JOIN wellness_logs w ON w.jugador_id=j.id AND w.fecha=CURRENT_DATE
-    WHERE u.rol='jugador' AND u.activo=true AND (${isMaster}::boolean OR u.club_id=${clubId})
+    WHERE u.rol='jugador' AND u.activo=true AND (${isMaster}::boolean OR (u.club_id=${clubId} AND j.club_id=${clubId}))
     ORDER BY total_wellness DESC NULLS LAST`
 
   return NextResponse.json({

@@ -410,6 +410,7 @@ function PlayerRow({ player:p, last, onOpen, isInjured }) {
 
 function PlayerDetail({ player:p, logs, wellness, loading, onBack, ciclo, onCicloChange }) {
   const col = p.lesion?'#ef4444':(SC[p.acwr?.status]||'#555')
+  const [acwrMetric, setAcwrMetric] = useState<'ua'|'uce'>('ua')
   const lastW = wellness[0]
   const CICLOS = [
     { id:'microciclo', label:'Microciclo', sub:'Semana' },
@@ -486,10 +487,22 @@ function PlayerDetail({ player:p, logs, wellness, loading, onBack, ciclo, onCicl
       </div>
       {!p.lesion && (
         <div style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:16, padding:20 }}>
-          <p style={{ fontSize:11, fontWeight:600, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:14 }}>Evolución ACWR — 28 días</p>
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14 }}>
+            <p style={{ fontSize:11, fontWeight:600, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em' }}>
+              Evolución ACWR — 28 días
+            </p>
+            <div style={{ display:'flex', gap:4 }}>
+              {(['ua','uce'] as const).map(m => (
+                <button key={m} onClick={()=>setAcwrMetric(m)}
+                  style={{ fontSize:10, padding:'4px 10px', borderRadius:6, cursor:'pointer', border: acwrMetric===m?'2px solid var(--lime)':'1px solid var(--mist)', background: acwrMetric===m?'rgba(200,241,53,.1)':'var(--ink2)', color: acwrMetric===m?'var(--lime)':'var(--silver)', fontWeight:600 }}>
+                  {m.toUpperCase()}
+                </button>
+              ))}
+            </div>
+          </div>
           {loading
             ? <div style={{ height:160, display:'flex', alignItems:'center', justifyContent:'center', color:'var(--silver)' }}>Cargando...</div>
-            : <ACWRChart data={buildACWRHistory(logs)} />}
+            : <ACWRChart data={buildACWRHistory(logs, 28, acwrMetric)} />}
         </div>
       )}
 
@@ -500,13 +513,13 @@ function PlayerDetail({ player:p, logs, wellness, loading, onBack, ciclo, onCicl
             <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12 }}>
               <thead>
                 <tr style={{ background:'rgba(255,255,255,.03)' }}>
-                  {['MD','Fecha','UA','ACWR','Estado'].map(h=>(
+                  {['MD','Fecha',acwrMetric.toUpperCase(),'ACWR','Estado'].map(h=>(
                     <th key={h} style={{ padding:'7px 12px', color:'var(--silver)', fontWeight:600, textTransform:'uppercase', fontSize:9, letterSpacing:'0.06em', textAlign:'center', whiteSpace:'nowrap' }}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {buildDailyDetail(logs.map(l=>({fecha:String(l.fecha),carga_ua:Number(l.carga_ua)||0}))).map((row,i)=>{
+                {buildDailyDetail(logs.map(l=>({fecha:String(l.fecha),carga_ua:Number(l.carga_ua)||0,carga_uce:(l as any).carga_uce??null})), acwrMetric).map((row,i)=>{
                   const SC2={optimo:'#22c55e',precaucion:'#f59e0b',peligro:'#ef4444',peligro_bajo:'#3b82f6',sin_datos:'#444'}
                   const SL2={optimo:'Óptimo',precaucion:'Precaución',peligro:'Riesgo alto',peligro_bajo:'Carga baja',sin_datos:'—'}
                   const col = SC2[row.status]||'#444'
@@ -749,16 +762,15 @@ function CambioCargaPanel() {
     { key:'rpe',        label:'RPE',           color:'#60a5fa', src:'rpe' },
   ]
   const CHART_VARS_GPS = [
-    { key:'distTotal',  label:'Dist. Total',  color:'#f59e0b', src:'gps' },
-    { key:'distPerMin', label:'m/min',        color:'#84cc16', src:'gps' },
-    { key:'distSprint', label:'Dist. Sprint', color:'#f97316', src:'gps' },
-    { key:'nSprints',   label:'Nº Sprints',   color:'#a78bfa', src:'gps' },
-    { key:'nAcel',      label:'Ace >2 (m)',   color:'#ec4899', src:'gps' },
-    { key:'nDecel',     label:'Dec >2 (m)',   color:'#14b8a6', src:'gps' },
-    { key:'nAcel3',     label:'ACE >3 (n)',   color:'#f43f5e', src:'gps' },
-    { key:'nDecel3',    label:'DEC >3 (n)',   color:'#0ea5e9', src:'gps' },
-    { key:'distMP',     label:'Alta Pot.',    color:'#fbbf24', src:'gps' },
-    { key:'maxVelocity',label:'Vel. Máx',     color:'#ef4444', src:'gps' },
+    { key:'distTotal',   label:'Dist. Total',    color:'#f59e0b', src:'gps' },
+    { key:'distPerMin',  label:'m/min',           color:'#84cc16', src:'gps' },
+    { key:'distHir',     label:'HSR (High Speed)',color:'#f97316', src:'gps' },
+    { key:'distV4',      label:'Vel B4',          color:'#a78bfa', src:'gps' },
+    { key:'distV5',      label:'Vel B5/B6',       color:'#e879f9', src:'gps' },
+    { key:'maxVelocity', label:'Vel. Máx',        color:'#ef4444', src:'gps' },
+    { key:'nSprints',    label:'Nº Sprints',      color:'#22d3ee', src:'gps' },
+    { key:'acc2',        label:'ACE >2 (n)',       color:'#ec4899', src:'gps' },
+    { key:'dec2',        label:'DEC >2 (n)',       color:'#14b8a6', src:'gps' },
   ]
   const CHART_VARS = [...CHART_VARS_CALC, ...CHART_VARS_GPS]
 
@@ -803,18 +815,35 @@ function CambioCargaPanel() {
       gpsDailyMap[s.fecha] = gpsPerSession[s.titulo]
     }
   })
-  const GPS_KEYS = ['distTotal','distSprint','nSprints','nAcel','nDecel','nAcel3','nDecel3','distMP','maxVelocity','distPerMin']
+  const GPS_KEYS = ['distTotal','distHir','distV4','distV5','nSprints','acc2','dec2','maxVelocity','distPerMin']
   const getRowVal = (row: any) => {
     if (chartVar === 'ua') return row.avg_ua||0
     if (chartVar === 'uce') return row.avg_uce||0
     if (chartVar === 'rpe') return row.avg_rpe||0
+    if (chartVar === 'tiempo') {
+      const rpe = row.avg_rpe || 0
+      return rpe > 0 ? Math.round((row.avg_ua || 0) / rpe) : 0
+    }
+    if (chartVar.startsWith('calc_')) {
+      const avgUa = row.avg_ua || 0; const avgRpe = row.avg_rpe || 0; const avgUce = row.avg_uce || 0
+      const duracion = avgRpe > 0 ? avgUa / avgRpe : 0
+      const densidad = avgUa > 0 && avgUce > 0 ? (avgUce / avgUa) * 10 : 10
+      const key = chartVar.replace('calc_','')
+      if (key==='distTotal')  return Math.max(0, Math.round((19.243*Math.log(Math.max(densidad,1))-5.029)*duracion))
+      if (key==='distSprint') return Math.max(0, Math.round((0.018*densidad-0.844)*duracion))
+      if (key==='distMP')     return Math.max(0, Math.round((7.0421*Math.log(Math.max(densidad,1))-15.255)*duracion))
+      if (key==='nSprints')   return Math.max(0, Math.round((0.001*densidad-0.046)*duracion))
+      if (key==='nAcel')      return Math.max(0, Math.round((0.212*Math.log(Math.max(densidad,1))-0.23)*duracion))
+      if (key==='nDecel')     return Math.max(0, Math.round((0.1041*Math.log(Math.max(densidad,1))-0.096)*duracion))
+      return 0
+    }
     if (GPS_KEYS.includes(chartVar)) {
       const fecha = row.fecha || row.semana
       const gps = gpsDailyMap[fecha]
-      // Map chartVar keys to actual GPS field names
       const GPS_FIELD_MAP: Record<string,string> = {
-        nAcel3: 'acc3', nDecel3: 'dec3',
-        maxVelocity: 'max_velocity', distPerMin: 'dist_per_min',
+        distTotal:'dist_total', distHir:'dist_hir', distV4:'dist_v4',
+        distV5:'dist_v5', nSprints:'n_sprints', acc2:'acc2', dec2:'dec2',
+        maxVelocity:'max_velocity', distPerMin:'dist_per_min',
       }
       const field = GPS_FIELD_MAP[chartVar] || chartVar
       return gps ? (Math.round(Number(gps[field])||0)) : 0
@@ -5120,16 +5149,17 @@ function AcumPanel({ teamData }) {
   // miciNum 1 = this week (offset 0), 2 = last week (offset -1), etc.
   const getMiciOffset = (num: number) => -(num - 1)
 
+  const mondayShiftMici = new Date().getDay() === 1 ? -7 : 0
   const getMiciStart = (num: number) => {
     const offset = getMiciOffset(num)
     const d = new Date()
-    d.setDate(d.getDate() - d.getDay() + 1 + offset * 7)
+    d.setDate(d.getDate() - d.getDay() + 1 + offset * 7 + mondayShiftMici)
     return d.toISOString().split('T')[0]
   }
   const getMiciEnd = (num: number) => {
     const offset = getMiciOffset(num)
     const d = new Date()
-    d.setDate(d.getDate() - d.getDay() + 7 + offset * 7)
+    d.setDate(d.getDate() - d.getDay() + 7 + offset * 7 + mondayShiftMici)
     return d.toISOString().split('T')[0]
   }
 
@@ -5908,14 +5938,17 @@ const MD_ORDER = ['MD+1','MD+2','MD+3','MD-4','MD-3','MD-2','MD-1','MD']
 
 function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
   const today = new Date().toISOString().split('T')[0]
+  // If today is Monday (getDay()===1), shift back 7 days so offset=0 shows the
+  // microciclo that just ended (Mon–Sun), not the brand-new week with no data yet.
+  const mondayShift = new Date().getDay() === 1 ? -7 : 0
   const getWeekStart = (offsetWeeks = 0) => {
     const d = new Date()
-    d.setDate(d.getDate() - d.getDay() + 1 + offsetWeeks * 7)
+    d.setDate(d.getDate() - d.getDay() + 1 + offsetWeeks * 7 + mondayShift)
     return d.toISOString().split('T')[0]
   }
   const getWeekEnd = (offsetWeeks = 0) => {
     const d = new Date()
-    d.setDate(d.getDate() - d.getDay() + 7 + offsetWeeks * 7)
+    d.setDate(d.getDate() - d.getDay() + 7 + offsetWeeks * 7 + mondayShift)
     return d.toISOString().split('T')[0]
   }
   const [microcicloOffset, setMicrocicloOffset] = useState(0)
@@ -6884,15 +6917,16 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
 function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
   const today = new Date().toISOString().split('T')[0]
   const [microcicloOffset, setMicrocicloOffset] = useState(0)
+  const mondayShift = new Date().getDay() === 1 ? -7 : 0
 
   const getWeekStart = (offsetWeeks = 0) => {
     const d = new Date()
-    d.setDate(d.getDate() - d.getDay() + 1 + offsetWeeks * 7)
+    d.setDate(d.getDate() - d.getDay() + 1 + offsetWeeks * 7 + mondayShift)
     return d.toISOString().split('T')[0]
   }
   const getWeekEnd = (offsetWeeks = 0) => {
     const d = new Date()
-    d.setDate(d.getDate() - d.getDay() + 7 + offsetWeeks * 7)
+    d.setDate(d.getDate() - d.getDay() + 7 + offsetWeeks * 7 + mondayShift)
     return d.toISOString().split('T')[0]
   }
 
