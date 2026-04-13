@@ -54,14 +54,22 @@ const ScatterTip = ({ active, payload }) => {
 export default function AnalyticsPanel() {
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [weeks, setWeeks] = useState(4)
   const [view, setView] = useState('readiness') // 'readiness' | 'scatter' | 'acum'
 
-  useEffect(() => { load() }, [weeks])
+  const todayStr = new Date().toISOString().split('T')[0]
+  const defaultDesde = (() => { const d = new Date(); d.setDate(d.getDate()-28); return d.toISOString().split('T')[0] })()
+  const [desde, setDesde] = useState(defaultDesde)
+  const [hasta, setHasta] = useState(todayStr)
+
+  useEffect(() => { load() }, [desde, hasta])
 
   async function load() {
     setLoading(true)
     try {
+      // Calcular weeks aproximado para compatibilidad con la API existente
+      const msDay = 86400000
+      const diffDays = Math.max(1, Math.round((new Date(hasta).getTime() - new Date(desde).getTime()) / msDay))
+      const weeks = Math.max(1, Math.round(diffDays / 7))
       const ar = await fetch(`/api/readiness?weeks=${weeks}`).then(r=>r.json())
       // Normalize: readiness endpoint returns {wRows, rpeRows, todayRows}
       // Map to consistent shape used throughout the component
@@ -176,7 +184,7 @@ export default function AnalyticsPanel() {
     const rpeMap = {}
     for (const r of rpeRows) { rpeMap[`${r.jugador_id}_${r.semana}`] = r }
 
-    const merged = wRows.filter(w=>w.total_wellness).map(w => {
+    const rawMerged = wRows.filter(w=>w.total_wellness).map(w => {
       const rpe = rpeMap[`${w.jugador_id}_${w.semana}`]
       return {
         jugador_id: w.jugador_id,
@@ -187,9 +195,30 @@ export default function AnalyticsPanel() {
         avg_wellness: Number(w.total_wellness),
         avg_rpe: rpe ? Number(rpe.avg_rpe) : null,
         avg_dolor: Number(w.avg_dolor||0),
-        dotColor: w.total_wellness <= 12 ? '#c8f135' : w.total_wellness <= 18 ? '#f59e0b' : '#ef4444',
       }
     }).filter(d => d.avg_rpe !== null)
+
+    // Bug fix: collapse multiple weeks → one point per player (promediando)
+    const playerAcc: Record<number, any> = {}
+    for (const d of rawMerged) {
+      if (!playerAcc[d.jugador_id]) {
+        playerAcc[d.jugador_id] = { ...d, _n: 1 }
+      } else {
+        const p = playerAcc[d.jugador_id]
+        p.avg_wellness = (p.avg_wellness * p._n + d.avg_wellness) / (p._n + 1)
+        p.avg_rpe      = (p.avg_rpe      * p._n + d.avg_rpe)      / (p._n + 1)
+        p.avg_dolor    = (p.avg_dolor    * p._n + d.avg_dolor)     / (p._n + 1)
+        p._n++
+        p.semana = 'Prom. período'
+      }
+    }
+    const merged = Object.values(playerAcc).map(p => ({
+      ...p,
+      avg_wellness: Math.round(p.avg_wellness * 10) / 10,
+      avg_rpe:      Math.round(p.avg_rpe      * 10) / 10,
+      avg_dolor:    Math.round(p.avg_dolor    * 10) / 10,
+      dotColor: p.avg_wellness <= 12 ? '#c8f135' : p.avg_wellness <= 18 ? '#f59e0b' : '#ef4444',
+    }))
 
     return (
       <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
@@ -367,10 +396,16 @@ export default function AnalyticsPanel() {
           <h2 className="display" style={{ fontSize:48, color:'var(--snow)' }}>ANALYTICS</h2>
           <p style={{ fontSize:12, color:'var(--silver)', marginTop:2 }}>Readiness · Scatter Plots · Acumulado</p>
         </div>
-        <div style={{ display:'flex', gap:8, alignItems:'center' }}>
-          <select style={{ background:'var(--ink3)', border:'1px solid var(--fog)', borderRadius:8, padding:'7px 12px', fontSize:12, color:'var(--silver)', outline:'none', appearance:'none' }} value={weeks} onChange={e=>setWeeks(Number(e.target.value))}>
-            {[1,2,4,6,8,12].map(w => <option key={w} value={w} style={{ background:'var(--ink2)' }}>{w} semana{w>1?'s':''}</option>)}
-          </select>
+        <div style={{ display:'flex', gap:8, alignItems:'center', flexWrap:'wrap' }}>
+          <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+            <label style={{ fontSize:10, color:'var(--silver)', fontFamily:'DM Mono,monospace' }}>DESDE</label>
+            <input type="date" value={desde} onChange={e=>setDesde(e.target.value)} style={{ background:'var(--ink3)', border:'1px solid var(--fog)', borderRadius:8, padding:'6px 10px', fontSize:12, color:'var(--silver)', outline:'none' }} />
+          </div>
+          <span style={{ color:'var(--fog)', fontSize:12 }}>→</span>
+          <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+            <label style={{ fontSize:10, color:'var(--silver)', fontFamily:'DM Mono,monospace' }}>HASTA</label>
+            <input type="date" value={hasta} onChange={e=>setHasta(e.target.value)} style={{ background:'var(--ink3)', border:'1px solid var(--fog)', borderRadius:8, padding:'6px 10px', fontSize:12, color:'var(--silver)', outline:'none' }} />
+          </div>
         </div>
       </div>
 

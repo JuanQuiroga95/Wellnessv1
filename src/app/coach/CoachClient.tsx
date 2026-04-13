@@ -1883,6 +1883,21 @@ function BloqueMetodologia({ bloque, index, onChange, onRemove, teamPlayers = []
           <option value="">— Seleccionar —</option>
           {TAREAS_PRINCIPALES.map(t=><option key={t} value={t} style={{ background:'var(--ink2)' }}>{t}</option>)}
         </select>
+        {bloque.ventana && (() => {
+          const ne = bloque.ne ?? NE_DEFAULT[bloque.ventana] ?? 5
+          const minTotal = (Number(bloque.series)||0) * (Number(bloque.minutos)||0)
+          const ce = minTotal > 0 ? Math.round(minTotal * ne) : null
+          return (
+            <div style={{ display:'flex', gap:8, marginTop:4, alignItems:'center', fontSize:10, fontFamily:'DM Mono,monospace' }}>
+              <span style={{ color:'var(--lime)', background:'rgba(200,241,53,.1)', border:'1px solid rgba(200,241,53,.25)', borderRadius:4, padding:'2px 6px' }}>NE {ne}</span>
+              <span style={{ color:'var(--fog)' }}>×{minTotal > 0 ? ` ${minTotal}min` : ' min'}</span>
+              {ce !== null
+                ? <span style={{ color:'#c8f135', fontWeight:700, background:'rgba(200,241,53,.08)', border:'1px solid rgba(200,241,53,.3)', borderRadius:4, padding:'2px 6px' }}>CE {ce}</span>
+                : <span style={{ color:'var(--fog)', fontStyle:'italic' }}>CE — (ingresá series y minutos)</span>
+              }
+            </div>
+          )
+        })()}
       </div>
 
       {bloque.ventana && SUBTAREAS[bloque.ventana] && (
@@ -3333,7 +3348,7 @@ function CargaExternaPanel() {
                         <tr style={{ background:'rgba(255,255,255,.03)' }}>
                           <SortTh field="nombre"   label="Jugador" />
                           <SortTh field="rpe"      label="RPE" />
-                          <SortTh field="ua"       label="UA" unit="media" />
+                          <SortTh field="ua"       label="UCE" unit="media" />
                           <SortTh field="sesiones" label="Ses." />
                           {GPS_COLS.map(c=><SortTh key={c.field} field={c.field} label={c.label} unit={c.unit} />)}
                         </tr>
@@ -3442,8 +3457,8 @@ function CargaExternaPanel() {
                   <tr style={{ background: 'rgba(255,255,255,.03)' }}>
                     <SortTh field="nombre"   label="Jugador" />
                     <SortTh field="rpe"      label="RPE" />
-                    <SortTh field="ua"       label="UA" unit="media" />
-                    <SortTh field="ua_total" label="UA" unit="total" />
+                    <SortTh field="ua"       label="UCE" unit="media" />
+                    <SortTh field="ua_total" label="UCE" unit="total" />
                     <SortTh field="sesiones" label="Ses." />
                     {GPS_COLS.map(c => <SortTh key={c.field} field={c.field} label={c.label} unit={c.unit} />)}
                   </tr>
@@ -5970,8 +5985,15 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
   }, [microcicloOffset])
 
   useEffect(() => { cargar() }, [desde, hasta])
+
+  // Bug fix: auto-refresh every 60s so data is current if player submits RPE after coach loaded the page
   useEffect(() => {
-    // Load partido sessions from the calendar (sesiones_plan with tipo='partido')
+    const id = setInterval(() => cargar(), 60000)
+    return () => clearInterval(id)
+  }, [desde, hasta])
+
+  useEffect(() => {
+    // Load partido sessions from the calendar (sesiones_plan con tipo='partido')
     // These come from /api/calendario GET response
     const hace1año = new Date(); hace1año.setFullYear(hace1año.getFullYear()-1)
     const desdeStr = hace1año.toISOString().split('T')[0]
@@ -6022,13 +6044,23 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
     updated[slotIdx] = partido
     setSelectedPartidos(updated)
     try {
-      const r = await fetch(`/api/carga-gps?desde=${partido.fecha}&hasta=${partido.fecha}&ciclo=microciclo`)
-      const d = await r.json()
+      // Bug fix: fetch GPS and minutos in parallel — partidos have no sesiones_plan blocks
+      // so minActivo from carga-gps is always 0. Use /api/minutos as fallback.
+      const [gpsRes, minRes] = await Promise.all([
+        fetch(`/api/carga-gps?desde=${partido.fecha}&hasta=${partido.fecha}&ciclo=microciclo`),
+        fetch(`/api/minutos?desde=${partido.fecha}&hasta=${partido.fecha}`)
+      ])
+      const [d, minData] = await Promise.all([gpsRes.json(), minRes.json()])
       const avg = d?.teamAvg || {}
+      // Compute avg min_partido from players who have > 0 minutes that day
+      const activePlayers = (minData?.players || []).filter((p: any) => (p.min_partido || 0) > 0)
+      const minPartidoPromedio = activePlayers.length
+        ? Math.round(activePlayers.reduce((s: number, p: any) => s + (p.min_partido || 0), 0) / activePlayers.length)
+        : 0
       const nr = [...partidoRefs]
       nr[slotIdx] = {
         ua_total:   avg.ua_total   || 0,
-        minActivo:  avg.minActivo  || 0,
+        minActivo:  avg.minActivo  || minPartidoPromedio || 0,
         distTotal:  avg.distTotal  || 0,
         distSprint: avg.distSprint || 0,
         nSprints:   avg.nSprints   || 0,
@@ -6156,9 +6188,13 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
       <div style={{ marginBottom:20, display:'flex', justifyContent:'space-between', alignItems:'flex-end', flexWrap:'wrap', gap:12 }}>
         <div>
           <h2 style={{ fontFamily:'Bebas Neue,sans-serif', fontSize:36, color:'var(--snow)', letterSpacing:'0.04em', marginBottom:4 }}>🏋️ CONTROL DE CARGA · CALC</h2>
-          <p style={{ fontSize:12, color:'var(--silver)' }}>Microciclo · RPE, UA y carga calculada desde sesiones planificadas</p>
+          <p style={{ fontSize:12, color:'var(--silver)' }}>Microciclo · RPE, UCE y carga calculada desde sesiones planificadas</p>
         </div>
         <div style={{ display:'flex', gap:8, flexWrap:'wrap', alignItems:'flex-end' }}>
+          {/* Bug fix: manual refresh button */}
+          <button onClick={cargar} disabled={loading} title="Actualizar datos" style={{ fontSize:12, padding:'7px 14px', borderRadius:9, background:'rgba(200,241,53,.1)', border:'1px solid rgba(200,241,53,.3)', color: loading ? 'var(--fog)' : 'var(--lime)', cursor: loading ? 'default' : 'pointer', fontWeight:600, display:'flex', alignItems:'center', gap:5 }}>
+            <span style={{ fontSize:14, display:'inline-block', animation: loading ? 'spin 1s linear infinite' : 'none' }}>🔄</span> Actualizar
+          </button>
           {/* Microciclo navigator */}
           <div style={{ display:'flex', alignItems:'center', gap:6, background:'var(--ink3)', border:'1px solid var(--mist)', borderRadius:10, padding:'6px 10px' }}>
             <button onClick={()=>setMicrocicloOffset(o=>o-1)} style={{ width:28, height:28, borderRadius:6, background:'rgba(255,255,255,.07)', border:'1px solid var(--fog)', color:'var(--snow)', cursor:'pointer', fontSize:14, display:'flex', alignItems:'center', justifyContent:'center' }}>‹</button>

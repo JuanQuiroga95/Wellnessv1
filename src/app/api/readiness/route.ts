@@ -64,16 +64,22 @@ export async function GET(req: NextRequest) {
     GROUP BY el.jugador_id, DATE_TRUNC('week',el.fecha)
     ORDER BY semana DESC`
 
+  // Bug fix: use a 2-day window to handle UTC offset (Argentina = UTC-3).
+  // If the player submitted wellness after midnight UTC but it's still "today" in Argentina,
+  // it lands on CURRENT_DATE - 1 from the server's perspective. We take the most recent
+  // record per player within the last 2 days.
   const todayRows = await sql`
-    SELECT j.id AS jugador_id, u.nombre, j.posicion, j.foto_url,
+    SELECT DISTINCT ON (j.id)
+           j.id AS jugador_id, u.nombre, j.posicion, j.foto_url,
            COALESCE(w.fatiga+w.calidad_sueno+w.dolor_muscular+w.nivel_estres+w.estado_animo, null) AS total_wellness,
            w.fatiga, w.calidad_sueno, w.dolor_muscular, w.nivel_estres, w.estado_animo,
-           w.tqr, w.dolor_zona, w.dolor_eva, w.entrena_grupo, w.fue_gimnasio
+           w.tqr, w.dolor_zona, w.dolor_eva, w.entrena_grupo, w.fue_gimnasio,
+           w.fecha AS registro_fecha
     FROM jugadores j JOIN usuarios u ON u.id=j.usuario_id
-    LEFT JOIN wellness_logs w ON w.jugador_id=j.id AND w.fecha=CURRENT_DATE
+    LEFT JOIN wellness_logs w ON w.jugador_id=j.id AND w.fecha >= CURRENT_DATE - 1
     WHERE u.rol='jugador' AND u.activo=true
       AND (${isMaster}::boolean OR (u.club_id=${clubId} OR j.club_id=${clubId}))
-    ORDER BY u.nombre`
+    ORDER BY j.id, w.fecha DESC NULLS LAST, u.nombre`
 
   return NextResponse.json({ wRows, rpeRows, todayRows })
 }
