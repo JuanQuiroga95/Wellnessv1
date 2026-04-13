@@ -5241,6 +5241,7 @@ function AcumPanel({ teamData }) {
               <label style={{ fontSize:9, color:'var(--fog)', display:'block', marginBottom:3, textTransform:'uppercase' }}>Hasta</label>
               <input className="wp-input" type="date" value={miciHasta} onChange={e=>setMiciHasta(e.target.value)} />
             </div>
+            <button onClick={loadMici} style={{ fontSize:11, padding:'8px 12px', borderRadius:8, background:'rgba(96,165,250,.1)', color:'#60a5fa', border:'1px solid rgba(96,165,250,.3)', cursor:'pointer' }}>🔄</button>
             <button onClick={()=>window.print()} style={{ fontSize:11, padding:'8px 12px', borderRadius:8, background:'rgba(200,241,53,.1)', color:'var(--lime)', border:'1px solid rgba(200,241,53,.3)', cursor:'pointer' }}>🖨️ PDF</button>
           </div>
         </div>
@@ -5266,8 +5267,8 @@ function AcumPanel({ teamData }) {
                     <td style={{ padding:'8px 14px', color:'var(--snow)', fontWeight:500, whiteSpace:'nowrap' }}>{p.nombre}</td>
                     <td style={{ padding:'8px 8px', color:'var(--fog)', fontSize:10 }}>{p.posicion||'—'}</td>
                     {MICI_VARS.map(v=>(
-                      <td key={v.key} style={{ padding:'8px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', color:p[v.key]?v.color:'var(--fog)' }}>
-                        {p[v.key]||'—'}
+                      <td key={v.key} style={{ padding:'8px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', color:(p[v.key]!=null&&p[v.key]!==0)?v.color:'var(--fog)' }}>
+                        {(p[v.key]!=null&&p[v.key]!==0)?p[v.key]:'—'}
                       </td>
                     ))}
                   </tr>
@@ -5277,7 +5278,7 @@ function AcumPanel({ teamData }) {
                   <td/>
                   {MICI_VARS.map(v=>(
                     <td key={v.key} style={{ padding:'8px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, color:'var(--lime)' }}>
-                      {miciTeamAvg[v.key]||'—'}
+                      {(miciTeamAvg[v.key]!=null&&miciTeamAvg[v.key]!==0)?miciTeamAvg[v.key]:'—'}
                     </td>
                   ))}
                 </tr>

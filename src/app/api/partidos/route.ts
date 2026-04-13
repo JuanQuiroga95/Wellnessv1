@@ -38,7 +38,7 @@ export async function GET(req: NextRequest) {
                sp.titulo, sp.hora_inicio::text, sp.hora_fin::text
         FROM sesiones_plan sp
         WHERE sp.tipo = 'partido'
-          AND sp.admin_id = ${s.userId}
+          AND (sp.club_id = ${s.clubId ? Number(s.clubId) : null} OR (sp.admin_id = ${s.userId} AND sp.club_id IS NULL))
           AND sp.fecha BETWEEN ${desde} AND ${hasta}
           AND NOT EXISTS (
             SELECT 1 FROM partido_logs pl

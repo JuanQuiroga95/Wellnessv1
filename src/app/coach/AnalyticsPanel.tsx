@@ -66,11 +66,7 @@ export default function AnalyticsPanel() {
   async function load() {
     setLoading(true)
     try {
-      // Calcular weeks aproximado para compatibilidad con la API existente
-      const msDay = 86400000
-      const diffDays = Math.max(1, Math.round((new Date(hasta).getTime() - new Date(desde).getTime()) / msDay))
-      const weeks = Math.max(1, Math.round(diffDays / 7))
-      const ar = await fetch(`/api/readiness?weeks=${weeks}`).then(r=>r.json())
+      const ar = await fetch(`/api/readiness?desde=${desde}&hasta=${hasta}`).then(r=>r.json())
       // Normalize: readiness endpoint returns {wRows, rpeRows, todayRows}
       // Map to consistent shape used throughout the component
       setData({
@@ -322,7 +318,7 @@ export default function AnalyticsPanel() {
 
     return (
       <div>
-        <p style={{ fontSize:11, color:'var(--silver)', marginBottom:16 }}>Promedio de indicadores del último período ({weeks} semanas). Ordenado de mayor a menor carga acumulada.</p>
+        <p style={{ fontSize:11, color:'var(--silver)', marginBottom:16 }}>Promedio de indicadores del período {desde} → {hasta}. Ordenado de mayor a menor bienestar acumulado.</p>
         {players.length === 0
           ? <div style={{ padding:40, textAlign:'center', color:'var(--silver)' }}>Sin datos suficientes para calcular promedios.</div>
           : (
