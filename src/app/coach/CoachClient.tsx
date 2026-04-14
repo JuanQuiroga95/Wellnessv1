@@ -801,9 +801,9 @@ function CambioCargaPanel() {
   const CHART_VARS_GPS = [
     { key:'distTotal',   label:'Dist. Total',    color:'#f59e0b', src:'gps' },
     { key:'distPerMin',  label:'m/min',           color:'#84cc16', src:'gps' },
-    { key:'distHir',     label:'HSR (High Speed)',color:'#f97316', src:'gps' },
     { key:'distV4',      label:'Vel B4',          color:'#a78bfa', src:'gps' },
-    { key:'distV5',      label:'Vel B5/B6',       color:'#e879f9', src:'gps' },
+    { key:'distHir',     label:'HSR (High Speed)',color:'#f97316', src:'gps' },
+    { key:'distV5',      label:'Vel B6',          color:'#e879f9', src:'gps' },
     { key:'maxVelocity', label:'Vel. Máx',        color:'#ef4444', src:'gps' },
     { key:'nSprints',    label:'Nº Sprints',      color:'#22d3ee', src:'gps' },
     { key:'acc2',        label:'ACE >2 (n)',       color:'#ec4899', src:'gps' },
@@ -889,10 +889,13 @@ function CambioCargaPanel() {
   })
 
   const GPS_KEYS = ['distTotal','distHir','distV4','distV5','nSprints','acc2','dec2','maxVelocity','distPerMin']
+  // gpsDailyMap is built from perSession (calculator, camelCase keys).
+  // Real-GPS-only fields (distHir, distV4, distV5, maxVelocity, distPerMin)
+  // use their snake_case DB names but will be 0 unless gpsPerMD data is merged.
   const GPS_FIELD_MAP: Record<string,string> = {
-    distTotal:'dist_total', distHir:'dist_hir', distV4:'dist_v4',
-    distV5:'dist_v5', nSprints:'n_sprints', acc2:'acc2', dec2:'dec2',
-    maxVelocity:'max_velocity', distPerMin:'dist_per_min',
+    distTotal:'distTotal',   distHir:'dist_hir',   distV4:'dist_v4',
+    distV5:'dist_v5',        nSprints:'nSprints',  acc2:'nAcel',
+    dec2:'nDecel',           maxVelocity:'max_velocity', distPerMin:'dist_per_min',
   }
   const getRowVal = (row: any) => {
     if (chartVar === 'ua') return row.avg_ua||0
@@ -4009,7 +4012,8 @@ function ComparativaPanel({ teamData }: { teamData: any[] }) {
             const maxV = Math.max(...playerBars.map(x=>x.val), 1)
             const minV = Math.min(...playerBars.map(x=>x.val))
             const baseV = playerBars.length > 1 ? Math.floor(minV * 0.80) : 0
-            const rangeV = Math.max(maxV - baseV, 1)
+            const suggestedMax = Math.ceil(maxV * 1.15)           // 15% headroom above data max
+            const rangeV = Math.max(suggestedMax - baseV, 1)
             const BAR_H = 200
             const BOT_PAD = 52
             const yTicks = [1, 0.75, 0.5, 0.25, 0].map(f => Math.round(baseV + f * rangeV))
@@ -4028,7 +4032,7 @@ function ComparativaPanel({ teamData }: { teamData: any[] }) {
                     ))}
                   </div>
                   <div style={{ flex:1, overflowX:'auto' }}>
-                    <div style={{ display:'flex', alignItems:'flex-end', gap:0, height:`${BAR_H + BOT_PAD}px`, minWidth:chartMinWidth, position:'relative' }}>
+                    <div style={{ display:'flex', alignItems:'flex-end', gap:0, height:`${BAR_H + BOT_PAD + 32}px`, minWidth:chartMinWidth, position:'relative', paddingTop:32 }}>
                       {[0,0.25,0.5,0.75,1].map((f,i)=>(
                         <div key={i} style={{ position:'absolute', left:0, right:0, bottom:`${BOT_PAD + f*BAR_H}px`, height:1, background:`rgba(255,255,255,${f===0||f===1?'.12':'.05'})`, pointerEvents:'none' }}/>
                       ))}
@@ -4099,7 +4103,7 @@ function ComparativaPanel({ teamData }: { teamData: any[] }) {
                   ))}
                 </div>
                 {/* Chart area */}
-                <div style={{ flex:1, overflowX:'auto', overflowY:'visible' }}>
+                <div style={{ flex:1, overflowX:'auto' }}>
                   <div style={{ position:'relative', minWidth: chartMinWidth }}>
                     {/* Grid lines */}
                     {[0,0.25,0.5,0.75,1].map((f,i)=>(
@@ -4108,7 +4112,7 @@ function ComparativaPanel({ teamData }: { teamData: any[] }) {
                         borderTop:`1px solid rgba(255,255,255,${f===0||f===1?'.12':'.05'})`, pointerEvents:'none' }}/>
                     ))}
                     <div style={{ display:'flex', gap:12, alignItems:'flex-end',
-                      height: BAR_H + BOT_PAD, paddingBottom: BOT_PAD }}>
+                      height: BAR_H + BOT_PAD + 32, paddingBottom: BOT_PAD, paddingTop: 32 }}>
                       {posData.map((x,i)=>{
                         const barH = Math.max(((x.avg - baseV) / rangeV) * BAR_H, 6)
                         return (
@@ -5279,7 +5283,7 @@ function AcumPanel({ teamData }) {
   }
 
   const MICI_VARS = [
-    {key:'ua_total',   label:'UCE',             color:'#60a5fa'},
+    {key:'ua_total',   label:'UA',              color:'#60a5fa'},
     {key:'minActivo',  label:'Tiempo (min)',    color:'#34d399'},
     {key:'distTotal',  label:'DT (m)',          color:'#f59e0b'},
     {key:'distSprint', label:'Dist. Sprint (m)',color:'#f97316'},
@@ -6071,9 +6075,9 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
 
   useEffect(() => { cargar() }, [desde, hasta])
 
-  // Bug fix: auto-refresh every 60s so data is current if player submits RPE after coach loaded the page
+  // Auto-refresh every 60s without showing loading indicator (prevents scroll reset)
   useEffect(() => {
-    const id = setInterval(() => cargar(), 60000)
+    const id = setInterval(() => cargar(false), 60000)
     return () => clearInterval(id)
   }, [desde, hasta])
 
@@ -6116,8 +6120,8 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
       }).catch(()=>{})
   }, [])
 
-  async function cargar() {
-    setLoading(true)
+  async function cargar(showLoading = true) {
+    if (showLoading) setLoading(true)
     try {
       const [gpsRes, calRes] = await Promise.all([
         fetch(`/api/carga-gps?desde=${desde}&hasta=${hasta}&ciclo=microciclo`),
@@ -6134,7 +6138,7 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
       )
       setCalSesiones(calSet)
     }
-    catch(e){} finally { setLoading(false) }
+    catch(e){} finally { if (showLoading) setLoading(false) }
   }
 
   // When a match is selected, load its metrics automatically
@@ -6175,7 +6179,7 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
   }
 
   const VARS = [
-    {key:'ua_total',   label:'UCE',            color:'#60a5fa', unit:''},
+    {key:'ua_total',   label:'UA',             color:'#60a5fa', unit:''},
     {key:'minActivo',  label:'Tiempo (min)',   color:'#34d399', unit:'min'},
     {key:'distTotal',  label:'DT (m)',         color:'#f59e0b', unit:'m'},
     {key:'distSprint', label:'Dist. Sprint (m)',color:'#f97316', unit:'m'},
@@ -6292,7 +6296,7 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
       <div style={{ marginBottom:20, display:'flex', justifyContent:'space-between', alignItems:'flex-end', flexWrap:'wrap', gap:12 }}>
         <div>
           <h2 style={{ fontFamily:'Bebas Neue,sans-serif', fontSize:36, color:'var(--snow)', letterSpacing:'0.04em', marginBottom:4 }}>🏋️ CONTROL DE CARGA · CALC</h2>
-          <p style={{ fontSize:12, color:'var(--silver)' }}>Microciclo · RPE, UCE y carga calculada desde sesiones planificadas</p>
+          <p style={{ fontSize:12, color:'var(--silver)' }}>Microciclo · RPE, UA y carga calculada desde sesiones planificadas</p>
         </div>
         <div style={{ display:'flex', gap:8, flexWrap:'wrap', alignItems:'flex-end' }}>
           {/* Bug fix: manual refresh button */}
@@ -6463,8 +6467,10 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
           const sesData = perSession[md] || {}
           const hasData = existingMdLabels.has(md)
           // Per-session player data: exact RPE/time for this session date (not aggregated)
-          const mdPlayers: any[] = perSessionPlayers[md] || players
-          const mdTeamAvg: any = perSessionTeamAvg[md] || teamAvg
+          // Never fall back to week-aggregate `players` — that replicates one day's RPE
+          // (e.g. Sunday's log) across every session column (Friday, Saturday…).
+          const mdPlayers: any[] = perSessionPlayers[md] || []
+          const mdTeamAvg: any = perSessionTeamAvg[md] || {}
           const SESSION_VARS = [
             {key:'distTotal',  label:'DT (m)',          color:'#f59e0b'},
             {key:'distSprint', label:'Dist. Sprint (m)',color:'#f97316'},
@@ -6504,7 +6510,7 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
                         <th style={{ padding:'5px 8px', textAlign:'left', color:'var(--silver)', fontSize:8, fontWeight:700, textTransform:'uppercase', borderBottom:'1px solid var(--mist)' }}>Pos.</th>
                         <th style={{ padding:'5px 8px', textAlign:'center', color:'#c8f135', fontSize:8, fontWeight:700, textTransform:'uppercase', borderBottom:'1px solid var(--mist)' }}>RPE</th>
                         <th style={{ padding:'5px 8px', textAlign:'center', color:'#34d399', fontSize:8, fontWeight:700, textTransform:'uppercase', borderBottom:'1px solid var(--mist)' }}>Tiempo</th>
-                        <th style={{ padding:'5px 8px', textAlign:'center', color:'#60a5fa', fontSize:8, fontWeight:700, textTransform:'uppercase', borderBottom:'1px solid var(--mist)', borderRight:'2px solid rgba(200,241,53,.3)' }}>UCE</th>
+                        <th style={{ padding:'5px 8px', textAlign:'center', color:'#60a5fa', fontSize:8, fontWeight:700, textTransform:'uppercase', borderBottom:'1px solid var(--mist)', borderRight:'2px solid rgba(200,241,53,.3)' }}>UA</th>
                         {SESSION_VARS.map(sv => (
                           <th key={sv.key} style={{ padding:'5px 8px', textAlign:'center', color:sv.color, fontSize:8, fontWeight:700, textTransform:'uppercase', whiteSpace:'nowrap', borderBottom:'1px solid var(--mist)', background:'rgba(200,241,53,.03)' }}>{sv.label}</th>
                         ))}
@@ -6571,9 +6577,9 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
                       line: null,
                     },
                     {
-                      title: 'UCE + RPE', color: '#c8f135',
+                      title: 'UA + RPE', color: '#c8f135',
                       bars: [
-                        { key:'ua_total', label:'UCE', color:'#60a5fa' },
+                        { key:'ua_total', label:'UA', color:'#60a5fa' },
                       ],
                       line: { key:'rpe', label:'RPE', color:'#c8f135' },
                     },
@@ -6619,7 +6625,10 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
                           const GPS_BAR_KEYS = new Set(['distTotal','distSprint','nSprints','nAcel','nDecel','distMP','nAcel3','nDecel3'])
                           const getBarVal = (p: any, key: string) =>
                             GPS_BAR_KEYS.has(key) ? Math.round(Number(sesData[key])||0) : (Number(p[key])||0)
-                          const maxBar = Math.max(...players.flatMap((p:any) => grp.bars.map(b => getBarVal(p, b.key))), 1)
+                          const allBarVals = players.flatMap((p:any) => grp.bars.map(b => getBarVal(p, b.key)))
+                          const maxBar = Math.max(...allBarVals, 1)
+                          // Show a note when all GPS bar values are 0 (no session blocks defined)
+                          const allGpsZero = grp.bars.every(b => GPS_BAR_KEYS.has(b.key)) && allBarVals.every(v => v === 0)
                           const lineVals = grp.line ? players.map((p:any) => Number(p[grp.line!.key])||0) : []
                           const maxLine = Math.max(...lineVals, 1)
 
@@ -6644,6 +6653,13 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
                                   </span>
                                 )}
                               </div>
+
+                              {/* Note when GPS data is unavailable from calculator */}
+                              {allGpsZero && (
+                                <div style={{ padding:'8px 10px', marginBottom:8, background:'rgba(255,255,255,.04)', borderRadius:8, fontSize:10, color:'var(--fog)', textAlign:'center', fontStyle:'italic' }}>
+                                  Sin datos GPS calculados — definí bloques con dimensiones en esta sesión
+                                </div>
+                              )}
 
                               {/* Chart area */}
                               <div style={{ position:'relative', height:`${BAR_H + 36}px` }}>
@@ -7725,9 +7741,15 @@ function ExpoAIPanel({ teamData }: { teamData: any[] }) {
     })
   }
 
-  // Get per-player per-MD value
+  // Get per-player per-MD value.
+  // If no GPS rows found by MD label (e.g., GPS imported without sesion_id), fall back
+  // to looking up by the session's fecha (gpsPerMD may be keyed by date string).
   const getMdVal = (playerName: string, md: string, key: string): number | null => {
-    const rows = gpsPerMD[md] || []
+    let rows = gpsPerMD[md] || []
+    if (!rows.length) {
+      const ses = sesionesInfo.find((s:any) => s.titulo === md)
+      if (ses?.fecha) rows = gpsPerMD[ses.fecha] || []
+    }
     const player = rows.find((p:any) => p.nombre === playerName)
     if (!player) return null
     const v = Number(player[key])

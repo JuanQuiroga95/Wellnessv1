@@ -134,6 +134,13 @@ function parseRawRows(raw: any[][]): Record<string, any>[] {
         if (!isNaN(n)) metricas[f] = n
       })
       if (!name) return null
+      // Skip aggregate/summary rows (team averages, totals, etc.)
+      const nl = name.toLowerCase()
+      const isAggregate = ['team', 'average', 'promedio', 'total', 'equipo', 'media',
+        'squad', 'mean', 'promedio equipo', 'team average'].some(k => nl === k || nl.startsWith(k + ' ') || nl.endsWith(' ' + k))
+      if (isAggregate) return null
+      // Skip rows with no valid metrics at all
+      if (Object.keys(metricas).length === 0) return null
       return { nombre_catapult: name, nombre_norm: normalizeName(name), metricas }
     }).filter(Boolean) as any[]
 }
