@@ -94,6 +94,36 @@ const LEST = ['Tratamiento','Readaptación','Campo','Alta']
 const LCOL = {'Tratamiento':'#ef4444','Readaptación':'#f59e0b','Campo':'#22c55e','Alta':'#888'}
 const POSICIONES = ['Portero','Defensa Central','Lateral Derecho','Lateral Izquierdo','Mediocentro Defensivo','Mediocentro','Mediocentro Ofensivo','Volante Derecho','Volante Izquierdo','Volante','Extremo Derecho','Extremo Izquierdo','Centro Delantero','Delantero']
 
+
+// ─── DATE UTILITIES ──────────────────────────────────────────────────────────
+// 'YYYY-MM-DD' strings passed to new Date() are treated as UTC midnight,
+// which shifts the date by 1 day in timezones behind UTC (e.g. Argentina UTC-3).
+// All date arithmetic uses these helpers to stay in local time.
+
+/** Parse 'YYYY-MM-DD' as a LOCAL date (not UTC). */
+function parseLocalDate(str: string): Date {
+  const [y, m, d] = str.split('-').map(Number)
+  return new Date(y, m - 1, d)
+}
+
+/** Format a Date to 'YYYY-MM-DD' using local time (not UTC). */
+function localDateStr(d: Date): string {
+  const y = d.getFullYear()
+  const mo = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${mo}-${day}`
+}
+
+/** Shift a 'YYYY-MM-DD' string by n days, returning 'YYYY-MM-DD'. */
+function addDays(dateStr: string, n: number): string {
+  const d = parseLocalDate(dateStr)
+  d.setDate(d.getDate() + n)
+  return localDateStr(d)
+}
+
+/** Today as 'YYYY-MM-DD' in local time. */
+function todayLocal(): string { return localDateStr(new Date()) }
+// ─────────────────────────────────────────────────────────────────────────────
 export default function CoachClient({ session, teamData, today }) {
   const [tab, setTab] = useState('team')
   const [selected, setSelected] = useState(null)
@@ -745,9 +775,9 @@ function HistorialLesivo({ jugadorId }: { jugadorId: number }) {
 
 function CambioCargaPanel() {
   const now = new Date()
-  const defaultDesde = new Date(Date.now() - 28 * 86400000).toISOString().split('T')[0]
+  const defaultDesde = addDays(todayLocal(), -28)
   const [desde, setDesde] = useState(defaultDesde)
-  const [hasta, setHasta] = useState(now.toISOString().split('T')[0])
+  const [hasta, setHasta] = useState(todayLocal())
   const [minEnt, setMinEnt] = useState(60)
   const [minPart, setMinPart] = useState(0)
   const [data, setData] = useState<any>(null)
@@ -757,7 +787,7 @@ function CambioCargaPanel() {
   const [gpsData, setGpsData] = useState<any>(null)
 
   const CHART_VARS_CALC = [
-    { key:'ua',         label:'UA',           color:'#c8f135', src:'rpe' },
+    { key:'ua',         label:'UCE',           color:'#c8f135', src:'rpe' },
     { key:'uce',        label:'UCE',           color:'#f59e0b', src:'rpe' },
     { key:'rpe',        label:'RPE',           color:'#60a5fa', src:'rpe' },
   ]
@@ -1150,8 +1180,8 @@ function CalendarioPanel({ teamData }) {
     } else {
       const ws = new Date(weekStart)
       const we = new Date(weekStart); we.setDate(we.getDate() + 6)
-      desde = ws.toISOString().split('T')[0]
-      hasta = we.toISOString().split('T')[0]
+      desde = localDateStr(ws)
+      hasta = localDateStr(we)
     }
     try {
       const r = await fetch(`/api/calendario?desde=${desde}&hasta=${hasta}`)
@@ -1227,11 +1257,11 @@ function CalendarioPanel({ teamData }) {
   function getDiasSemana() {
     return Array.from({length:7}, (_,i) => {
       const d = new Date(weekStart); d.setDate(d.getDate()+i)
-      return d.toISOString().split('T')[0]
+      return localDateStr(d)
     })
   }
 
-  const today = now.toISOString().split('T')[0]
+  const today = todayLocal()
   const diasMes = viewMode === 'mes' ? getDiasMes() : []
   const diasSemana = viewMode === 'semana' ? getDiasSemana() : []
 
@@ -2635,7 +2665,7 @@ function SesionEditor({ sesion, defaultFecha, rpeReal = 0, onSave, onDelete, onC
 function MinutosPanel({ teamData }) {
   const now = new Date()
   const [desde, setDesde] = useState(`${now.getFullYear()}-01-01`)
-  const [hasta, setHasta] = useState(now.toISOString().split('T')[0])
+  const [hasta, setHasta] = useState(todayLocal())
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(false)
   const [showAdd, setShowAdd] = useState(false)
@@ -2867,8 +2897,8 @@ function AddMatchForm({ teamData, onSuccess, onCancel }) {
 
   useEffect(() => {
     // Load last ~8 weeks of calendar to find partidos
-    const hasta = new Date().toISOString().split('T')[0]
-    const desde = new Date(Date.now() - 56 * 86400000).toISOString().split('T')[0]
+    const hasta = todayLocal()
+    const desde = addDays(todayLocal(), -56)
     setLoadingCal(true)
     fetch(`/api/calendario?desde=${desde}&hasta=${hasta}`)
       .then(r => r.json())
@@ -3128,7 +3158,7 @@ function CargaExternaPanel() {
   const [sortField, setSortField] = useState('nombre')
   const [sortDir,   setSortDir]   = useState<'asc'|'desc'>('asc')
   const [vistaMode, setVistaMode] = useState<'ciclo'|'dia'>('ciclo')
-  const [diaSelec,  setDiaSelec]  = useState(new Date().toISOString().split('T')[0])
+  const [diaSelec,  setDiaSelec]  = useState(todayLocal())
   const [diaData,   setDiaData]   = useState<any>(null)
   const [diaLoading, setDiaLoading] = useState(false)
   const [gpsVisibleCols, setGpsVisibleCols] = useState<Set<string> | null>(null)
@@ -3146,8 +3176,8 @@ function CargaExternaPanel() {
     // Include future sessions: range goes from N days ago to N days ahead
     // So the microciclo shows the full training week (past + planned future)
     const dias = CICLO_DAYS[ciclo]
-    const desde = new Date(Date.now() - dias * 86400000).toISOString().split('T')[0]
-    const hasta = new Date(Date.now() + dias * 86400000).toISOString().split('T')[0]
+    const desde = addDays(todayLocal(), -dias)
+    const hasta = addDays(todayLocal(), +dias)
     try {
       const r = await fetch(`/api/carga-gps?desde=${desde}&hasta=${hasta}&ciclo=${ciclo}`)
       if (r.ok) setData(await r.json())
@@ -3284,11 +3314,11 @@ function CargaExternaPanel() {
         {/* Day picker — only in dia mode */}
         {vistaMode === 'dia' && (
           <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-            <button onClick={() => { const d=new Date(diaSelec); d.setDate(d.getDate()-1); setDiaSelec(d.toISOString().split('T')[0]) }}
+            <button onClick={() => setDiaSelec(addDays(diaSelec, -1))}
               style={{ padding:'6px 12px', borderRadius:8, background:'var(--ink2)', border:'1px solid var(--mist)', color:'var(--silver)', cursor:'pointer', fontSize:14 }}>‹</button>
             <input type="date" value={diaSelec} onChange={e=>setDiaSelec(e.target.value)}
               className="wp-input" style={{ padding:'6px 12px', fontSize:13, width:155 }} />
-            <button onClick={() => { const d=new Date(diaSelec); d.setDate(d.getDate()+1); setDiaSelec(d.toISOString().split('T')[0]) }}
+            <button onClick={() => setDiaSelec(addDays(diaSelec, +1))}
               style={{ padding:'6px 12px', borderRadius:8, background:'var(--ink2)', border:'1px solid var(--mist)', color:'var(--silver)', cursor:'pointer', fontSize:14 }}>›</button>
           </div>
         )}
@@ -3685,8 +3715,8 @@ function CargaExternaPanel() {
 // COMPARATIVA POR POSICIÓN
 // ═══════════════════════════════════════════════════════════════════
 function ComparativaPanel({ teamData }: { teamData: any[] }) {
-  const [desde, setDesde] = useState(() => { const d=new Date(); d.setDate(d.getDate()-28); return d.toISOString().split('T')[0] })
-  const [hasta, setHasta] = useState(new Date().toISOString().split('T')[0])
+  const [desde, setDesde] = useState(() => { const d=new Date(); d.setDate(d.getDate()-28); return localDateStr(d) })
+  const [hasta, setHasta] = useState(todayLocal())
   const [posMetric, setPosMetric] = useState('dist_total')
   const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(false)
@@ -4287,7 +4317,7 @@ function LesionCard({ lesion:l, onUpdate, onVerHistorial }: { lesion:any, onUpda
   const dias = Math.max(0, Math.floor((fin.getTime()-inicio.getTime())/86400000))
 
   function darAlta() {
-    const hoy = new Date().toISOString().split('T')[0]
+    const hoy = todayLocal()
     setEstado('Alta')
     setActiva(false)
     setFechaAlta(hoy)
@@ -4355,7 +4385,7 @@ function LesionCard({ lesion:l, onUpdate, onVerHistorial }: { lesion:any, onUpda
 }
 
 function NewLesionForm({ teamData, onSuccess, onCancel }) {
-  const [f, setF] = useState({ jugador_id:'', fecha_inicio:new Date().toISOString().split('T')[0], tipo_lesion:'Muscular', zona:'', descripcion:'', eta_dias:'', estado:'Tratamiento' })
+  const [f, setF] = useState({ jugador_id:'', fecha_inicio:todayLocal(), tipo_lesion:'Muscular', zona:'', descripcion:'', eta_dias:'', estado:'Tratamiento' })
   const [loading, setLoading] = useState(false)
   const set = (k,v) => setF(p=>({...p,[k]:v}))
   async function submit(e) {
@@ -4953,7 +4983,7 @@ function ReadinessPanel({ teamData }) {
 
   async function loadData() {
     setLoading(true)
-    try { const r = await fetch('/api/readiness?weeks=4'); setData(await r.json()) }
+    try { const r = await fetch(`/api/readiness?weeks=4&clientDate=${todayLocal()}`); setData(await r.json()) }
     finally { setLoading(false) }
   }
 
@@ -5164,7 +5194,7 @@ function AcumBarChart({ players, vars, accentColor = '#c8f135' }: { players: any
 function AcumPanel({ teamData }) {
   const [miciData, setMiciData] = useState<any>(null)
   const [miciLoading, setMiciLoading] = useState(false)
-  const today = new Date().toISOString().split('T')[0]
+  const today = todayLocal()
   const [miciNum, setMiciNum] = useState(1)
 
   // miciNum 1 = this week (offset 0), 2 = last week (offset -1), etc.
@@ -5175,13 +5205,13 @@ function AcumPanel({ teamData }) {
     const offset = getMiciOffset(num)
     const d = new Date()
     d.setDate(d.getDate() - d.getDay() + 1 + offset * 7 + mondayShiftMici)
-    return d.toISOString().split('T')[0]
+    return localDateStr(d)
   }
   const getMiciEnd = (num: number) => {
     const offset = getMiciOffset(num)
     const d = new Date()
     d.setDate(d.getDate() - d.getDay() + 7 + offset * 7 + mondayShiftMici)
-    return d.toISOString().split('T')[0]
+    return localDateStr(d)
   }
 
   const [miciDesde, setMiciDesde] = useState(() => getMiciStart(1))
@@ -5201,7 +5231,7 @@ function AcumPanel({ teamData }) {
   }
 
   const MICI_VARS = [
-    {key:'ua_total',   label:'UA',             color:'#60a5fa'},
+    {key:'ua_total',   label:'UCE',             color:'#60a5fa'},
     {key:'minActivo',  label:'Tiempo (min)',    color:'#34d399'},
     {key:'distTotal',  label:'DT (m)',          color:'#f59e0b'},
     {key:'distSprint', label:'Dist. Sprint (m)',color:'#f97316'},
@@ -5513,7 +5543,7 @@ function CoachEmailSettings() {
 // GPS_METRIC_META, GPS_METRIC_ORDER, fmtGps defined at module level above
 
 function GpsPanel({ teamData }: { teamData: any }) {
-  const today = new Date().toISOString().split('T')[0]
+  const today = todayLocal()
   const [fecha, setFecha] = useState(today)
   const [tipoSesion, setTipoSesion] = useState<'entrenamiento' | 'partido'>('entrenamiento')
   const [sesionId, setSesionId] = useState<number | null>(null)
@@ -5547,7 +5577,7 @@ function GpsPanel({ teamData }: { teamData: any }) {
   useEffect(() => {
     setLoadingHistorial(true)
     const desde = new Date(); desde.setDate(desde.getDate() - 30)
-    const desdeStr = desde.toISOString().split('T')[0]
+    const desdeStr = localDateStr(desde)
     fetch(`/api/gps/sesiones?fecha=${today}`)
       .then(r => r.json())
       .then(() => setLoadingHistorial(false))
@@ -5958,19 +5988,19 @@ function GpsPanel({ teamData }: { teamData: any }) {
 const MD_ORDER = ['MD+1','MD+2','MD+3','MD-4','MD-3','MD-2','MD-1','MD']
 
 function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
-  const today = new Date().toISOString().split('T')[0]
+  const today = todayLocal()
   // If today is Monday (getDay()===1), shift back 7 days so offset=0 shows the
   // microciclo that just ended (Mon–Sun), not the brand-new week with no data yet.
   const mondayShift = new Date().getDay() === 1 ? -7 : 0
   const getWeekStart = (offsetWeeks = 0) => {
     const d = new Date()
     d.setDate(d.getDate() - d.getDay() + 1 + offsetWeeks * 7 + mondayShift)
-    return d.toISOString().split('T')[0]
+    return localDateStr(d)
   }
   const getWeekEnd = (offsetWeeks = 0) => {
     const d = new Date()
     d.setDate(d.getDate() - d.getDay() + 7 + offsetWeeks * 7 + mondayShift)
-    return d.toISOString().split('T')[0]
+    return localDateStr(d)
   }
   const [microcicloOffset, setMicrocicloOffset] = useState(0)
   const [desde, setDesde] = useState(getWeekStart(0))
@@ -6003,7 +6033,7 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
     // Load partido sessions from the calendar (sesiones_plan con tipo='partido')
     // These come from /api/calendario GET response
     const hace1año = new Date(); hace1año.setFullYear(hace1año.getFullYear()-1)
-    const desdeStr = hace1año.toISOString().split('T')[0]
+    const desdeStr = localDateStr(hace1año)
     fetch(`/api/calendario?desde=${desdeStr}&hasta=${today}`)
       .then(r=>r.json())
       .then(d => {
@@ -6097,7 +6127,7 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
   }
 
   const VARS = [
-    {key:'ua_total',   label:'UA',            color:'#60a5fa', unit:''},
+    {key:'ua_total',   label:'UCE',            color:'#60a5fa', unit:''},
     {key:'minActivo',  label:'Tiempo (min)',   color:'#34d399', unit:'min'},
     {key:'distTotal',  label:'DT (m)',         color:'#f59e0b', unit:'m'},
     {key:'distSprint', label:'Dist. Sprint (m)',color:'#f97316', unit:'m'},
@@ -6120,6 +6150,8 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
   const players: any[] = data?.players || []
   const teamAvg = data?.teamAvg || {}
   const perSession: Record<string,any> = data?.perSession || {}
+  const perSessionPlayers: Record<string,any[]> = data?.perSessionPlayers || {}
+  const perSessionTeamAvg: Record<string,any> = data?.perSessionTeamAvg || {}
   const sesionesInfo: any[] = data?.sesionesInfo || []
   const cePerSession: Record<string,any> = data?.cePerSession || {}
   // Filter to sessions visible in calendar (prevents ghost MD sessions from carga-gps)
@@ -6234,6 +6266,7 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
           <div><label style={{ fontSize:10, color:'var(--fog)', display:'block', marginBottom:3, textTransform:'uppercase' }}>Desde</label><input className="wp-input" type="date" value={desde} onChange={e=>setDesde(e.target.value)} /></div>
           <div><label style={{ fontSize:10, color:'var(--fog)', display:'block', marginBottom:3, textTransform:'uppercase' }}>Hasta</label><input className="wp-input" type="date" value={hasta} onChange={e=>setHasta(e.target.value)} /></div>
           <button onClick={()=>window.print()} style={{ fontSize:11, padding:'8px 14px', borderRadius:8, background:'rgba(200,241,53,.1)', color:'var(--lime)', border:'1px solid rgba(200,241,53,.3)', cursor:'pointer' }}>🖨️ PDF</button>
+          <button onClick={()=>cargar()} disabled={loading} title="Actualizar datos" style={{ fontSize:11, padding:'8px 14px', borderRadius:8, background:loading?'rgba(255,255,255,.04)':'rgba(96,165,250,.1)', color:loading?'var(--fog)':'#60a5fa', border:'1px solid rgba(96,165,250,.3)', cursor:loading?'default':'pointer' }}>🔄 {loading?'Cargando…':'Actualizar'}</button>
         </div>
       </div>
 
@@ -6381,6 +6414,9 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
           const ses = sesionesInfo.find((s:any) => s.titulo === md)
           const sesData = perSession[md] || {}
           const hasData = existingMdLabels.has(md)
+          // Per-session player data: exact RPE/time for this session date (not aggregated)
+          const mdPlayers: any[] = perSessionPlayers[md] || players
+          const mdTeamAvg: any = perSessionTeamAvg[md] || teamAvg
           const SESSION_VARS = [
             {key:'distTotal',  label:'DT (m)',          color:'#f59e0b'},
             {key:'distSprint', label:'Dist. Sprint (m)',color:'#f97316'},
@@ -6427,13 +6463,13 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
                       </tr>
                     </thead>
                     <tbody>
-                      {players.map((p:any, i:number) => (
+                      {mdPlayers.map((p:any, i:number) => (
                         <tr key={i} style={{ borderTop:'1px solid var(--mist)', background:i%2===0?'transparent':'rgba(255,255,255,.01)' }}>
                           <td style={{ padding:'6px 14px', color:'var(--snow)', fontWeight:500, whiteSpace:'nowrap' }}>{p.nombre}</td>
                           <td style={{ padding:'6px 8px', color:'var(--fog)', fontSize:10 }}>{p.posicion||'—'}</td>
-                          <td style={{ padding:'6px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', color:p.rpe?'#c8f135':'var(--fog)' }}>{p.rpe||'—'}</td>
-                          <td style={{ padding:'6px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', color:p.minActivo?'#34d399':'var(--fog)' }}>{p.minActivo||'—'}</td>
-                          <td style={{ padding:'6px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', color:p.ua_total?'#60a5fa':'var(--fog)', borderRight:'2px solid rgba(200,241,53,.3)' }}>{p.ua_total||'—'}</td>
+                          <td style={{ padding:'6px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', color:p.rpe?'#c8f135':'var(--fog)' }}>{p.rpe??'—'}</td>
+                          <td style={{ padding:'6px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', color:p.minActivo?'#34d399':'var(--fog)' }}>{p.minActivo??'—'}</td>
+                          <td style={{ padding:'6px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', color:p.ua_total?'#60a5fa':'var(--fog)', borderRight:'2px solid rgba(200,241,53,.3)' }}>{p.rpe && p.minActivo ? Math.round(p.rpe * p.minActivo) : (p.ua_total??'—')}</td>
                           {SESSION_VARS.map((sv, si) => {
                             // Session data is the same for all players — highlight in lime
                             const val = Math.round(Number(sesData[sv.key])||0)
@@ -6452,9 +6488,9 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
                       <tr style={{ borderTop:'2px solid rgba(200,241,53,.3)', background:'rgba(200,241,53,.04)' }}>
                         <td style={{ padding:'6px 14px', fontWeight:800, color:'var(--lime)', fontSize:10, textTransform:'uppercase' }}>PROM.</td>
                         <td/>
-                        <td style={{ padding:'6px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, color:teamAvg.rpe?'#c8f135':'var(--fog)' }}>{teamAvg.rpe||'—'}</td>
-                        <td style={{ padding:'6px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, color:teamAvg.minActivo?'#34d399':'var(--fog)' }}>{teamAvg.minActivo||'—'}</td>
-                        <td style={{ padding:'6px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, color:teamAvg.ua_total?'#60a5fa':'var(--fog)', borderRight:'2px solid rgba(200,241,53,.3)' }}>{teamAvg.ua_total||'—'}</td>
+                        <td style={{ padding:'6px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, color:mdTeamAvg.rpe?'#c8f135':'var(--fog)' }}>{mdTeamAvg.rpe??'—'}</td>
+                        <td style={{ padding:'6px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, color:mdTeamAvg.minActivo?'#34d399':'var(--fog)' }}>{mdTeamAvg.minActivo??'—'}</td>
+                        <td style={{ padding:'6px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, color:mdTeamAvg.ua_total?'#60a5fa':'var(--fog)', borderRight:'2px solid rgba(200,241,53,.3)' }}>{mdTeamAvg.rpe && mdTeamAvg.minActivo ? Math.round(mdTeamAvg.rpe * mdTeamAvg.minActivo) : (mdTeamAvg.ua_total??'—')}</td>
                         {SESSION_VARS.map(sv => {
                           const val = Math.round(Number(sesData[sv.key])||0)
                           return (
@@ -6489,7 +6525,7 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
                     {
                       title: 'UCE + RPE', color: '#c8f135',
                       bars: [
-                        { key:'ua_total', label:'UA', color:'#60a5fa' },
+                        { key:'ua_total', label:'UCE', color:'#60a5fa' },
                       ],
                       line: { key:'rpe', label:'RPE', color:'#c8f135' },
                     },
@@ -6975,19 +7011,19 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
 // CONTROL DE CARGA — GPS (datos reales Catapult)
 // ═══════════════════════════════════════════════════════════════════
 function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
-  const today = new Date().toISOString().split('T')[0]
+  const today = todayLocal()
   const [microcicloOffset, setMicrocicloOffset] = useState(0)
   const mondayShift = new Date().getDay() === 1 ? -7 : 0
 
   const getWeekStart = (offsetWeeks = 0) => {
     const d = new Date()
     d.setDate(d.getDate() - d.getDay() + 1 + offsetWeeks * 7 + mondayShift)
-    return d.toISOString().split('T')[0]
+    return localDateStr(d)
   }
   const getWeekEnd = (offsetWeeks = 0) => {
     const d = new Date()
     d.setDate(d.getDate() - d.getDay() + 7 + offsetWeeks * 7 + mondayShift)
-    return d.toISOString().split('T')[0]
+    return localDateStr(d)
   }
 
   const [desde, setDesde] = useState(() => getWeekStart(0))
@@ -7009,7 +7045,7 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
   useEffect(() => { cargar() }, [desde, hasta])
   useEffect(() => {
     const hace1año = new Date(); hace1año.setFullYear(hace1año.getFullYear()-1)
-    fetch(`/api/calendario?desde=${hace1año.toISOString().split('T')[0]}&hasta=${today}`)
+    fetch(`/api/calendario?desde=${localDateStr(hace1año)}&hasta=${today}`)
       .then(r=>r.json())
       .then(d => {
         const sesPartido = (d.sesiones||[]).filter((s:any) => s.tipo === 'partido')
@@ -7582,8 +7618,8 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
 // EXPO AI PANEL — Exposiciones a Alta Intensidad
 // ═══════════════════════════════════════════════════════════════════
 function ExpoAIPanel({ teamData }: { teamData: any[] }) {
-  const [desde, setDesde] = useState(() => { const d=new Date(); d.setDate(d.getDate()-28); return d.toISOString().split('T')[0] })
-  const [hasta, setHasta] = useState(new Date().toISOString().split('T')[0])
+  const [desde, setDesde] = useState(() => { const d=new Date(); d.setDate(d.getDate()-28); return localDateStr(d) })
+  const [hasta, setHasta] = useState(todayLocal())
   const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(false)
   const [partidos, setPartidos] = useState<any[]>([])
@@ -7594,7 +7630,7 @@ function ExpoAIPanel({ teamData }: { teamData: any[] }) {
   useEffect(() => { cargar() }, [desde, hasta])
   useEffect(() => {
     const hace1año = new Date(); hace1año.setFullYear(hace1año.getFullYear()-1)
-    fetch(`/api/calendario?desde=${hace1año.toISOString().split('T')[0]}&hasta=${hasta}`)
+    fetch(`/api/calendario?desde=${localDateStr(hace1año)}&hasta=${hasta}`)
       .then(r=>r.json()).then(d => {
         const all = [
           ...((d.sesiones||[]).filter((s:any)=>s.tipo==='partido').map((s:any)=>({ fecha:s.fecha, rival:s.rival||'Partido', _src:'calendar' }))),

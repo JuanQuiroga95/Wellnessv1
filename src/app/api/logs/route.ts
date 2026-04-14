@@ -34,6 +34,7 @@ export async function GET(req: NextRequest) {
   if (!s) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
   const { searchParams } = new URL(req.url)
+  const clientDate = searchParams.get('clientDate') || localToday()
   const jid = sanitizeInt(searchParams.get('jugadorId'), 1, 9999999)
   const days = sanitizeInt(searchParams.get('days'), 1, 365) || 28
 
@@ -62,7 +63,7 @@ export async function GET(req: NextRequest) {
       )
       AND sp.club_id = el.club_id
     WHERE el.jugador_id = ${jid}
-      AND el.fecha >= CURRENT_DATE - ${days}::int
+      AND el.fecha >= ${clientDate}::date - ${days}::int
     ORDER BY el.fecha ASC`
 
   // Compute UCE = rpe × duracion × NE_prom for each log
@@ -116,7 +117,7 @@ export async function POST(req: NextRequest) {
   }
 
   const tipo_sesion = body.tipo_sesion === 'PARTIDO' ? 'PARTIDO' : 'EQUIPO'
-  const fecha = body.fecha || new Date().toISOString().split('T')[0]
+  const fecha = body.fecha || localToday()
   const clubId = s.clubId ? Number(s.clubId) : null
 
   const [r] = await sql`

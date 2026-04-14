@@ -1,3 +1,5 @@
+
+function localToday(): string { const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` }
 export const dynamic = 'force-dynamic'
 import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/auth'
@@ -12,7 +14,7 @@ export default async function CoachPage() {
   const session = await getSession()
   if (!session || session.rol !== 'admin' && session.rol !== 'master_admin') redirect('/login')
   const sql = getDb()
-  const today = new Date().toISOString().split('T')[0]
+  const today = localToday()
   const clubId = session.clubId ? Number(session.clubId) : null
   const isMaster = session.rol === 'master_admin'
 

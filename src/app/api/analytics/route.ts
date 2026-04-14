@@ -4,15 +4,26 @@ import { getDb } from '@/lib/db'
 import { getSessionFromRequest } from '@/lib/auth'
 function isAdmin(s: any) { return s?.rol === 'admin' || s?.rol === 'master_admin' }
 
+// Local-date helper: avoids UTC-midnight shift from localToday()
+function localToday(): string {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
+}
+function localDaysAgo(n: number): string {
+  const d = new Date(); d.setDate(d.getDate() - n)
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
+}
+
 export async function GET(req: NextRequest) {
   const s = await getSessionFromRequest(req)
   if (!s || !isAdmin(s)) return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
   const { searchParams } = new URL(req.url)
 
   // Accept desde/hasta OR legacy weeks param
-  const hasta      = searchParams.get('hasta') || new Date().toISOString().split('T')[0]
+  const hasta      = searchParams.get('hasta') || localToday()
+  const clientDate = searchParams.get('clientDate') || localToday()
   const fromWeeks  = parseInt(searchParams.get('weeks') || '4')
-  const desdeDefault = (() => { const d = new Date(hasta); d.setDate(d.getDate() - fromWeeks * 7); return d.toISOString().split('T')[0] })()
+  const desdeDefault = (() => { const d = new Date(hasta.replace(/-/g, '/')); d.setDate(d.getDate() - fromWeeks * 7); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` })()
   const desde      = searchParams.get('desde') || desdeDefault
 
   const clubId  = s.clubId ? Number(s.clubId) : null
@@ -62,7 +73,7 @@ export async function GET(req: NextRequest) {
            w.nivel_estres::int, w.estado_animo::int,
            (COALESCE(w.fatiga,0)+COALESCE(w.calidad_sueno,0)+COALESCE(w.dolor_muscular,0)+COALESCE(w.nivel_estres,0)+COALESCE(w.estado_animo,0))::int AS total_wellness
     FROM jugadores j JOIN usuarios u ON u.id=j.usuario_id
-    LEFT JOIN wellness_logs w ON w.jugador_id=j.id AND w.fecha >= CURRENT_DATE - 1
+    LEFT JOIN wellness_logs w ON w.jugador_id=j.id AND w.fecha >= ${clientDate}::date - 1
     WHERE u.rol='jugador' AND u.activo=true
       AND (${isMaster}::boolean OR (u.club_id=${clubId} AND j.club_id=${clubId}))
     ORDER BY j.id, w.fecha DESC NULLS LAST`

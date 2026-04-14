@@ -3,6 +3,10 @@ import { getDb } from '@/lib/db'
 import { sendReminderEmail, sendBirthdayEmail, sendACWRAlertEmail } from '@/lib/email'
 import { calcACWR } from '@/lib/acwr'
 
+
+// tz-safe date helpers
+function localToday(): string { const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` }
+function localDaysAgo(n: number): string { const d=new Date(); d.setDate(d.getDate()-n); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` }
 export const dynamic = 'force-dynamic'
 
 // Vercel Hobby: cron runs once per day at 11:00 UTC = 08:00 Argentina (UTC-3)
@@ -20,7 +24,7 @@ export async function GET(req: NextRequest) {
   // Argentina time (UTC-3)
   const AR_OFFSET_MS = -3 * 60 * 60 * 1000
   const nowAR = new Date(Date.now() + AR_OFFSET_MS)
-  const today = nowAR.toISOString().split('T')[0]
+  const today = `${nowAR.getFullYear()}-${String(nowAR.getMonth()+1).padStart(2,'0')}-${String(nowAR.getDate()).padStart(2,'0')}`
   const todayMMDD = today.slice(5)
 
   const results: any[] = []

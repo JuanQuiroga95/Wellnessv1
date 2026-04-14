@@ -1,3 +1,7 @@
+
+// tz-safe date helpers
+function localToday(): string { const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` }
+function localDaysAgo(n: number): string { const d=new Date(); d.setDate(d.getDate()-n); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` }
 export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { getDb } from '@/lib/db'
@@ -108,7 +112,7 @@ export async function POST(req: NextRequest) {
     for (const demo of SESIONES_DEMO) {
       const d = new Date()
       d.setDate(d.getDate() + demo.offset)
-      const fecha = d.toISOString().split('T')[0]
+      const fecha = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
 
       // Build ejercicios array with GPS data
       const ejercicios = demo.tareas.map(t => {
@@ -166,8 +170,8 @@ export async function DELETE(req: NextRequest) {
     const s = await getSessionFromRequest(req)
     if (!s || !isAdmin(s)) return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
     const sql = getDb()
-    const d7ago = new Date(Date.now() - 7 * 86400000).toISOString().split('T')[0]
-    const d7ade = new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0]
+    const d7ago = localDaysAgo(7)
+    const d7ade = localDaysAgo(-7)
     await sql`DELETE FROM sesiones_plan WHERE admin_id = ${s.userId} AND fecha BETWEEN ${d7ago} AND ${d7ade}`
     if (s.clubId) {
       await sql`DELETE FROM entrenamiento_logs WHERE club_id = ${s.clubId} AND fecha BETWEEN ${d7ago} AND ${d7ade}`

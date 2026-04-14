@@ -1,3 +1,7 @@
+
+// tz-safe date helpers
+function localToday(): string { const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` }
+function localDaysAgo(n: number): string { const d=new Date(); d.setDate(d.getDate()-n); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` }
 export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { getDb } from '@/lib/db'
@@ -63,7 +67,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const s = await getSessionFromRequest(req); if(!s||!isAdmin(s)) return NextResponse.json({error:'No autorizado'},{status:403})
   const {jugador_id,fecha_inicio,tipo_lesion,zona,descripcion,eta_dias,estado} = await req.json()
-  const sql = getDb(); const d = fecha_inicio||new Date().toISOString().split('T')[0]
+  const sql = getDb(); const d = fecha_inicio||localToday()
   const [r] = await sql`INSERT INTO lesiones(jugador_id,fecha_inicio,tipo_lesion,zona,descripcion,eta_dias,estado,activa,club_id)
     VALUES(${jugador_id},${d},${tipo_lesion||null},${zona||null},${descripcion||null},${eta_dias||null},${estado||'Tratamiento'},true,${s.clubId??null})
     RETURNING id`
@@ -82,7 +86,7 @@ export async function PATCH(req: NextRequest) {
 
     if (activa !== undefined) {
       if (activa === false) {
-        const alta = fecha_alta || new Date().toISOString().split('T')[0]
+        const alta = fecha_alta || localToday()
         await sql`UPDATE lesiones SET activa = false, fecha_alta = ${alta}, estado = 'Alta' WHERE id = ${id}`
       } else {
         await sql`UPDATE lesiones SET activa = true, fecha_alta = null, estado = 'Tratamiento' WHERE id = ${id}`

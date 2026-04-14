@@ -7,13 +7,23 @@ function isAdmin(s: any) { return s?.rol === 'admin' || s?.rol === 'master_admin
 // Allow large bodies for rival_foto base64
 export const maxDuration = 30
 
+// Local-date helper: avoids UTC-midnight shift from localToday()
+function localToday(): string {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
+}
+function localDaysAgo(n: number): string {
+  const d = new Date(); d.setDate(d.getDate() - n)
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
+}
+
 export async function GET(req: NextRequest) {
   const s = await getSessionFromRequest(req)
   if (!s || !isAdmin(s)) return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
   const { searchParams } = new URL(req.url)
   const jid = searchParams.get('jugadorId')
   const desde = searchParams.get('desde') || '2024-01-01'
-  const hasta = searchParams.get('hasta') || new Date().toISOString().split('T')[0]
+  const hasta = searchParams.get('hasta') || localToday()
   const sql = getDb()
 
   if (!jid) {
@@ -73,7 +83,7 @@ export async function POST(req: NextRequest) {
   if (!s || !isAdmin(s)) return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
   const { jugador_id, fecha, rival, tipo_partido, minutos, titular, notas, rival_foto } = await req.json()
   const sql = getDb()
-  const d = fecha || new Date().toISOString().split('T')[0]
+  const d = fecha || localToday()
   const clubId = s.clubId ? Number(s.clubId) : null
   const [r] = await sql`INSERT INTO partido_logs(jugador_id, fecha, rival, tipo_partido, minutos, titular, notas, rival_foto, club_id)
     VALUES(${jugador_id}, ${d}, ${rival||null}, ${tipo_partido||'Oficial'}, ${minutos||0}, ${titular!==false}, ${notas||null}, ${rival_foto||null}, ${clubId})

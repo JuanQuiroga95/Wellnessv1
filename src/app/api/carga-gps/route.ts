@@ -72,14 +72,24 @@ function sumarMetricasBloques(ejercicios: any[]): Record<string, number> {
   return Object.fromEntries(Object.entries(t).map(([k,v]) => [k, Math.round(v as number)]))
 }
 
+// Local-date helper: avoids UTC-midnight shift from localToday()
+function localToday(): string {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
+}
+function localDaysAgo(n: number): string {
+  const d = new Date(); d.setDate(d.getDate() - n)
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
+}
+
 export async function GET(req: NextRequest) {
   try {
     const s = await getSessionFromRequest(req)
     if (!s || !isAdmin(s)) return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
 
     const { searchParams } = new URL(req.url)
-    const desde = searchParams.get('desde') || new Date(Date.now() - 7 * 86400000).toISOString().split('T')[0]
-    const hasta = searchParams.get('hasta') || new Date().toISOString().split('T')[0]
+    const desde = searchParams.get('desde') || localDaysAgo(7)
+    const hasta = searchParams.get('hasta') || localToday()
     const ciclo = searchParams.get('ciclo') || 'microciclo'
     const sql   = getDb()
     // Normalize clubId to null — undefined breaks Neon template literals
@@ -532,12 +542,60 @@ export async function GET(req: NextRequest) {
         return a.fecha.localeCompare(b.fecha)
       })
 
+    // Build perSessionPlayers: for each MD label → array of players with their
+    // specific RPE/duration/UA for that single session date (not aggregated over range).
+    // This fixes the "RPE 4.5 instead of 3" bug: Cuadro 1 must show per-session data.
+    //
+    // Logic:
+    //   - Find the session's fecha from sesionesInfo (by MD label)
+    //   - For each player, find their entrenamiento_log on that exact fecha
+    //   - Show that log's rpe + duracion_min (or null if they didn't log that day)
+    const rpeByPlayerDate: Record<string, any> = {}  // key = `${jugador_id}_${fecha}`
+    for (const log of logs as any[]) {
+      rpeByPlayerDate[`${log.jugador_id}_${log.fecha}`] = log
+    }
+
+    const perSessionPlayers: Record<string, any[]> = {}
+    for (const ses of sesionesInfo) {
+      const md = ses.titulo
+      const fecha = ses.fecha
+      perSessionPlayers[md] = (todosJugadores as any[]).map((p: any) => {
+        const log = rpeByPlayerDate[`${p.jugador_id}_${fecha}`]
+        const rpe = log ? (Number(log.rpe) || null) : null
+        const duracion = log ? (Number(log.duracion_min) || null) : null
+        const ua = log ? (Number(log.carga_ua) || null) : null
+        return {
+          jugador_id: p.jugador_id,
+          nombre: p.nombre,
+          posicion: p.posicion || '—',
+          rpe,
+          minActivo: duracion,
+          ua_total: ua,
+        }
+      }).sort((a: any, b: any) => a.nombre.localeCompare(b.nombre))
+    }
+
+    // Team avg per session (only players who logged that day)
+    const perSessionTeamAvg: Record<string, any> = {}
+    for (const [md, plist] of Object.entries(perSessionPlayers)) {
+      const active = (plist as any[]).filter((p: any) => p.rpe !== null)
+      const n = active.length || 1
+      perSessionTeamAvg[md] = {
+        rpe:       active.length ? Math.round(active.reduce((s: number, p: any) => s + p.rpe, 0) / n * 10) / 10 : null,
+        minActivo: active.length ? Math.round(active.reduce((s: number, p: any) => s + (p.minActivo || 0), 0) / n) : null,
+        ua_total:  active.length ? Math.round(active.reduce((s: number, p: any) => s + (p.ua_total || 0), 0) / n) : null,
+        count:     active.length,
+      }
+    }
+
     return NextResponse.json({
       players, teamAvg,
       gpsReal, teamAvgGps,
       allMetricCols,
       sesionesInfo,
       perSession,
+      perSessionPlayers,
+      perSessionTeamAvg,
       cePerSession,
       gpsPerMD: gpsPerMDShaped,
       hasGpsData:    players.some((p: any) => p.hasGps),

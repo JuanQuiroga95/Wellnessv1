@@ -13,7 +13,7 @@ export async function POST(req: NextRequest) {
       if (Math.random()>.15) {
         const rpe=Math.floor(Math.random()*7)+3, dur=Math.floor(Math.random()*40)+60
         const d=new Date(); d.setDate(d.getDate()-i)
-        try { await sql`INSERT INTO entrenamiento_logs(jugador_id,fecha,rpe,duracion_min,tipo_sesion) VALUES(${p.id},${d.toISOString().split('T')[0]},${rpe},${dur},'EQUIPO') ON CONFLICT DO NOTHING` } catch{}
+        try { await sql`INSERT INTO entrenamiento_logs(jugador_id,fecha,rpe,duracion_min,tipo_sesion) VALUES(${p.id},${`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`},${rpe},${dur},'EQUIPO') ON CONFLICT DO NOTHING` } catch{}
       }
     }
   }

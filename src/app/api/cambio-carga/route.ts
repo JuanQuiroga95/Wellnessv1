@@ -4,13 +4,23 @@ import { getDb } from '@/lib/db'
 import { getSessionFromRequest } from '@/lib/auth'
 function isAdmin(s: any) { return s?.rol === 'admin' || s?.rol === 'master_admin' }
 
+// Local-date helper: avoids UTC-midnight shift from localToday()
+function localToday(): string {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
+}
+function localDaysAgo(n: number): string {
+  const d = new Date(); d.setDate(d.getDate() - n)
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
+}
+
 export async function GET(req: NextRequest) {
   const s = await getSessionFromRequest(req)
   if (!s || !isAdmin(s)) return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
 
   const { searchParams } = new URL(req.url)
-  const desde = searchParams.get('desde') || new Date(Date.now() - 28 * 86400000).toISOString().split('T')[0]
-  const hasta = searchParams.get('hasta') || new Date().toISOString().split('T')[0]
+  const desde = searchParams.get('desde') || localDaysAgo(28)
+  const hasta = searchParams.get('hasta') || localToday()
   const minEntrenamiento = parseInt(searchParams.get('minEntrenamiento') || '60')
   const minPartido = parseInt(searchParams.get('minPartido') || '0')
 

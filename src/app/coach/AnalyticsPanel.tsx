@@ -51,13 +51,17 @@ const ScatterTip = ({ active, payload }) => {
   )
 }
 
+function todayLocal(): string { const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` }
+
+
+function localToday(): string { const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` }
 export default function AnalyticsPanel() {
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [view, setView] = useState('readiness') // 'readiness' | 'scatter' | 'acum'
 
-  const todayStr = new Date().toISOString().split('T')[0]
-  const defaultDesde = (() => { const d = new Date(); d.setDate(d.getDate()-28); return d.toISOString().split('T')[0] })()
+  const todayStr = localToday()
+  const defaultDesde = (() => { const d = new Date(); d.setDate(d.getDate()-28); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` })()
   const [desde, setDesde] = useState(defaultDesde)
   const [hasta, setHasta] = useState(todayStr)
 
@@ -66,7 +70,7 @@ export default function AnalyticsPanel() {
   async function load() {
     setLoading(true)
     try {
-      const ar = await fetch(`/api/readiness?desde=${desde}&hasta=${hasta}`).then(r=>r.json())
+      const ar = await fetch(`/api/readiness?desde=${desde}&hasta=${hasta}&clientDate=${todayLocal()}`).then(r=>r.json())
       // Normalize: readiness endpoint returns {wRows, rpeRows, todayRows}
       // Map to consistent shape used throughout the component
       setData({

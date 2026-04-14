@@ -4,6 +4,16 @@ import { getDb } from '@/lib/db'
 import { getSessionFromRequest } from '@/lib/auth'
 function isAdmin(s: any) { return s?.rol === 'admin' || s?.rol === 'master_admin' }
 
+// Local-date helper: avoids UTC-midnight shift from localToday()
+function localToday(): string {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
+}
+function localDaysAgo(n: number): string {
+  const d = new Date(); d.setDate(d.getDate() - n)
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
+}
+
 export async function GET(req: NextRequest) {
   const s = await getSessionFromRequest(req)
   if (!s || !isAdmin(s)) return NextResponse.json({error:'No autorizado'},{status:403})
@@ -11,9 +21,13 @@ export async function GET(req: NextRequest) {
 
   // Accept desde/hasta OR weeks (fallback) so both the new date-range UI
   // and any legacy callers work without changes.
-  const hasta   = searchParams.get('hasta') || new Date().toISOString().split('T')[0]
+  const hasta   = searchParams.get('hasta') || localToday()
+  // clientDate: the caller's local date (YYYY-MM-DD). Used instead of CURRENT_DATE
+  // so players in UTC+ zones (Arabia UTC+3) and UTC- zones (Argentina UTC-3) all
+  // see their own "today" correctly regardless of the DB server's UTC clock.
+  const clientDate = searchParams.get('clientDate') || localToday()
   const fromWeeks = parseInt(searchParams.get('weeks') || '4')
-  const desdeDefault = (() => { const d = new Date(hasta); d.setDate(d.getDate() - fromWeeks * 7); return d.toISOString().split('T')[0] })()
+  const desdeDefault = (() => { const d = new Date(hasta.replace(/-/g, '/')); d.setDate(d.getDate() - fromWeeks * 7); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` })()
   const desde   = searchParams.get('desde') || desdeDefault
 
   const clubId  = s.clubId ? Number(s.clubId) : null
@@ -76,7 +90,7 @@ export async function GET(req: NextRequest) {
            w.tqr, w.dolor_zona, w.dolor_eva, w.entrena_grupo, w.fue_gimnasio,
            w.fecha AS registro_fecha
     FROM jugadores j JOIN usuarios u ON u.id=j.usuario_id
-    LEFT JOIN wellness_logs w ON w.jugador_id=j.id AND w.fecha >= CURRENT_DATE - 1
+    LEFT JOIN wellness_logs w ON w.jugador_id=j.id AND w.fecha >= ${clientDate}::date - 1
     WHERE u.rol='jugador' AND u.activo=true
       AND (${isMaster}::boolean OR (u.club_id=${clubId} OR j.club_id=${clubId}))
     ORDER BY j.id, w.fecha DESC NULLS LAST`

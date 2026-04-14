@@ -8,21 +8,31 @@ function isAdmin(s: any) { return s?.rol === 'admin' || s?.rol === 'master_admin
 // GET /api/gps/sesiones?fecha=YYYY-MM-DD
 // Returns sessions (entrenamientos + partidos) near a given date for the import selector
 // Also returns existing GPS logs for that date
+// Local-date helper: avoids UTC-midnight shift from localToday()
+function localToday(): string {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
+}
+function localDaysAgo(n: number): string {
+  const d = new Date(); d.setDate(d.getDate() - n)
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
+}
+
 export async function GET(req: NextRequest) {
   try {
     const s = await getSessionFromRequest(req)
     if (!s || !isAdmin(s)) return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
 
     const { searchParams } = new URL(req.url)
-    const fecha = searchParams.get('fecha') || new Date().toISOString().split('T')[0]
+    const fecha = searchParams.get('fecha') || localToday()
 
     // Date range: ±14 days around the given date (wider window to find nearby sessions)
     const desde = new Date(fecha)
     desde.setDate(desde.getDate() - 14)
     const hasta = new Date(fecha)
     hasta.setDate(hasta.getDate() + 7)
-    const desdeStr = desde.toISOString().split('T')[0]
-    const hastaStr = hasta.toISOString().split('T')[0]
+    const desdeStr = `${desde.getFullYear()}-${String(desde.getMonth()+1).padStart(2,'0')}-${String(desde.getDate()).padStart(2,'0')}`
+    const hastaStr = `${hasta.getFullYear()}-${String(hasta.getMonth()+1).padStart(2,'0')}-${String(hasta.getDate()).padStart(2,'0')}`
 
     const sql = getDb()
     // Normalize clubId to null to avoid undefined being passed to Neon template literals
