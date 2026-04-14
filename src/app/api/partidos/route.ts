@@ -24,6 +24,12 @@ export async function GET(req: NextRequest) {
   const jid = searchParams.get('jugadorId')
   const desde = searchParams.get('desde') || '2024-01-01'
   const hasta = searchParams.get('hasta') || localToday()
+  // hastaInc: +1 día para inclusividad total del día "hasta" con el driver Neon
+  const hastaInc = (() => {
+    const d = new Date(hasta + 'T12:00:00Z')
+    d.setUTCDate(d.getUTCDate() + 1)
+    return d.toISOString().split('T')[0]
+  })()
   const sql = getDb()
 
   if (!jid) {
@@ -31,7 +37,7 @@ export async function GET(req: NextRequest) {
     const r = await sql`SELECT pl.id, pl.jugador_id::int, pl.fecha::text, pl.rival, pl.tipo_partido, pl.minutos::int, pl.titular, pl.rival_foto
                         FROM partido_logs pl JOIN jugadores j ON j.id = pl.jugador_id
                         JOIN usuarios u ON u.id = j.usuario_id
-                        WHERE pl.fecha BETWEEN ${desde} AND ${hasta}
+                        WHERE pl.fecha >= ${desde}::date AND pl.fecha < ${hastaInc}::date
                           AND u.activo = true
                         ORDER BY pl.fecha DESC`
     return NextResponse.json(r)
@@ -42,14 +48,14 @@ export async function GET(req: NextRequest) {
     sql`SELECT pl.id, pl.jugador_id::int, pl.fecha::text, pl.rival, pl.tipo_partido,
                pl.minutos::int, pl.titular, pl.rival_foto
         FROM partido_logs pl
-        WHERE pl.jugador_id = ${jid} AND pl.fecha BETWEEN ${desde} AND ${hasta}
+        WHERE pl.jugador_id = ${jid} AND pl.fecha >= ${desde}::date AND pl.fecha < ${hastaInc}::date
         ORDER BY pl.fecha DESC`,
     sql`SELECT sp.id AS sesion_id, sp.fecha::text, sp.rival, sp.rival_foto,
                sp.titulo, sp.hora_inicio::text, sp.hora_fin::text
         FROM sesiones_plan sp
         WHERE sp.tipo = 'partido'
           AND (sp.club_id = ${s.clubId ? Number(s.clubId) : null} OR (sp.admin_id = ${s.userId} AND sp.club_id IS NULL))
-          AND sp.fecha BETWEEN ${desde} AND ${hasta}
+          AND sp.fecha >= ${desde}::date AND sp.fecha < ${hastaInc}::date
           AND NOT EXISTS (
             SELECT 1 FROM partido_logs pl
             WHERE pl.jugador_id = ${jid}

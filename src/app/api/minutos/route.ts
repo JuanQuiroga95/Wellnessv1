@@ -18,6 +18,12 @@ export async function GET(req: NextRequest) {
   const {searchParams} = new URL(req.url)
   const desde = searchParams.get('desde')||'2024-01-01'
   const hasta = searchParams.get('hasta')||localToday()
+  // hastaInc: +1 día para inclusividad total del día "hasta" con el driver Neon
+  const hastaInc = (() => {
+    const d = new Date(hasta + 'T12:00:00Z')
+    d.setUTCDate(d.getUTCDate() + 1)
+    return d.toISOString().split('T')[0]
+  })()
   const clubId = s.clubId ? Number(s.clubId) : null
   const isMaster = s.rol === 'master_admin' && !s.clubId
   const sql = getDb()
@@ -42,7 +48,7 @@ export async function GET(req: NextRequest) {
                COALESCE(SUM(e.duracion_min),0)::int AS min_entreno,
                COUNT(e.id)::int AS sesiones
         FROM jugadores j JOIN usuarios u ON u.id=j.usuario_id
-        LEFT JOIN entrenamiento_logs e ON e.jugador_id=j.id AND e.fecha BETWEEN ${desde} AND ${hasta}
+        LEFT JOIN entrenamiento_logs e ON e.jugador_id=j.id AND e.fecha >= ${desde}::date AND e.fecha < ${hastaInc}::date
         WHERE u.rol='jugador' AND u.activo=true
           AND (${isMaster}::boolean OR u.club_id=${clubId} OR j.club_id=${clubId})
         GROUP BY j.id,u.nombre,j.posicion`,
@@ -50,7 +56,7 @@ export async function GET(req: NextRequest) {
         FROM partido_logs pl
         JOIN jugadores j ON j.id=pl.jugador_id
         JOIN usuarios u ON u.id=j.usuario_id
-        WHERE pl.fecha BETWEEN ${desde} AND ${hasta}
+        WHERE pl.fecha >= ${desde}::date AND pl.fecha < ${hastaInc}::date
           AND u.activo=true
           AND (${isMaster}::boolean OR u.club_id=${clubId} OR j.club_id=${clubId})
         GROUP BY pl.jugador_id`,
@@ -59,7 +65,7 @@ export async function GET(req: NextRequest) {
         FROM entrenamiento_logs e
         JOIN jugadores j ON j.id=e.jugador_id
         JOIN usuarios u ON u.id=j.usuario_id
-        WHERE e.fecha BETWEEN ${desde} AND ${hasta}
+        WHERE e.fecha >= ${desde}::date AND e.fecha < ${hastaInc}::date
           AND u.activo=true
           AND (${isMaster}::boolean OR u.club_id=${clubId} OR j.club_id=${clubId})
         GROUP BY e.jugador_id,DATE_TRUNC('month',e.fecha)`,
@@ -68,7 +74,7 @@ export async function GET(req: NextRequest) {
         FROM partido_logs pl
         JOIN jugadores j ON j.id=pl.jugador_id
         JOIN usuarios u ON u.id=j.usuario_id
-        WHERE pl.fecha BETWEEN ${desde} AND ${hasta}
+        WHERE pl.fecha >= ${desde}::date AND pl.fecha < ${hastaInc}::date
           AND u.activo=true
           AND (${isMaster}::boolean OR u.club_id=${clubId} OR j.club_id=${clubId})
         GROUP BY pl.jugador_id,DATE_TRUNC('month',pl.fecha)`,

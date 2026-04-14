@@ -91,6 +91,15 @@ export async function GET(req: NextRequest) {
     const desde = searchParams.get('desde') || localDaysAgo(7)
     const hasta = searchParams.get('hasta') || localToday()
     const ciclo = searchParams.get('ciclo') || 'microciclo'
+    // hastaInc: suma 1 día para que el BETWEEN sea verdaderamente inclusivo.
+    // El driver de Neon puede tratar el string como TIMESTAMP '...00:00:00',
+    // excluyendo registros creados durante el día. Con +1 día y < hastaInc
+    // todos los registros del día "hasta" quedan incluidos.
+    const hastaInc = (() => {
+      const d = new Date(hasta + 'T12:00:00Z')
+      d.setUTCDate(d.getUTCDate() + 1)
+      return d.toISOString().split('T')[0]
+    })()
     const sql   = getDb()
     // Normalize clubId to null — undefined breaks Neon template literals
     const clubId = s.clubId ? Number(s.clubId) : null
@@ -112,14 +121,14 @@ export async function GET(req: NextRequest) {
       SELECT id, fecha::text, ejercicios, rpe_objetivo, titulo
       FROM sesiones_plan
       WHERE club_id = ${clubId}
-        AND fecha BETWEEN ${desde} AND ${hasta}
+        AND fecha >= ${desde}::date AND fecha < ${hastaInc}::date
       ORDER BY fecha`
     : await sql`
       SELECT id, fecha::text, ejercicios, rpe_objetivo, titulo
       FROM sesiones_plan
       WHERE admin_id = ${s.userId}
         AND club_id IS NULL
-        AND fecha BETWEEN ${desde} AND ${hasta}
+        AND fecha >= ${desde}::date AND fecha < ${hastaInc}::date
       ORDER BY fecha`
 
     // 2. All active players from this club
@@ -138,7 +147,7 @@ export async function GET(req: NextRequest) {
       FROM entrenamiento_logs el
       JOIN jugadores j ON j.id = el.jugador_id
       JOIN usuarios u ON u.id = j.usuario_id
-      WHERE el.fecha BETWEEN ${desde} AND ${hasta}
+      WHERE el.fecha >= ${desde}::date AND el.fecha < ${hastaInc}::date
         AND u.activo = true
         AND (u.club_id = ${clubId} OR j.club_id = ${clubId})
       ORDER BY el.fecha` : []
@@ -290,7 +299,7 @@ export async function GET(req: NextRequest) {
           JOIN jugadores j ON j.id = g.jugador_id
           JOIN usuarios u ON u.id = j.usuario_id
           WHERE (g.club_id = ${clubId} OR j.club_id = ${clubId})
-            AND g.fecha BETWEEN ${desde} AND ${hasta}
+            AND g.fecha >= ${desde}::date AND g.fecha < ${hastaInc}::date
             AND u.activo = true
           ORDER BY u.nombre
         ` as any[]
@@ -320,7 +329,7 @@ export async function GET(req: NextRequest) {
           JOIN usuarios u ON u.id = j.usuario_id
           LEFT JOIN sesiones_plan sp ON sp.id = g.sesion_id
           WHERE (g.club_id = ${clubId} OR j.club_id = ${clubId})
-            AND g.fecha BETWEEN ${desde} AND ${hasta}
+            AND g.fecha >= ${desde}::date AND g.fecha < ${hastaInc}::date
             AND u.activo = true
           ORDER BY g.fecha, u.nombre
         ` as any[]

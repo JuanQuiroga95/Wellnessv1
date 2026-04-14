@@ -23,6 +23,12 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url)
     const desde = searchParams.get('desde') || (() => { const d=new Date(); d.setDate(d.getDate()-90); return d.toISOString().split('T')[0] })()
     const hasta = searchParams.get('hasta') || localToday()
+  // hastaInc: +1 día para inclusividad total del día "hasta" con el driver Neon
+  const hastaInc = (() => {
+    const d = new Date(hasta + 'T12:00:00Z')
+    d.setUTCDate(d.getUTCDate() + 1)
+    return d.toISOString().split('T')[0]
+  })()
 
     const sql = getDb()
 
@@ -43,7 +49,7 @@ export async function GET(req: NextRequest) {
       FROM gps_logs g
       LEFT JOIN sesiones_plan sp ON sp.id = g.sesion_id
       WHERE g.jugador_id = ${jugadorId}
-        AND g.fecha BETWEEN ${desde} AND ${hasta}
+        AND g.fecha >= ${desde}::date AND g.fecha < ${hastaInc}::date
       ORDER BY g.fecha DESC
     ` as any[]
 

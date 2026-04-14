@@ -54,7 +54,7 @@ export async function GET(req: NextRequest) {
     FROM wellness_logs w
     JOIN jugadores j ON j.id=w.jugador_id
     JOIN usuarios u  ON u.id=j.usuario_id
-    WHERE w.fecha BETWEEN ${desde} AND ${hasta}
+    WHERE w.fecha >= ${desde}::date AND w.fecha < ${hastaInc}::date
       AND w.fatiga IS NOT NULL
       AND u.activo=true AND u.rol='jugador'
       AND (${isMaster}::boolean OR (u.club_id=${clubId} OR j.club_id=${clubId}))
@@ -70,7 +70,7 @@ export async function GET(req: NextRequest) {
     FROM entrenamiento_logs el
     JOIN jugadores j ON j.id=el.jugador_id
     JOIN usuarios u  ON u.id=j.usuario_id
-    WHERE el.fecha BETWEEN ${desde} AND ${hasta}
+    WHERE el.fecha >= ${desde}::date AND el.fecha < ${hastaInc}::date
       AND u.activo=true AND u.rol='jugador'
       AND (${isMaster}::boolean OR (u.club_id=${clubId} OR j.club_id=${clubId}))
     GROUP BY el.jugador_id, DATE_TRUNC('week',el.fecha)

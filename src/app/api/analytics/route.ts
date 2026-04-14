@@ -42,7 +42,7 @@ export async function GET(req: NextRequest) {
            ROUND((AVG(w.fatiga)+AVG(w.calidad_sueno)+AVG(w.dolor_muscular)+AVG(w.nivel_estres)+AVG(w.estado_animo))::numeric, 1) AS total_wellness,
            COUNT(w.id)::int AS registros
     FROM jugadores j JOIN usuarios u ON u.id=j.usuario_id
-    JOIN wellness_logs w ON w.jugador_id=j.id AND w.fecha BETWEEN ${desde} AND ${hasta}
+    JOIN wellness_logs w ON w.jugador_id=j.id AND w.fecha >= ${desde}::date AND w.fecha < ${hastaInc}::date
     WHERE u.rol='jugador' AND u.activo=true
       AND (${isMaster}::boolean OR (u.club_id=${clubId} AND j.club_id=${clubId}))
     GROUP BY j.id, u.nombre, j.posicion, j.foto_url, DATE_TRUNC('week', w.fecha)
@@ -57,7 +57,7 @@ export async function GET(req: NextRequest) {
     FROM entrenamiento_logs el
     JOIN jugadores j ON j.id=el.jugador_id
     JOIN usuarios u  ON u.id=j.usuario_id
-    WHERE el.fecha BETWEEN ${desde} AND ${hasta}
+    WHERE el.fecha >= ${desde}::date AND el.fecha < ${hastaInc}::date
       AND u.activo=true
       AND (${isMaster}::boolean OR (u.club_id=${clubId} AND j.club_id=${clubId}))
     GROUP BY el.jugador_id, DATE_TRUNC('week', el.fecha)

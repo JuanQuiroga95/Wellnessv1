@@ -25,6 +25,13 @@ export async function GET(req: NextRequest) {
     const hasta = searchParams.get('hasta') || localToday()
     const sql = getDb()
 
+    // hastaInc: +1 día para inclusividad total del día "hasta" con el driver Neon
+    const hastaInc = (() => {
+      const d = new Date(hasta + 'T12:00:00Z')
+      d.setUTCDate(d.getUTCDate() + 1)
+      return d.toISOString().split('T')[0]
+    })()
+
     const clubId = s.clubId ? Number(s.clubId) : null
 
     const sesiones = clubId ? await sql`
@@ -33,7 +40,7 @@ export async function GET(req: NextRequest) {
              rival, rival_foto
       FROM sesiones_plan
       WHERE club_id = ${clubId}
-        AND fecha BETWEEN ${desde} AND ${hasta}
+        AND fecha >= ${desde}::date AND fecha < ${hastaInc}::date
       ORDER BY fecha, hora_inicio NULLS LAST`
     : await sql`
       SELECT id, fecha::text, hora_inicio::text, hora_fin::text, tipo, titulo,
@@ -42,7 +49,7 @@ export async function GET(req: NextRequest) {
       FROM sesiones_plan
       WHERE admin_id = ${s.userId}
         AND club_id IS NULL
-        AND fecha BETWEEN ${desde} AND ${hasta}
+        AND fecha >= ${desde}::date AND fecha < ${hastaInc}::date
       ORDER BY fecha, hora_inicio NULLS LAST`
 
     let partidos: any[] = []
@@ -53,7 +60,7 @@ export async function GET(req: NextRequest) {
           FROM partido_logs pl
           JOIN jugadores j ON j.id = pl.jugador_id
           JOIN usuarios u ON u.id = j.usuario_id
-          WHERE pl.fecha BETWEEN ${desde} AND ${hasta}
+          WHERE pl.fecha >= ${desde}::date AND pl.fecha < ${hastaInc}::date
             AND u.club_id = ${s.clubId}
           ORDER BY pl.fecha DESC`
         const seen = new Set<string>()
@@ -72,7 +79,7 @@ export async function GET(req: NextRequest) {
           FROM entrenamiento_logs el
           JOIN jugadores j ON j.id = el.jugador_id
           JOIN usuarios u ON u.id = j.usuario_id
-          WHERE el.fecha BETWEEN ${desde} AND ${hasta}
+          WHERE el.fecha >= ${desde}::date AND el.fecha < ${hastaInc}::date
             AND u.club_id = ${s.clubId}
           GROUP BY el.fecha
           ORDER BY el.fecha` as any[]
