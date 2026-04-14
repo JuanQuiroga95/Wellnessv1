@@ -66,14 +66,13 @@ export default function AnalyticsPanel() {
   async function load() {
     setLoading(true)
     try {
-      const ar = await fetch(`/api/readiness?desde=${desde}&hasta=${hasta}`).then(r=>r.json())
-      // Normalize: readiness endpoint returns {wRows, rpeRows, todayRows}
-      // Map to consistent shape used throughout the component
+      const ar = await fetch(`/api/analytics?desde=${desde}&hasta=${hasta}`).then(r=>r.json())
+      // analytics endpoint returns { wellnessWeekly, rpeWeekly, readinessToday }
       setData({
-        readiness: { todayRows: ar.todayRows || [] },
+        readiness: { todayRows: ar.readinessToday || [] },
         analytics: {
-          wellnessWeekly: ar.wRows || [],
-          rpeWeekly: ar.rpeRows || [],
+          wellnessWeekly: ar.wellnessWeekly || [],
+          rpeWeekly: ar.rpeWeekly || [],
         }
       })
     } catch(e) { console.error(e) }

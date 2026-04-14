@@ -25,6 +25,8 @@ export async function GET(req: NextRequest) {
   const fromWeeks = parseInt(searchParams.get('weeks') || '4')
   const desdeDefault = (() => { const d = new Date(hasta); d.setDate(d.getDate() - fromWeeks * 7); return d.toISOString().split('T')[0] })()
   const desde   = searchParams.get('desde') || desdeDefault
+  // hastaInc = hasta + 1 day so we use strict < in SQL and include the full hasta day
+  const hastaInc = (() => { const d = new Date(hasta); d.setDate(d.getDate() + 1); return d.toISOString().split('T')[0] })()
 
   const clubId  = s.clubId ? Number(s.clubId) : null
   const isMaster = s.rol === 'master_admin' && !s.clubId
@@ -86,7 +88,7 @@ export async function GET(req: NextRequest) {
            w.tqr, w.dolor_zona, w.dolor_eva, w.entrena_grupo, w.fue_gimnasio,
            w.fecha AS registro_fecha
     FROM jugadores j JOIN usuarios u ON u.id=j.usuario_id
-    LEFT JOIN wellness_logs w ON w.jugador_id=j.id AND w.fecha >= CURRENT_DATE - 1
+    LEFT JOIN wellness_logs w ON w.jugador_id=j.id AND w.fecha >= CURRENT_DATE - 2
     WHERE u.rol='jugador' AND u.activo=true
       AND (${isMaster}::boolean OR (u.club_id=${clubId} OR j.club_id=${clubId}))
     ORDER BY j.id, w.fecha DESC NULLS LAST`
