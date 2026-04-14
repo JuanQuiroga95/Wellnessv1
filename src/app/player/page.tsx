@@ -1,5 +1,3 @@
-
-function localToday(): string { const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` }
 export const dynamic = 'force-dynamic'
 import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/auth'
@@ -13,7 +11,7 @@ export default async function PlayerPage() {
   const sql = getDb()
   const jugadorId = session.jugadorId
   if (!jugadorId) redirect('/login')
-  const today = localToday()
+  const today = new Date().toISOString().split('T')[0]
 
   const [jRows, logs, wRows, todayRows] = await Promise.all([
     sql`SELECT u.nombre, j.posicion, j.edad, j.peso_kg::text AS peso_kg, j.estatura_cm, j.pie_habil, j.foto_url, j.email, j.hora_recordatorio FROM usuarios u JOIN jugadores j ON j.usuario_id=u.id WHERE u.id=${session.userId}`,

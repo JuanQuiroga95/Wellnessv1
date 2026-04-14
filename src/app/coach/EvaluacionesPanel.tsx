@@ -177,7 +177,7 @@ function VariablesPanel({ jugador, onRefresh }: { jugador: Jugador; onRefresh: (
 // ─── 2. Pesajes ───────────────────────────────────────────────────────────────
 function PesajesPanel({ jugador, onRefresh }: { jugador: Jugador; onRefresh?: () => void }) {
   const [historial, setHistorial] = useState<any[]>([])
-  const [form, setForm] = useState({ fecha: localToday(), peso_kg: '', notas: '' })
+  const [form, setForm] = useState({ fecha: new Date().toISOString().split('T')[0], peso_kg: '', notas: '' })
   const [saving, setSaving] = useState(false)
   const [loading, setLoading] = useState(true)
 
@@ -291,7 +291,7 @@ function PesajesPanel({ jugador, onRefresh }: { jugador: Jugador; onRefresh?: ()
 // ─── 3. CMJ ───────────────────────────────────────────────────────────────────
 function CMJPanel({ jugador }: { jugador: Jugador }) {
   const [historial, setHistorial] = useState<any[]>([])
-  const [form, setForm] = useState({ fecha: localToday(), s1: '', s2: '', s3: '', notas: '' })
+  const [form, setForm] = useState({ fecha: new Date().toISOString().split('T')[0], s1: '', s2: '', s3: '', notas: '' })
   const [saving, setSaving] = useState(false)
   const [loading, setLoading] = useState(true)
   const [nuevoRecord, setNuevoRecord] = useState(false)
@@ -521,7 +521,7 @@ function IsometricoPanel({ jugador }: { jugador: Jugador }) {
   const [grupo, setGrupo] = useState('Isquiotibiales')
   const [historial, setHistorial] = useState<any[]>([])
   const [form, setForm] = useState({
-    fecha: localToday(),
+    fecha: new Date().toISOString().split('T')[0],
     d1: '', d2: '', d3: '', i1: '', i2: '', i3: '',
     unidad: 'N', notas: '',
   })
@@ -935,7 +935,7 @@ function IsometricoChart({ historial, grupo }: { historial: any[]; grupo: string
 function PFVPanel({ jugador }: { jugador: Jugador }) {
   const [sesiones, setSesiones] = useState<any[]>([])
   const [activeSesion, setActiveSesion] = useState<number | null>(null)
-  const [form, setForm] = useState({ fecha: localToday(), carga_kg: '', velocidad_ms: '', notas: '' })
+  const [form, setForm] = useState({ fecha: new Date().toISOString().split('T')[0], carga_kg: '', velocidad_ms: '', notas: '' })
   const [saving, setSaving] = useState(false)
   const [loading, setLoading] = useState(true)
   const [newSesNombre, setNewSesNombre] = useState('')
@@ -1138,7 +1138,7 @@ function PFVPanel({ jugador }: { jugador: Jugador }) {
 // ─── 6. RSI — Reactive Strength Index ────────────────────────────────────────
 function RSIPanel({ jugador }: { jugador: Jugador }) {
   const [historial, setHistorial] = useState<any[]>([])
-  const [form, setForm] = useState({ fecha: localToday(), altura_cm: '', contacto_ms: '', notas: '' })
+  const [form, setForm] = useState({ fecha: new Date().toISOString().split('T')[0], altura_cm: '', contacto_ms: '', notas: '' })
   const [saving, setSaving] = useState(false)
   const [loading, setLoading] = useState(true)
 
@@ -1283,7 +1283,7 @@ function RSIPanel({ jugador }: { jugador: Jugador }) {
 // ─── 7. DSI — Dynamic Strength Index ─────────────────────────────────────────
 function DSIPanel({ jugador }: { jugador: Jugador }) {
   const [historial, setHistorial] = useState<any[]>([])
-  const [form, setForm] = useState({ fecha: localToday(), fuerza_balistico_n: '', fuerza_isometrico_n: '', notas: '' })
+  const [form, setForm] = useState({ fecha: new Date().toISOString().split('T')[0], fuerza_balistico_n: '', fuerza_isometrico_n: '', notas: '' })
   const [saving, setSaving] = useState(false)
   const [loading, setLoading] = useState(true)
 
@@ -1409,8 +1409,6 @@ interface TeamPlayer {
   [key: string]: any
 }
 
-
-function localToday(): string { const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` }
 export default function EvaluacionesPanel({ teamData }: { teamData: TeamPlayer[] }) {
   const [selectedJugadorId, setSelectedJugadorId] = useState<number | null>(
     teamData.length > 0 ? (teamData[0].jugador_id ?? teamData[0].id ?? null) : null

@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
     if (!s || s.rol !== 'jugador') return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
 
     const { searchParams } = new URL(req.url)
-    const desde = searchParams.get('desde') || (() => { const d=new Date(); d.setDate(d.getDate()-90); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` })()
+    const desde = searchParams.get('desde') || (() => { const d=new Date(); d.setDate(d.getDate()-90); return d.toISOString().split('T')[0] })()
     const hasta = searchParams.get('hasta') || localToday()
 
     const sql = getDb()

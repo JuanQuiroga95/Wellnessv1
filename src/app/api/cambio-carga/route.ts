@@ -223,5 +223,9 @@ export async function GET(req: NextRequest) {
     sesiones: p.count,
   })).sort((a, b) => a.nombre.localeCompare(b.nombre))
 
-  return NextResponse.json({ daily, weekly, qualifyingCount: qualifyingPlayers.size, players })
+  // Contar solo jugadores que efectivamente aparecen en los datos (pasaron ambos filtros)
+  const playersWithData = new Set(
+    Object.values(byDate).flatMap((d: any) => d.players)
+  )
+  return NextResponse.json({ daily, weekly, qualifyingCount: playersWithData.size, players })
 }

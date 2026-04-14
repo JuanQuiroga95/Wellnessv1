@@ -31,8 +31,8 @@ export async function GET(req: NextRequest) {
     desde.setDate(desde.getDate() - 14)
     const hasta = new Date(fecha)
     hasta.setDate(hasta.getDate() + 7)
-    const desdeStr = `${desde.getFullYear()}-${String(desde.getMonth()+1).padStart(2,'0')}-${String(desde.getDate()).padStart(2,'0')}`
-    const hastaStr = `${hasta.getFullYear()}-${String(hasta.getMonth()+1).padStart(2,'0')}-${String(hasta.getDate()).padStart(2,'0')}`
+    const desdeStr = desde.toISOString().split('T')[0]
+    const hastaStr = hasta.toISOString().split('T')[0]
 
     const sql = getDb()
     // Normalize clubId to null to avoid undefined being passed to Neon template literals

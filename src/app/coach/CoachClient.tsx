@@ -841,11 +841,52 @@ function CambioCargaPanel() {
   const gpsPerSession = gpsData?.perSession || {}
   const gpsSesionesInfo = gpsData?.sesionesInfo || []
   gpsSesionesInfo.forEach((s:any) => {
-    if (s.fecha && gpsPerSession[s.titulo]) {
-      gpsDailyMap[s.fecha] = gpsPerSession[s.titulo]
+    if (!s.fecha) return
+    // Buscar por titulo primero, luego por fecha (cuando la sesión no tiene título asignado)
+    const key = s.titulo || s.fecha
+    const entry = gpsPerSession[key]
+    if (!entry) return
+    if (gpsDailyMap[s.fecha]) {
+      // Acumular si hay 2+ sesiones el mismo día
+      Object.keys(entry).forEach((k: string) => {
+        if (typeof entry[k] === 'number') {
+          gpsDailyMap[s.fecha][k] = (gpsDailyMap[s.fecha][k] || 0) + entry[k]
+        }
+      })
+    } else {
+      gpsDailyMap[s.fecha] = { ...entry }
     }
   })
+
+  // Construir mapa semanal acumulando GPS por semana ISO (para vista semanal)
+  const _fechaToWeekKey = (dateStr: string) => {
+    const d = new Date(dateStr + 'T12:00:00Z')
+    const day = d.getUTCDay() || 7
+    d.setUTCDate(d.getUTCDate() + 4 - day)
+    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1))
+    const week = Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7)
+    return `${d.getUTCFullYear()}-S${String(week).padStart(2, '0')}`
+  }
+  const gpsWeeklyMap: Record<string, any> = {}
+  Object.entries(gpsDailyMap).forEach(([fecha, gps]) => {
+    const wk = _fechaToWeekKey(fecha)
+    if (!gpsWeeklyMap[wk]) {
+      gpsWeeklyMap[wk] = { ...gps }
+    } else {
+      Object.keys(gps as any).forEach((k: string) => {
+        if (typeof (gps as any)[k] === 'number') {
+          gpsWeeklyMap[wk][k] = (gpsWeeklyMap[wk][k] || 0) + (gps as any)[k]
+        }
+      })
+    }
+  })
+
   const GPS_KEYS = ['distTotal','distHir','distV4','distV5','nSprints','acc2','dec2','maxVelocity','distPerMin']
+  const GPS_FIELD_MAP: Record<string,string> = {
+    distTotal:'dist_total', distHir:'dist_hir', distV4:'dist_v4',
+    distV5:'dist_v5', nSprints:'n_sprints', acc2:'acc2', dec2:'dec2',
+    maxVelocity:'max_velocity', distPerMin:'dist_per_min',
+  }
   const getRowVal = (row: any) => {
     if (chartVar === 'ua') return row.avg_ua||0
     if (chartVar === 'uce') return row.avg_uce||0
@@ -868,15 +909,15 @@ function CambioCargaPanel() {
       return 0
     }
     if (GPS_KEYS.includes(chartVar)) {
-      const fecha = row.fecha || row.semana
-      const gps = gpsDailyMap[fecha]
-      const GPS_FIELD_MAP: Record<string,string> = {
-        distTotal:'dist_total', distHir:'dist_hir', distV4:'dist_v4',
-        distV5:'dist_v5', nSprints:'n_sprints', acc2:'acc2', dec2:'dec2',
-        maxVelocity:'max_velocity', distPerMin:'dist_per_min',
-      }
       const field = GPS_FIELD_MAP[chartVar] || chartVar
-      return gps ? (Math.round(Number(gps[field])||0)) : 0
+      if (view === 'diario') {
+        const gps = gpsDailyMap[row.fecha]
+        return gps ? Math.round(Number(gps[field]) || 0) : 0
+      } else {
+        // Vista semanal: usar acumulado de los días de esa semana
+        const gps = gpsWeeklyMap[row.semana]
+        return gps ? Math.round(Number(gps[field]) || 0) : 0
+      }
     }
     return 0
   }
@@ -4983,7 +5024,7 @@ function ReadinessPanel({ teamData }) {
 
   async function loadData() {
     setLoading(true)
-    try { const r = await fetch(`/api/readiness?weeks=4&clientDate=${todayLocal()}`); setData(await r.json()) }
+    try { const r = await fetch('/api/readiness?weeks=4'); setData(await r.json()) }
     finally { setLoading(false) }
   }
 

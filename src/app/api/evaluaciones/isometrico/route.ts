@@ -1,7 +1,3 @@
-
-// tz-safe date helpers
-function localToday(): string { const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` }
-function localDaysAgo(n: number): string { const d=new Date(); d.setDate(d.getDate()-n); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` }
 export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { getDb } from '@/lib/db'
@@ -74,7 +70,7 @@ export async function POST(req: NextRequest) {
     ) VALUES (
       ${Number(jugador_id)},
       ${s.clubId ? Number(s.clubId) : null},
-      ${fecha ?? localToday()},
+      ${fecha ?? new Date().toISOString().split('T')[0]},
       ${grupo_muscular},
       ${Number(der_intento1)}, ${Number(der_intento2)}, ${Number(der_intento3)},
       ${Number(izq_intento1)}, ${Number(izq_intento2)}, ${Number(izq_intento3)},

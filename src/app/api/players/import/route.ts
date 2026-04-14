@@ -140,7 +140,7 @@ function parseRows(raw: any[][]): { players: any[]; errors: string[] } {
         // Excel serial date: days since 1900-01-01 (with Excel's leap year bug)
         const serial = parseInt(fnStr)
         const d = new Date((serial - 25569) * 86400000)
-        fecha_nacimiento = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
+        fecha_nacimiento = d.toISOString().split('T')[0]
       }
     }
 

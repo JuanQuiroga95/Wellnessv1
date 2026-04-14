@@ -11,7 +11,6 @@ export async function GET(req: NextRequest) {
   if (!s) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
   const { searchParams } = new URL(req.url)
-  const clientDate = searchParams.get('clientDate') || localToday()
   const jid = sanitizeInt(searchParams.get('jugadorId'), 1, 9999999)
   const days = sanitizeInt(searchParams.get('days'), 1, 365) || 14
 
@@ -39,7 +38,7 @@ export async function GET(req: NextRequest) {
            COALESCE(grupos_musculares, '') AS grupos_musculares
     FROM wellness_logs
     WHERE jugador_id = ${jid}
-      AND fecha >= ${clientDate}::date - ${days}::int
+      AND fecha >= CURRENT_DATE - ${days}::int
     ORDER BY fecha DESC`
   return NextResponse.json(r)
 }
@@ -81,7 +80,7 @@ export async function POST(req: NextRequest) {
     if (isNaN(n)) return null
     return Math.min(10, Math.max(0, n))
   }
-  const fecha = b.fecha || localToday()
+  const fecha = b.fecha || new Date().toISOString().split('T')[0]
 
   let clubId = s.clubId ? Number(s.clubId) : null
   if (s.rol === 'jugador') {
