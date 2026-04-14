@@ -787,9 +787,16 @@ function CambioCargaPanel() {
   const [gpsData, setGpsData] = useState<any>(null)
 
   const CHART_VARS_CALC = [
-    { key:'ua',         label:'UCE',           color:'#c8f135', src:'rpe' },
-    { key:'uce',        label:'UCE',           color:'#f59e0b', src:'rpe' },
-    { key:'rpe',        label:'RPE',           color:'#60a5fa', src:'rpe' },
+    { key:'ua',              label:'UA',              color:'#c8f135', src:'rpe' },
+    { key:'uce',             label:'UCE',             color:'#f59e0b', src:'rpe' },
+    { key:'rpe',             label:'RPE',             color:'#60a5fa', src:'rpe' },
+    { key:'tiempo',          label:'Tiempo (min)',     color:'#34d399', src:'rpe' },
+    { key:'calc_distTotal',  label:'DT (m)',           color:'#fbbf24', src:'calc' },
+    { key:'calc_distSprint', label:'Dist. Sprint (m)', color:'#f97316', src:'calc' },
+    { key:'calc_nSprints',   label:'Nº Sprint',        color:'#a78bfa', src:'calc' },
+    { key:'calc_nAcel',      label:'ACE >2',           color:'#ec4899', src:'calc' },
+    { key:'calc_nDecel',     label:'DEC >2',           color:'#14b8a6', src:'calc' },
+    { key:'calc_distMP',     label:'Alta Pot. (m)',    color:'#fb923c', src:'calc' },
   ]
   const CHART_VARS_GPS = [
     { key:'distTotal',   label:'Dist. Total',    color:'#f59e0b', src:'gps' },
