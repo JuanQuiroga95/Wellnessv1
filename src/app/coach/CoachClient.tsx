@@ -2956,7 +2956,7 @@ function AddMatchForm({ teamData, onSuccess, onCancel }) {
   useEffect(() => {
     // Load last ~8 weeks of calendar to find partidos
     const hasta = todayLocal()
-    const desde = addDays(todayLocal(), -56)
+    const desde = addDays(todayLocal(), -180)
     setLoadingCal(true)
     fetch(`/api/calendario?desde=${desde}&hasta=${hasta}`)
       .then(r => r.json())
@@ -2964,7 +2964,6 @@ function AddMatchForm({ teamData, onSuccess, onCancel }) {
         const parts = (d.sesiones || [])
           .filter((s: any) => s.tipo === 'partido')
           .sort((a: any, b: any) => b.fecha.localeCompare(a.fecha))
-          .slice(0, 4)
         setCalPartidos(parts)
       })
       .catch(() => {})
@@ -3049,7 +3048,7 @@ function AddMatchForm({ teamData, onSuccess, onCancel }) {
           <p style={{ fontSize:12, color:'var(--fog)' }}>Cargando partidos...</p>
         ) : calPartidos.length === 0 ? (
           <p style={{ fontSize:12, color:'var(--fog)', padding:'10px', background:'var(--ink3)', borderRadius:8 }}>
-            No hay partidos creados en el Calendario. Primero creá un partido desde el Calendario con tipo "Partido" y el rival.
+            ⚠️ No encontraste partidos en los últimos 6 meses. Para registrar minutos de competición, primero andá a <strong>Calendario</strong>, creá un evento con tipo <em>Partido</em> y completá el rival. Después volvé acá y aparecerá en esta lista.
           </p>
         ) : (
           <div style={{ display:'flex', flexDirection:'column', gap:8 }}>

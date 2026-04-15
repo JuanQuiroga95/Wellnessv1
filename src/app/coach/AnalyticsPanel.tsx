@@ -75,9 +75,8 @@ export default function AnalyticsPanel() {
   async function load() {
     setLoading(true)
     try {
-      // FIX DE RANGO: Aseguramos que el "hasta" incluya el día completo
-      const endObj = new Date(hasta + 'T23:59:59.999Z');
-      const hastaFinal = endObj.toISOString();
+      
+      const hastaFinal = hasta; // Pasamos la fecha directamente; el backend agrega 23:59:59.999 internamente
 
       const ar = await fetch(`/api/analytics?desde=${desde}&hasta=${hastaFinal}`).then(r=>r.json())
       setData({
