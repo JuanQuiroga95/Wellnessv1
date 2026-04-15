@@ -140,6 +140,13 @@ export default function CoachClient({ session, teamData, today }) {
   const [ciclo, setCiclo] = useState<'microciclo'|'mesociclo'|'macrociclo'>('microciclo')
   const router = useRouter()
 
+  // Auto-refresh server data when a wellness survey is submitted
+  useEffect(() => {
+    const handler = () => router.refresh()
+    window.addEventListener('wellness-data-updated', handler)
+    return () => window.removeEventListener('wellness-data-updated', handler)
+  }, [])
+
   // Load club logo and team name from DB on mount
   useEffect(() => {
     fetch('/api/admin/settings')
@@ -3259,12 +3266,13 @@ function CargaExternaPanel() {
   // calSesiones is built from /api/calendario (same source of truth as the UI).
   // This prevents "ghost" MD sessions that exist in sesiones_plan but are not
   // visible in the calendar from appearing in the UCE/GPS panels.
-  const filteredSesionesInfo = calSesiones.size > 0
-    ? sesionesInfo.filter((s: any) => calSesiones.has(String(s.titulo)))
-    : sesionesInfo // fallback: show all if calendario fetch hasn't loaded yet
-  const existingMdLabels = new Set(filteredSesionesInfo.map((s:any) => s.titulo))
-  const mdCols = MD_ORDER_LOCAL.filter(md => existingMdLabels.has(md))
-    .concat(filteredSesionesInfo.map((s:any) => s.titulo).filter((t:string) => !MD_ORDER_LOCAL.includes(t)))
+  // Always show all 8 MD slots (skeleton view) — existingMdLabels controls opacity/hasData
+  // calSesiones is used only for display cues, not to filter slots out
+  const existingMdLabels = new Set(sesionesInfo.map((s:any) => s.titulo))
+  const mdCols = [
+    ...MD_ORDER_LOCAL,
+    ...sesionesInfo.map((s:any) => s.titulo).filter((t:string) => !MD_ORDER_LOCAL.includes(t))
+  ]
   // All columns present in the data, sorted by canonical order (known first, then alphabetical)
   const availableCols: string[] = (() => {
     const raw = allMetricCols.length > 0 ? allMetricCols : (
@@ -4026,7 +4034,7 @@ function ComparativaPanel({ teamData }: { teamData: any[] }) {
                   {selVar.label} — {posFilter}
                 </div>
                 <div style={{ display:'flex', gap:0 }}>
-                  <div style={{ display:'flex', flexDirection:'column', justifyContent:'space-between', height:`${BAR_H}px`, paddingRight:8, marginRight:0, flexShrink:0, width:44, marginBottom: BOT_PAD }}>
+                  <div style={{ display:'flex', flexDirection:'column', justifyContent:'space-between', height:`${BAR_H}px`, paddingRight:8, marginRight:0, flexShrink:0, width:44, marginTop:32, marginBottom: BOT_PAD }}>
                     {yTicks.map((t,i)=>(
                       <span key={i} style={{ fontSize:8, color:'var(--fog)', fontFamily:'DM Mono,monospace', textAlign:'right', display:'block', lineHeight:1 }}>{t}</span>
                     ))}
@@ -4097,7 +4105,7 @@ function ComparativaPanel({ teamData }: { teamData: any[] }) {
                 {/* Y-axis */}
                 <div style={{ display:'flex', flexDirection:'column', justifyContent:'space-between',
                   paddingRight:8, width:44, flexShrink:0,
-                  height: BAR_H, marginBottom: BOT_PAD }}>
+                  height: BAR_H, marginTop: 32, marginBottom: BOT_PAD }}>
                   {yTicks.map((t,i)=>(
                     <div key={i} style={{ fontSize:9, color:'var(--fog)', fontFamily:'DM Mono,monospace', textAlign:'right', lineHeight:1 }}>{t}</div>
                   ))}
@@ -5660,10 +5668,9 @@ function GpsPanel({ teamData }: { teamData: any }) {
     const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise
     const allLines: string[] = []
 
-    // Solo procesamos las primeras 2 páginas: el profe garantiza que la tabla
-    // de datos esté en página 1 o 2. Las demás páginas son gráficos que
-    // contienen texto basura que rompe el parser.
-    const maxPages = Math.min(pdf.numPages, 2)
+    // Procesamos hasta 3 páginas: la tabla puede estar en pág. 1, 2 o 3 según el PDF.
+    // Las páginas de gráficos que siguen se filtran por el parser de filas.
+    const maxPages = Math.min(pdf.numPages, 3)
     for (let pageNum = 1; pageNum <= maxPages; pageNum++) {
       const page = await pdf.getPage(pageNum)
       const content = await page.getTextContent()
@@ -5671,7 +5678,8 @@ function GpsPanel({ teamData }: { teamData: any }) {
       const rows: Map<number, Array<{ x: number; text: string }>> = new Map()
       for (const item of content.items as any[]) {
         if (!item.str?.trim()) continue
-        const y = Math.round(item.transform[5] / 3) * 3
+        // Round to nearest 5px — tolerates sub-pixel Y variation between Catapult PDF versions
+        const y = Math.round(item.transform[5] / 5) * 5
         if (!rows.has(y)) rows.set(y, [])
         rows.get(y)!.push({ x: item.transform[4], text: item.str })
       }
@@ -5738,6 +5746,8 @@ function GpsPanel({ teamData }: { teamData: any }) {
       if (!r.ok) { setError(d.error || 'Error al importar'); return }
       setResult(d); setPreview(null); setFile(null)
       fetch(`/api/gps/sesiones?fecha=${fecha}`).then(r => r.json()).then(d => setExisting(d.existing || []))
+      // Notify all panels that GPS data changed so they auto-reload
+      window.dispatchEvent(new CustomEvent('gps-data-updated'))
     } catch (e) { setError('Error de conexión') }
     finally { setImporting(false) }
   }
@@ -6075,6 +6085,13 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
 
   useEffect(() => { cargar() }, [desde, hasta])
 
+  // Reload when GPS import completes in another panel
+  useEffect(() => {
+    const handler = () => cargar(false)
+    window.addEventListener('gps-data-updated', handler)
+    return () => window.removeEventListener('gps-data-updated', handler)
+  }, [desde, hasta])
+
   // Auto-refresh every 60s without showing loading indicator (prevents scroll reset)
   useEffect(() => {
     const id = setInterval(() => cargar(false), 60000)
@@ -6206,14 +6223,13 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
   const perSessionTeamAvg: Record<string,any> = data?.perSessionTeamAvg || {}
   const sesionesInfo: any[] = data?.sesionesInfo || []
   const cePerSession: Record<string,any> = data?.cePerSession || {}
-  // Filter to sessions visible in calendar (prevents ghost MD sessions from carga-gps)
+  // Always show all 8 MD slots (skeleton view) — existingMdLabels controls opacity/hasData
   const MD_ORDER_LOCAL = ['MD+1','MD+2','MD+3','MD-4','MD-3','MD-2','MD-1','MD']
-  const filteredSesionesInfo = calSesiones.size > 0
-    ? sesionesInfo.filter((s: any) => calSesiones.has(String(s.titulo)))
-    : sesionesInfo
-  const existingMdLabels = new Set(filteredSesionesInfo.map((s:any) => s.titulo))
-  const mdCols = MD_ORDER_LOCAL.filter(md => existingMdLabels.has(md))
-    .concat(filteredSesionesInfo.map((s:any) => s.titulo).filter((t:string) => !MD_ORDER_LOCAL.includes(t)))
+  const existingMdLabels = new Set(sesionesInfo.map((s:any) => s.titulo))
+  const mdCols = [
+    ...MD_ORDER_LOCAL,
+    ...sesionesInfo.map((s:any) => s.titulo).filter((t:string) => !MD_ORDER_LOCAL.includes(t))
+  ]
 
   const refMedia: Record<string,number> = {}
   VARS.forEach(v => {
@@ -7107,6 +7123,14 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
   }, [microcicloOffset])
 
   useEffect(() => { cargar() }, [desde, hasta])
+
+  // Reload when GPS import completes in another panel
+  useEffect(() => {
+    const handler = () => cargar()
+    window.addEventListener('gps-data-updated', handler)
+    return () => window.removeEventListener('gps-data-updated', handler)
+  }, [desde, hasta])
+
   useEffect(() => {
     const hace1año = new Date(); hace1año.setFullYear(hace1año.getFullYear()-1)
     fetch(`/api/calendario?desde=${localDateStr(hace1año)}&hasta=${today}`)

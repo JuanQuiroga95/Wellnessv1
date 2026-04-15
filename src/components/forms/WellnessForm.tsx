@@ -564,6 +564,7 @@ export default function WellnessForm({ jugadorId, onSuccess, todayWellness }) {
         })
       })
       if (!res.ok) { const d=await res.json(); setError(d.error||'Error'); return }
+      window.dispatchEvent(new CustomEvent('wellness-data-updated'))
       setDone(true); setTimeout(() => { setDone(false); onSuccess() }, 1600)
     } catch { setError('Error de conexión') }
     finally { setLoading(false) }

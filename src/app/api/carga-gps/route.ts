@@ -465,19 +465,31 @@ export async function GET(req: NextRequest) {
     }
 
     const nGps = (gpsReal as any[]).length || 1
-    const avgGps = (field: string) => Math.round((gpsReal as any[]).reduce((s: number, p: any) => s + (Number(p[field]) || 0), 0) / nGps)
+    // avgGpsNonZero: only averages players who actually have a non-zero value for the field
+    const avgGps = (field: string) => {
+      const nonZero = (gpsReal as any[]).filter(p => Number(p[field]) > 0)
+      if (!nonZero.length) return 0
+      return Math.round(nonZero.reduce((s: number, p: any) => s + Number(p[field]), 0) / nonZero.length)
+    }
+    const avgGpsDecimal = (field: string, decimals: number) => {
+      const nonZero = (gpsReal as any[]).filter(p => Number(p[field]) > 0)
+      if (!nonZero.length) return 0
+      const factor = Math.pow(10, decimals)
+      return Math.round(nonZero.reduce((s: number, p: any) => s + Number(p[field]), 0) / nonZero.length * factor) / factor
+    }
     const teamAvgGps = {
       dist_total:   avgGps('dist_total'),
       dist_hir:     avgGps('dist_hir'),
       dist_v4:      avgGps('dist_v4'),
       dist_v5:      avgGps('dist_v5'),
-      player_load:  Math.round((gpsReal as any[]).reduce((s: number, p: any) => s + (Number(p.player_load) || 0), 0) / nGps * 10) / 10,
-      max_velocity: Math.round((gpsReal as any[]).reduce((s: number, p: any) => s + (Number(p.max_velocity) || 0), 0) / nGps * 100) / 100,
+      player_load:  avgGpsDecimal('player_load', 1),
+      // max_velocity: average of non-zero individual maxes (excludes players without sensor data)
+      max_velocity: avgGpsDecimal('max_velocity', 2),
       acc2:         avgGps('acc2'),
       dec2:         avgGps('dec2'),
       acc3:         avgGps('acc3'),
       dec3:         avgGps('dec3'),
-      dist_per_min: Math.round((gpsReal as any[]).reduce((s: number, p: any) => s + (Number(p.dist_per_min) || 0), 0) / nGps * 10) / 10,
+      dist_per_min: avgGpsDecimal('dist_per_min', 1),
       sesiones_gps: avgGps('sesiones_gps'),
     }
 
