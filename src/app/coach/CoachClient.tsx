@@ -5226,15 +5226,17 @@ function AcumBarChart({ players, vars, accentColor = '#c8f135' }: { players: any
           {/* Barras */}
           <div style={{ flex:1, overflowX:'auto', overflowY:'visible' }}>
             <div style={{ position:'relative', minWidth: data.length * 60 }}>
+              {/* Grid lines */}
               {[0,25,50,75,100].map((p,i) => (
-                <div key={i} style={{ position:'absolute', left:0, right:0, bottom: BOT_PAD + (p/100)*BAR_H, borderTop:'1px solid rgba(255,255,255,.05)', pointerEvents:'none' }}/>
+                <div key={i} style={{ position:'absolute', left:0, right:0, top: TOP_PAD + ((100-p)/100)*BAR_H, borderTop:'1px solid rgba(255,255,255,.05)', pointerEvents:'none' }}/>
               ))}
-              <div style={{ display:'flex', gap:8, alignItems:'flex-end', height:TOP_PAD+BAR_H+BOT_PAD, paddingTop:TOP_PAD, paddingBottom:BOT_PAD }}>
+              {/* Bar area */}
+              <div style={{ display:'flex', gap:8, alignItems:'flex-end', height:TOP_PAD+BAR_H, paddingTop:TOP_PAD }}>
                 {data.map((d, i) => {
                   const barH = Math.max((d.val/maxVal)*BAR_H, 4)
                   const showInside = barH > 28
                   return (
-                  <div key={i} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', minWidth:52, height:'100%', justifyContent:'flex-end' }}>
+                  <div key={i} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', minWidth:52, justifyContent:'flex-end' }}>
                     {!showInside && <div style={{ fontSize:11, color:selVar.color, fontFamily:'DM Mono,monospace', fontWeight:800, marginBottom:3, whiteSpace:'nowrap' }}>{d.val}</div>}
                     <div style={{ width:'55%', minWidth:20, maxWidth:48, borderRadius:'5px 5px 0 0',
                       height:`${barH}px`, position:'relative',
@@ -5247,9 +5249,14 @@ function AcumBarChart({ players, vars, accentColor = '#c8f135' }: { players: any
                         </span>
                       )}
                     </div>
-                    <div style={{ fontSize:9, color:'var(--snow)', fontWeight:600, marginTop:6, textAlign:'center', wordBreak:'break-word', lineHeight:1.2 }}>{d.nombre}</div>
                   </div>
                 )})}
+              </div>
+              {/* X-axis labels — below the axis line */}
+              <div style={{ display:'flex', gap:8, marginTop:4 }}>
+                {data.map((d, i) => (
+                  <div key={i} style={{ flex:1, minWidth:52, fontSize:9, color:'var(--snow)', fontWeight:600, textAlign:'center', wordBreak:'break-word', lineHeight:1.2 }}>{d.nombre}</div>
+                ))}
               </div>
             </div>
           </div>
