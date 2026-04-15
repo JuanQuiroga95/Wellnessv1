@@ -6280,20 +6280,20 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
         </div>
         <div style={{ display:'flex', gap:0 }}>
           {/* Y-axis labels */}
-          <div style={{ display:'flex', flexDirection:'column', justifyContent:'space-between', paddingRight:6, height:BAR_H+22, paddingBottom:22 }}>
+          <div style={{ display:'flex', flexDirection:'column', justifyContent:'space-between', paddingRight:6, height:BAR_H }}>
             {yTicks.map((t,i)=>(
               <div key={i} style={{ fontSize:8, color:'var(--fog)', fontFamily:'DM Mono,monospace', textAlign:'right', lineHeight:1 }}>{t}</div>
             ))}
           </div>
           {/* Bars + grid */}
-          <div style={{ flex:1, position:'relative' }}>
-            {[100,75,50,25,0].map((p,i)=>(
-              <div key={i} style={{ position:'absolute', left:0, right:0, top:`${(i/4)*BAR_H}px`, borderTop:'1px solid rgba(255,255,255,.05)' }}/>
-            ))}
-            <div style={{ display:'flex', gap:names.length>6?2:6, alignItems:'flex-end', height:BAR_H+22, paddingBottom:22 }}>
-              {names.map((name:string,ni:number)=>(
-                <div key={ni} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', minWidth:0 }}>
-                  <div style={{ display:'flex', gap:2, alignItems:'flex-end', height:BAR_H }}>
+          <div style={{ flex:1 }}>
+            <div style={{ position:'relative', height:BAR_H }}>
+              {[100,75,50,25,0].map((p,i)=>(
+                <div key={i} style={{ position:'absolute', left:0, right:0, top:`${(i/4)*BAR_H}px`, borderTop:'1px solid rgba(255,255,255,.05)' }}/>
+              ))}
+              <div style={{ display:'flex', gap:names.length>6?2:6, alignItems:'flex-end', height:BAR_H }}>
+                {names.map((name:string,ni:number)=>(
+                  <div key={ni} style={{ flex:1, display:'flex', gap:2, alignItems:'flex-end', height:BAR_H }}>
                     {series.map((s,si)=>{
                       const val = (s.vals[ni] as any)?.val || 0
                       const h = Math.max((val/maxVal)*BAR_H, val>0?3:0)
@@ -6309,8 +6309,13 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
                       )
                     })}
                   </div>
-                  <div style={{ fontSize:9, color:existingMdLabels.has(name)?'var(--lime)':'var(--fog)', marginTop:3, whiteSpace:'nowrap', overflow:'hidden', maxWidth:38, textOverflow:'ellipsis', textAlign:'center', fontWeight:existingMdLabels.has(name)?700:400 }}>{name}</div>
-                </div>
+                ))}
+              </div>
+            </div>
+            {/* X-axis labels — fila separada para no desplazar las barras respecto al eje Y */}
+            <div style={{ display:'flex', gap:names.length>6?2:6, marginTop:4 }}>
+              {names.map((name:string,ni:number)=>(
+                <div key={ni} style={{ flex:1, fontSize:9, color:existingMdLabels.has(name)?'var(--lime)':'var(--fog)', whiteSpace:'nowrap', overflow:'hidden', maxWidth:38, textOverflow:'ellipsis', textAlign:'center', fontWeight:existingMdLabels.has(name)?700:400 }}>{name}</div>
               ))}
             </div>
           </div>
