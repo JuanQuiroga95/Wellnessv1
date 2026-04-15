@@ -6,7 +6,6 @@ import { rateLimit } from '@/lib/security'
 
 function isAdmin(s: any) { return s?.rol === 'admin' || s?.rol === 'master_admin' }
 
-// Local-date helper: avoids UTC-midnight shift from localToday()
 function localToday(): string {
   const d = new Date()
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
@@ -25,7 +24,6 @@ export async function GET(req: NextRequest) {
     const hasta = searchParams.get('hasta') || localToday()
     const sql = getDb()
 
-    // hastaInc: +1 día para inclusividad total del día "hasta" con el driver Neon
     const hastaInc = (() => {
       const d = new Date(hasta + 'T12:00:00Z')
       d.setUTCDate(d.getUTCDate() + 1)
@@ -105,7 +103,6 @@ export async function POST(req: NextRequest) {
     if (!fecha) return NextResponse.json({ error: 'Fecha requerida' }, { status: 400 })
     const sql = getDb()
 
-    // Add rival and rival_foto columns if they don't exist yet
     try {
       await sql`ALTER TABLE sesiones_plan ADD COLUMN IF NOT EXISTS rival TEXT`
       await sql`ALTER TABLE sesiones_plan ADD COLUMN IF NOT EXISTS rival_foto TEXT`
@@ -146,7 +143,7 @@ export async function PATCH(req: NextRequest) {
 
     await sql`
       UPDATE sesiones_plan SET
-        fecha              = COALESCE(${fecha ?? null}, fecha),
+        fecha               = COALESCE(${fecha ?? null}, fecha),
         hora_inicio        = COALESCE(${hora_inicio ?? null}, hora_inicio),
         hora_fin           = COALESCE(${hora_fin ?? null}, hora_fin),
         tipo               = COALESCE(${tipo ?? null}, tipo),
@@ -169,6 +166,7 @@ export async function PATCH(req: NextRequest) {
   }
 }
 
+// --- MÉTODO DELETE CORREGIDO ---
 export async function DELETE(req: NextRequest) {
   try {
     const s = await getSessionFromRequest(req)
@@ -176,18 +174,17 @@ export async function DELETE(req: NextRequest) {
     const { searchParams } = new URL(req.url)
     const borrarTodo = searchParams.get('all') === 'true'
     const sql = getDb()
+    const clubId = s.clubId ? Number(s.clubId) : null
 
     if (borrarTodo) {
-      // Delete all sessions for this admin's club — use two subquery deletes to avoid ANY(array) driver bug
-      const clubId = s.clubId ? Number(s.clubId) : null
-      if (clubId) {
-        // 1. Sessions with explicit club_id
-        await sql`DELETE FROM sesiones_plan WHERE club_id = ${clubId}`
-        // 2. Sessions created by this admin without club_id set
+      await sql.begin(async (sql) => {
+        // FIX: Borrar también los logs de entrenamiento para que el Panel de Carga se limpie
+        if (clubId) {
+          await sql`DELETE FROM entrenamiento_logs WHERE jugador_id IN (SELECT id FROM jugadores WHERE club_id = ${clubId})`
+          await sql`DELETE FROM sesiones_plan WHERE club_id = ${clubId}`
+        }
         await sql`DELETE FROM sesiones_plan WHERE admin_id = ${s.userId} AND club_id IS NULL`
-      } else {
-        await sql`DELETE FROM sesiones_plan WHERE admin_id = ${s.userId}`
-      }
+      })
       return NextResponse.json({ ok: true, deleted: 'all' })
     }
 
