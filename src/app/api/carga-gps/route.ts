@@ -182,6 +182,48 @@ export async function GET(req: NextRequest) {
       perSession[label] = { fecha: ses.fecha, rpe_objetivo: ses.rpe_objetivo, ...m }
     }
 
+    // ── cePerSession: CE (Carga Específica) y UCE por sesión ──
+    // CE = Min × NE (Nivel Especificidad). UCE = CE × RPE_objetivo.
+    // NE defaults match the frontend CoachClient NE_DEFAULT map.
+    const NE_DEFAULT: Record<string, number> = {
+      'Partido oficial': 10, 'Partido amistoso': 9, 'Partido de entrenamiento': 8,
+      'Partido modificado': 7, 'Partido reducido': 7, 'Juego de posición': 6,
+      'Juego de posesión': 6, 'Transiciones': 5, 'Rondo': 5, 'Trabajo analítico': 4,
+      'Gimnasio': 3, 'Activación en campo': 2, 'Activación en gimnasio': 2,
+    }
+    const cePerSession: Record<string, any> = {}
+    for (const ses of sesiones as any[]) {
+      const label = ses.titulo || ses.fecha
+      const ejercicios: any[] = Array.isArray(ses.ejercicios) ? ses.ejercicios : []
+      // Group bloques by ventana (task type), summing minutos per group
+      const ventanaMap: Record<string, { minTotal: number; ne: number }> = {}
+      for (const bl of ejercicios) {
+        const series  = Number(bl.series)  || 1
+        const minutos = Number(bl.minutos) || 0
+        if (!minutos) continue
+        const ventana = bl.ventana || bl.tipo || 'Tarea'
+        const ne = bl.ne ?? NE_DEFAULT[ventana] ?? 5
+        if (!ventanaMap[ventana]) ventanaMap[ventana] = { minTotal: 0, ne }
+        ventanaMap[ventana].minTotal += series * minutos
+        ventanaMap[ventana].ne = ne  // use last ne seen for this ventana
+      }
+      const bloques = Object.entries(ventanaMap).map(([ventana, v]) => ({
+        ventana,
+        minTotal: Math.round(v.minTotal),
+        ne: v.ne,
+        ce: Math.round(v.minTotal * v.ne),
+      }))
+      const ce_total = bloques.reduce((s, b) => s + b.ce, 0)
+      const rpe_obj = Number(ses.rpe_objetivo) || 0
+      cePerSession[label] = {
+        fecha: ses.fecha,
+        rpe_objetivo: rpe_obj,
+        ce_total,
+        uce_total: rpe_obj > 0 ? Math.round(ce_total * rpe_obj) : 0,
+        bloques,
+      }
+    }
+
     // Cuadro 1 RPE por sesión (Fix Damián)
     const rpeByPlayerDate: Record<string, any> = {}
     for (const log of logs as any[]) { rpeByPlayerDate[`${log.jugador_id}_${log.fecha}`] = log }
@@ -195,7 +237,7 @@ export async function GET(req: NextRequest) {
       })
     }
 
-    return NextResponse.json({ players, teamAvg, sesionesInfo, perSession, perSessionPlayers, sesionesCount: sesiones.length, ciclo })
+    return NextResponse.json({ players, teamAvg, sesionesInfo, perSession, perSessionPlayers, cePerSession, sesionesCount: sesiones.length, ciclo })
   } catch (err) {
     console.error('[GET error]', err)
     return NextResponse.json({ error: String(err) }, { status: 500 })
