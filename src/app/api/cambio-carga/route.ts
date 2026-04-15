@@ -19,8 +19,8 @@ export async function GET(req: NextRequest) {
     const desde = searchParams.get('desde') || '2024-01-01'
     const hasta = searchParams.get('hasta') || localToday()
     
-    // BAJAMOS EL MÍNIMO: Para que cualquier carga (aunque sea de 1 min) aparezca
-    const minEntrenamiento = parseInt(searchParams.get('minEntrenamiento') || '1')
+    // FIX 1: Bajamos el mínimo a 1 minuto para que Damián no quede fuera del gráfico
+    const minEntrenamiento = 1; 
 
     const hastaInc = (() => {
       const d = new Date(hasta + 'T23:59:59.999Z')
@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
     const clubId = s.clubId ? Number(s.clubId) : null
     const sql = getDb()
 
-    // 1. Traemos los logs (Simplificamos el filtro de club para que sea más efectivo)
+    // 1. Logs de entrenamiento
     const trainLogs = await sql`
       SELECT el.jugador_id, u.nombre, el.fecha::text, el.carga_ua, el.duracion_min, el.rpe
       FROM entrenamiento_logs el
@@ -41,21 +41,19 @@ export async function GET(req: NextRequest) {
       ORDER BY el.fecha ASC
     `
 
-    // 2. Traemos las sesiones para la Carga Externa (CE)
+    // 2. Sesiones para Carga Externa (UCE)
     const sesionesParaUCE = await sql`
       SELECT fecha::text, ejercicios FROM sesiones_plan
       WHERE club_id = ${clubId} AND fecha >= ${desde}::date AND fecha <= ${hastaInc}::timestamp
     `
 
-    // 3. Calculamos CE por fecha
+    // 3. Cálculo de Carga Externa (CE) por fecha
     const ceByDate: Record<string, number> = {}
     for (const ses of sesionesParaUCE as any[]) {
       let ceTotal = 0
       for (const bl of (ses.ejercicios || [])) {
         const minTotal = (Number(bl.series)||1) * (Number(bl.minutos)||0)
         const ne = Number(bl.ne) || 5
-        
-        // Buscamos jugadores en cualquier campo
         let jug = Number(bl.jugadores) || (Number(bl.atacantes)||0) + (Number(bl.defensores)||0) || 1
         
         if (minTotal > 0 && bl.largo && bl.ancho) {
@@ -63,13 +61,13 @@ export async function GET(req: NextRequest) {
           const distEstimada = Math.max(0, (19.243 * Math.log(densidad) - 5.029) * minTotal)
           ceTotal += Math.round(distEstimada * (ne / 5))
         } else {
-          ceTotal += minTotal * ne // Fallback
+          ceTotal += minTotal * ne
         }
       }
       ceByDate[ses.fecha] = (ceByDate[ses.fecha] || 0) + ceTotal
     }
 
-    // 4. Agrupamos por Jugador (Para la tabla de abajo)
+    // 4. Tabla de Jugadores (La que ya te funciona)
     const playerMap: Record<number, any> = {}
     trainLogs.forEach((log: any) => {
       if (!playerMap[log.jugador_id]) {
@@ -87,15 +85,17 @@ export async function GET(req: NextRequest) {
       ua: Math.round(p.total_ua / p.count),
       ua_total: p.total_ua,
       sesiones: p.count
-    }))
+    })).sort((a,b) => a.nombre.localeCompare(b.nombre))
 
-    // 5. Agrupamos por Fecha (Para el gráfico)
+    // 5. Datos diarios para el GRÁFICO (Aquí estaba el error)
     const dailyMap: Record<string, any> = {}
     trainLogs.forEach((log: any) => {
+      // Si el log es muy corto pero el usuario lo cargó, lo incluimos igual
       if (log.duracion_min < minEntrenamiento) return
+      
       if (!dailyMap[log.fecha]) dailyMap[log.fecha] = { total_ua: 0, total_rpe: 0, count: 0 }
-      dailyMap[log.fecha].total_ua += log.carga_ua || 0
-      dailyMap[log.fecha].total_rpe += log.rpe || 0
+      dailyMap[log.fecha].total_ua += Number(log.carga_ua) || 0
+      dailyMap[log.fecha].total_rpe += Number(log.rpe) || 0
       dailyMap[log.fecha].count += 1
     })
 
@@ -103,17 +103,21 @@ export async function GET(req: NextRequest) {
       const d = dailyMap[fecha]
       const avg_rpe = d.total_rpe / d.count
       const ce = ceByDate[fecha] || 0
+      
       return {
         fecha,
+        label: fecha,
         avg_ua: Math.round(d.total_ua / d.count),
         avg_rpe: Math.round(avg_rpe * 10) / 10,
-        avg_uce: ce > 0 ? Math.round(ce * (avg_rpe / 5)) : 0,
+        // FIX FINAL UCE: Si hay CE, calculamos; si no, UA.
+        avg_uce: ce > 0 ? Math.round(ce * (avg_rpe / 5)) : Math.round(d.total_ua / d.count),
         n: d.count
       }
     })
 
     return NextResponse.json({ daily, players, qualifyingCount: players.length })
   } catch (err) {
+    console.error(err)
     return NextResponse.json({ error: String(err) }, { status: 500 })
   }
 }
