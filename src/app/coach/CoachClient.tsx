@@ -2723,7 +2723,7 @@ function SesionEditor({ sesion, defaultFecha, rpeReal = 0, onSave, onDelete, onC
 function MinutosPanel({ teamData }) {
   const now = new Date()
   const [desde, setDesde] = useState(`${now.getFullYear()}-01-01`)
-  const [hasta, setHasta] = useState(todayLocal())
+  const [hasta, setHasta] = useState(`${now.getFullYear()}-12-31`)
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(false)
   const [showAdd, setShowAdd] = useState(false)
