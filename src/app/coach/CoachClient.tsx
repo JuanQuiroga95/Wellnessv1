@@ -6221,6 +6221,12 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
   const perSessionTeamAvg: Record<string,any> = data?.perSessionTeamAvg || {}
   const sesionesInfo: any[] = data?.sesionesInfo || []
   const cePerSession: Record<string,any> = data?.cePerSession || {}
+  const gpsPerMD: Record<string,any[]> = data?.gpsPerMD || {}
+  // Mapping from camelCase calc keys → snake_case real GPS keys
+  const GPS_REAL_KEY: Record<string,string> = {
+    distTotal:'dist_total', distSprint:'dist_hir', nSprints:'n_sprints',
+    nAcel:'acc2', nDecel:'dec2', distMP:'dist_v4', nAcel3:'acc3', nDecel3:'dec3',
+  }
   // Always show all 8 MD slots (skeleton view) — existingMdLabels controls opacity/hasData
   const MD_ORDER_LOCAL = ['MD+1','MD+2','MD+3','MD-4','MD-3','MD-2','MD-1','MD']
   const existingMdLabels = new Set(sesionesInfo.map((s:any) => s.titulo))
@@ -6635,10 +6641,19 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
                       </div>
                       <div style={{ display:'grid', gridTemplateColumns:'1fr', gap:14 }}>
                         {GROUPS.map(grp => {
-                          // GPS bar keys use session data (same for all players from calculator)
+                          // GPS bar keys: prefer real per-player GPS sensor data, fall back to session calculator
                           const GPS_BAR_KEYS = new Set(['distTotal','distSprint','nSprints','nAcel','nDecel','distMP','nAcel3','nDecel3'])
-                          const getBarVal = (p: any, key: string) =>
-                            GPS_BAR_KEYS.has(key) ? Math.round(Number(sesData[key])||0) : (Number(p[key])||0)
+                          const mdGpsPlayers: any[] = gpsPerMD[md] || []
+                          const getBarVal = (p: any, key: string) => {
+                            if (!GPS_BAR_KEYS.has(key)) return Number(p[key])||0
+                            const gpsPlayer = mdGpsPlayers.find((g:any) => g.jugador_id === p.jugador_id)
+                            if (gpsPlayer) {
+                              const realKey = GPS_REAL_KEY[key] || key
+                              const realVal = Number(gpsPlayer[realKey])
+                              if (!isNaN(realVal) && realVal > 0) return Math.round(realVal)
+                            }
+                            return Math.round(Number(sesData[key])||0)
+                          }
                           const allBarVals = mdPlayers.flatMap((p:any) => grp.bars.map(b => getBarVal(p, b.key)))
                           const maxBar = Math.max(...allBarVals, 1)
                           // Show a note when all GPS bar values are 0 (no session blocks defined)

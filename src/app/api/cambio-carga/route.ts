@@ -111,10 +111,9 @@ export async function GET(req: NextRequest) {
   for (const ses of sesionesParaUCE as any[]) {
     let ceTotal = 0
     for (const bl of (ses.ejercicios || [])) {
-      if (!bl.ventana) continue
-      const ne = bl.ne ?? NE_DEFAULT_API[bl.ventana] ?? 5
       const minTotal = (Number(bl.series)||1) * (Number(bl.minutos)||0)
       if (!minTotal) continue
+      const ne = Number(bl.ne) > 0 ? Number(bl.ne) : (NE_DEFAULT_API[bl.ventana] ?? 5)
       ceTotal += Math.round(minTotal * ne)
     }
     if (ceTotal > 0) ceByDate[ses.fecha] = (ceByDate[ses.fecha] || 0) + ceTotal
