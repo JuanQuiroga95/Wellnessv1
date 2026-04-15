@@ -25,8 +25,9 @@ export async function GET(req: NextRequest) {
     })()
     const desde = searchParams.get('desde') || desdeDefault
 
-    // FIX DE FECHA: Inclusividad total hasta el último milisegundo del día
-    const hastaFinal = hasta + ' 23:59:59.999'
+    // FIX: Formato de fecha robusto para evitar el Error 500
+    const fDesde = desde;
+    const fHasta = hasta + ' 23:59:59.999';
 
     const clubId = s.clubId ? Number(s.clubId) : null
     const isMaster = s.rol === 'master_admin' && !s.clubId
@@ -34,7 +35,7 @@ export async function GET(req: NextRequest) {
 
     if (!isMaster && !clubId) return NextResponse.json([])
 
-    // Wellness semanal: promedios por semana de fatiga, sueño, etc.
+    // Wellness semanal: recuperamos TODAS tus métricas de promedio
     const wellnessWeekly = await sql`
       SELECT j.id AS jugador_id, u.nombre, j.posicion, j.foto_url,
              TO_CHAR(DATE_TRUNC('week', w.fecha), 'YYYY-MM-DD') AS semana,
@@ -47,13 +48,13 @@ export async function GET(req: NextRequest) {
              COUNT(w.id)::int AS registros
       FROM jugadores j JOIN usuarios u ON u.id=j.usuario_id
       JOIN wellness_logs w ON w.jugador_id=j.id 
-      WHERE w.fecha >= ${desde}::date AND w.fecha <= ${hastaFinal}::timestamp
+      WHERE w.fecha >= ${fDesde}::date AND w.fecha <= ${fHasta}::timestamp
         AND u.rol='jugador' AND u.activo=true
         AND (${isMaster}::boolean OR (u.club_id=${clubId} AND j.club_id=${clubId}))
       GROUP BY j.id, u.nombre, j.posicion, j.foto_url, DATE_TRUNC('week', w.fecha)
       ORDER BY u.nombre, semana`
 
-    // RPE semanal: carga y duración promedio
+    // RPE semanal
     const rpeWeekly = await sql`
       SELECT el.jugador_id::int,
              TO_CHAR(DATE_TRUNC('week', el.fecha), 'YYYY-MM-DD') AS semana,
@@ -63,13 +64,13 @@ export async function GET(req: NextRequest) {
       FROM entrenamiento_logs el
       JOIN jugadores j ON j.id=el.jugador_id
       JOIN usuarios u  ON u.id=j.usuario_id
-      WHERE el.fecha >= ${desde}::date AND el.fecha <= ${hastaFinal}::timestamp
+      WHERE el.fecha >= ${fDesde}::date AND el.fecha <= ${fHasta}::timestamp
         AND u.activo=true
         AND (${isMaster}::boolean OR (u.club_id=${clubId} AND j.club_id=${clubId}))
       GROUP BY el.jugador_id, DATE_TRUNC('week', el.fecha)
       ORDER BY el.jugador_id, semana`
 
-    // Readiness: Último estado cargado (Hoy o Ayer)
+    // Readiness: Estado actual
     const readinessToday = await sql`
       SELECT DISTINCT ON (j.id)
              j.id AS jugador_id, u.nombre, j.posicion, j.foto_url,
@@ -89,6 +90,7 @@ export async function GET(req: NextRequest) {
       readinessToday: readinessToday.map(r => ({ jugador_id:Number(r.jugador_id), nombre:String(r.nombre||''), posicion:String(r.posicion||''), foto_url:r.foto_url?String(r.foto_url):null, fecha:r.fecha?String(r.fecha):null, fatiga:Number(r.fatiga)||0, calidad_sueno:Number(r.calidad_sueno)||0, dolor_muscular:Number(r.dolor_muscular)||0, nivel_estres:Number(r.nivel_estres)||0, estado_animo:Number(r.estado_animo)||0, total_wellness:Number(r.total_wellness)||0 })),
     })
   } catch (err) {
+    console.error('[Analytics GET error]', err)
     return NextResponse.json({ error: String(err) }, { status: 500 })
   }
 }
@@ -101,7 +103,6 @@ export async function DELETE(req: NextRequest) {
     const clubId = s.clubId ? Number(s.clubId) : null
 
     if (clubId) {
-      // Borrado de seguridad: solo registros del club actual
       await sql`DELETE FROM wellness_logs WHERE jugador_id IN (SELECT id FROM jugadores WHERE club_id = ${clubId})`;
       await sql`DELETE FROM entrenamiento_logs WHERE jugador_id IN (SELECT id FROM jugadores WHERE club_id = ${clubId})`;
     }
