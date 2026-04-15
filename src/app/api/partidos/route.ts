@@ -96,3 +96,19 @@ export async function POST(req: NextRequest) {
     RETURNING id, fecha::text`
   return NextResponse.json(r)
 }
+
+export async function DELETE(req: NextRequest) {
+  const s = await getSessionFromRequest(req)
+  if (!s || !isAdmin(s)) return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
+  const { searchParams } = new URL(req.url)
+  const id = searchParams.get('id')
+  if (!id) return NextResponse.json({ error: 'id requerido' }, { status: 400 })
+  const sql = getDb()
+  const clubId = s.clubId ? Number(s.clubId) : null
+  // Only allow deleting logs that belong to this club
+  await sql`DELETE FROM partido_logs 
+    WHERE id = ${id} 
+      AND (${s.rol === 'master_admin'}::boolean 
+           OR jugador_id IN (SELECT id FROM jugadores WHERE club_id = ${clubId}))`
+  return NextResponse.json({ ok: true })
+}

@@ -2879,9 +2879,18 @@ function MinutosPanel({ teamData }) {
                                               {isEditing ? '✕ Cancelar' : '⏱ Asignar minutos'}
                                             </button>
                                           ) : (
-                                            <div style={{ textAlign:'right', flexShrink:0 }}>
-                                              <div className="mono" style={{ fontSize:15, fontWeight:700, color:'#60a5fa' }}>{m.minutos} min</div>
-                                              {m.titular && <div style={{ fontSize:9, color:'#fbbf24', textTransform:'uppercase', letterSpacing:'0.06em' }}>Titular</div>}
+                                            <div style={{ display:'flex', alignItems:'center', gap:8, flexShrink:0 }}>
+                                              <div style={{ textAlign:'right' }}>
+                                                <div className="mono" style={{ fontSize:15, fontWeight:700, color:'#60a5fa' }}>{m.minutos} min</div>
+                                                {m.titular && <div style={{ fontSize:9, color:'#fbbf24', textTransform:'uppercase', letterSpacing:'0.06em' }}>Titular</div>}
+                                              </div>
+                                              {m.id && (
+                                                <button
+                                                  onClick={async()=>{ if(!confirm('¿Eliminar este registro de partido?')) return; await fetch(`/api/partidos?id=${m.id}`,{method:'DELETE'}); const r=await fetch(`/api/partidos?jugadorId=${selectedPlayer.jugador_id}&desde=${desde}&hasta=${hasta}`); setPlayerMatches(await r.json()); load() }}
+                                                  style={{ fontSize:10, padding:'3px 7px', borderRadius:5, background:'rgba(239,68,68,.12)', color:'#ef4444', border:'1px solid rgba(239,68,68,.3)', cursor:'pointer', fontWeight:600 }}
+                                                  title="Eliminar registro"
+                                                >✕</button>
+                                              )}
                                             </div>
                                           )}
                                         </div>
@@ -2954,8 +2963,8 @@ function AddMatchForm({ teamData, onSuccess, onCancel }) {
   const [extraFoto, setExtraFoto] = useState<string|null>(null)
 
   useEffect(() => {
-    // Load last ~8 weeks of calendar to find partidos
-    const hasta = todayLocal()
+    // Buscar partidos pasados (6 meses) Y futuros (60 días)
+    const hasta = addDays(todayLocal(), +60)
     const desde = addDays(todayLocal(), -180)
     setLoadingCal(true)
     fetch(`/api/calendario?desde=${desde}&hasta=${hasta}`)

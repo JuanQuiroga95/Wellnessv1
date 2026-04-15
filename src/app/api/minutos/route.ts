@@ -58,7 +58,7 @@ export async function GET(req: NextRequest) {
         JOIN usuarios u ON u.id=j.usuario_id
         WHERE pl.fecha >= ${desde}::date AND pl.fecha < ${hastaInc}::date
           AND u.activo=true
-          AND (${isMaster}::boolean OR u.club_id=${clubId} OR j.club_id=${clubId})
+          AND (${isMaster}::boolean OR (u.club_id=${clubId} AND j.club_id=${clubId} AND (pl.club_id IS NULL OR pl.club_id=${clubId})))
         GROUP BY pl.jugador_id`,
     sql`SELECT e.jugador_id::int, TO_CHAR(DATE_TRUNC('month',e.fecha),'YYYY-MM') AS mes,
                COALESCE(SUM(e.duracion_min),0)::int AS min_entreno
@@ -76,7 +76,7 @@ export async function GET(req: NextRequest) {
         JOIN usuarios u ON u.id=j.usuario_id
         WHERE pl.fecha >= ${desde}::date AND pl.fecha < ${hastaInc}::date
           AND u.activo=true
-          AND (${isMaster}::boolean OR u.club_id=${clubId} OR j.club_id=${clubId})
+          AND (${isMaster}::boolean OR (u.club_id=${clubId} AND j.club_id=${clubId} AND (pl.club_id IS NULL OR pl.club_id=${clubId})))
         GROUP BY pl.jugador_id,DATE_TRUNC('month',pl.fecha)`,
   ])
   const mm: Record<number,any> = {}
