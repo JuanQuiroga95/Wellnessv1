@@ -110,4 +110,86 @@ export async function POST(req: NextRequest) {
       VALUES(${s.userId}, ${s.clubId ? Number(s.clubId) : null}, ${fecha},
              ${hora_inicio || null}, ${hora_fin || null},
              ${tipo || 'entrenamiento'}, ${titulo || null}, ${objetivo || null},
-             ${objetivo_secund
+             ${objetivo_secundario || null}, ${descripcion || null},
+             ${JSON.stringify(ejercicios || [])}::jsonb,
+             ${rpe_objetivo || null}, ${notas || null},
+             ${rival || null}, ${rival_foto || null})
+      RETURNING id, fecha::text`
+    return NextResponse.json(r)
+  } catch (err) {
+    console.error('[calendario POST error]', err)
+    return NextResponse.json({ error: String(err) }, { status: 500 })
+  }
+}
+
+export async function PATCH(req: NextRequest) {
+  try {
+    const s = await getSessionFromRequest(req)
+    if (!s || !isAdmin(s)) return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
+    const { id, fecha, hora_inicio, hora_fin, tipo, titulo, objetivo, objetivo_secundario,
+            descripcion, ejercicios, rpe_objetivo, notas, rival, rival_foto } = await req.json()
+    if (!id) return NextResponse.json({ error: 'id requerido' }, { status: 400 })
+    const sql = getDb()
+
+    await sql`
+      UPDATE sesiones_plan SET
+        fecha               = COALESCE(${fecha ?? null}, fecha),
+        hora_inicio        = COALESCE(${hora_inicio ?? null}, hora_inicio),
+        hora_fin           = COALESCE(${hora_fin ?? null}, hora_fin),
+        tipo               = COALESCE(${tipo ?? null}, tipo),
+        titulo             = COALESCE(${titulo ?? null}, titulo),
+        objetivo           = COALESCE(${objetivo ?? null}, objetivo),
+        objetivo_secundario= COALESCE(${objetivo_secundario ?? null}, objetivo_secundario),
+        descripcion        = COALESCE(${descripcion ?? null}, descripcion),
+        ejercicios         = CASE WHEN ${ejercicios !== undefined ? 'y' : 'n'} = 'y'
+                               THEN ${JSON.stringify(ejercicios ?? [])}::jsonb
+                               ELSE ejercicios END,
+        rpe_objetivo       = COALESCE(${rpe_objetivo ?? null}, rpe_objetivo),
+        notas              = COALESCE(${notas ?? null}, notas),
+        rival              = CASE WHEN ${rival !== undefined ? 'y' : 'n'} = 'y' THEN ${rival ?? null} ELSE rival END,
+        rival_foto         = CASE WHEN ${rival_foto !== undefined ? 'y' : 'n'} = 'y' THEN ${rival_foto ?? null} ELSE rival_foto END
+      WHERE id = ${id} AND admin_id = ${s.userId}`
+    return NextResponse.json({ ok: true })
+  } catch (err) {
+    console.error('[calendario PATCH error]', err)
+    return NextResponse.json({ error: String(err) }, { status: 500 })
+  }
+}
+
+export async function DELETE(req: NextRequest) {
+  try {
+    const s = await getSessionFromRequest(req)
+    if (!s || !isAdmin(s)) return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
+    
+    const { searchParams } = new URL(req.url)
+    const borrarTodo = searchParams.get('all') === 'true'
+    const sql = getDb()
+    const clubId = s.clubId ? Number(s.clubId) : null
+
+    if (borrarTodo) {
+      if (clubId) {
+        await sql`DELETE FROM sesiones_plan WHERE club_id = ${clubId}`;
+      }
+      await sql`DELETE FROM sesiones_plan WHERE admin_id = ${s.userId} AND club_id IS NULL`;
+
+      try {
+        if (clubId) {
+          await sql`DELETE FROM partido_logs WHERE jugador_id IN (SELECT id FROM jugadores WHERE club_id = ${clubId})`.catch(() => {});
+          await sql`DELETE FROM entrenamiento_logs WHERE jugador_id IN (SELECT id FROM jugadores WHERE club_id = ${clubId})`.catch(() => {});
+          await sql`DELETE FROM entrenamiento_log WHERE jugador_id IN (SELECT id FROM jugadores WHERE club_id = ${clubId})`.catch(() => {});
+        }
+      } catch (e) { console.log("Error silencioso en borrado de logs"); }
+
+      return NextResponse.json({ ok: true, deleted: 'all' });
+    }
+
+    const id = searchParams.get('id')
+    if (!id) return NextResponse.json({ error: 'id requerido' }, { status: 400 })
+    await sql`DELETE FROM sesiones_plan WHERE id = ${id} AND admin_id = ${s.userId}`;
+    
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    console.error('[calendario DELETE error]', err)
+    return NextResponse.json({ ok: true, partial: true, error: String(err) });
+  }
+}
