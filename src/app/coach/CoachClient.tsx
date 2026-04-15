@@ -6628,7 +6628,7 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
                   // Position colors
                   const POS_COLS: Record<string,string> = {}
                   const POS_LIST = ['#22c55e','#3b82f6','#f59e0b','#ef4444','#a78bfa','#ec4899','#06b6d4','#fbbf24']
-                  players.forEach((p:any, i:number) => { POS_COLS[p.nombre] = POS_LIST[i % POS_LIST.length] })
+                  mdPlayers.forEach((p:any, i:number) => { POS_COLS[p.nombre] = POS_LIST[i % POS_LIST.length] })
 
                   return (
                     <div style={{ padding:'16px', borderTop:'2px solid rgba(200,241,53,.15)', background:'rgba(0,0,0,.25)' }}>
@@ -6641,11 +6641,11 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
                           const GPS_BAR_KEYS = new Set(['distTotal','distSprint','nSprints','nAcel','nDecel','distMP','nAcel3','nDecel3'])
                           const getBarVal = (p: any, key: string) =>
                             GPS_BAR_KEYS.has(key) ? Math.round(Number(sesData[key])||0) : (Number(p[key])||0)
-                          const allBarVals = players.flatMap((p:any) => grp.bars.map(b => getBarVal(p, b.key)))
+                          const allBarVals = mdPlayers.flatMap((p:any) => grp.bars.map(b => getBarVal(p, b.key)))
                           const maxBar = Math.max(...allBarVals, 1)
                           // Show a note when all GPS bar values are 0 (no session blocks defined)
                           const allGpsZero = grp.bars.every(b => GPS_BAR_KEYS.has(b.key)) && allBarVals.every(v => v === 0)
-                          const lineVals = grp.line ? players.map((p:any) => Number(p[grp.line!.key])||0) : []
+                          const lineVals = grp.line ? mdPlayers.map((p:any) => Number(p[grp.line!.key])||0) : []
                           const maxLine = Math.max(...lineVals, 1)
 
                           return (
@@ -6686,8 +6686,8 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
                                 ))}
 
                                 {/* Bars + labels per player */}
-                                <div style={{ position:'absolute', bottom:28, left:0, right:0, display:'flex', alignItems:'flex-end', gap:players.length > 4 ? 4 : 8, padding:'0 4px' }}>
-                                  {players.map((p:any, pi:number) => {
+                                <div style={{ position:'absolute', bottom:28, left:0, right:0, display:'flex', alignItems:'flex-end', gap:mdPlayers.length > 4 ? 4 : 8, padding:'0 4px' }}>
+                                  {mdPlayers.map((p:any, pi:number) => {
                                     const nameColor = POS_COLS[p.nombre] || '#888'
                                     return (
                                       <div key={pi} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', minWidth:0 }}>
@@ -6713,8 +6713,8 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
                                 </div>
 
                                 {/* Line overlay (m/min or RPE) */}
-                                {grp.line && players.length >= 1 && (() => {
-                                  const n = players.length
+                                {grp.line && mdPlayers.length >= 1 && (() => {
+                                  const n = mdPlayers.length
                                   const W = 1000
                                   const allPts = lineVals.map((v, i) => {
                                     const xPct = n === 1 ? 0.5 : (i / (n - 1))
@@ -6763,8 +6763,8 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
                                 })()}
 
                                 {/* Player names on X axis */}
-                                <div style={{ position:'absolute', bottom:0, left:0, right:0, display:'flex', gap:players.length > 4 ? 4 : 8, padding:'0 4px' }}>
-                                  {players.map((p:any, pi:number) => (
+                                <div style={{ position:'absolute', bottom:0, left:0, right:0, display:'flex', gap:mdPlayers.length > 4 ? 4 : 8, padding:'0 4px' }}>
+                                  {mdPlayers.map((p:any, pi:number) => (
                                     <div key={pi} style={{ flex:1, textAlign:'center', minWidth:0 }}>
                                       <div style={{ fontSize:11, color: POS_COLS[p.nombre] || '#888', fontWeight:700,
                                         whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
