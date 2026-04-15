@@ -4042,31 +4042,38 @@ function ComparativaPanel({ teamData }: { teamData: any[] }) {
                   {selVar.label} — {posFilter}
                 </div>
                 <div style={{ display:'flex', gap:0 }}>
-                  <div style={{ display:'flex', flexDirection:'column', justifyContent:'space-between', height:`${BAR_H}px`, paddingRight:8, marginRight:0, flexShrink:0, width:44, marginTop:32, marginBottom: BOT_PAD }}>
+                  <div style={{ display:'flex', flexDirection:'column', justifyContent:'space-between', height:`${BAR_H}px`, paddingRight:8, marginRight:0, flexShrink:0, width:44, marginTop:32 }}>
                     {yTicks.map((t,i)=>(
                       <span key={i} style={{ fontSize:8, color:'var(--fog)', fontFamily:'DM Mono,monospace', textAlign:'right', display:'block', lineHeight:1 }}>{t}</span>
                     ))}
                   </div>
                   <div style={{ flex:1, overflowX:'auto' }}>
-                    <div style={{ display:'flex', alignItems:'flex-end', gap:0, height:`${BAR_H + BOT_PAD + 32}px`, minWidth:chartMinWidth, position:'relative', paddingTop:32 }}>
-                      {[0,0.25,0.5,0.75,1].map((f,i)=>(
-                        <div key={i} style={{ position:'absolute', left:0, right:0, bottom:`${BOT_PAD + f*BAR_H}px`, height:1, background:`rgba(255,255,255,${f===0||f===1?'.12':'.05'})`, pointerEvents:'none' }}/>
-                      ))}
+                    {/* Grid lines */}
+                    {[0,0.25,0.5,0.75,1].map((f,i)=>(
+                      <div key={i} style={{ position:'absolute', left:0, right:0, top:`${32 + (1-f)*BAR_H}px`, height:1, background:`rgba(255,255,255,${f===0||f===1?'.12':'.05'})`, pointerEvents:'none' }}/>
+                    ))}
+                    {/* Bar area */}
+                    <div style={{ display:'flex', alignItems:'flex-end', gap:0, height:`${BAR_H + 32}px`, minWidth:chartMinWidth, paddingTop:32 }}>
                       {playerBars.map((x,i)=>{
                         const barH = Math.max(((x.val - baseV) / rangeV) * BAR_H, 6)
                         return (
-                          <div key={i} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'flex-end', height:'100%', minWidth:minBarWidth, paddingBottom:`${BOT_PAD}px` }}>
+                          <div key={i} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'flex-end', height:'100%', minWidth:minBarWidth }}>
                             <span style={{ fontSize:11, color:col, fontFamily:'DM Mono,monospace', fontWeight:800, marginBottom:4, whiteSpace:'nowrap' }}>{x.val.toLocaleString()}</span>
                             <div style={{ position:'relative', width:'60%', borderRadius:'4px 4px 0 0', height:`${barH}px`,
                               background: `linear-gradient(180deg, ${col}dd, ${col}88)`,
                               flexShrink:0, boxShadow:`0 0 12px ${col}40` }}>
                             </div>
-                            <div style={{ textAlign:'center', marginTop:6 }}>
-                              <div style={{ fontSize:11, color:'var(--snow)', fontWeight:600 }}>{x.nombre.split(' ')[0]}</div>
-                            </div>
                           </div>
                         )
                       })}
+                    </div>
+                    {/* X-axis labels */}
+                    <div style={{ display:'flex', gap:0, minWidth:chartMinWidth, marginTop:6 }}>
+                      {playerBars.map((x,i)=>(
+                        <div key={i} style={{ flex:1, minWidth:minBarWidth, textAlign:'center' }}>
+                          <div style={{ fontSize:11, color:'var(--snow)', fontWeight:600 }}>{x.nombre.split(' ')[0]}</div>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 </div>
@@ -4113,7 +4120,7 @@ function ComparativaPanel({ teamData }: { teamData: any[] }) {
                 {/* Y-axis */}
                 <div style={{ display:'flex', flexDirection:'column', justifyContent:'space-between',
                   paddingRight:8, width:44, flexShrink:0,
-                  height: BAR_H, marginTop: 32, marginBottom: BOT_PAD }}>
+                  height: BAR_H, marginTop: 32 }}>
                   {yTicks.map((t,i)=>(
                     <div key={i} style={{ fontSize:9, color:'var(--fog)', fontFamily:'DM Mono,monospace', textAlign:'right', lineHeight:1 }}>{t}</div>
                   ))}
@@ -4124,34 +4131,39 @@ function ComparativaPanel({ teamData }: { teamData: any[] }) {
                     {/* Grid lines */}
                     {[0,0.25,0.5,0.75,1].map((f,i)=>(
                       <div key={i} style={{ position:'absolute', left:0, right:0,
-                        bottom: BOT_PAD + f*BAR_H,
+                        top: 32 + (1-f)*BAR_H,
                         borderTop:`1px solid rgba(255,255,255,${f===0||f===1?'.12':'.05'})`, pointerEvents:'none' }}/>
                     ))}
+                    {/* Bar area only */}
                     <div style={{ display:'flex', gap:12, alignItems:'flex-end',
-                      height: BAR_H + BOT_PAD + 32, paddingBottom: BOT_PAD, paddingTop: 32 }}>
+                      height: BAR_H + 32, paddingTop: 32 }}>
                       {posData.map((x,i)=>{
                         const barH = Math.max(((x.avg - baseV) / rangeV) * BAR_H, 6)
                         return (
                           <div key={i} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', minWidth:minBarWidth, height:'100%', justifyContent:'flex-end' }}>
-                            {/* Valor encima de la barra */}
                             <span style={{ fontSize:11, color:posColor(x.pos), fontFamily:'DM Mono,monospace', fontWeight:800, marginBottom:4, whiteSpace:'nowrap' }}>{x.avg.toLocaleString()}</span>
-                            {/* Barra */}
                             <div style={{ position:'relative', width:'60%', minWidth:28, maxWidth:64, borderRadius:'6px 6px 0 0',
                               height:`${barH}px`,
                               background: `linear-gradient(180deg, ${posColor(x.pos)}dd, ${posColor(x.pos)}88)`,
                               flexShrink:0, boxShadow:`0 0 12px ${posColor(x.pos)}40` }}>
                             </div>
-                            {/* Etiquetas debajo */}
-                            <div style={{ fontSize:10, color:'var(--snow)', fontWeight:700, marginTop:8, textAlign:'center', wordBreak:'break-word', lineHeight:1.3 }}>{x.pos}</div>
-                            {x.names.length > 0 && (
-                              <div style={{ fontSize:9, color:'var(--lime)', textAlign:'center', marginTop:2, lineHeight:1.3 }}>
-                                {x.names.map(n=>n.split(' ')[0]).join(', ')}
-                              </div>
-                            )}
-                            <div style={{ fontSize:9, color:'var(--silver)', textAlign:'center', marginTop:2 }}>{x.count} jugador{x.count!==1?'es':''}</div>
                           </div>
                         )
                       })}
+                    </div>
+                    {/* X-axis labels below the axis */}
+                    <div style={{ display:'flex', gap:12, marginTop:8 }}>
+                      {posData.map((x,i)=>(
+                        <div key={i} style={{ flex:1, minWidth:minBarWidth, textAlign:'center' }}>
+                          <div style={{ fontSize:10, color:'var(--snow)', fontWeight:700, wordBreak:'break-word', lineHeight:1.3 }}>{x.pos}</div>
+                          {x.names.length > 0 && (
+                            <div style={{ fontSize:9, color:'var(--lime)', textAlign:'center', marginTop:2, lineHeight:1.3 }}>
+                              {x.names.map(n=>n.split(' ')[0]).join(', ')}
+                            </div>
+                          )}
+                          <div style={{ fontSize:9, color:'var(--silver)', textAlign:'center', marginTop:2 }}>{x.count} jugador{x.count!==1?'es':''}</div>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 </div>
