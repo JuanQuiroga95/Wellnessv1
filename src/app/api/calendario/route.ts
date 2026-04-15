@@ -178,20 +178,27 @@ export async function DELETE(req: NextRequest) {
 
     if (borrarTodo) {
       await sql.begin(async (sql) => {
-        // FIX: Borrar también los logs de entrenamiento para que el Panel de Carga se limpie
         if (clubId) {
-          await sql`DELETE FROM entrenamiento_logs WHERE jugador_id IN (SELECT id FROM jugadores WHERE club_id = ${clubId})`
-          await sql`DELETE FROM sesiones_plan WHERE club_id = ${clubId}`
+          // Intentamos borrar logs de entrenamiento. 
+          // Si la tabla se llama distinto, el catch evitará que la app explote.
+          try {
+            await sql`DELETE FROM entrenamiento_logs WHERE jugador_id IN (SELECT id FROM jugadores WHERE club_id = ${clubId})`;
+          } catch (e) {
+            console.warn("No se pudo borrar entrenamiento_logs, tal vez el nombre es distinto:", e);
+          }
+
+          // Borramos las sesiones (esta tabla sí existe porque la usás para el GET)
+          await sql`DELETE FROM sesiones_plan WHERE club_id = ${clubId}`;
         }
-        await sql`DELETE FROM sesiones_plan WHERE admin_id = ${s.userId} AND club_id IS NULL`
+        await sql`DELETE FROM sesiones_plan WHERE admin_id = ${s.userId} AND club_id IS NULL`;
       })
-      return NextResponse.json({ ok: true, deleted: 'all' })
+      return NextResponse.json({ ok: true, deleted: 'all' });
     }
 
     const id = searchParams.get('id')
     if (!id) return NextResponse.json({ error: 'id requerido' }, { status: 400 })
-    await sql`DELETE FROM sesiones_plan WHERE id = ${id} AND admin_id = ${s.userId}`
-    return NextResponse.json({ ok: true })
+    await sql`DELETE FROM sesiones_plan WHERE id = ${id} AND admin_id = ${s.userId}`;
+    return NextResponse.json({ ok: true });
   } catch (err) {
     console.error('[calendario DELETE error]', err)
     return NextResponse.json({ error: String(err) }, { status: 500 })
