@@ -5,6 +5,7 @@ import { getSessionFromRequest } from '@/lib/auth'
 
 function isAdmin(s: any) { return s?.rol === 'admin' || s?.rol === 'master_admin' }
 
+// Local-date helper: evita el desfasaje de UTC
 function localToday(): string {
   const d = new Date()
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
@@ -19,7 +20,7 @@ export async function GET(req: NextRequest) {
     const desde = searchParams.get('desde') || '2024-01-01'
     const hasta = searchParams.get('hasta') || localToday()
     
-    // FIX 1: Bajamos el mínimo a 1 minuto para que Damián no quede fuera del gráfico
+    // Mantenemos el mínimo en 1 para que Damián y todos entren siempre
     const minEntrenamiento = 1; 
 
     const hastaInc = (() => {
@@ -30,7 +31,7 @@ export async function GET(req: NextRequest) {
     const clubId = s.clubId ? Number(s.clubId) : null
     const sql = getDb()
 
-    // 1. Logs de entrenamiento
+    // 1. Logs de entrenamiento (RPE/Carga Interna)
     const trainLogs = await sql`
       SELECT el.jugador_id, u.nombre, el.fecha::text, el.carga_ua, el.duracion_min, el.rpe
       FROM entrenamiento_logs el
@@ -41,13 +42,13 @@ export async function GET(req: NextRequest) {
       ORDER BY el.fecha ASC
     `
 
-    // 2. Sesiones para Carga Externa (UCE)
+    // 2. Sesiones planificadas para Carga Externa (UCE)
     const sesionesParaUCE = await sql`
       SELECT fecha::text, ejercicios FROM sesiones_plan
       WHERE club_id = ${clubId} AND fecha >= ${desde}::date AND fecha <= ${hastaInc}::timestamp
     `
 
-    // 3. Cálculo de Carga Externa (CE) por fecha
+    // 3. Cálculo de Carga Externa (CE) por fecha basada en ejercicios
     const ceByDate: Record<string, number> = {}
     for (const ses of sesionesParaUCE as any[]) {
       let ceTotal = 0
@@ -61,13 +62,14 @@ export async function GET(req: NextRequest) {
           const distEstimada = Math.max(0, (19.243 * Math.log(densidad) - 5.029) * minTotal)
           ceTotal += Math.round(distEstimada * (ne / 5))
         } else {
+          // Si no hay medidas, usamos el tiempo x intensidad como base mínima
           ceTotal += minTotal * ne
         }
       }
       ceByDate[ses.fecha] = (ceByDate[ses.fecha] || 0) + ceTotal
     }
 
-    // 4. Tabla de Jugadores (La que ya te funciona)
+    // 4. Procesamiento para tabla de Jugadores
     const playerMap: Record<number, any> = {}
     trainLogs.forEach((log: any) => {
       if (!playerMap[log.jugador_id]) {
@@ -83,14 +85,13 @@ export async function GET(req: NextRequest) {
       nombre: p.nombre,
       rpe: Math.round((p.total_rpe / p.count) * 10) / 10,
       ua: Math.round(p.total_ua / p.count),
-      ua_total: p.total_ua,
+      ua_total: Number(p.total_ua),
       sesiones: p.count
     })).sort((a,b) => a.nombre.localeCompare(b.nombre))
 
-    // 5. Datos diarios para el GRÁFICO (Aquí estaba el error)
+    // 5. Procesamiento diario para el GRÁFICO (Con Fix de Rescate)
     const dailyMap: Record<string, any> = {}
     trainLogs.forEach((log: any) => {
-      // Si el log es muy corto pero el usuario lo cargó, lo incluimos igual
       if (log.duracion_min < minEntrenamiento) return
       
       if (!dailyMap[log.fecha]) dailyMap[log.fecha] = { total_ua: 0, total_rpe: 0, count: 0 }
@@ -103,14 +104,19 @@ export async function GET(req: NextRequest) {
       const d = dailyMap[fecha]
       const avg_rpe = d.total_rpe / d.count
       const ce = ceByDate[fecha] || 0
+      const avg_ua = Math.round(d.total_ua / d.count)
       
+      // FIX DE RESCATE:
+      // Si ce > 0, calculamos UCE real.
+      // Si ce es 0 (no hay ejercicios cargados), usamos avg_ua para que la línea se vea.
+      const avg_uce = ce > 0 ? Math.round(ce * (avg_rpe / 5)) : avg_ua
+
       return {
         fecha,
         label: fecha,
-        avg_ua: Math.round(d.total_ua / d.count),
+        avg_ua: avg_ua,
         avg_rpe: Math.round(avg_rpe * 10) / 10,
-        // FIX FINAL UCE: Si hay CE, calculamos; si no, UA.
-        avg_uce: ce > 0 ? Math.round(ce * (avg_rpe / 5)) : Math.round(d.total_ua / d.count),
+        avg_uce: avg_uce,
         n: d.count
       }
     })
