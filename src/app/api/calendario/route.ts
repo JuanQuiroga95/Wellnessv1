@@ -178,27 +178,30 @@ export async function DELETE(req: NextRequest) {
     const clubId = s.clubId ? Number(s.clubId) : null
 
     if (borrarTodo) {
-      // 1. Borramos las sesiones del plan (Sabemos que esta existe porque el GET funciona)
+      // 1. Borramos las sesiones del plan
       if (clubId) {
         await sql`DELETE FROM sesiones_plan WHERE club_id = ${clubId}`;
       }
       await sql`DELETE FROM sesiones_plan WHERE admin_id = ${s.userId} AND club_id IS NULL`;
 
-      // 2. Intentamos borrar los logs de forma aislada para que no tire error 500
+      // 2. Borramos los logs de partidos (Lo que hace que aparezca "Rival: San Martín")
       try {
         if (clubId) {
-          // Probamos con los dos nombres más comunes que suelen usarse en tu app
+          await sql`DELETE FROM partido_logs WHERE jugador_id IN (SELECT id FROM jugadores WHERE club_id = ${clubId})`.catch(() => {});
+        }
+      } catch (e) { console.log("No hay partido_logs"); }
+
+      // 3. Borramos los logs de entrenamiento (RPE/Carga)
+      try {
+        if (clubId) {
           await sql`DELETE FROM entrenamiento_logs WHERE jugador_id IN (SELECT id FROM jugadores WHERE club_id = ${clubId})`.catch(() => {});
           await sql`DELETE FROM entrenamiento_log WHERE jugador_id IN (SELECT id FROM jugadores WHERE club_id = ${clubId})`.catch(() => {});
         }
-      } catch (e) {
-        console.log("Error silencioso en logs: la tabla no existe o tiene otro nombre.");
-      }
+      } catch (e) { console.log("No hay entrenamiento_logs"); }
 
       return NextResponse.json({ ok: true, deleted: 'all' });
     }
 
-    // Borrado de una sola sesión
     const id = searchParams.get('id')
     if (!id) return NextResponse.json({ error: 'id requerido' }, { status: 400 })
     await sql`DELETE FROM sesiones_plan WHERE id = ${id} AND admin_id = ${s.userId}`;
@@ -206,7 +209,7 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.error('[calendario DELETE error]', err)
-    // Devolvemos un 200 falso si es error de tabla para que la UI no se rompa
     return NextResponse.json({ ok: true, partial: true, error: String(err) });
   }
+}
 }
