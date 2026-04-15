@@ -6065,8 +6065,7 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
     return localDateStr(d)
   }
   const [microcicloOffset, setMicrocicloOffset] = useState(0)
-  const [desde, setDesde] = useState(getWeekStart(0))
-  const [hasta, setHasta] = useState(today)
+  const [dateRange, setDateRange] = useState({ desde: getWeekStart(0), hasta: today })
   const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(false)
   const [calSesiones, setCalSesiones] = useState<Set<string>>(new Set()) // fechas+titulos visible in calendar
@@ -6079,24 +6078,23 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
     // Recalculate date range when microciclo offset changes
     const newDesde = getWeekStart(microcicloOffset)
     const newHasta = microcicloOffset === 0 ? today : getWeekEnd(microcicloOffset)
-    setDesde(newDesde)
-    setHasta(newHasta)
+    setDateRange({ desde: newDesde, hasta: newHasta })
   }, [microcicloOffset])
 
-  useEffect(() => { cargar() }, [desde, hasta])
+  useEffect(() => { cargar() }, [dateRange])
 
   // Reload when GPS import completes in another panel
   useEffect(() => {
     const handler = () => cargar(false)
     window.addEventListener('gps-data-updated', handler)
     return () => window.removeEventListener('gps-data-updated', handler)
-  }, [desde, hasta])
+  }, [dateRange])
 
   // Auto-refresh every 60s without showing loading indicator (prevents scroll reset)
   useEffect(() => {
     const id = setInterval(() => cargar(false), 60000)
     return () => clearInterval(id)
-  }, [desde, hasta])
+  }, [dateRange])
 
   useEffect(() => {
     // Load partido sessions from the calendar (sesiones_plan con tipo='partido')
@@ -6141,8 +6139,8 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
     if (showLoading) setLoading(true)
     try {
       const [gpsRes, calRes] = await Promise.all([
-        fetch(`/api/carga-gps?desde=${desde}&hasta=${hasta}&ciclo=microciclo`),
-        fetch(`/api/calendario?desde=${desde}&hasta=${hasta}`),
+        fetch(`/api/carga-gps?desde=${dateRange.desde}&hasta=${dateRange.hasta}&ciclo=microciclo`),
+        fetch(`/api/calendario?desde=${dateRange.desde}&hasta=${dateRange.hasta}`),
       ])
       const [gpsData, calData] = await Promise.all([gpsRes.json(), calRes.json()])
       setData(gpsData)
@@ -6326,13 +6324,13 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
               <div style={{ fontSize:10, fontWeight:700, color:'var(--lime)', textTransform:'uppercase', letterSpacing:'0.08em' }}>
                 {microcicloOffset === 0 ? 'Semana actual' : microcicloOffset > 0 ? `+${microcicloOffset} sem.` : `${microcicloOffset} sem.`}
               </div>
-              <div style={{ fontSize:9, color:'var(--fog)', fontFamily:'DM Mono,monospace', marginTop:1 }}>{desde} → {hasta}</div>
+              <div style={{ fontSize:9, color:'var(--fog)', fontFamily:'DM Mono,monospace', marginTop:1 }}>{dateRange.desde} → {dateRange.hasta}</div>
             </div>
             <button onClick={()=>setMicrocicloOffset(o=>o+1)} style={{ width:28, height:28, borderRadius:6, background:'rgba(255,255,255,.07)', border:'1px solid var(--fog)', color:'var(--snow)', cursor:'pointer', fontSize:14, display:'flex', alignItems:'center', justifyContent:'center' }}>›</button>
             {microcicloOffset !== 0 && <button onClick={()=>setMicrocicloOffset(0)} style={{ fontSize:9, padding:'2px 7px', borderRadius:5, background:'rgba(200,241,53,.1)', color:'var(--lime)', border:'1px solid rgba(200,241,53,.3)', cursor:'pointer' }}>Hoy</button>}
           </div>
-          <div><label style={{ fontSize:10, color:'var(--fog)', display:'block', marginBottom:3, textTransform:'uppercase' }}>Desde</label><input className="wp-input" type="date" value={desde} onChange={e=>setDesde(e.target.value)} /></div>
-          <div><label style={{ fontSize:10, color:'var(--fog)', display:'block', marginBottom:3, textTransform:'uppercase' }}>Hasta</label><input className="wp-input" type="date" value={hasta} onChange={e=>setHasta(e.target.value)} /></div>
+          <div><label style={{ fontSize:10, color:'var(--fog)', display:'block', marginBottom:3, textTransform:'uppercase' }}>Desde</label><input className="wp-input" type="date" value={dateRange.desde} onChange={e=>setDateRange(r=>({ ...r, desde: e.target.value }))} /></div>
+          <div><label style={{ fontSize:10, color:'var(--fog)', display:'block', marginBottom:3, textTransform:'uppercase' }}>Hasta</label><input className="wp-input" type="date" value={dateRange.hasta} onChange={e=>setDateRange(r=>({ ...r, hasta: e.target.value }))} /></div>
           <button onClick={()=>window.print()} style={{ fontSize:11, padding:'8px 14px', borderRadius:8, background:'rgba(200,241,53,.1)', color:'var(--lime)', border:'1px solid rgba(200,241,53,.3)', cursor:'pointer' }}>🖨️ PDF</button>
           <button onClick={()=>cargar()} disabled={loading} title="Actualizar datos" style={{ fontSize:11, padding:'8px 14px', borderRadius:8, background:loading?'rgba(255,255,255,.04)':'rgba(96,165,250,.1)', color:loading?'var(--fog)':'#60a5fa', border:'1px solid rgba(96,165,250,.3)', cursor:loading?'default':'pointer' }}>🔄 {loading?'Cargando…':'Actualizar'}</button>
         </div>
@@ -7106,8 +7104,7 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
     return localDateStr(d)
   }
 
-  const [desde, setDesde] = useState(() => getWeekStart(0))
-  const [hasta, setHasta] = useState(today)
+  const [dateRange, setDateRange] = useState({ desde: getWeekStart(0), hasta: today })
   const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(false)
   const [partidoRefs, setPartidoRefs] = useState<any[]>([{},{},{}])
@@ -7118,18 +7115,17 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
   useEffect(() => {
     const newDesde = getWeekStart(microcicloOffset)
     const newHasta = microcicloOffset === 0 ? today : getWeekEnd(microcicloOffset)
-    setDesde(newDesde)
-    setHasta(newHasta)
+    setDateRange({ desde: newDesde, hasta: newHasta })
   }, [microcicloOffset])
 
-  useEffect(() => { cargar() }, [desde, hasta])
+  useEffect(() => { cargar() }, [dateRange])
 
   // Reload when GPS import completes in another panel
   useEffect(() => {
     const handler = () => cargar()
     window.addEventListener('gps-data-updated', handler)
     return () => window.removeEventListener('gps-data-updated', handler)
-  }, [desde, hasta])
+  }, [dateRange])
 
   useEffect(() => {
     const hace1año = new Date(); hace1año.setFullYear(hace1año.getFullYear()-1)
@@ -7149,7 +7145,7 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
 
   async function cargar() {
     setLoading(true)
-    try { const r = await fetch(`/api/carga-gps?desde=${desde}&hasta=${hasta}&ciclo=microciclo`); setData(await r.json()) }
+    try { const r = await fetch(`/api/carga-gps?desde=${dateRange.desde}&hasta=${dateRange.hasta}&ciclo=microciclo`); setData(await r.json()) }
     catch(e){} finally { setLoading(false) }
   }
 
@@ -7306,8 +7302,8 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
             </span>
             <button onClick={()=>setMicrocicloOffset(o=>Math.min(0, o+1))} style={{ background:'none', border:'none', color: microcicloOffset >= 0 ? 'var(--fog)' : 'var(--silver)', cursor: microcicloOffset >= 0 ? 'default' : 'pointer', fontSize:16, padding:'0 4px', lineHeight:1 }}>›</button>
           </div>
-          <div><label style={{ fontSize:10, color:'var(--fog)', display:'block', marginBottom:3, textTransform:'uppercase' }}>Desde</label><input className="wp-input" type="date" value={desde} onChange={e=>setDesde(e.target.value)} /></div>
-          <div><label style={{ fontSize:10, color:'var(--fog)', display:'block', marginBottom:3, textTransform:'uppercase' }}>Hasta</label><input className="wp-input" type="date" value={hasta} onChange={e=>setHasta(e.target.value)} /></div>
+          <div><label style={{ fontSize:10, color:'var(--fog)', display:'block', marginBottom:3, textTransform:'uppercase' }}>Desde</label><input className="wp-input" type="date" value={dateRange.desde} onChange={e=>setDateRange(r=>({ ...r, desde: e.target.value }))} /></div>
+          <div><label style={{ fontSize:10, color:'var(--fog)', display:'block', marginBottom:3, textTransform:'uppercase' }}>Hasta</label><input className="wp-input" type="date" value={dateRange.hasta} onChange={e=>setDateRange(r=>({ ...r, hasta: e.target.value }))} /></div>
           <button onClick={()=>window.print()} style={{ fontSize:11, padding:'8px 14px', borderRadius:8, background:'rgba(96,165,250,.1)', color:'#60a5fa', border:'1px solid rgba(96,165,250,.3)', cursor:'pointer' }}>🖨️ PDF</button>
         </div>
       </div>
