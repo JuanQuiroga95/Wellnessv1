@@ -198,6 +198,23 @@ export async function DELETE(req: NextRequest) {
               JOIN usuarios u ON u.id = j.usuario_id
               WHERE j.club_id IS NULL AND u.club_id = ${clubId}
             )`.catch(() => {});
+
+          // Vía 4: directo por usuario.club_id — cubre cuando jugadores.club_id ya fue reparado
+          // (el auto-repair de minutos/route.ts puede correr antes y dejar club_id != NULL)
+          await sql`
+            DELETE FROM partido_logs
+            WHERE jugador_id IN (
+              SELECT j.id FROM jugadores j
+              JOIN usuarios u ON u.id = j.usuario_id
+              WHERE u.club_id = ${clubId}
+            )`.catch(() => {});
+          await sql`
+            DELETE FROM entrenamiento_logs
+            WHERE jugador_id IN (
+              SELECT j.id FROM jugadores j
+              JOIN usuarios u ON u.id = j.usuario_id
+              WHERE u.club_id = ${clubId}
+            )`.catch(() => {});
         }
       } catch (e) { console.log("Error silencioso en borrado de logs"); }
 
