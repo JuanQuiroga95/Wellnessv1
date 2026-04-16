@@ -944,16 +944,22 @@ function CambioCargaPanel() {
       return rpe > 0 ? Math.round((row.avg_ua || 0) / rpe) : 0
     }
     if (chartVar.startsWith('calc_')) {
-      const avgUa = row.avg_ua || 0; const avgRpe = row.avg_rpe || 0; const avgUce = row.avg_uce || 0
-      const duracion = avgRpe > 0 ? avgUa / avgRpe : 0
-      const densidad = avgUa > 0 && avgUce > 0 ? (avgUce / avgUa) * 10 : 10
       const key = chartVar.replace('calc_','')
-      if (key==='distTotal')  return Math.max(0, Math.round((19.243*Math.log(Math.max(densidad,1))-5.029)*duracion))
-      if (key==='distSprint') return Math.max(0, Math.round((0.018*densidad-0.844)*duracion))
-      if (key==='distMP')     return Math.max(0, Math.round((7.0421*Math.log(Math.max(densidad,1))-15.255)*duracion))
-      if (key==='nSprints')   return Math.max(0, Math.round((0.001*densidad-0.046)*duracion))
-      if (key==='nAcel')      return Math.max(0, Math.round((0.212*Math.log(Math.max(densidad,1))-0.23)*duracion))
-      if (key==='nDecel')     return Math.max(0, Math.round((0.1041*Math.log(Math.max(densidad,1))-0.096)*duracion))
+      // Mapeo directo desde gpsDailyMap (datos reales de sesión planificada)
+      const SESSION_KEY_MAP: Record<string,string> = {
+        distTotal: 'distTotal', distSprint: 'distSprint', nSprints: 'nSprints',
+        nAcel: 'nAcel', nDecel: 'nDecel', distMP: 'distMP',
+      }
+      const sessionKey = SESSION_KEY_MAP[key]
+      if (sessionKey) {
+        if (view === 'diario') {
+          const gps = gpsDailyMap[row.fecha]
+          return gps ? Math.round(Number(gps[sessionKey]) || 0) : 0
+        } else {
+          const gps = gpsWeeklyMap[row.semana]
+          return gps ? Math.round(Number(gps[sessionKey]) || 0) : 0
+        }
+      }
       return 0
     }
     if (GPS_KEYS.includes(chartVar)) {
@@ -1153,8 +1159,8 @@ function CambioCargaPanel() {
               <div style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:16, overflow:'hidden' }}>
                 <div style={{ display:'grid', gridTemplateColumns: view==='diario' ? '1fr 120px 120px 120px' : '1fr 1fr 120px 120px', gap:0, padding:'10px 18px', borderBottom:'1px solid var(--mist)' }}>
                   {(view==='diario'
-                    ? ['Fecha','Jugadores','Promedio UCE','Cambio vs anterior']
-                    : ['Semana','Etiqueta','Promedio UCE','Cambio vs anterior']
+                    ? ['Fecha','Jugadores', `Promedio ${CHART_VARS.find(v=>v.key===chartVar)?.label||'UCE'}`,'Cambio vs anterior']
+                    : ['Semana','Etiqueta', `Promedio ${CHART_VARS.find(v=>v.key===chartVar)?.label||'UCE'}`,'Cambio vs anterior']
                   ).map(h=>(
                     <span key={h} style={{ fontSize:9, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em' }}>{h}</span>
                   ))}
