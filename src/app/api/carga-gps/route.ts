@@ -190,9 +190,16 @@ export async function GET(req: NextRequest) {
     for (const ses of sesiones as any[]) {
       const label = ses.titulo || ses.fecha
       const m = sumarMetricasBloques(ses.ejercicios || [])
-      // ua_total = RPE_objetivo x minutos_activos — needed for UA column in Cuadro 2
       const ua_total = Number(ses.rpe_objetivo) > 0 ? Math.round(Number(ses.rpe_objetivo) * m.minActivo) : 0
-      perSession[label] = { fecha: ses.fecha, rpe_objetivo: ses.rpe_objetivo, ...m, ua_total }
+      if (perSession[label]) {
+        // Acumular si hay múltiples sesiones con el mismo título (MD label)
+        const p = perSession[label]
+        const numKeys = ['distTotal','distSprint','distMP','distAcel','distDecel','nSprints','nAcel','nDecel','nAcel3','nDecel3','minActivo','minPausa']
+        for (const k of numKeys) p[k] = (p[k] || 0) + (m[k] || 0)
+        p.ua_total = (p.ua_total || 0) + ua_total
+      } else {
+        perSession[label] = { fecha: ses.fecha, rpe_objetivo: ses.rpe_objetivo, ...m, ua_total }
+      }
     }
 
     // ── cePerSession: CE (Carga Específica) y UCE por sesión ──

@@ -6380,13 +6380,14 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
                   </div>
                 ))}
               </div>
-              {/* Line overlay for lineVar (e.g. tiempo/min) */}
+              {/* Line overlay for lineVar (e.g. tiempo/min) — uses its OWN scale */}
               {grupo.lineVar && lineVals.length > 0 && (() => {
                 const n = names.length
                 const W = 1000
+                // Use independent scale for the line so it doesn't get crushed by tall bars
                 const pts = lineVals.map((v, i) => ({
                   x: n === 1 ? W/2 : (i / (n-1)) * W,
-                  y: v > 0 ? (1 - v/maxLineVal) * BAR_H : null,
+                  y: v > 0 ? (1 - v/maxLineVal) * BAR_H * 0.85 + BAR_H * 0.05 : null,
                   v,
                 }))
                 const validPts = pts.filter(p => p.y !== null) as {x:number,y:number,v:number}[]
@@ -6842,13 +6843,14 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
                                   })}
                                 </div>
 
-                                {/* Line overlay (m/min or RPE) */}
+                                {/* Line overlay (m/min or RPE) — uses its OWN scale independent from bars */}
                                 {grp.line && mdPlayers.length >= 1 && (() => {
                                   const n = mdPlayers.length
                                   const W = 1000
                                   const allPts = lineVals.map((v, i) => {
                                     const xPct = n === 1 ? 0.5 : (i / (n - 1))
-                                    return { x: xPct * W, y: v > 0 ? (1 - (v / maxLine)) * BAR_H : null, v }
+                                    // Independent scale: map line values to 5%-90% of chart height
+                                    return { x: xPct * W, y: v > 0 ? (1 - (v / maxLine)) * BAR_H * 0.85 + BAR_H * 0.05 : null, v }
                                   })
                                   const validPts = allPts.filter(pt => pt.y !== null) as {x:number,y:number,v:number}[]
                                   return (
@@ -7637,10 +7639,9 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
                                 </div>
                                 {grp.line && lineVals.length >= 1 && (() => {
                                   const W = 1000
-                                  const validPts = lineVals
-                                    .map((v,i)=>({ x: n===1 ? W/2 : (i/(n-1))*W, y: v>0 ? (1-(v/maxLine))*BAR_H : null, v }))
-                                    .filter(pt => pt.y !== null) as {x:number,y:number,v:number}[]
-                                  const allPts = lineVals.map((v,i)=>({ x: n===1 ? W/2 : (i/(n-1))*W, y: v>0 ? (1-(v/maxLine))*BAR_H : null, v }))
+                                  // Independent scale: map to 5%-90% of chart height
+                                  const allPts = lineVals.map((v,i)=>({ x: n===1 ? W/2 : (i/(n-1))*W, y: v>0 ? (1-(v/maxLine))*BAR_H*0.85 + BAR_H*0.05 : null, v }))
+                                  const validPts = allPts.filter(pt => pt.y !== null) as {x:number,y:number,v:number}[]
                                   return (
                                     <svg viewBox={`0 0 ${W} ${BAR_H}`}
                                       preserveAspectRatio="xMidYMid meet"
