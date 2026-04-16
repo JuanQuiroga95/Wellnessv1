@@ -73,6 +73,8 @@ function matchMetricCol(h: string): string | null {
   return null
 }
 
+const matchExcelCol = matchMetricCol
+
 function parseRawRows(raw: any[][]): Record<string, any>[] {
   if (raw.length < 2) return []
   const headers = (raw[0] as any[]).map(h => String(h ?? ''))
@@ -82,7 +84,7 @@ function parseRawRows(raw: any[][]): Record<string, any>[] {
       ln === 'jugador' || ln.includes('first name') || ln.includes('player name') || ln.includes('athlete name')
     if (isNameCol) return '__name__'
     if (['interval','time','date','fecha','session','period','device','jersey','shirt','position','pos'].some(k => ln === k || ln.startsWith(k + ' '))) return null
-    return matchMetricCol(h)
+    return matchExcelCol(h)
   })
   return (raw.slice(1) as any[][])
     .filter(row => row.some((c: any) => c !== null && c !== ''))
@@ -130,35 +132,41 @@ const CATAPULT_COL_ORDER = [
   'n_sprints','acc2','dec2','acc3','dec3','max_velocity',
 ]
 
+const ROW_COL_ORDER = [
+  null, null, 'dist_total', 'dist_per_min', 'dist_v4', 'dist_v5', null, 'n_sprints', 'dist_hir', 'acc2', 'dec2', 'acc3', 'dec3', 'player_load', 'duracion_min', 'max_velocity',
+]
+
 function cleanCatapultName(raw: string): string {
   const parts = raw.trim().replace(/\.$/, '').split(/\s+/)
-  if (parts.length < 2) return raw.trim()
-  if (parts.length === 2 && parts[0].toUpperCase() === parts[1].toUpperCase()) return parts[0]
-  for (let split = 1; split < parts.length; split++) {
+  const n = parts.length
+  if (n < 2) return raw.trim()
+  if (n === 2 && parts[0].toUpperCase() === parts[1].toUpperCase()) return parts[0]
+  for (let split = 1; split < n; split++) {
     const first = parts.slice(0, split), rest = parts.slice(split)
-    if (normStr(first.join(' ')) === normStr(rest.join(' '))) return first.join(' ')
+    if (first.length < 1 || normStr(first.join(' ')).length < 2) continue
+    if (first[0].length < 2) continue
+    const fn = normStr(first.join(' ')), rn = normStr(rest.join(' '))
+    if (fn === rn) return first.join(' ')
+    if (rest.length === 1 && normStr(first[first.length - 1]) === normStr(rest[0])) return first.join(' ')
+    if (rest.length > 0 && normStr(rest[0]) === normStr(first[0]) && fn.length >= 4) return first.join(' ')
   }
-  return raw.trim()
+  return raw.trim().replace(/\.$/, '')
 }
 
 function parsePdfRowFormat(lines: string[]): Record<string, any>[] | null {
   const POS_CODES = ['CAM','CDM','LB','RB','LW','RW','WB','CB','CM','ST','FB','GK','CF','AM','DM','LM','RM','W']
+  const posDetect = new RegExp(POS_CODES.join('|'))
   const FIELD_MAP = ['dist_total', 'dist_per_min', 'dist_v4', 'dist_v5', null, 'n_sprints', 'dist_hir', 'acc2', 'dec2', 'acc3', 'dec3', 'player_load', 'duracion_min', 'max_velocity']
   const SUMMARY_WORDS = new Set(['total','moyenne','average','promedio','media','totale','totaux','totals'])
   const results: Record<string, any>[] = []
-  
-  const nonEmpty = lines.filter(l => l.trim())
-  const lonePosCodes = nonEmpty.filter(l => POS_CODES.includes(l.trim()))
+  const lonePosCodes = lines.filter(l => l.trim()).filter(l => POS_CODES.includes(l.trim()))
   const isFragmented = lonePosCodes.length >= 2
-
   let workingLines: string[]
-
   if (isFragmented) {
     const tokens: string[] = []
     for (const line of lines) {
-      const t = line.trim()
-      if (!t || /^page\s+\d+/i.test(t) || /^\d{2}\/\d{2}\/\d{4}$/.test(t)) continue
-      for (const tok of t.split(/\s+/)) if (tok) tokens.push(tok)
+      const t = line.trim(); if (!t || /^page\s+\d+/i.test(t) || /^\d{2}\/\d{2}\/\d{4}$/.test(t)) continue
+      for (const tok of t.split(/\s+/)) tokens.push(tok)
     }
     const rows: string[] = []
     let i = 0
@@ -191,7 +199,7 @@ function parsePdfRowFormat(lines: string[]): Record<string, any>[] | null {
     workingLines = mergedLines
   }
   for (const line of workingLines) {
-    if (!line.trim()) continue
+    if (!line.trim() || !posDetect.test(line)) continue
     const parts = line.trim().split(/\s+/); let posIdx = parts.findIndex(p => POS_CODES.includes(p)), name = '', rest = ''
     if (posIdx >= 0) { name = parts.slice(0, posIdx).join(' '); rest = parts.slice(posIdx + 1).join(' ') } else {
       const m = line.match(new RegExp(`^(.+?)(${POS_CODES.join('|')})(.+)$`)); if (!m) continue
@@ -207,6 +215,19 @@ function parsePdfRowFormat(lines: string[]): Record<string, any>[] | null {
           continue
         }
         const val = parseFloat(spaceParts[i].replace(',', '.')); if (!isNaN(val)) metricas[field] = val
+      }
+    } else {
+      const durMatch = rest.match(/(\d{1,2}:\d{2}:\d{2})/); let restNoDur = rest
+      if (durMatch) {
+        const [hh, mm, ss] = durMatch[1].split(':').map(Number); metricas['duracion_min'] = Math.round((hh * 60 + mm + ss / 60) * 10) / 10
+        restNoDur = rest.replace(durMatch[1], ' ').trim()
+      }
+      const nums = (restNoDur.match(/\d+(?:\.\d+)?/g) || []).map(n => parseFloat(n)); if (nums.length < 6) continue
+      const maxVelCandidate = nums[nums.length - 1]; if (!isNaN(maxVelCandidate) && maxVelCandidate >= 15 && maxVelCandidate <= 45) metricas['max_velocity'] = maxVelCandidate
+      const MERGED_MAP = ['dist_total', 'dist_per_min', 'dist_v4', 'dist_v5', null, 'n_sprints', 'dist_hir', 'acc2', 'dec2', 'player_load']
+      const dataNums = nums.slice(0, nums.length - 1)
+      for (let i = 0; i < dataNums.length && i < MERGED_MAP.length; i++) {
+        const field = MERGED_MAP[i]; if (field && !isNaN(dataNums[i])) metricas[field] = dataNums[i]
       }
     }
     if (Object.values(metricas).some(v => v > 0)) { const cleanName = cleanCatapultName(name); results.push({ nombre_catapult: cleanName, nombre_norm: normalizeName(cleanName), metricas }) }
@@ -293,20 +314,15 @@ function parsePdfBlobColumnar(lines: string[]): Record<string, any>[] | null {
   return results.filter(r => Object.values(r.metricas).some(v => v > 0))
 }
 
-// ─── PARSER PRINCIPAL — BLINDADO PARA ENOCH ────────────────────────────────
 function parsePdfFromText(rawText: string): Record<string, any>[] {
   const lines = rawText.split('\n').map(l => l.trim()).filter(Boolean)
   const results: Record<string, any>[] = []
   let lastNameFound: string | null = null
-
   for (const line of lines) {
     if (/^\d{1,2}\/\d{1,2}\/\d{2,4}$/.test(line)) continue
-
     const parts = line.split(/\s+/); let dataStart = parts.length
     while (dataStart > 0 && /^[\d,.]+$/.test(parts[dataStart - 1])) dataStart--
-
     const numericParts = parts.slice(dataStart), nameFromLine = parts.slice(0, dataStart).join(' ').trim()
-
     if (numericParts.length >= 3) {
       const metricas: Record<string, number> = {}
       const colOrder = ['dist_total', 'dist_per_min', 'dist_v4', 'dist_hir', 'dist_v5', 'n_sprints', 'acc2', 'dec2', 'max_velocity']
@@ -316,7 +332,7 @@ function parsePdfFromText(rawText: string): Record<string, any>[] {
       const finalName = nameFromLine || lastNameFound
       if (finalName && /[a-zA-Z]/.test(finalName)) {
         const check = normStr(finalName)
-        if (!['promedio','max','average','total','media'].includes(check)) {
+        if (!['promedio','max','average','total','media','dist','distancia','minute','minuto','variable'].includes(check)) {
           const cleanName = cleanCatapultName(finalName)
           results.push({ nombre_catapult: cleanName, nombre_norm: normalizeName(cleanName), metricas })
         }
@@ -343,7 +359,7 @@ async function matchPlayers(rows: Record<string,any>[], clubId: number|null) {
       const dbNorm = normalizeName(j.nombre), dbWords = dbNorm.split(' '), pdfWords = pdfNorm.split(' ')
       return dbNorm === pdfNorm || pdfWords.some(pw => dbWords.includes(pw) && pw.length >= 3) || dbNorm.includes(pdfNorm) || pdfNorm.includes(dbNorm)
     })
-    if (jug) matched.push({ ...row, jugador_id: jug.id, jugador_nombre: jug.nombre, match_method: 'parcial' })
+    if (jug) matched.push({ ...row, jugador_id: jug.id, jugador_nombre: jug.nombre, match_method: 'parcial', n_metricas: Object.keys(row.metricas||{}).length, sin_datos: false })
     else unmatched.push(row.nombre_catapult)
   }
   return { matched, unmatched }
@@ -354,16 +370,12 @@ export async function POST(req: NextRequest) {
     const s = await getSessionFromRequest(req); if (!s || !isAdmin(s)) return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
     const body = await req.json(), { fecha, tipo_sesion, sesion_id, confirm, pdfText, rows } = body
     if (!fecha) return NextResponse.json({ error: 'Falta fecha' }, { status: 400 })
-
     let parsedRows = (rows && Array.isArray(rows)) ? parseRawRows(rows) : (pdfText ? parsePdfFromText(pdfText) : [])
     if (!parsedRows.length) return NextResponse.json({ error: 'No se encontraron datos.' }, { status: 400 })
-
     const { matched, unmatched } = await matchPlayers(parsedRows, s.clubId || null)
-    if (!confirm) return NextResponse.json({ preview: true, fecha, tipo_sesion, sesion_id, matched, unmatched, total_filas: parsedRows.length })
-
+    if (!confirm) return NextResponse.json({ preview: true, fecha, tipo_sesion, sesion_id, fuente: pdfText ? 'pdf' : 'excel', matched, unmatched, total_filas: parsedRows.length, columnas_detectadas: Object.keys(parsedRows[0]?.metricas||{}) })
     const sql = getDb(), clubId = s.clubId ? Number(s.clubId) : null
     if (clubId) await sql`DELETE FROM gps_logs WHERE club_id = ${clubId} AND fecha = ${fecha}::date AND tipo_sesion = ${tipo_sesion}`
-    
     for (const m of matched) {
       const met = m.metricas || {}
       await sql`INSERT INTO gps_logs (jugador_id, club_id, fecha, sesion_id, tipo_sesion, dist_total, dist_hir, dist_v4, dist_v5, player_load, max_velocity, acc2, dec2, dist_per_min, n_sprints, metricas, fuente)
