@@ -328,19 +328,25 @@ export async function GET(req: NextRequest) {
         allMetricCols = [...activeCols, ...Array.from(metricaKeys)]
 
         // Aggregate per player (sum across all sessions in range)
+        // AVG_PLAYER_FIELDS: these must be averaged, not summed, across sessions
+        const AVG_PLAYER_FIELDS = new Set(['max_velocity', 'dist_per_min', 'duracion_min'])
         const byPlayer: Record<number, any> = {}
         for (const r of gpsLogs) {
           if (!byPlayer[r.jugador_id]) {
             byPlayer[r.jugador_id] = { jugador_id: r.jugador_id, nombre: r.nombre, posicion: r.posicion || '—', sesiones_gps: 0 }
             for (const k of allMetricCols) byPlayer[r.jugador_id][k] = 0
+            for (const k of AVG_PLAYER_FIELDS) { byPlayer[r.jugador_id][`_sum_${k}`] = 0; byPlayer[r.jugador_id][`_cnt_${k}`] = 0 }
           }
           const p = byPlayer[r.jugador_id]
           p.sesiones_gps += 1
           for (const k of activeCols) {
             if (r[k] !== null && r[k] !== undefined) {
-              // max_velocity and dist_per_min: take max, others sum
-              if (k === 'max_velocity') p[k] = Math.max(p[k] || 0, Number(r[k]) || 0)
-              else p[k] = (p[k] || 0) + (Number(r[k]) || 0)
+              if (AVG_PLAYER_FIELDS.has(k)) {
+                const v = Number(r[k]) || 0
+                if (v > 0) { p[`_sum_${k}`] += v; p[`_cnt_${k}`] += 1 }
+              } else {
+                p[k] = (p[k] || 0) + (Number(r[k]) || 0)
+              }
             }
           }
           if (r.metricas && typeof r.metricas === 'object') {
@@ -349,10 +355,17 @@ export async function GET(req: NextRequest) {
             }
           }
         }
-        // Round all numeric values
+        // Round all numeric values; compute avg for AVG_PLAYER_FIELDS
         gpsReal = Object.values(byPlayer).map((p: any) => {
           const out: any = { jugador_id: p.jugador_id, nombre: p.nombre, posicion: p.posicion, sesiones_gps: p.sesiones_gps }
-          for (const k of allMetricCols) out[k] = Math.round((p[k] || 0) * 10) / 10
+          for (const k of allMetricCols) {
+            if (AVG_PLAYER_FIELDS.has(k)) {
+              const cnt = p[`_cnt_${k}`] || 0
+              out[k] = cnt > 0 ? Math.round((p[`_sum_${k}`] / cnt) * 10) / 10 : 0
+            } else {
+              out[k] = Math.round((p[k] || 0) * 10) / 10
+            }
+          }
           return out
         }).sort((a: any, b: any) => a.nombre.localeCompare(b.nombre))
 

@@ -174,9 +174,30 @@ export async function DELETE(req: NextRequest) {
 
       try {
         if (clubId) {
+          // Vía 1: jugadores con club_id directo
           await sql`DELETE FROM partido_logs WHERE jugador_id IN (SELECT id FROM jugadores WHERE club_id = ${clubId})`.catch(() => {});
           await sql`DELETE FROM entrenamiento_logs WHERE jugador_id IN (SELECT id FROM jugadores WHERE club_id = ${clubId})`.catch(() => {});
           await sql`DELETE FROM entrenamiento_log WHERE jugador_id IN (SELECT id FROM jugadores WHERE club_id = ${clubId})`.catch(() => {});
+
+          // Vía 2: por club_id directo en los logs (registros huérfanos o bien escritos)
+          await sql`DELETE FROM partido_logs WHERE club_id = ${clubId}`.catch(() => {});
+          await sql`DELETE FROM entrenamiento_logs WHERE club_id = ${clubId}`.catch(() => {});
+
+          // Vía 3: jugadores con club_id IS NULL pero cuyo usuario sí pertenece al club (bug de sync)
+          await sql`
+            DELETE FROM partido_logs
+            WHERE jugador_id IN (
+              SELECT j.id FROM jugadores j
+              JOIN usuarios u ON u.id = j.usuario_id
+              WHERE j.club_id IS NULL AND u.club_id = ${clubId}
+            )`.catch(() => {});
+          await sql`
+            DELETE FROM entrenamiento_logs
+            WHERE jugador_id IN (
+              SELECT j.id FROM jugadores j
+              JOIN usuarios u ON u.id = j.usuario_id
+              WHERE j.club_id IS NULL AND u.club_id = ${clubId}
+            )`.catch(() => {});
         }
       } catch (e) { console.log("Error silencioso en borrado de logs"); }
 

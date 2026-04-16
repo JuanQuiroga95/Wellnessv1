@@ -93,13 +93,22 @@ export async function POST(req: NextRequest) {
     const has = (cat: string) => categories.includes(cat)
 
     // Get ALL jugador IDs for this club (active AND inactive)
+    // Three branches:
+    // 1. jugadores with club_id set directly
+    // 2. jugadores whose usuario has club_id set (even if jugador.club_id is NULL — sync bug)
+    // 3. jugadores with club_id IS NULL but whose usuario belongs to the club (same as 2, explicit)
     const jugadores = await sql`
       SELECT j.id FROM jugadores j
       WHERE j.club_id = ${clubId}
       UNION
       SELECT j.id FROM jugadores j
       JOIN usuarios u ON u.id = j.usuario_id
-      WHERE u.club_id = ${clubId}`
+      WHERE u.club_id = ${clubId}
+      UNION
+      SELECT j.id FROM jugadores j
+      JOIN usuarios u ON u.id = j.usuario_id
+      WHERE j.club_id IS NULL
+        AND u.club_id = ${clubId}`
     const jIds = (jugadores as any[]).map(r => r.id)
 
     // Get admin_id(s) of coaches for this club (needed for sesiones_plan, biblioteca_tareas)

@@ -801,8 +801,10 @@ function CambioCargaPanel() {
     { key:'calc_distTotal',  label:'DT (m)',           color:'#fbbf24', src:'calc' },
     { key:'calc_distSprint', label:'Dist. Sprint (m)', color:'#f97316', src:'calc' },
     { key:'calc_nSprints',   label:'Nº Sprint',        color:'#a78bfa', src:'calc' },
-    { key:'calc_nAcel',      label:'ACE >2',           color:'#ec4899', src:'calc' },
-    { key:'calc_nDecel',     label:'DEC >2',           color:'#14b8a6', src:'calc' },
+    { key:'calc_nAcel',      label:'ACE >2 (m)',        color:'#ec4899', src:'calc' },
+    { key:'calc_nDecel',     label:'DEC >2 (m)',        color:'#14b8a6', src:'calc' },
+    { key:'calc_nAcel3',     label:'ACE >3 (n)',        color:'#f43f5e', src:'calc' },
+    { key:'calc_nDecel3',    label:'DEC >3 (n)',        color:'#0ea5e9', src:'calc' },
     { key:'calc_distMP',     label:'Alta Pot. (m)',    color:'#fb923c', src:'calc' },
   ]
   const CHART_VARS_GPS = [
@@ -949,6 +951,7 @@ function CambioCargaPanel() {
       const SESSION_KEY_MAP: Record<string,string> = {
         distTotal: 'distTotal', distSprint: 'distSprint', nSprints: 'nSprints',
         nAcel: 'nAcel', nDecel: 'nDecel', distMP: 'distMP',
+        nAcel3: 'nAcel3', nDecel3: 'nDecel3',
       }
       const sessionKey = SESSION_KEY_MAP[key]
       if (sessionKey) {

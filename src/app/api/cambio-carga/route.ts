@@ -24,12 +24,8 @@ export async function GET(req: NextRequest) {
   const minEntrenamiento = parseInt(searchParams.get('minEntrenamiento') || '60')
   const minPartido = parseInt(searchParams.get('minPartido') || '0')
 
-  // hastaInc: +1 día para inclusividad total del día "hasta" con el driver Neon
-  const hastaInc = (() => {
-    const d = new Date(hasta + 'T12:00:00Z')
-    d.setUTCDate(d.getUTCDate() + 1)
-    return d.toISOString().split('T')[0]
-  })()
+  // hastaInc: fin del día "hasta" con timestamp (igual que carga-gps)
+  const hastaInc = hasta + ' 23:59:59.999'
 
   const clubId = s.clubId ? Number(s.clubId) : null
   const isMaster = s.rol === 'master_admin' && !s.clubId
@@ -50,7 +46,7 @@ export async function GET(req: NextRequest) {
     FROM entrenamiento_logs el
     JOIN jugadores j ON j.id = el.jugador_id
     JOIN usuarios u ON u.id = j.usuario_id
-    WHERE el.fecha >= ${desde}::date AND el.fecha < ${hastaInc}::date
+    WHERE el.fecha >= ${desde}::date AND el.fecha <= ${hastaInc}::timestamp
       AND u.activo = true
       AND (${isMaster}::boolean OR (u.club_id = ${clubId} AND j.club_id = ${clubId}))
     ORDER BY el.fecha ASC
@@ -65,7 +61,7 @@ export async function GET(req: NextRequest) {
     FROM partido_logs pl
     JOIN jugadores j ON j.id = pl.jugador_id
     JOIN usuarios u ON u.id = j.usuario_id
-    WHERE pl.fecha >= ${desde}::date AND pl.fecha < ${hastaInc}::date
+    WHERE pl.fecha >= ${desde}::date AND pl.fecha <= ${hastaInc}::timestamp
       AND u.activo = true
       AND (${isMaster}::boolean OR (u.club_id = ${clubId} AND j.club_id = ${clubId}))
     ORDER BY pl.fecha ASC
@@ -96,14 +92,14 @@ export async function GET(req: NextRequest) {
     SELECT fecha::text, ejercicios
     FROM sesiones_plan
     WHERE club_id = ${clubId}
-      AND fecha >= ${desde}::date AND fecha < ${hastaInc}::date
+      AND fecha >= ${desde}::date AND fecha <= ${hastaInc}::timestamp
     ORDER BY fecha`
   : await sql`
     SELECT fecha::text, ejercicios
     FROM sesiones_plan
     WHERE admin_id = ${s.userId}
       AND club_id IS NULL
-      AND fecha >= ${desde}::date AND fecha < ${hastaInc}::date
+      AND fecha >= ${desde}::date AND fecha <= ${hastaInc}::timestamp
     ORDER BY fecha`
 
   // Build CE per date from session blocks
