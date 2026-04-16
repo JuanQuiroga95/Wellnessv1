@@ -6609,6 +6609,8 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
             {key:'nSprints',   label:'Nº Sprint',       color:'#a78bfa'},
             {key:'nAcel',      label:'ACE >2',          color:'#ec4899'},
             {key:'nDecel',     label:'DEC >2',          color:'#14b8a6'},
+            {key:'nAcel3',     label:'ACE >3 (n)',      color:'#f43f5e'},
+            {key:'nDecel3',    label:'DEC >3 (n)',      color:'#0ea5e9'},
             {key:'distMP',     label:'Alta Pot.',       color:'#fbbf24'},
           ]
           return (
