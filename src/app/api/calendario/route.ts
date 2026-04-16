@@ -32,6 +32,18 @@ export async function GET(req: NextRequest) {
 
     const clubId = s.clubId ? Number(s.clubId) : null
 
+    // ── Auto-repair: migrate orphan sesiones_plan (admin_id sin club_id) al club actual ──
+    // Runs silently every time; only touches rows that still have club_id IS NULL.
+    if (clubId) {
+      try {
+        await sql`
+          UPDATE sesiones_plan
+          SET club_id = ${clubId}
+          WHERE admin_id = ${s.userId}
+            AND club_id IS NULL`
+      } catch { /* ignore if table doesn't exist yet */ }
+    }
+
     const sesiones = clubId ? await sql`
       SELECT id, fecha::text, hora_inicio::text, hora_fin::text, tipo, titulo,
              objetivo, objetivo_secundario, descripcion, ejercicios, rpe_objetivo, notas,
@@ -223,8 +235,15 @@ export async function DELETE(req: NextRequest) {
 
     const id = searchParams.get('id')
     if (!id) return NextResponse.json({ error: 'id requerido' }, { status: 400 })
-    await sql`DELETE FROM sesiones_plan WHERE id = ${id} AND admin_id = ${s.userId}`;
-    
+
+    if (clubId) {
+      // Admin con club: borrar si fue creada por este admin O pertenece al club
+      await sql`DELETE FROM sesiones_plan WHERE id = ${id} AND (admin_id = ${s.userId} OR club_id = ${clubId})`;
+    } else {
+      // Admin sin club: solo borrar sus propias sesiones sin club
+      await sql`DELETE FROM sesiones_plan WHERE id = ${id} AND admin_id = ${s.userId} AND club_id IS NULL`;
+    }
+
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.error('[calendario DELETE error]', err)

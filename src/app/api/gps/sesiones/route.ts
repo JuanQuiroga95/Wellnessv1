@@ -46,7 +46,7 @@ export async function GET(req: NextRequest) {
         ? await sql`
             SELECT id, fecha::text, tipo, titulo, hora_inicio::text, objetivo
             FROM sesiones_plan
-            WHERE (admin_id = ${s.userId} OR club_id = ${clubId})
+            WHERE club_id = ${clubId}
               AND fecha BETWEEN ${desdeStr} AND ${hastaStr}
             ORDER BY fecha DESC, hora_inicio
           ` as any[]
@@ -54,6 +54,7 @@ export async function GET(req: NextRequest) {
             SELECT id, fecha::text, tipo, titulo, hora_inicio::text, objetivo
             FROM sesiones_plan
             WHERE admin_id = ${s.userId}
+              AND club_id IS NULL
               AND fecha BETWEEN ${desdeStr} AND ${hastaStr}
             ORDER BY fecha DESC, hora_inicio
           ` as any[]
