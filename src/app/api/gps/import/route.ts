@@ -13,7 +13,6 @@ function normStr(s: string): string {
 }
 const normalizeName = normStr
 
-// --- UNIVERSAL METRIC MAP ---
 const METRIC_COL_MAP: Array<[string, string]> = [
   ['total distance','dist_total'],['total dist','dist_total'],['tot dist','dist_total'],
   ['dist totale','dist_total'],['distancia total','dist_total'],['distance totale','dist_total'],
@@ -74,20 +73,14 @@ function matchMetricCol(h: string): string | null {
 }
 
 function cleanCatapultName(raw: string): string {
-  const parts = raw.trim().replace(/\.$/, '').split(/\s+/)
-  const n = parts.length
-  if (n < 2) return raw.trim()
-  for (let split = 1; split < n; split++) {
-    const first = parts.slice(0, split)
-    const rest  = parts.slice(split)
-    if (first.length < 1 || normStr(first.join(' ')).length < 2) continue
-    const fn = normStr(first.join(' '))
-    const rn = normStr(rest.join(' '))
-    if (fn === rn) return first.join(' ')
-    if (rest.length === 1 && normStr(first[first.length - 1]) === normStr(rest[0])) return first.join(' ')
-    if (rest.length > 0 && normStr(rest[0]) === normStr(first[0]) && fn.length >= 4) return first.join(' ')
+  const cleaned = raw.trim().replace(/\.$/, '');
+  const parts = cleaned.split(/\s+/);
+  if (parts.length === 2 && parts[0].toUpperCase() === parts[1].toUpperCase()) return parts[0];
+  if (parts.length >= 4) {
+    const half = Math.floor(parts.length / 2);
+    if (parts.slice(0, half).join(' ') === parts.slice(half).join(' ')) return parts.slice(0, half).join(' ');
   }
-  return raw.trim().replace(/\.$/, '')
+  return cleaned;
 }
 
 function parseRawRows(raw: any[][]): Record<string, any>[] {
@@ -95,69 +88,123 @@ function parseRawRows(raw: any[][]): Record<string, any>[] {
   const headers = (raw[0] as any[]).map(h => String(h ?? ''))
   const colMap: (string | null)[] = headers.map(h => {
     const ln = normStr(h)
-    if (ln === 'name' || ln === 'nombre' || ln === 'athlete' || ln === 'player' || ln === 'jugador' || ln.includes('player name')) return '__name__'
+    const isNameCol = ln === 'name' || ln === 'nombre' || ln === 'athlete' || ln === 'player' || ln === 'jugador' || ln.includes('player name')
+    if (isNameCol) return '__name__'
     return matchMetricCol(h)
   })
-  return (raw.slice(1) as any[][])
-    .filter(row => row.some((c: any) => c !== null && c !== ''))
-    .map(row => {
-      let name: string | null = null
-      const metricas: Record<string, number> = {}
-      ;(row as any[]).forEach((cell: any, idx: number) => {
-        const f = colMap[idx]
-        if (!f || cell === null || cell === '') return
-        if (f === '__name__') { name = String(cell).trim(); return }
-        const n = parseFloat(String(cell).replace(',', '.'))
-        if (!isNaN(n)) metricas[f] = n
-      })
-      if (!name) return null
-      return { nombre_catapult: name, nombre_norm: normalizeName(name), metricas }
-    }).filter(Boolean) as any[]
+  return (raw.slice(1) as any[][]).filter(row => row.some((c: any) => c !== null && c !== '')).map(row => {
+    let name: string | null = null
+    const metricas: Record<string, number> = {}
+    ;(row as any[]).forEach((cell: any, idx: number) => {
+      const f = colMap[idx]
+      if (!f || cell === null || cell === '') return
+      if (f === '__name__') { name = String(cell).trim(); return }
+      const n = parseFloat(String(cell).replace(',', '.'))
+      if (!isNaN(n)) metricas[f] = n
+    })
+    if (!name) return null
+    return { nombre_catapult: name, nombre_norm: normalizeName(name), metricas }
+  }).filter(Boolean) as any[]
 }
 
-// ─── LA FUNCIÓN QUE FALTABA: parsePdfFromText ───
 function parsePdfFromText(rawText: string): Record<string, any>[] {
   const lines = rawText.split('\n').map(l => l.trim()).filter(Boolean)
   const results: Record<string, any>[] = []
-  
   for (const line of lines) {
     const parts = line.split(/\s+/)
     if (parts.length < 5) continue
-    
     let dataStart = parts.length
     while (dataStart > 0 && /^[\d,.]+$/.test(parts[dataStart - 1])) { dataStart-- }
-    
-    const numericParts = parts.slice(dataStart)
-    const nameParts = parts.slice(0, dataStart)
+    const numericParts = parts.slice(dataStart), nameParts = parts.slice(0, dataStart)
     if (numericParts.length < 3 || nameParts.length === 0) continue
-
     const metricas: Record<string, number> = {}
     const colOrder = ['dist_total', 'dist_per_min', 'dist_v4', 'dist_hir', 'dist_v5', 'n_sprints', 'acc2', 'dec2', 'max_velocity']
-    
     for (let i = 0; i < numericParts.length && i < colOrder.length; i++) {
-      const val = parseFloat(numericParts[i].replace(',', '.'))
-      if (!isNaN(val)) metricas[colOrder[i]] = val
+      const val = parseFloat(numericParts[i].replace(',', '.')); if (!isNaN(val)) metricas[colOrder[i]] = val
     }
-
-    const nameRaw = nameParts.join(' ')
-    const cleanName = cleanCatapultName(nameRaw)
+    const nameRaw = nameParts.join(' '), cleanName = cleanCatapultName(nameRaw)
     results.push({ nombre_catapult: cleanName, nombre_norm: normalizeName(cleanName), metricas })
   }
   return results
 }
 
+const BLOB_METRIC_RANGES: Record<string, [number, number]> = {
+  dist_total: [500, 20000], dist_per_min: [20, 200], dist_v4: [0, 6000], dist_hir: [0, 3000], dist_v5: [0, 3000],
+  n_sprints: [0, 60], acc2: [0, 120], dec2: [0, 120], acc3: [0, 60], dec3: [0, 60], max_velocity: [10, 50],
+  player_load: [0, 2000], duracion_min: [1, 200],
+}
+
+function dpSegmentBlob(blob: string, ranges: Array<[number, number]>): number[] | null {
+  const N = ranges.length, L = blob.length
+  const dp: (number[] | null)[][] = Array.from({ length: N + 1 }, () => new Array(L + 1).fill(null))
+  dp[0][0] = []
+  for (let seg = 0; seg < N; seg++) {
+    const [rMin, rMax] = ranges[seg]
+    for (let pos = 0; pos <= L; pos++) {
+      if (dp[seg][pos] === null) continue
+      const prevPath = dp[seg][pos] as number[]
+      const maxLen = Math.min(6, L - pos)
+      for (let len = 1; len <= maxLen; len++) {
+        if (len > 1 && blob[pos] === '0') continue
+        const val = parseInt(blob.slice(pos, pos + len), 10)
+        if (!isNaN(val) && val >= rMin && val <= rMax && dp[seg + 1][pos + len] === null) {
+          dp[seg + 1][pos + len] = [...prevPath, val]
+        }
+      }
+    }
+  }
+  return dp[N][L]
+}
+
+function parsePdfBlobColumnar(lines: string[]): Record<string, any>[] | null {
+  const blobLines = lines.filter(l => /^\d{15,}$/.test(l.trim()))
+  if (blobLines.length < 2) return null
+  const SEPARATOR_WORDS = new Set(['promedio','moyenne','average','media','total','prom','avg','mean','totaux','totale','totals'])
+  const names: string[] = []
+  let blobSectionStart = -1
+  for (let i = 0; i < lines.length; i++) {
+    const s = lines[i].trim(); if (!s) continue
+    if (/^\d{15,}$/.test(s)) { blobSectionStart = i; break }
+    if (SEPARATOR_WORDS.has(normStr(s))) { blobSectionStart = i; break }
+    if (!/PAGE \d+|\d{2}\/\d{2}/i.test(s)) names.push(s)
+  }
+  if (names.length === 0 || blobSectionStart === -1) return null
+  const uniqueNames = names.map(n => cleanCatapultName(n)).filter(cn => cn.length >= 2)
+  const metricBlobs: { label: string, blob: string }[] = []
+  let currentLabel = ''
+  for (let i = blobSectionStart; i < lines.length; i++) {
+    const s = lines[i].trim(); if (!s || /\d{2}\/\d{2}|page/i.test(s)) continue
+    if (/^\d{15,}$/.test(s)) { metricBlobs.push({ label: currentLabel, blob: s }); currentLabel = '' }
+    else { currentLabel = (currentLabel + ' ' + s).trim() }
+  }
+  const results = uniqueNames.map(name => ({ nombre_catapult: name, nombre_norm: normalizeName(name), metricas: {} as Record<string, number> }))
+  for (let bi = 0; bi < metricBlobs.length; bi++) {
+    const { label, blob } = metricBlobs[bi], field = matchMetricCol(label); if (!field) continue
+    const range = BLOB_METRIC_RANGES[field]
+    for (const n of [uniqueNames.length, uniqueNames.length + 2, uniqueNames.length + 1]) {
+      const segmented = dpSegmentBlob(blob, Array.from({ length: n }, () => range))
+      if (segmented) {
+        for (let pi = 0; pi < uniqueNames.length; pi++) results[pi].metricas[field] = segmented[pi]
+        break
+      }
+    }
+  }
+  return results.filter(r => Object.values(r.metricas).some(v => v > 0))
+}
+
 async function matchPlayers(rows: Record<string,any>[], clubId: number|null) {
   const sql = getDb()
   const jugadores = clubId ? await sql`SELECT j.id, u.nombre FROM jugadores j JOIN usuarios u ON u.id = j.usuario_id WHERE u.club_id = ${clubId} AND u.activo = true` : []
-  const byNorm = new Map(); jugadores.forEach(j => byNorm.set(normalizeName(j.nombre), j))
-  
+  const byNorm = new Map()
+  jugadores.forEach(j => {
+    const n = normalizeName(j.nombre); byNorm.set(n, j)
+    const first = n.split(' ')[0]; if (first.length > 2) byNorm.set(first, j)
+  })
   const matched: any[] = [], unmatched: string[] = []
   for (const row of rows) {
-    let jug = byNorm.get(row.nombre_norm)
+    const pdfNorm = row.nombre_norm; let jug = byNorm.get(pdfNorm)
     if (!jug) {
-      for (const [key, val] of byNorm.entries()) {
-        if (key.includes(row.nombre_norm) || row.nombre_norm.includes(key)) { jug = val; break }
-      }
+      for (const [key, val] of byNorm.entries()) { if (key.includes(pdfNorm) || pdfNorm.includes(key)) { jug = val; break } }
     }
     if (jug) matched.push({ ...row, jugador_id: jug.id, jugador_nombre: jug.nombre })
     else unmatched.push(row.nombre_catapult)
@@ -167,28 +214,15 @@ async function matchPlayers(rows: Record<string,any>[], clubId: number|null) {
 
 export async function POST(req: NextRequest) {
   try {
-    const s = await getSessionFromRequest(req)
-    if (!s || !isAdmin(s)) return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
-
-    const body = await req.json()
-    const { fecha, tipo_sesion, sesion_id, confirm, pdfText, rows } = body
+    const s = await getSessionFromRequest(req); if (!s || !isAdmin(s)) return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
+    const body = await req.json(), { fecha, tipo_sesion, sesion_id, confirm, pdfText } = body
     if (!fecha) return NextResponse.json({ error: 'Falta fecha' }, { status: 400 })
-
-    let parsedRows: any[] = []
-    if (rows) parsedRows = parseRawRows(rows)
-    else if (pdfText) parsedRows = parsePdfFromText(pdfText)
-
+    let parsedRows = pdfText ? parsePdfFromText(pdfText) : []
     if (!parsedRows.length) return NextResponse.json({ error: 'No se encontraron datos.' }, { status: 400 })
     const { matched, unmatched } = await matchPlayers(parsedRows, s.clubId || null)
-
     if (!confirm) return NextResponse.json({ preview: true, fecha, tipo_sesion, sesion_id, matched, unmatched })
-
     const sql = getDb()
-    // FIX DUPLICADOS: Borrado preventivo del lote entero
-    if (s.clubId) {
-      await sql`DELETE FROM gps_logs WHERE club_id = ${s.clubId} AND fecha = ${fecha}::date AND tipo_sesion = ${tipo_sesion}`
-    }
-
+    if (s.clubId) await sql`DELETE FROM gps_logs WHERE club_id = ${s.clubId} AND fecha = ${fecha}::date AND tipo_sesion = ${tipo_sesion}`
     let saved = 0
     for (const m of matched) {
       const met = m.metricas || {}
@@ -196,7 +230,6 @@ export async function POST(req: NextRequest) {
                 VALUES (${m.jugador_id}, ${s.clubId}, ${fecha}, ${sesion_id}, ${tipo_sesion}, ${met.dist_total||0}, ${met.dist_hir||0}, ${met.dist_v4||0}, ${met.dist_v5||0}, ${met.player_load||0}, ${met.max_velocity||0}, ${met.acc2||0}, ${met.dec2||0}, ${met.dist_per_min||0}, ${met.n_sprints||0}, ${JSON.stringify(met)})`
       saved++
     }
-
     return NextResponse.json({ ok: true, saved, unmatched })
-  } catch (err) { return NextResponse.json({ error: String(err) }, { status: 500 }) }
+  } catch (err) { console.error(err); return NextResponse.json({ error: String(err) }, { status: 500 }) }
 }
