@@ -281,20 +281,28 @@ export async function GET(req: NextRequest) {
 
     if (clubId) {
       // Dynamic columns: check which optional columns exist in gps_logs
-      const GPS_BASE_COLS = ['dist_total','dist_hir','dist_v4','dist_v5','player_load','max_velocity','acc2','dec2','acc3','dec3','dist_per_min']
+      const GPS_BASE_COLS = ['dist_total','dist_hir','dist_v4','dist_v5','player_load','max_velocity','acc2','dec2','acc3','dec3','dist_per_min','n_sprints','duracion_min']
       // Fetch all gps_logs for the date range, joined with player info and optional session title
+      // When gps_log has no sesion_id (imported without linking), fall back to matching by date
       const gpsLogs = await sql`
         SELECT
           g.jugador_id, u.nombre, j.posicion,
           g.fecha::text, g.sesion_id,
-          sp.titulo AS md_label,
+          COALESCE(sp_direct.titulo, sp_bydate.titulo) AS md_label,
           g.dist_total, g.dist_hir, g.dist_v4, g.dist_v5,
           g.player_load, g.max_velocity, g.acc2, g.dec2, g.acc3, g.dec3,
-          g.dist_per_min, g.metricas
+          g.dist_per_min, g.n_sprints, g.duracion_min, g.metricas
         FROM gps_logs g
         JOIN jugadores j ON j.id = g.jugador_id
         JOIN usuarios u ON u.id = j.usuario_id
-        LEFT JOIN sesiones_plan sp ON sp.id = g.sesion_id
+        LEFT JOIN sesiones_plan sp_direct ON sp_direct.id = g.sesion_id
+        LEFT JOIN sesiones_plan sp_bydate ON sp_bydate.id = (
+          SELECT id FROM sesiones_plan
+          WHERE club_id = ${clubId}
+            AND fecha::date = g.fecha::date
+          ORDER BY id
+          LIMIT 1
+        ) AND g.sesion_id IS NULL
         WHERE g.club_id = ${clubId}
           AND g.fecha >= ${desde}::date AND g.fecha <= ${hastaInc}::timestamp
           AND u.activo = true
@@ -343,10 +351,14 @@ export async function GET(req: NextRequest) {
 
         // Team avg GPS
         const nGps = gpsReal.length || 1
+        const GPS_AVG_FIELDS = new Set(['max_velocity','dist_per_min','duracion_min'])
+        const GPS_MAX_FIELDS = new Set(['max_velocity'])
         for (const k of allMetricCols) {
           const vals = gpsReal.map((p: any) => Number(p[k]) || 0).filter(x => x > 0)
           if (vals.length) {
-            teamAvgGps[k] = k === 'max_velocity' || k === 'dist_per_min'
+            teamAvgGps[k] = GPS_MAX_FIELDS.has(k)
+              ? Math.round(Math.max(...vals) * 10) / 10
+              : GPS_AVG_FIELDS.has(k)
               ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length * 10) / 10
               : Math.round(vals.reduce((a, b) => a + b, 0) / nGps * 10) / 10
           }

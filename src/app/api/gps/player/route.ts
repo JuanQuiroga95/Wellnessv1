@@ -44,7 +44,7 @@ export async function GET(req: NextRequest) {
         g.id, g.fecha::text, g.tipo_sesion, g.fuente,
         g.dist_total, g.dist_hir, g.dist_v4, g.dist_v5,
         g.player_load, g.max_velocity, g.acc2, g.dec2, g.acc3, g.dec3,
-        g.dist_per_min, g.metricas,
+        g.dist_per_min, g.n_sprints, g.duracion_min, g.metricas,
         sp.titulo AS md_label, sp.objetivo
       FROM gps_logs g
       LEFT JOIN sesiones_plan sp ON sp.id = g.sesion_id

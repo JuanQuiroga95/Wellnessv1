@@ -7361,6 +7361,7 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
 
   // Team avg GPS for a given MD — works across all dynamic GPS_VARS
   const MAX_FIELDS_GPS = new Set(['max_velocity','hr_max'])
+  const AVG_FIELDS_GPS = new Set(['max_velocity','hr_max','dist_per_min','duracion_min'])
   const mdTeamAvg = (md: string) => {
     const rows = gpsPerMD[md] || []
     if (!rows.length) return {}
@@ -7370,6 +7371,8 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
       if (!vals.length) return
       avg[v.key] = MAX_FIELDS_GPS.has(v.key)
         ? Math.round(Math.max(...vals)*100)/100
+        : AVG_FIELDS_GPS.has(v.key)
+        ? Math.round(vals.reduce((s,x)=>s+x,0)/vals.length*10)/10
         : Math.round(vals.reduce((s,x)=>s+x,0)/vals.length*10)/10
     })
     return avg
