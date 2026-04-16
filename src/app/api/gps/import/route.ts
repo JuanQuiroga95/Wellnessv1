@@ -75,7 +75,9 @@ function matchMetricCol(h: string): string | null {
 function cleanCatapultName(raw: string): string {
   const cleaned = raw.trim().replace(/\.$/, '');
   const parts = cleaned.split(/\s+/);
+  // Enoch Enoch -> Enoch
   if (parts.length === 2 && parts[0].toUpperCase() === parts[1].toUpperCase()) return parts[0];
+  // Repetición de bloque (Kiko Kiko)
   if (parts.length >= 4) {
     const half = Math.floor(parts.length / 2);
     if (parts.slice(0, half).join(' ') === parts.slice(half).join(' ')) return parts.slice(0, half).join(' ');
@@ -194,20 +196,43 @@ function parsePdfBlobColumnar(lines: string[]): Record<string, any>[] | null {
 
 async function matchPlayers(rows: Record<string,any>[], clubId: number|null) {
   const sql = getDb()
-  const jugadores = clubId ? await sql`SELECT j.id, u.nombre FROM jugadores j JOIN usuarios u ON u.id = j.usuario_id WHERE u.club_id = ${clubId} AND u.activo = true` : []
-  const byNorm = new Map()
-  jugadores.forEach(j => {
-    const n = normalizeName(j.nombre); byNorm.set(n, j)
-    const first = n.split(' ')[0]; if (first.length > 2) byNorm.set(first, j)
-  })
+  const jugadores = clubId ? await sql`
+    SELECT j.id, u.nombre 
+    FROM jugadores j 
+    JOIN usuarios u ON u.id = j.usuario_id 
+    WHERE (u.club_id = ${clubId} OR j.club_id = ${clubId}) AND u.activo = true
+  ` : []
+  
   const matched: any[] = [], unmatched: string[] = []
+  
   for (const row of rows) {
-    const pdfNorm = row.nombre_norm; let jug = byNorm.get(pdfNorm)
-    if (!jug) {
-      for (const [key, val] of byNorm.entries()) { if (key.includes(pdfNorm) || pdfNorm.includes(key)) { jug = val; break } }
+    // pdfNorm es el nombre que viene del PDF ya limpio (ej: "enoch")
+    const pdfNorm = row.nombre_norm;
+    
+    // Buscamos en la base de datos de manera muy flexible
+    let jug = (jugadores as any[]).find(j => {
+      const dbNorm = normalizeName(j.nombre);
+      const dbWords = dbNorm.split(' ');
+      const pdfWords = pdfNorm.split(' ');
+
+      // 1. Coincidencia exacta
+      if (dbNorm === pdfNorm) return true;
+      
+      // 2. Si alguna palabra del PDF está en la base de datos (Ej: Enoch Enoch vs Enoch)
+      const hasWordMatch = pdfWords.some(pw => dbWords.includes(pw) && pw.length > 2);
+      if (hasWordMatch) return true;
+
+      // 3. Contiene al otro
+      if (dbNorm.includes(pdfNorm) || pdfNorm.includes(dbNorm)) return true;
+
+      return false;
+    });
+
+    if (jug) {
+      matched.push({ ...row, jugador_id: jug.id, jugador_nombre: jug.nombre });
+    } else {
+      unmatched.push(row.nombre_catapult);
     }
-    if (jug) matched.push({ ...row, jugador_id: jug.id, jugador_nombre: jug.nombre })
-    else unmatched.push(row.nombre_catapult)
   }
   return { matched, unmatched }
 }
@@ -219,15 +244,24 @@ export async function POST(req: NextRequest) {
     if (!fecha) return NextResponse.json({ error: 'Falta fecha' }, { status: 400 })
     let parsedRows = pdfText ? parsePdfFromText(pdfText) : []
     if (!parsedRows.length) return NextResponse.json({ error: 'No se encontraron datos.' }, { status: 400 })
+    
     const { matched, unmatched } = await matchPlayers(parsedRows, s.clubId || null)
+    
     if (!confirm) return NextResponse.json({ preview: true, fecha, tipo_sesion, sesion_id, matched, unmatched })
+    
     const sql = getDb()
-    if (s.clubId) await sql`DELETE FROM gps_logs WHERE club_id = ${s.clubId} AND fecha = ${fecha}::date AND tipo_sesion = ${tipo_sesion}`
+    const clubId = s.clubId ? Number(s.clubId) : null
+
+    // Limpieza de duplicados
+    if (clubId) {
+      await sql`DELETE FROM gps_logs WHERE club_id = ${clubId} AND fecha = ${fecha}::date AND tipo_sesion = ${tipo_sesion}`
+    }
+
     let saved = 0
     for (const m of matched) {
       const met = m.metricas || {}
       await sql`INSERT INTO gps_logs (jugador_id, club_id, fecha, sesion_id, tipo_sesion, dist_total, dist_hir, dist_v4, dist_v5, player_load, max_velocity, acc2, dec2, dist_per_min, n_sprints, metricas)
-                VALUES (${m.jugador_id}, ${s.clubId}, ${fecha}, ${sesion_id}, ${tipo_sesion}, ${met.dist_total||0}, ${met.dist_hir||0}, ${met.dist_v4||0}, ${met.dist_v5||0}, ${met.player_load||0}, ${met.max_velocity||0}, ${met.acc2||0}, ${met.dec2||0}, ${met.dist_per_min||0}, ${met.n_sprints||0}, ${JSON.stringify(met)})`
+                VALUES (${m.jugador_id}, ${clubId}, ${fecha}, ${sesion_id}, ${tipo_sesion}, ${met.dist_total||0}, ${met.dist_hir||0}, ${met.dist_v4||0}, ${met.dist_v5||0}, ${met.player_load||0}, ${met.max_velocity||0}, ${met.acc2||0}, ${met.dec2||0}, ${met.dist_per_min||0}, ${met.n_sprints||0}, ${JSON.stringify(met)})`
       saved++
     }
     return NextResponse.json({ ok: true, saved, unmatched })
