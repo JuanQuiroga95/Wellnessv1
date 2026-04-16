@@ -6958,10 +6958,9 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
                 {VARS.map((v,i)=>{
                   const vals = mdCols.map(md => {
                     // Cuadro 2 = SUMATORIO total del equipo
-                    // perSession has the planned session value (per player from calculator)
-                    // Multiply by number of players to get team total
+                    // Multiply by players who actually trained (have sessions > 0)
                     const sessVal = perSession[md]?.[v.key]
-                    const nP = players.length || 1
+                    const nP = players.filter((p:any) => p.sesiones > 0).length || players.length || 1
                     return Math.round((Number(sessVal)||0) * nP)
                   })
                   const total = vals.reduce((s,x)=>s+x,0)

@@ -176,11 +176,12 @@ export async function GET(req: NextRequest) {
       nDecel: Math.round(p.nDecel), nAcel3: Math.round(p.nAcel3||0), nDecel3: Math.round(p.nDecel3||0), hasGps: p.distTotal > 0
     })).sort((a: any, b: any) => a.nombre.localeCompare(b.nombre))
 
-    // Mantenemos lógica de GPS real y agrupamiento MD
-    const n = players.length || 1
-    const avg = (field: string) => Math.round(players.reduce((s: number, p: any) => s + (p[field] || 0), 0) / n)
+    // teamAvg: only players who actually trained in this period (sesiones > 0)
+    const activePlayers = players.filter((p: any) => p.sesiones > 0)
+    const n = activePlayers.length || 1
+    const avg = (field: string) => Math.round(activePlayers.reduce((s: number, p: any) => s + (p[field] || 0), 0) / n)
     const teamAvg = {
-      rpe: Math.round((players.reduce((s: number, p: any) => s + (p.rpe || 0), 0) / n) * 10) / 10,
+      rpe: Math.round((activePlayers.reduce((s: number, p: any) => s + (p.rpe || 0), 0) / n) * 10) / 10,
       ua: avg('ua'), ua_total: avg('ua_total'), distTotal: avg('distTotal'), distSprint: avg('distSprint'),
       distMP: avg('distMP'), distAcel: avg('distAcel'), distDecel: avg('distDecel'),
       nSprints: avg('nSprints'), nAcel: avg('nAcel'), nDecel: avg('nDecel'), nAcel3: avg('nAcel3'), nDecel3: avg('nDecel3'), sesiones: avg('sesiones')
