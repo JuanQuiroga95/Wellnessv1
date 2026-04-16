@@ -16,7 +16,7 @@ function localDaysAgo(n: number): string {
 export async function GET(req: NextRequest) {
   const s = await getSessionFromRequest(req); if(!s||!isAdmin(s)) return NextResponse.json({error:'No autorizado'},{status:403})
   const {searchParams} = new URL(req.url)
-  const desde = searchParams.get('desde')||'2024-01-01'
+  const desde = searchParams.get('desde')||localDaysAgo(30)
   const hasta = searchParams.get('hasta')||localToday()
   // hastaInc: +1 día para inclusividad total del día "hasta" con el driver Neon
   const hastaInc = (() => {
