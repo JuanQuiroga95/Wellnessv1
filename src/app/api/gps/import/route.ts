@@ -318,27 +318,52 @@ function parsePdfFromText(rawText: string): Record<string, any>[] {
   const lines = rawText.split('\n').map(l => l.trim()).filter(Boolean)
   const results: Record<string, any>[] = []
   let lastNameFound: string | null = null
+
+  // HELPER: Detecta si un texto es basura rezagada de las cabeceras del PDF
+  const isGarbageHeader = (s: string) => {
+    const n = normStr(s)
+    return ['minute', 'meterage', 'sprints', 'effs', 'gen 2', 'velocidad', 'velocity', 'high speed', 'tot dist'].some(w => n.includes(normStr(w)))
+  }
+
   for (const line of lines) {
     if (/^\d{1,2}\/\d{1,2}\/\d{2,4}$/.test(line)) continue
-    const parts = line.split(/\s+/); let dataStart = parts.length
+    
+    const parts = line.split(/\s+/)
+    let dataStart = parts.length
     while (dataStart > 0 && /^[\d,.]+$/.test(parts[dataStart - 1])) dataStart--
-    const numericParts = parts.slice(dataStart), nameFromLine = parts.slice(0, dataStart).join(' ').trim()
+    
+    const numericParts = parts.slice(dataStart)
+    let nameFromLine = parts.slice(0, dataStart).join(' ').trim()
+    
+    // FIX 1: Limpiar la fecha si viene pegada al nombre en la misma línea (ej. "11/04/2026 ENOCH ENOCH")
+    nameFromLine = nameFromLine.replace(/^\d{1,2}\/\d{1,2}\/\d{2,4}\s*/, '').trim()
+
     if (numericParts.length >= 3) {
       const metricas: Record<string, number> = {}
       const colOrder = ['dist_total', 'dist_per_min', 'dist_v4', 'dist_hir', 'dist_v5', 'n_sprints', 'acc2', 'dec2', 'max_velocity']
+      
       for (let i = 0; i < numericParts.length && i < colOrder.length; i++) {
-        const val = parseFloat(numericParts[i].replace(',', '.')); if (!isNaN(val)) metricas[colOrder[i]] = val
+        const val = parseFloat(numericParts[i].replace(',', '.'))
+        if (!isNaN(val)) metricas[colOrder[i]] = val
       }
+      
       const finalName = nameFromLine || lastNameFound
+      
       if (finalName && /[a-zA-Z]/.test(finalName)) {
         const check = normStr(finalName)
-        if (!['promedio','max','average','total','media','dist','distancia','minute','minuto','variable'].includes(check)) {
+        // FIX 2: Evitar que los fragmentos del encabezado se registren como un jugador válido
+        if (!['promedio','max','average','total','media','dist','distancia','minute','minuto','variable'].includes(check) && !isGarbageHeader(finalName)) {
           const cleanName = cleanCatapultName(finalName)
           results.push({ nombre_catapult: cleanName, nombre_norm: normalizeName(cleanName), metricas })
         }
       }
       lastNameFound = null
-    } else if (nameFromLine.length > 2 && /[a-zA-Z]/.test(nameFromLine)) lastNameFound = nameFromLine
+    } else if (nameFromLine.length > 2 && /[a-zA-Z]/.test(nameFromLine)) {
+      // FIX 3: Evitar guardar basura del encabezado para que NO sobrescriba a Enoch en lastNameFound
+      if (!isGarbageHeader(nameFromLine)) {
+        lastNameFound = nameFromLine
+      }
+    }
   }
   return results.length ? results : (parsePdfRowFormat(lines) || parsePdfCuadroResumen(lines) || parsePdfBlobColumnar(lines) || [])
 }
