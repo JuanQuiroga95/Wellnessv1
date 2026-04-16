@@ -1377,7 +1377,7 @@ function CalendarioPanel({ teamData }) {
               else { const b = await r.json().catch(()=>({})); alert('Error: ' + (b?.error||r.status)) }
             } catch { alert('Error de red.') }
           }} style={{ fontSize:12, padding:'10px 18px', borderRadius:8, background:'rgba(239,68,68,.1)', border:'1px solid rgba(239,68,68,.3)', color:'#f87171', cursor:'pointer' }}>🗑 Borrar todo</button>
-          <button onClick={()=>setShowEditor(true)} className="btn-lime" style={{ fontSize:12, padding:'10px 18px' }}>+ Nueva sesión</button>
+          <button onClick={()=>{setEditSesion(null);setShowEditor(true)}} className="btn-lime" style={{ fontSize:12, padding:'10px 18px' }}>+ Nueva sesión</button>
         </div>
       </div>
 
@@ -1447,7 +1447,7 @@ function CalendarioPanel({ teamData }) {
 
               return (
                 <div key={fecha}
-                  onClick={() => { setSelectedDay(selectedDay===fecha?null:fecha) }}
+                  onClick={() => { const next=selectedDay===fecha?null:fecha; setSelectedDay(next); setShowEditor(false); setEditSesion(null) }}
                   style={{
                     minHeight:100, borderRight:'1px solid var(--mist)', borderBottom:'1px solid var(--mist)',
                     padding:6, cursor:'pointer', transition:'background .12s',

@@ -179,7 +179,9 @@ export async function GET(req: NextRequest) {
     for (const ses of sesiones as any[]) {
       const label = ses.titulo || ses.fecha
       const m = sumarMetricasBloques(ses.ejercicios || [])
-      perSession[label] = { fecha: ses.fecha, rpe_objetivo: ses.rpe_objetivo, ...m }
+      // ua_total = RPE_objetivo x minutos_activos — needed for UA column in Cuadro 2
+      const ua_total = Number(ses.rpe_objetivo) > 0 ? Math.round(Number(ses.rpe_objetivo) * m.minActivo) : 0
+      perSession[label] = { fecha: ses.fecha, rpe_objetivo: ses.rpe_objetivo, ...m, ua_total }
     }
 
     // ── cePerSession: CE (Carga Específica) y UCE por sesión ──
