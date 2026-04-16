@@ -8181,7 +8181,7 @@ function EvaluacionesPanel({ teamData }: { teamData: any[] }) {
 // MANUAL DE USUARIO
 // ═══════════════════════════════════════════════════════════════════
 function ManualPanel() {
-  const [seccion, setSeccion] = React.useState<string>('inicio')
+  const [seccion, setSeccion] = useState<string>('inicio')
 
   const SECCIONES = [
     { id:'inicio',         label:'Inicio',               icon:'🏠' },
