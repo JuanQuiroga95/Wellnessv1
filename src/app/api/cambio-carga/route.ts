@@ -24,8 +24,9 @@ export async function GET(req: NextRequest) {
   const minEntrenamiento = parseInt(searchParams.get('minEntrenamiento') || '60')
   const minPartido = parseInt(searchParams.get('minPartido') || '0')
 
-  // hastaInc: fin del día "hasta" con timestamp (igual que carga-gps)
-  const hastaInc = hasta + ' 23:59:59.999'
+  // Las columnas fecha son tipo DATE en Postgres → comparar solo con fechas puras (YYYY-MM-DD)
+  // hastaInc = hasta (date type, BETWEEN is inclusive on both ends)
+  const hastaInc = hasta
 
   const clubId = s.clubId ? Number(s.clubId) : null
   const isMaster = s.rol === 'master_admin' && !s.clubId
@@ -35,18 +36,19 @@ export async function GET(req: NextRequest) {
   if (!isMaster && !clubId) return NextResponse.json([])
 
   // Get all training logs with player names in date range
+  // TO_CHAR garantiza formato YYYY-MM-DD sin importar timezone del driver Neon
   const trainLogs = await sql`
     SELECT 
       el.jugador_id,
       u.nombre,
-      el.fecha::text,
+      TO_CHAR(el.fecha, 'YYYY-MM-DD') AS fecha,
       el.carga_ua,
       el.duracion_min,
       el.rpe
     FROM entrenamiento_logs el
     JOIN jugadores j ON j.id = el.jugador_id
     JOIN usuarios u ON u.id = j.usuario_id
-    WHERE el.fecha >= ${desde}::date AND el.fecha <= ${hastaInc}::timestamp
+    WHERE el.fecha BETWEEN ${desde}::date AND ${hastaInc}::date
       AND u.activo = true
       AND (${isMaster}::boolean OR (u.club_id = ${clubId} AND j.club_id = ${clubId}))
     ORDER BY el.fecha ASC
@@ -56,12 +58,12 @@ export async function GET(req: NextRequest) {
   const matchLogs = await sql`
     SELECT 
       pl.jugador_id,
-      pl.fecha::text,
+      TO_CHAR(pl.fecha, 'YYYY-MM-DD') AS fecha,
       pl.minutos
     FROM partido_logs pl
     JOIN jugadores j ON j.id = pl.jugador_id
     JOIN usuarios u ON u.id = j.usuario_id
-    WHERE pl.fecha >= ${desde}::date AND pl.fecha <= ${hastaInc}::timestamp
+    WHERE pl.fecha BETWEEN ${desde}::date AND ${hastaInc}::date
       AND u.activo = true
       AND (${isMaster}::boolean OR (u.club_id = ${clubId} AND j.club_id = ${clubId}))
     ORDER BY pl.fecha ASC
@@ -89,17 +91,17 @@ export async function GET(req: NextRequest) {
     'Gimnasio':3,'Activación en campo':2,'Activación en gimnasio':2,
   }
   const sesionesParaUCE = clubId ? await sql`
-    SELECT fecha::text, ejercicios
+    SELECT TO_CHAR(fecha, 'YYYY-MM-DD') AS fecha, ejercicios
     FROM sesiones_plan
     WHERE club_id = ${clubId}
-      AND fecha >= ${desde}::date AND fecha <= ${hastaInc}::timestamp
+      AND fecha BETWEEN ${desde}::date AND ${hastaInc}::date
     ORDER BY fecha`
   : await sql`
-    SELECT fecha::text, ejercicios
+    SELECT TO_CHAR(fecha, 'YYYY-MM-DD') AS fecha, ejercicios
     FROM sesiones_plan
     WHERE admin_id = ${s.userId}
       AND club_id IS NULL
-      AND fecha >= ${desde}::date AND fecha <= ${hastaInc}::timestamp
+      AND fecha BETWEEN ${desde}::date AND ${hastaInc}::date
     ORDER BY fecha`
 
   // Build CE per date from session blocks

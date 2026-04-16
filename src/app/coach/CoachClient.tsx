@@ -820,21 +820,21 @@ function CambioCargaPanel() {
   ]
   const CHART_VARS = [...CHART_VARS_CALC, ...CHART_VARS_GPS]
 
-  useEffect(() => { load() }, [desde, hasta, minEnt, minPart])
-
-  async function load() {
+  async function load(d = desde, h = hasta, me = minEnt, mp = minPart) {
     setLoading(true)
     setData(null)
     setGpsData(null)
     try {
       const [r1, r2] = await Promise.all([
-        fetch(`/api/cambio-carga?desde=${desde}&hasta=${hasta}&minEntrenamiento=${minEnt}&minPartido=${minPart}`),
-        fetch(`/api/carga-gps?desde=${desde}&hasta=${hasta}&ciclo=microciclo`),
+        fetch(`/api/cambio-carga?desde=${d}&hasta=${h}&minEntrenamiento=${me}&minPartido=${mp}`),
+        fetch(`/api/carga-gps?desde=${d}&hasta=${h}&ciclo=microciclo`),
       ])
       setData(await r1.json())
       setGpsData(await r2.json())
     } finally { setLoading(false) }
   }
+
+  useEffect(() => { load(desde, hasta, minEnt, minPart) }, [desde, hasta, minEnt, minPart])
 
   const daily = data?.daily || []
   const weekly = data?.weekly || []
