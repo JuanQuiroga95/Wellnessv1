@@ -1174,12 +1174,16 @@ function CambioCargaPanel() {
                       {view==='diario' ? row.fecha : row.semana}
                     </span>
                     {view === 'diario'
-                      ? <span style={{ fontSize:11, color:'var(--silver)' }} title={row.players?.join(', ')}>{row.count} jugadores</span>
+                      ? <span style={{ fontSize:11, color:'var(--silver)' }} title={row.players?.join(', ')}>
+                          {row.count > 0 ? `${row.count} jugadores` : <span style={{ color:'var(--fog)', fontStyle:'italic' }}>Sin RPE</span>}
+                        </span>
                       : <span style={{ fontSize:11, color:'var(--silver)' }}>{row.label}</span>
                     }
-                    <span className="mono" style={{ fontSize:14, color:chartColor, fontWeight:600 }}>{getRowVal(row)} <span style={{ fontSize:10, color:'var(--silver)', fontWeight:400 }}>{CHART_VARS.find(v=>v.key===chartVar)?.label}</span></span>
+                    <span className="mono" style={{ fontSize:14, color: row.count > 0 ? chartColor : 'var(--fog)', fontWeight:600 }}>
+                      {row.count > 0 ? <>{getRowVal(row)} <span style={{ fontSize:10, color:'var(--silver)', fontWeight:400 }}>{CHART_VARS.find(v=>v.key===chartVar)?.label}</span></> : '—'}
+                    </span>
                     <span style={{ fontSize:13, fontWeight:700, color:pctColor(row._pct), background:pctBg(row._pct), padding:'3px 8px', borderRadius:6, display:'inline-block', fontFamily:'DM Mono,monospace' }}>
-                      {row._pct !== null ? `${row._pct > 0 ? '+' : ''}${row._pct}%` : '—'}
+                      {row.count > 0 ? (row._pct !== null ? `${row._pct > 0 ? '+' : ''}${row._pct}%` : '—') : '—'}
                     </span>
                   </div>
                 ))}

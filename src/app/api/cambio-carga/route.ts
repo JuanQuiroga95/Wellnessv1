@@ -117,15 +117,18 @@ export async function GET(req: NextRequest) {
     if (ceTotal > 0) ceByDate[ses.fecha] = (ceByDate[ses.fecha] || 0) + ceTotal
   }
 
-  // Group by date: only sessions where player qualifies and trained >= minEntrenamiento
-  // NOTE: if duracion_min is 0 or null (not recorded), we skip the duration filter
-  // so logs without duration don't get incorrectly excluded.
-  const byDate: Record<string, { total_ua: number; total_rpe: number; count: number; players: string[] }> = {}
+  // Inicializar byDate con TODAS las fechas con sesión planificada (hasPlan),
+  // así el coach ve todos los días de entrenamiento aunque no haya RPE cargado aún.
+  const byDate: Record<string, { total_ua: number; total_rpe: number; count: number; players: string[]; hasPlan: boolean }> = {}
+  for (const ses of sesionesParaUCE as any[]) {
+    if (!byDate[ses.fecha]) byDate[ses.fecha] = { total_ua: 0, total_rpe: 0, count: 0, players: [], hasPlan: true }
+  }
+  // Agregar los logs de RPE registrados sobre las sesiones planificadas
   for (const log of trainLogs as any[]) {
     if (!qualifyingPlayers.has(log.jugador_id)) continue
     const dur = log.duracion_min || 0
     if (dur > 0 && dur < minEntrenamiento) continue
-    if (!byDate[log.fecha]) byDate[log.fecha] = { total_ua: 0, total_rpe: 0, count: 0, players: [] }
+    if (!byDate[log.fecha]) byDate[log.fecha] = { total_ua: 0, total_rpe: 0, count: 0, players: [], hasPlan: false }
     byDate[log.fecha].total_ua += log.carga_ua || 0
     byDate[log.fecha].total_rpe += log.rpe || 0
     byDate[log.fecha].count += 1
@@ -167,6 +170,7 @@ export async function GET(req: NextRequest) {
       n: byDate[fecha].count,
       count: byDate[fecha].count,
       players: byDate[fecha].players,
+      hasPlan: byDate[fecha].hasPlan,
       pct_change: pct,
     }
   })
@@ -181,7 +185,18 @@ export async function GET(req: NextRequest) {
     return `${d.getUTCFullYear()}-S${String(week).padStart(2, '0')}`
   }
 
-  const byWeek: Record<string, { total_ua: number; count: number; label: string }> = {}
+  // byWeek: primero seed desde sesiones planificadas (para mostrar semanas sin RPE)
+  const byWeek: Record<string, { total_ua: number; count: number; label: string; sesiones: number }> = {}
+  for (const fecha of Object.keys(byDate).sort()) {
+    const wk = getWeekKey(fecha)
+    if (!byWeek[wk]) {
+      const d = new Date(fecha + 'T12:00:00Z')
+      const label = `${wk} (${d.getUTCDate().toString().padStart(2,'0')}/${(d.getUTCMonth()+1).toString().padStart(2,'0')})`
+      byWeek[wk] = { total_ua: 0, count: 0, label, sesiones: 0 }
+    }
+    byWeek[wk].sesiones += 1
+  }
+  // Luego sumar los logs reales de RPE
   for (const log of trainLogs as any[]) {
     if (!qualifyingPlayers.has(log.jugador_id)) continue
     const durW = log.duracion_min || 0
@@ -190,7 +205,7 @@ export async function GET(req: NextRequest) {
     if (!byWeek[wk]) {
       const d = new Date(log.fecha + 'T12:00:00Z')
       const label = `${wk} (${d.getUTCDate().toString().padStart(2,'0')}/${(d.getUTCMonth()+1).toString().padStart(2,'0')})`
-      byWeek[wk] = { total_ua: 0, count: 0, label }
+      byWeek[wk] = { total_ua: 0, count: 0, label, sesiones: 0 }
     }
     byWeek[wk].total_ua += log.carga_ua || 0
     byWeek[wk].count += 1
@@ -206,6 +221,7 @@ export async function GET(req: NextRequest) {
       label: byWeek[wk].label,
       avg_ua: avg,
       count: byWeek[wk].count,
+      sesiones: byWeek[wk].sesiones,
       pct_change: pct,
     }
   })
