@@ -6320,7 +6320,9 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
   const pctColor = (p:number|null) => p===null?'var(--fog)':p>=85?'#22c55e':p>=65?'#f59e0b':'#ef4444'
 
   const renderGrupoBar = (grupo: {label:string,vars:string[],colors:string[],lineVar?:string|null,lineColor?:string,lineLabel?:string}, dataSource: 'jugador'|'md', mode: 'totales'|'promedio' = 'promedio') => {
-    const nP = players.filter((p:any) => p.sesiones > 0).length || players.length || 1
+    // nP = plantilla completa (todos los jugadores activos del club)
+    // El valor de sesión ya es por-jugador (de la calculadora), × nP = total equipo
+    const nP = players.length || 1
     const getMdVal = (md: string, vk: string) => {
       const sessVal = Math.round(Number(perSession[md]?.[vk])||0)
       return mode === 'totales' ? Math.round(sessVal * nP) : sessVal
@@ -6973,7 +6975,7 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
                     // Cuadro 2 = SUMATORIO total del equipo
                     // Multiply by players who actually trained (have sessions > 0)
                     const sessVal = perSession[md]?.[v.key]
-                    const nP = players.filter((p:any) => p.sesiones > 0).length || players.length || 1
+                    const nP = players.length || 1
                     return Math.round((Number(sessVal)||0) * nP)
                   })
                   const total = vals.reduce((s,x)=>s+x,0)
