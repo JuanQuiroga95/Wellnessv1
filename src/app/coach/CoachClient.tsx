@@ -6315,7 +6315,12 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
   const pct = (val:number, key:string) => { const ref = refMedia[key]; if(!ref||ref===0) return null; return Math.round((val/ref)*100) }
   const pctColor = (p:number|null) => p===null?'var(--fog)':p>=85?'#22c55e':p>=65?'#f59e0b':'#ef4444'
 
-  const renderGrupoBar = (grupo: {label:string,vars:string[],colors:string[],lineVar?:string|null,lineColor?:string,lineLabel?:string}, dataSource: 'jugador'|'md') => {
+  const renderGrupoBar = (grupo: {label:string,vars:string[],colors:string[],lineVar?:string|null,lineColor?:string,lineLabel?:string}, dataSource: 'jugador'|'md', mode: 'totales'|'promedio' = 'promedio') => {
+    const nP = players.filter((p:any) => p.sesiones > 0).length || players.length || 1
+    const getMdVal = (md: string, vk: string) => {
+      const sessVal = Math.round(Number(perSession[md]?.[vk])||0)
+      return mode === 'totales' ? Math.round(sessVal * nP) : sessVal
+    }
     const series = grupo.vars.map((vk, ci) => {
       const varDef = VARS.find(v=>v.key===vk)!
       return {
@@ -6323,7 +6328,7 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
         color: grupo.colors[ci] || '#888',
         vals: dataSource === 'jugador'
           ? players.map((p:any)=>({ name: p.nombre.split(' ')[0], val: Number(p[vk])||0 }))
-          : mdCols.map(md=>({ name: md, val: Math.round(Number(perSession[md]?.[vk])||0) }))
+          : mdCols.map(md=>({ name: md, val: getMdVal(md, vk) }))
       }
     })
     const allVals = series.flatMap(s=>s.vals.map((v:any)=>v.val))
@@ -6336,7 +6341,7 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
     const lineVals: number[] = grupo.lineVar
       ? (dataSource === 'jugador'
           ? players.map((p:any) => Number(p[grupo.lineVar!])||0)
-          : mdCols.map(md => Math.round(Number(perSession[md]?.[grupo.lineVar!])||0)))
+          : mdCols.map(md => mode === 'totales' ? Math.round(Math.round(Number(perSession[md]?.[grupo.lineVar!])||0) * nP) : Math.round(Number(perSession[md]?.[grupo.lineVar!])||0)))
       : []
     const maxLineVal = Math.max(...lineVals, 1)
 
@@ -6989,7 +6994,7 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
         <div style={{ padding:16, borderTop:'1px solid var(--mist)' }}>
           <p style={{ fontSize:10, fontWeight:700, color:'#60a5fa', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:12 }}>📊 GRÁFICO AGRUPADO · TOTALES POR DÍA DE ENTRENAMIENTO</p>
           <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(260px,1fr))', gap:16 }}>
-            {GRUPOS.map(g=>renderGrupoBar(g,'md'))}
+            {GRUPOS.map(g=>renderGrupoBar(g,'md','totales'))}
           </div>
         </div>
       </div>
@@ -7031,7 +7036,7 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
           <div style={{ padding:16, borderTop:'1px solid var(--mist)' }}>
             <p style={{ fontSize:10, fontWeight:700, color:'#a78bfa', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:12 }}>📊 GRÁFICO AGRUPADO · PROMEDIO POR MD</p>
             <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(260px,1fr))', gap:16 }}>
-              {GRUPOS.map(g=>renderGrupoBar(g,'md'))}
+              {GRUPOS.map(g=>renderGrupoBar(g,'md','promedio'))}
             </div>
           </div>
         </>)}

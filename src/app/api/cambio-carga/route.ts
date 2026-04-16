@@ -116,10 +116,13 @@ export async function GET(req: NextRequest) {
   }
 
   // Group by date: only sessions where player qualifies and trained >= minEntrenamiento
+  // NOTE: if duracion_min is 0 or null (not recorded), we skip the duration filter
+  // so logs without duration don't get incorrectly excluded.
   const byDate: Record<string, { total_ua: number; total_rpe: number; count: number; players: string[] }> = {}
   for (const log of trainLogs as any[]) {
     if (!qualifyingPlayers.has(log.jugador_id)) continue
-    if ((log.duracion_min || 0) < minEntrenamiento) continue
+    const dur = log.duracion_min || 0
+    if (dur > 0 && dur < minEntrenamiento) continue
     if (!byDate[log.fecha]) byDate[log.fecha] = { total_ua: 0, total_rpe: 0, count: 0, players: [] }
     byDate[log.fecha].total_ua += log.carga_ua || 0
     byDate[log.fecha].total_rpe += log.rpe || 0
@@ -179,7 +182,8 @@ export async function GET(req: NextRequest) {
   const byWeek: Record<string, { total_ua: number; count: number; label: string }> = {}
   for (const log of trainLogs as any[]) {
     if (!qualifyingPlayers.has(log.jugador_id)) continue
-    if ((log.duracion_min || 0) < minEntrenamiento) continue
+    const durW = log.duracion_min || 0
+    if (durW > 0 && durW < minEntrenamiento) continue
     const wk = getWeekKey(log.fecha)
     if (!byWeek[wk]) {
       const d = new Date(log.fecha + 'T12:00:00Z')
