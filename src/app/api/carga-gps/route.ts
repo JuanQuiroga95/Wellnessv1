@@ -55,15 +55,20 @@ function sumarMetricasBloques(ejercicios: any[]): Record<string, number> {
       const densidad   = (largo * ancho) / jug
       const tiempoAct  = series * minutos
       t.distTotal  += Math.max(0, (19.243 * Math.log(densidad) - 5.029)  * tiempoAct)
-      t.distSprint += Math.max(0, (0.018 * densidad - 0.844)             * tiempoAct)
       t.distMP     += Math.max(0, (7.0421 * Math.log(densidad) - 15.255) * tiempoAct)
       t.distAcel   += Math.max(0, (1.321  * Math.log(densidad) - 0.629)  * tiempoAct)
       t.distDecel  += Math.max(0, (1.157  * Math.log(densidad) - 0.418)  * tiempoAct)
-      t.nSprints   += Math.max(0, (0.001  * densidad - 0.046)            * tiempoAct)
       t.nAcel      += Math.max(0, (0.212  * Math.log(densidad) - 0.23)   * tiempoAct)
       t.nDecel     += Math.max(0, (0.1041 * Math.log(densidad) - 0.096)  * tiempoAct)
       t.nAcel3     += Math.max(0, (0.212  * Math.log(densidad) - 0.23)   * tiempoAct * 0.22)
       t.nDecel3    += Math.max(0, (0.1041 * Math.log(densidad) - 0.096)  * tiempoAct * 0.22)
+      // distSprint y nSprints: intercepto ajustado para producir valores realistas
+      // en tareas de alta densidad (partidos reducidos, rondos).
+      // La fórmula original (0.018d-0.844) da 0 para densidades <47m²/jug.
+      // Usamos intercepto reducido (−0.1 / −0.005) que es proporcional al espacio
+      // y produce valores razonables desde rondos hasta partidos oficiales.
+      t.distSprint += Math.max(0, (0.018 * densidad - 0.1)  * tiempoAct)
+      t.nSprints   += Math.max(0, (0.001 * densidad - 0.005) * tiempoAct)
     }
   }
   return Object.fromEntries(Object.entries(t).map(([k,v]) => [k, Math.round(v as number)]))
