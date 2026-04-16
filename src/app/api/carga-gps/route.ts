@@ -68,10 +68,16 @@ function sumarMetricasBloques(ejercicios: any[]): Record<string, number> {
       // Usamos intercepto reducido (−0.1 / −0.005) que es proporcional al espacio
       // y produce valores razonables desde rondos hasta partidos oficiales.
       t.distSprint += Math.max(0, (0.018 * densidad - 0.1)  * tiempoAct)
-      t.nSprints   += Math.max(0, (0.001 * densidad - 0.005) * tiempoAct)
+      const rawNSprints = Math.max(0, (0.001 * densidad - 0.005) * tiempoAct)
+      t.nSprints += rawNSprints > 0 ? Math.max(1, rawNSprints) : 0
     }
   }
-  return Object.fromEntries(Object.entries(t).map(([k,v]) => [k, Math.round(v as number)]))
+  // nSprints ya viene con mínimo 1 por bloque — solo redondear el resto
+  const nSprintsRounded = Math.round(t.nSprints)
+  return {
+    ...Object.fromEntries(Object.entries(t).filter(([k]) => k !== 'nSprints').map(([k,v]) => [k, Math.round(v as number)])),
+    nSprints: nSprintsRounded,
+  }
 }
 
 function localToday(): string {
