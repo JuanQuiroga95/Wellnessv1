@@ -1,402 +1,251 @@
-'use client'
-import { useState, useEffect } from 'react'
-import { ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, ReferenceLine } from 'recharts'
+export const dynamic = 'force-dynamic'
+import { NextRequest, NextResponse } from 'next/server'
+import { getDb } from '@/lib/db'
+import { getSessionFromRequest } from '@/lib/auth'
+import * as XLSX from 'xlsx'
 
-// ── Readiness logic ─────────────────────────────────────────────────────────
-// 1=bueno, 5=malo → low total = good
-function readiness(total) {
-  if (!total) return { label:'Sin datos', color:'#555', bg:'rgba(85,85,85,.08)', border:'rgba(85,85,85,.2)' }
-  if (total <= 12) return { label:'Listo ✓',  color:'#c8f135', bg:'rgba(200,241,53,.08)', border:'rgba(200,241,53,.25)' }
-  if (total <= 18) return { label:'Atención', color:'#f59e0b', bg:'rgba(245,158,11,.08)', border:'rgba(245,158,11,.25)' }
-  return              { label:'Bajar Carga', color:'#ef4444', bg:'rgba(239,68,68,.08)',  border:'rgba(239,68,68,.25)'  }
+function isAdmin(s: any) { return s?.rol === 'admin' || s?.rol === 'master_admin' }
+
+function normStr(s: string): string {
+  return (s || '').toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9\s]/g, '').trim().replace(/\s+/g, ' ')
+}
+const normalizeName = normStr
+
+const METRIC_COL_MAP: Array<[string, string]> = [
+  ['total distance','dist_total'],['total dist','dist_total'],['tot dist','dist_total'],
+  ['dist totale','dist_total'],['distancia total','dist_total'],['distance totale','dist_total'],
+  ['meterage per minute','dist_per_min'],['meterage per min','dist_per_min'],
+  ['distance per minute','dist_per_min'],['dist per min','dist_per_min'],['dist/min','dist_per_min'],
+  ['metros por minuto','dist_per_min'],['metres par minute','dist_per_min'],
+  ['metres per minute','dist_per_min'],['mts/min','dist_per_min'],['mts min','dist_per_min'],
+  ['high speed running','dist_hir'],['high speed dist','dist_hir'],['high speed distance','dist_hir'],
+  ['high speed','dist_hir'],['hsr','dist_hir'],['high intensity running','dist_hir'],
+  ['alta intensidad','dist_hir'],['course haute intensite','dist_hir'],['haute intensite','dist_hir'],
+  ['vel b4 tot dist','dist_v4'],['vel b4 tot','dist_v4'],['vel b4','dist_v4'],
+  ['velocity band 4','dist_v4'],['v4 dist','dist_v4'],['banda 4','dist_v4'],['bande 4','dist_v4'],
+  ['15-20','dist_v4'],['15 20','dist_v4'],
+  ['vel b6 tot dist','dist_v5'],['vel b6 tot','dist_v5'],['vel b6','dist_v5'],
+  ['vel b5 tot dist','dist_v5'],['vel b5 tot','dist_v5'],['vel b5','dist_v5'],
+  ['velocity band 6','dist_v5'],['velocity band 5','dist_v5'],
+  ['v6 dist','dist_v5'],['v5 dist','dist_v5'],
+  ['sprint distance','dist_v5'],['sprint dist','dist_v5'],['distancia sprint','dist_v5'],
+  ['distance sprint','dist_v5'],['dist sprint','dist_v5'],
+  ['banda 6','dist_v5'],['banda 5','dist_v5'],['bande 6','dist_v5'],['bande 5','dist_v5'],
+  ['20 25','dist_v5'],['20/25','dist_v5'],['20-25','dist_v5'],
+  ['player load','player_load'],['playerload','player_load'],['carga jugador','player_load'],
+  ['charge jugador','player_load'],['tot pl','player_load'],
+  ['max velocity','max_velocity'],['max vel','max_velocity'],['top speed','max_velocity'],
+  ['velocidad maxima','max_velocity'],['vitesse maximale','max_velocity'],['vel max','max_velocity'],
+  ['vitesse max','max_velocity'],['vmax','max_velocity'],['velocidad max','max_velocity'],
+  ['acc b2-3 tot effs','acc2'],['acc b2-3 tot','acc2'],['acc b2-3','acc2'],
+  ['accelerations b2 3','acc2'],['accelerations b2','acc2'],['aceleraciones b2','acc2'],
+  ['acc b2','acc2'],['acc2 eff','acc2'],['acc 2','acc2'],['accel b2','acc2'],
+  ['nombre accelerations','acc2'],
+  ['decel b2-3 tot effs','dec2'],['decel b2-3 tot','dec2'],['decel b2-3','dec2'],
+  ['decelerations b2 3','dec2'],['decelerations b2','dec2'],['desaceleraciones b2','dec2'],
+  ['dec b2','dec2'],['dec2 eff','dec2'],['dec 2','dec2'],['decel b2','dec2'],
+  ['nombre decelerations','dec2'],
+  ['acc b3','acc3'],['acc3 eff','acc3'],['acc 3','acc3'],['accel b3','acc3'],
+  ['dec b3','dec3'],['dec3 eff','dec3'],['dec 3','dec3'],['decel b3','dec3'],
+  ['number of sprints','n_sprints'],['number sprints','n_sprints'],['num sprints','n_sprints'],
+  ['numero sprints','n_sprints'],['numero de sprints','n_sprints'],
+  ['nombre sprints','n_sprints'],['nombre de sprints','n_sprints'],
+  ['n sprints','n_sprints'],
+  ['vel b1','dist_v1'],['velocity band 1','dist_v1'],['banda 1','dist_v1'],['bande 1','dist_v1'],
+  ['vel b2','dist_v2'],['velocity band 2','dist_v2'],['banda 2','dist_v2'],['bande 2','dist_v2'],
+  ['vel b3','dist_v3'],['velocity band 3','dist_v3'],['banda 3','dist_v3'],['bande 3','dist_v3'],
+  ['metabolic power','metabolic_power'],['puissance metabolique','metabolic_power'],
+  ['hr avg','hr_avg'],['fc moyenne','hr_avg'],['fc media','hr_avg'],['frecuencia cardiaca media','hr_avg'],
+  ['hr max','hr_max'],['fc max','hr_max'],['frecuencia cardiaca max','hr_max'],
+  ['total duration','duracion_min'],['total dur','duracion_min'],['tot dur','duracion_min'],
+  ['duration','duracion_min'],['duree','duracion_min'],['duracion','duracion_min'],
+  ['temps total','duracion_min'],['time played','duracion_min'],['playing time','duracion_min'],
+  ['elapsed time','duracion_min'],['total time','duracion_min'],
+]
+
+function matchMetricCol(h: string): string | null {
+  const hn = normStr(h)
+  for (const [label, field] of METRIC_COL_MAP)
+    if (hn.includes(normStr(label))) return field
+  return null
 }
 
-const WK = ['fatiga','calidad_sueno','dolor_muscular','nivel_estres','estado_animo']
-const WL = ['Fatiga','Sueño','Dolor','Estrés','Ánimo']
-
-// ── Custom scatter dot with player photo/initials ────────────────────────────
-function PlayerDot(props) {
-  const { cx, cy, payload } = props
-  const size = 28
-  const initials = payload.nombre ? payload.nombre.split(' ').map(w=>w[0]).slice(0,2).join('') : '?'
-  const col = payload.dotColor || '#4a6cf7'
-  return (
-    <g>
-      <defs>
-        <clipPath id={`cp-${payload.jugador_id}`}>
-          <circle cx={cx} cy={cy} r={size/2}/>
-        </clipPath>
-      </defs>
-      <circle cx={cx} cy={cy} r={size/2+2} fill={col} opacity={0.9}/>
-      {payload.foto_url
-        ? <image href={payload.foto_url} x={cx-size/2} y={cy-size/2} width={size} height={size} clipPath={`url(#cp-${payload.jugador_id})`} preserveAspectRatio="xMidYMid slice"/>
-        : <text x={cx} y={cy} textAnchor="middle" dominantBaseline="central" fontSize={10} fontWeight={700} fill="white">{initials}</text>
-      }
-    </g>
-  )
-}
-
-const ScatterTip = ({ active, payload }) => {
-  if (!active||!payload?.length) return null
-  const d = payload[0]?.payload
-  if (!d) return null
-  return (
-    <div style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:10, padding:'10px 14px', fontSize:12, minWidth:160 }}>
-      <div style={{ fontWeight:600, color:'var(--snow)', marginBottom:6 }}>{d.nombre}</div>
-      <div style={{ color:'var(--silver)' }}>RPE prom: <span style={{ color:'var(--lime)', fontFamily:'DM Mono,monospace' }}>{d.avg_rpe?.toFixed(1)}</span></div>
-      <div style={{ color:'var(--silver)' }}>Wellness prom: <span style={{ color:'var(--lime)', fontFamily:'DM Mono,monospace' }}>{d.avg_wellness?.toFixed(1)}</span></div>
-      {d.avg_dolor !== undefined && <div style={{ color:'var(--silver)' }}>Dolor prom: <span style={{ color:'#f87171', fontFamily:'DM Mono,monospace' }}>{d.avg_dolor?.toFixed(1)}</span></div>}
-      <div style={{ color:'var(--silver)' }}>Semana: {d.semana}</div>
-    </div>
-  )
-}
-
-export default function AnalyticsPanel() {
-  const [data, setData] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [weeks, setWeeks] = useState(4)
-  const [view, setView] = useState('readiness') // 'readiness' | 'scatter' | 'acum'
-
-  useEffect(() => { load() }, [weeks])
-
-  async function load() {
-    setLoading(true)
-    try {
-      const ar = await fetch(`/api/readiness?weeks=${weeks}`).then(r=>r.json())
-      // Normalize: readiness endpoint returns {wRows, rpeRows, todayRows}
-      // Map to consistent shape used throughout the component
-      setData({
-        readiness: { todayRows: ar.todayRows || [] },
-        analytics: {
-          wellnessWeekly: ar.wRows || [],
-          rpeWeekly: ar.rpeRows || [],
-        }
-      })
-    } catch(e) { console.error(e) }
-    finally { setLoading(false) }
+function cleanCatapultName(raw: string): string {
+  const cleaned = raw.trim().replace(/\.$/, '');
+  const parts = cleaned.split(/\s+/);
+  // Enoch Enoch -> Enoch
+  if (parts.length === 2 && parts[0].toUpperCase() === parts[1].toUpperCase()) return parts[0];
+  // Repetición de bloque (Kiko Kiko)
+  if (parts.length >= 4) {
+    const half = Math.floor(parts.length / 2);
+    if (parts.slice(0, half).join(' ') === parts.slice(half).join(' ')) return parts.slice(0, half).join(' ');
   }
+  return cleaned;
+}
 
-  // ── READINESS today view ──────────────────────────────────────────────────
-  function ReadinessView() {
-    const today = data?.readiness?.todayRows || []
-    const sorted = [...today].sort((a,b) => {
-      const totA = a.fatiga&&a.calidad_sueno ? (a.fatiga+a.calidad_sueno+a.dolor_muscular+a.nivel_estres+a.estado_animo) : 99
-      const totB = b.fatiga&&b.calidad_sueno ? (b.fatiga+b.calidad_sueno+b.dolor_muscular+b.nivel_estres+b.estado_animo) : 99
-      return totB - totA // highest (worst) first
+function parseRawRows(raw: any[][]): Record<string, any>[] {
+  if (raw.length < 2) return []
+  const headers = (raw[0] as any[]).map(h => String(h ?? ''))
+  const colMap: (string | null)[] = headers.map(h => {
+    const ln = normStr(h)
+    if (ln === 'name' || ln === 'nombre' || ln === 'athlete' || ln === 'player' || ln === 'jugador' || ln.includes('player name')) return '__name__'
+    return matchMetricCol(h)
+  })
+  return (raw.slice(1) as any[][]).filter(row => row.some((c: any) => c !== null && c !== '')).map(row => {
+    let name: string | null = null
+    const metricas: Record<string, number> = {}
+    ;(row as any[]).forEach((cell: any, idx: number) => {
+      const f = colMap[idx]
+      if (!f || cell === null || cell === '') return
+      if (f === '__name__') { name = String(cell).trim(); return }
+      const n = parseFloat(String(cell).replace(',', '.'))
+      if (!isNaN(n)) metricas[f] = n
     })
+    if (!name) return null
+    return { nombre_catapult: name, nombre_norm: normalizeName(name), metricas }
+  }).filter(Boolean) as any[]
+}
 
-    return (
-      <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
-        {/* Summary badges */}
-        <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:10, marginBottom:4 }}>
-          {[
-            {label:'Listos',     col:'#c8f135', count: today.filter(p=>{ if(p.fatiga==null) return false; const t=p.fatiga+p.calidad_sueno+p.dolor_muscular+p.nivel_estres+p.estado_animo; return t>0&&t<=12}).length },
-            {label:'Atención',   col:'#f59e0b', count: today.filter(p=>{ if(p.fatiga==null) return false; const t=p.fatiga+p.calidad_sueno+p.dolor_muscular+p.nivel_estres+p.estado_animo; return t>12&&t<=18}).length },
-            {label:'Bajar Carga',col:'#ef4444', count: today.filter(p=>{ if(p.fatiga==null) return false; const t=p.fatiga+p.calidad_sueno+p.dolor_muscular+p.nivel_estres+p.estado_animo; return t>18}).length },
-          ].map(s=>(
-            <div key={s.label} style={{ background:`${s.col}10`, border:`1px solid ${s.col}33`, borderRadius:12, padding:'14px 10px', textAlign:'center' }}>
-              <div className="display" style={{ fontSize:42, color:s.col, lineHeight:1 }}>{s.count}</div>
-              <div style={{ fontSize:10, color:s.col, fontFamily:'DM Mono,monospace', marginTop:4, letterSpacing:'0.06em' }}>{s.label}</div>
-            </div>
-          ))}
-        </div>
-
-        {sorted.map(p => {
-          const total = p.fatiga != null ? p.fatiga+p.calidad_sueno+p.dolor_muscular+p.nivel_estres+p.estado_animo : null
-          const rd = readiness(total)
-          const hasDolor = p.dolor_zona || (p.dolor_eva && p.dolor_eva > 0)
-
-          return (
-            <div key={p.jugador_id} style={{ background:'var(--ink2)', border:`1px solid ${rd.border}`, borderRadius:14, padding:'14px 18px' }}>
-              <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom: total ? 10 : 0 }}>
-                {/* Avatar */}
-                <div style={{ width:36, height:36, borderRadius:'50%', overflow:'hidden', flexShrink:0, background:`${rd.color}20`, border:`2px solid ${rd.color}44`, display:'flex', alignItems:'center', justifyContent:'center' }}>
-                  {p.foto_url
-                    ? <img src={p.foto_url} style={{ width:'100%', height:'100%', objectFit:'cover' }} />
-                    : <span style={{ fontSize:11, fontWeight:700, color:rd.color }}>{p.nombre.split(' ').map(w=>w[0]).slice(0,2).join('')}</span>
-                  }
-                </div>
-                <div style={{ flex:1, minWidth:0 }}>
-                  <div style={{ fontWeight:600, fontSize:14, color:'var(--snow)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{p.nombre}</div>
-                  <div style={{ fontSize:11, color:'var(--silver)' }}>{p.posicion||'—'}</div>
-                </div>
-                {total ? (
-                  <div style={{ textAlign:'right' }}>
-                    <div className="display" style={{ fontSize:28, color:rd.color, lineHeight:1 }}>{total}</div>
-                    <div style={{ fontSize:9, color:rd.color, fontFamily:'DM Mono,monospace', letterSpacing:'0.05em' }}>/25</div>
-                  </div>
-                ) : (
-                  <span style={{ fontSize:11, color:'var(--silver)', fontStyle:'italic' }}>Sin registro hoy</span>
-                )}
-                <span style={{ fontSize:11, padding:'4px 10px', borderRadius:20, background:rd.bg, color:rd.color, border:`1px solid ${rd.border}`, fontWeight:600, flexShrink:0 }}>{rd.label}</span>
-              </div>
-
-              {total && (
-                <>
-                  {/* Wellness bars */}
-                  <div style={{ display:'flex', gap:4, alignItems:'flex-end', height:28, marginBottom:6 }}>
-                    {WK.map((k,i) => {
-                      const v = Number(p[k])||0
-                      const barColors = ['#c8f135','#22c55e','#eab308','#f97316','#ef4444']
-                      const c = barColors[v-1]||'#888'
-                      return (
-                        <div key={k} title={`${WL[i]}: ${v}`} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', gap:2 }}>
-                          <span style={{ fontSize:9, color:c, fontFamily:'DM Mono,monospace' }}>{v}</span>
-                          <div style={{ width:'100%', height:`${v*4+4}px`, background:c, borderRadius:'2px 2px 0 0', opacity:.85 }} />
-                        </div>
-                      )
-                    })}
-                  </div>
-                  <div style={{ display:'flex', justifyContent:'space-between', marginBottom: hasDolor?8:0 }}>
-                    {WL.map(l => <span key={l} style={{ fontSize:8, color:'var(--fog)' }}>{l}</span>)}
-                  </div>
-
-                  {/* Extras */}
-                  {hasDolor && (
-                    <div style={{ display:'flex', flexWrap:'wrap', gap:5 }}>
-                      {p.dolor_zona && <span style={{ fontSize:11, padding:'3px 8px', borderRadius:6, background:'rgba(239,68,68,.1)', color:'#f87171', border:'1px solid rgba(239,68,68,.25)' }}>📍 {p.dolor_zona}</span>}
-                      {p.dolor_eva>0 && <span style={{ fontSize:11, padding:'3px 8px', borderRadius:6, background:'rgba(239,68,68,.1)', color:'#f87171', border:'1px solid rgba(239,68,68,.25)' }}>EVA {p.dolor_eva}/10</span>}
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
-          )
-        })}
-      </div>
-    )
-  }
-
-  // ── SCATTER PLOTS view ───────────────────────────────────────────────────
-  function ScatterView() {
-    const wRows = data?.analytics?.wellnessWeekly || []
-    const rpeRows = data?.analytics?.rpeWeekly || []
-
-    // Merge: for each player+week, combine wellness and RPE
-    const rpeMap = {}
-    for (const r of rpeRows) { rpeMap[`${r.jugador_id}_${r.semana}`] = r }
-
-    const merged = wRows.filter(w=>w.total_wellness).map(w => {
-      const rpe = rpeMap[`${w.jugador_id}_${w.semana}`]
-      return {
-        jugador_id: w.jugador_id,
-        nombre: w.nombre,
-        posicion: w.posicion,
-        foto_url: w.foto_url,
-        semana: w.semana,
-        avg_wellness: Number(w.total_wellness),
-        avg_rpe: rpe ? Number(rpe.avg_rpe) : null,
-        avg_dolor: Number(w.avg_dolor||0),
-        dotColor: w.total_wellness <= 12 ? '#c8f135' : w.total_wellness <= 18 ? '#f59e0b' : '#ef4444',
-      }
-    }).filter(d => d.avg_rpe !== null)
-
-    return (
-      <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
-        {/* Chart A: RPE vs Wellness Total */}
-        <div style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:16, padding:20 }}>
-          <p style={{ fontSize:11, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:4 }}>Gráfico A — RPE vs. Total Wellness</p>
-          <p style={{ fontSize:11, color:'var(--fog)', marginBottom:14 }}>Zona verde = carga alta con buen bienestar (ideal). Zona roja = carga alta con mal bienestar (riesgo).</p>
-          {merged.length === 0
-            ? <div style={{ height:240, display:'flex', alignItems:'center', justifyContent:'center', color:'var(--silver)', fontSize:13 }}>Sin datos suficientes. Cargá datos demo.</div>
-            : <ResponsiveContainer width="100%" height={280}>
-                <ScatterChart margin={{ top:10, right:20, bottom:20, left:10 }}>
-                  <CartesianGrid strokeDasharray="2 4" stroke="rgba(255,255,255,.04)"/>
-                  <XAxis dataKey="avg_rpe" type="number" name="RPE" domain={[0,11]} tick={{ fill:'#555', fontSize:10 }} axisLine={false} tickLine={false} label={{ value:'RPE promedio', position:'insideBottom', offset:-10, fill:'#555', fontSize:11 }}/>
-                  <YAxis dataKey="avg_wellness" type="number" name="Wellness" domain={[5,26]} tick={{ fill:'#555', fontSize:10 }} axisLine={false} tickLine={false} label={{ value:'Total Wellness', angle:-90, position:'insideLeft', fill:'#555', fontSize:11 }}/>
-                  <Tooltip content={<ScatterTip />} cursor={{ strokeDasharray:'3 3', stroke:'rgba(255,255,255,.1)' }}/>
-                  <ReferenceLine y={12} stroke="#c8f135" strokeDasharray="3 3" strokeWidth={1} opacity={.4}/>
-                  <ReferenceLine y={18} stroke="#f59e0b" strokeDasharray="3 3" strokeWidth={1} opacity={.4}/>
-                  <Scatter data={merged} shape={<PlayerDot/>}>
-                    {merged.map((d,i) => <Cell key={i} fill={d.dotColor}/>)}
-                  </Scatter>
-                </ScatterChart>
-              </ResponsiveContainer>
-          }
-        </div>
-
-        {/* Chart B: RPE vs Dolor */}
-        <div style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:16, padding:20 }}>
-          <p style={{ fontSize:11, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:4 }}>Gráfico B — RPE vs. Dolor Muscular</p>
-          <p style={{ fontSize:11, color:'var(--fog)', marginBottom:14 }}>Detecta jugadores con alta carga y alta percepción de dolor (riesgo lesión).</p>
-          {merged.length === 0
-            ? <div style={{ height:240, display:'flex', alignItems:'center', justifyContent:'center', color:'var(--silver)', fontSize:13 }}>Sin datos suficientes.</div>
-            : <ResponsiveContainer width="100%" height={280}>
-                <ScatterChart margin={{ top:10, right:20, bottom:20, left:10 }}>
-                  <CartesianGrid strokeDasharray="2 4" stroke="rgba(255,255,255,.04)"/>
-                  <XAxis dataKey="avg_rpe" type="number" name="RPE" domain={[0,11]} tick={{ fill:'#555', fontSize:10 }} axisLine={false} tickLine={false} label={{ value:'RPE promedio', position:'insideBottom', offset:-10, fill:'#555', fontSize:11 }}/>
-                  <YAxis dataKey="avg_dolor" type="number" name="Dolor" domain={[1,6]} tick={{ fill:'#555', fontSize:10 }} axisLine={false} tickLine={false} label={{ value:'Dolor muscular', angle:-90, position:'insideLeft', fill:'#555', fontSize:11 }}/>
-                  <Tooltip content={<ScatterTip />} cursor={{ strokeDasharray:'3 3', stroke:'rgba(255,255,255,.1)' }}/>
-                  <ReferenceLine x={6}   stroke="#f59e0b" strokeDasharray="3 3" strokeWidth={1} opacity={.4}/>
-                  <ReferenceLine y={3.5} stroke="#ef4444" strokeDasharray="3 3" strokeWidth={1} opacity={.4}/>
-                  <Scatter data={merged} shape={<PlayerDot/>}>
-                    {merged.map((d,i) => <Cell key={i} fill={d.avg_dolor>=4?'#ef4444':d.avg_dolor>=3?'#f59e0b':'#22c55e'}/>)}
-                  </Scatter>
-                </ScatterChart>
-              </ResponsiveContainer>
-          }
-        </div>
-
-        {/* Legend */}
-        <div style={{ display:'flex', gap:16, flexWrap:'wrap', padding:'0 4px' }}>
-          {[['#c8f135','Readiness óptimo (≤12)'],['#f59e0b','Atención (13-18)'],['#ef4444','Bajar carga (>18)']].map(([c,l])=>(
-            <div key={l} style={{ display:'flex', alignItems:'center', gap:6, fontSize:11, color:'var(--silver)' }}>
-              <div style={{ width:10, height:10, borderRadius:'50%', background:c }}/>{l}
-            </div>
-          ))}
-        </div>
-      </div>
-    )
-  }
-
-  // ── ACUM.M1 view ─────────────────────────────────────────────────────────
-  function AcumView() {
-    const wRows = data?.analytics?.wellnessWeekly || []
-    const rpeRows = data?.analytics?.rpeWeekly || []
-
-    // Group by player, average across all weeks
-    const playerMap = {}
-    for (const w of wRows) {
-      if (w.total_wellness == null || w.registros === 0) continue
-      if (!playerMap[w.jugador_id]) playerMap[w.jugador_id] = { ...w, weeks:[], rpe_weeks:[] }
-      playerMap[w.jugador_id].weeks.push(w)
+function parsePdfFromText(rawText: string): Record<string, any>[] {
+  const lines = rawText.split('\n').map(l => l.trim()).filter(Boolean)
+  const results: Record<string, any>[] = []
+  for (const line of lines) {
+    const parts = line.split(/\s+/)
+    if (parts.length < 5) continue
+    let dataStart = parts.length
+    while (dataStart > 0 && /^[\d,.]+$/.test(parts[dataStart - 1])) { dataStart-- }
+    const numericParts = parts.slice(dataStart), nameParts = parts.slice(0, dataStart)
+    if (numericParts.length < 3 || nameParts.length === 0) continue
+    const metricas: Record<string, number> = {}
+    const colOrder = ['dist_total', 'dist_per_min', 'dist_v4', 'dist_hir', 'dist_v5', 'n_sprints', 'acc2', 'dec2', 'max_velocity']
+    for (let i = 0; i < numericParts.length && i < colOrder.length; i++) {
+      const val = parseFloat(numericParts[i].replace(',', '.')); if (!isNaN(val)) metricas[colOrder[i]] = val
     }
-    for (const r of rpeRows) {
-      if (playerMap[r.jugador_id]) playerMap[r.jugador_id].rpe_weeks.push(r)
-    }
+    const nameRaw = nameParts.join(' '), cleanName = cleanCatapultName(nameRaw)
+    results.push({ nombre_catapult: cleanName, nombre_norm: normalizeName(cleanName), metricas })
+  }
+  return results
+}
 
-    const players = Object.values(playerMap).map((p: any) => {
-      const n = p.weeks.length
-      const avg = (key) => p.weeks.reduce((s,w) => s+(Number(w[key])||0), 0) / n
-      const avgRpe = p.rpe_weeks.length ? p.rpe_weeks.reduce((s,r)=>s+(Number(r.avg_rpe)||0),0)/p.rpe_weeks.length : null
-      const totalWellness = avg('total_wellness')
-      const rd = readiness(totalWellness)
-      return {
-        jugador_id: p.jugador_id,
-        nombre: p.nombre,
-        posicion: p.posicion,
-        foto_url: p.foto_url,
-        semanas: n,
-        avg_fatiga:   avg('avg_fatiga'),
-        avg_sueno:    avg('avg_sueno'),
-        avg_dolor:    avg('avg_dolor'),
-        avg_estres:   avg('avg_estres'),
-        avg_animo:    avg('avg_animo'),
-        avg_wellness: totalWellness,
-        avg_rpe: avgRpe,
-        rd,
-      }
-    }).sort((a,b) => b.avg_wellness - a.avg_wellness)
+const BLOB_METRIC_RANGES: Record<string, [number, number]> = {
+  dist_total: [500, 20000], dist_per_min: [20, 200], dist_v4: [0, 6000], dist_hir: [0, 3000], dist_v5: [0, 3000],
+  n_sprints: [0, 60], acc2: [0, 120], dec2: [0, 120], acc3: [0, 60], dec3: [0, 60], max_velocity: [10, 50],
+  player_load: [0, 2000], duracion_min: [1, 200],
+}
 
-    const cols = ['Fatiga','Sueño','Dolor','Estrés','Ánimo']
-    const keys = ['avg_fatiga','avg_sueno','avg_dolor','avg_estres','avg_animo']
-
-    return (
-      <div>
-        <p style={{ fontSize:11, color:'var(--silver)', marginBottom:16 }}>Promedio de indicadores del último período ({weeks} semanas). Ordenado de mayor a menor carga acumulada.</p>
-        {players.length === 0
-          ? <div style={{ padding:40, textAlign:'center', color:'var(--silver)' }}>Sin datos suficientes para calcular promedios.</div>
-          : (
-            <div style={{ overflowX:'auto' }}>
-              <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12 }}>
-                <thead>
-                  <tr style={{ borderBottom:'2px solid var(--mist)' }}>
-                    <th style={{ textAlign:'left', padding:'8px 12px', color:'var(--silver)', fontSize:10, fontWeight:700, textTransform:'uppercase', letterSpacing:'0.06em', minWidth:160 }}>Jugador</th>
-                    {cols.map(c => <th key={c} style={{ textAlign:'center', padding:'8px 8px', color:'var(--silver)', fontSize:10, fontWeight:700, textTransform:'uppercase', letterSpacing:'0.06em', minWidth:55 }}>{c}</th>)}
-                    <th style={{ textAlign:'center', padding:'8px 8px', color:'var(--silver)', fontSize:10, fontWeight:700, textTransform:'uppercase', letterSpacing:'0.06em', minWidth:65 }}>Total W.</th>
-                    <th style={{ textAlign:'center', padding:'8px 8px', color:'var(--silver)', fontSize:10, fontWeight:700, textTransform:'uppercase', letterSpacing:'0.06em', minWidth:55 }}>RPE</th>
-                    <th style={{ textAlign:'center', padding:'8px 8px', color:'var(--silver)', fontSize:10, fontWeight:700, textTransform:'uppercase', letterSpacing:'0.06em', minWidth:80 }}>Readiness</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {players.map((p,i) => {
-                    const barC = ['#c8f135','#22c55e','#eab308','#f97316','#ef4444']
-                    return (
-                      <tr key={p.jugador_id} style={{ borderBottom:'1px solid var(--mist)', background: i%2===0?'transparent':'rgba(255,255,255,.015)' }}>
-                        <td style={{ padding:'10px 12px' }}>
-                          <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-                            <div style={{ width:28, height:28, borderRadius:'50%', overflow:'hidden', flexShrink:0, background:`${p.rd.color}20`, display:'flex', alignItems:'center', justifyContent:'center' }}>
-                              {p.foto_url
-                                ? <img src={p.foto_url} style={{ width:'100%', height:'100%', objectFit:'cover' }}/>
-                                : <span style={{ fontSize:9, fontWeight:700, color:p.rd.color }}>{p.nombre.split(' ').map(w=>w[0]).slice(0,2).join('')}</span>
-                              }
-                            </div>
-                            <div>
-                              <div style={{ fontWeight:500, color:'var(--snow)', whiteSpace:'nowrap' }}>{p.nombre}</div>
-                              <div style={{ fontSize:10, color:'var(--silver)' }}>{p.posicion||'—'} · {p.semanas}sem</div>
-                            </div>
-                          </div>
-                        </td>
-                        {keys.map((k,ki) => {
-                          const v = p[k]; const c = barC[Math.round(v)-1]||'#888'
-                          return (
-                            <td key={k} style={{ textAlign:'center', padding:'10px 8px' }}>
-                              <div style={{ fontFamily:'DM Mono,monospace', fontWeight:600, color:c, fontSize:13 }}>{v?.toFixed(1)||'—'}</div>
-                              <div style={{ height:3, background:'var(--mist)', borderRadius:2, marginTop:3, overflow:'hidden' }}>
-                                <div style={{ height:'100%', width:`${((v||0)/5)*100}%`, background:c, borderRadius:2 }}/>
-                              </div>
-                            </td>
-                          )
-                        })}
-                        <td style={{ textAlign:'center', padding:'10px 8px' }}>
-                          <div style={{ fontFamily:'DM Mono,monospace', fontWeight:700, color:p.rd.color, fontSize:14 }}>{p.avg_wellness?.toFixed(1)||'—'}</div>
-                        </td>
-                        <td style={{ textAlign:'center', padding:'10px 8px' }}>
-                          <div style={{ fontFamily:'DM Mono,monospace', color:'var(--lime)', fontSize:13 }}>{p.avg_rpe?.toFixed(1)||'—'}</div>
-                        </td>
-                        <td style={{ textAlign:'center', padding:'10px 8px' }}>
-                          <span style={{ fontSize:10, padding:'3px 8px', borderRadius:20, background:p.rd.bg, color:p.rd.color, border:`1px solid ${p.rd.border}`, fontWeight:600, whiteSpace:'nowrap' }}>{p.rd.label}</span>
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )
+function dpSegmentBlob(blob: string, ranges: Array<[number, number]>): number[] | null {
+  const N = ranges.length, L = blob.length
+  const dp: (number[] | null)[][] = Array.from({ length: N + 1 }, () => new Array(L + 1).fill(null))
+  dp[0][0] = []
+  for (let seg = 0; seg < N; seg++) {
+    const [rMin, rMax] = ranges[seg]
+    for (let pos = 0; pos <= L; pos++) {
+      if (dp[seg][pos] === null) continue
+      const prevPath = dp[seg][pos] as number[]
+      const maxLen = Math.min(6, L - pos)
+      for (let len = 1; len <= maxLen; len++) {
+        if (len > 1 && blob[pos] === '0') continue
+        const val = parseInt(blob.slice(pos, pos + len), 10)
+        if (!isNaN(val) && val >= rMin && val <= rMax && dp[seg + 1][pos + len] === null) {
+          dp[seg + 1][pos + len] = [...prevPath, val]
         }
-      </div>
-    )
-  }
-
-  return (
-    <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
-      {/* Header */}
-      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', flexWrap:'wrap', gap:12 }}>
-        <div>
-          <h2 className="display" style={{ fontSize:48, color:'var(--snow)' }}>ANALYTICS</h2>
-          <p style={{ fontSize:12, color:'var(--silver)', marginTop:2 }}>Readiness · Scatter Plots · Acumulado</p>
-        </div>
-        <div style={{ display:'flex', gap:8, alignItems:'center' }}>
-          <select style={{ background:'var(--ink3)', border:'1px solid var(--fog)', borderRadius:8, padding:'7px 12px', fontSize:12, color:'var(--silver)', outline:'none', appearance:'none' }} value={weeks} onChange={e=>setWeeks(Number(e.target.value))}>
-            {[1,2,4,6,8,12].map(w => <option key={w} value={w} style={{ background:'var(--ink2)' }}>{w} semana{w>1?'s':''}</option>)}
-          </select>
-        </div>
-      </div>
-
-      {/* Sub-tabs */}
-      <div style={{ display:'flex', gap:6, background:'var(--ink2)', borderRadius:12, padding:4, border:'1px solid var(--mist)' }}>
-        {[
-          ['readiness', 'Readiness Hoy'],
-          ['scatter',   'Scatter Plots'],
-          ['acum',      'Acum.M1 Tabla'],
-        ].map(([id,lbl]) => (
-          <button key={id} type="button" onClick={()=>setView(id)} style={{
-            flex:1, padding:'8px 12px', borderRadius:9, cursor:'pointer', fontSize:12, fontWeight:600,
-            border: 'none',
-            background: view===id ? 'var(--lime)' : 'transparent',
-            color: view===id ? 'var(--ink)' : 'var(--silver)',
-            transition:'all .15s',
-          }}>{lbl}</button>
-        ))}
-      </div>
-
-      {loading
-        ? <div style={{ padding:60, textAlign:'center', color:'var(--silver)', fontSize:13 }}>Cargando datos de análisis...</div>
-        : view==='readiness' ? <ReadinessView />
-        : view==='scatter'   ? <ScatterView />
-        :                      <AcumView />
       }
-    </div>
-  )
+    }
+  }
+  return dp[N][L]
+}
+
+function parsePdfBlobColumnar(lines: string[]): Record<string, any>[] | null {
+  const blobLines = lines.filter(l => /^\d{15,}$/.test(l.trim()))
+  if (blobLines.length < 2) return null
+  const SEPARATOR_WORDS = new Set(['promedio','moyenne','average','media','total','prom','avg','mean','totaux','totale','totals'])
+  const names: string[] = []
+  let blobSectionStart = -1
+  for (let i = 0; i < lines.length; i++) {
+    const s = lines[i].trim(); if (!s) continue
+    if (/^\d{15,}$/.test(s)) { blobSectionStart = i; break }
+    if (SEPARATOR_WORDS.has(normStr(s))) { blobSectionStart = i; break }
+    if (!/PAGE \d+|\d{2}\/\d{2}/i.test(s)) names.push(s)
+  }
+  if (names.length === 0 || blobSectionStart === -1) return null
+  const uniqueNames = names.map(n => cleanCatapultName(n)).filter(cn => cn.length >= 2)
+  const metricBlobs: { label: string, blob: string }[] = []
+  let currentLabel = ''
+  for (let i = blobSectionStart; i < lines.length; i++) {
+    const s = lines[i].trim(); if (!s || /\d{2}\/\d{2}|page/i.test(s)) continue
+    if (/^\d{15,}$/.test(s)) { metricBlobs.push({ label: currentLabel, blob: s }); currentLabel = '' }
+    else { currentLabel = (currentLabel + ' ' + s).trim() }
+  }
+  const results = uniqueNames.map(name => ({ nombre_catapult: name, nombre_norm: normalizeName(name), metricas: {} as Record<string, number> }))
+  for (let bi = 0; bi < metricBlobs.length; bi++) {
+    const { label, blob } = metricBlobs[bi], field = matchMetricCol(label); if (!field) continue
+    const range = BLOB_METRIC_RANGES[field]
+    for (const n of [uniqueNames.length, uniqueNames.length + 2, uniqueNames.length + 1]) {
+      const segmented = dpSegmentBlob(blob, Array.from({ length: n }, () => range))
+      if (segmented) {
+        for (let pi = 0; pi < uniqueNames.length; pi++) results[pi].metricas[field] = segmented[pi]
+        break
+      }
+    }
+  }
+  return results.filter(r => Object.values(r.metricas).some(v => v > 0))
+}
+
+async function matchPlayers(rows: Record<string,any>[], clubId: number|null) {
+  const sql = getDb()
+  const jugadores = clubId ? await sql`
+    SELECT j.id, u.nombre 
+    FROM jugadores j 
+    JOIN usuarios u ON u.id = j.usuario_id 
+    WHERE u.club_id = ${clubId} AND u.activo = true
+  ` : []
+  
+  const matched: any[] = [], unmatched: string[] = []
+  
+  for (const row of rows) {
+    const pdfNorm = row.nombre_norm;
+    // Búsqueda exhaustiva en la lista de jugadores del club
+    let jug = (jugadores as any[]).find(j => {
+      const dbNorm = normalizeName(j.nombre);
+      // Caso 1: Match exacto
+      if (dbNorm === pdfNorm) return true;
+      // Caso 2: El nombre del PDF es el primer nombre en DB (Enoch Enoch -> Enoch)
+      const dbFirst = dbNorm.split(' ')[0];
+      if (dbFirst === pdfNorm && pdfNorm.length > 2) return true;
+      // Caso 3: El nombre en DB contiene al del PDF o viceversa
+      if (dbNorm.includes(pdfNorm) || pdfNorm.includes(dbNorm)) return true;
+      return false;
+    });
+
+    if (jug) {
+      matched.push({ ...row, jugador_id: jug.id, jugador_nombre: jug.nombre });
+    } else {
+      unmatched.push(row.nombre_catapult);
+    }
+  }
+  return { matched, unmatched }
+}
+
+export async function POST(req: NextRequest) {
+  try {
+    const s = await getSessionFromRequest(req); if (!s || !isAdmin(s)) return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
+    const body = await req.json(), { fecha, tipo_sesion, sesion_id, confirm, pdfText } = body
+    if (!fecha) return NextResponse.json({ error: 'Falta fecha' }, { status: 400 })
+    let parsedRows = pdfText ? parsePdfFromText(pdfText) : []
+    if (!parsedRows.length) return NextResponse.json({ error: 'No se encontraron datos.' }, { status: 400 })
+    const { matched, unmatched } = await matchPlayers(parsedRows, s.clubId || null)
+    if (!confirm) return NextResponse.json({ preview: true, fecha, tipo_sesion, sesion_id, matched, unmatched })
+    const sql = getDb()
+    if (s.clubId) await sql`DELETE FROM gps_logs WHERE club_id = ${s.clubId} AND fecha = ${fecha}::date AND tipo_sesion = ${tipo_sesion}`
+    let saved = 0
+    for (const m of matched) {
+      const met = m.metricas || {}
+      await sql`INSERT INTO gps_logs (jugador_id, club_id, fecha, sesion_id, tipo_sesion, dist_total, dist_hir, dist_v4, dist_v5, player_load, max_velocity, acc2, dec2, dist_per_min, n_sprints, metricas)
+                VALUES (${m.jugador_id}, ${s.clubId}, ${fecha}, ${sesion_id}, ${tipo_sesion}, ${met.dist_total||0}, ${met.dist_hir||0}, ${met.dist_v4||0}, ${met.dist_v5||0}, ${met.player_load||0}, ${met.max_velocity||0}, ${met.acc2||0}, ${met.dec2||0}, ${met.dist_per_min||0}, ${met.n_sprints||0}, ${JSON.stringify(met)})`
+      saved++
+    }
+    return NextResponse.json({ ok: true, saved, unmatched })
+  } catch (err) { console.error(err); return NextResponse.json({ error: String(err) }, { status: 500 }) }
 }
