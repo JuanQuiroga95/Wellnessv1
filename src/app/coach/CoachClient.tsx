@@ -822,6 +822,8 @@ function CambioCargaPanel() {
 
   async function load() {
     setLoading(true)
+    setData(null)
+    setGpsData(null)
     try {
       const [r1, r2] = await Promise.all([
         fetch(`/api/cambio-carga?desde=${desde}&hasta=${hasta}&minEntrenamiento=${minEnt}&minPartido=${minPart}`),
@@ -872,6 +874,35 @@ function CambioCargaPanel() {
     }
   })
 
+  // Merge real GPS aggregates (dist_hir, dist_v4, dist_v5, max_velocity, dist_per_min, acc2, dec2)
+  // from gpsPerMD into gpsDailyMap so GPS-source chart vars work correctly
+  const gpsPerMDCC: Record<string,any[]> = gpsData?.gpsPerMD || {}
+  const gpsSesInfoCC: any[] = gpsData?.sesionesInfo || []
+  gpsSesInfoCC.forEach((s:any) => {
+    if (!s.fecha || !s.titulo) return
+    const mdPlayers: any[] = gpsPerMDCC[s.titulo] || []
+    if (!mdPlayers.length) return
+    const n = mdPlayers.length
+    const avgField = (key: string) => {
+      const vals = mdPlayers.map((p:any) => Number(p[key])||0).filter(x=>x>0)
+      return vals.length ? Math.round(vals.reduce((a,b)=>a+b,0)/n*10)/10 : 0
+    }
+    const realGps = {
+      dist_hir: avgField('dist_hir'),
+      dist_v4:  avgField('dist_v4'),
+      dist_v5:  avgField('dist_v5'),
+      max_velocity: avgField('max_velocity'),
+      dist_per_min: avgField('dist_per_min'),
+      acc2_real: avgField('acc2'),
+      dec2_real: avgField('dec2'),
+    }
+    if (gpsDailyMap[s.fecha]) {
+      Object.assign(gpsDailyMap[s.fecha], realGps)
+    } else {
+      gpsDailyMap[s.fecha] = realGps
+    }
+  })
+
   // Construir mapa semanal acumulando GPS por semana ISO (para vista semanal)
   const _fechaToWeekKey = (dateStr: string) => {
     const d = new Date(dateStr + 'T12:00:00Z')
@@ -896,13 +927,13 @@ function CambioCargaPanel() {
   })
 
   const GPS_KEYS = ['distTotal','distHir','distV4','distV5','nSprints','acc2','dec2','maxVelocity','distPerMin']
-  // gpsDailyMap is built from perSession (calculator, camelCase keys).
-  // Real-GPS-only fields (distHir, distV4, distV5, maxVelocity, distPerMin)
-  // use their snake_case DB names but will be 0 unless gpsPerMD data is merged.
+  // Keys as they appear in gpsDailyMap:
+  // - camelCase calc keys: distTotal, distSprint, nSprints, nAcel, nDecel
+  // - real GPS keys merged above: dist_hir, dist_v4, dist_v5, max_velocity, dist_per_min, acc2_real, dec2_real
   const GPS_FIELD_MAP: Record<string,string> = {
-    distTotal:'distTotal',   distHir:'dist_hir',   distV4:'dist_v4',
-    distV5:'dist_v5',        nSprints:'nSprints',  acc2:'nAcel',
-    dec2:'nDecel',           maxVelocity:'max_velocity', distPerMin:'dist_per_min',
+    distTotal:'distTotal',       distHir:'dist_hir',      distV4:'dist_v4',
+    distV5:'dist_v5',            nSprints:'nSprints',     acc2:'acc2_real',
+    dec2:'dec2_real',            maxVelocity:'max_velocity', distPerMin:'dist_per_min',
   }
   const getRowVal = (row: any) => {
     if (chartVar === 'ua') return row.avg_ua||0
@@ -1698,6 +1729,7 @@ function CalendarioPanel({ teamData }) {
         const _rpeReal = _editorLog ? Number(_editorLog.avg_rpe || _editorLog.max_rpe) || 0 : 0
         return (
         <SesionEditor
+          key={editSesion?.id ?? 'new'}
           sesion={editSesion}
           rpeReal={_rpeReal}
           defaultFecha={selectedDay||today}
@@ -6234,11 +6266,11 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
   ]
 
   const GRUPOS = [
-    { label:'DT + Mts/min',             vars: ['distTotal','minActivo'],   colors:['#f59e0b','#34d399'] },
-    { label:'Dist. Sprint + Nº Sprint', vars: ['distSprint','nSprints'],   colors:['#f97316','#a78bfa'] },
-    { label:'Acc >2 + Dec >2',          vars: ['nAcel','nDecel'],          colors:['#ec4899','#14b8a6'] },
-    { label:'Acc >3 + Dec >3',          vars: ['nAcel3','nDecel3'],        colors:['#f43f5e','#0ea5e9'] },
-    { label:'Alta Potencia',            vars: ['distMP'],                  colors:['#fbbf24'] },
+    { label:'DT + Mts/min',             vars: ['distTotal'],   colors:['#f59e0b'], lineVar:'minActivo', lineColor:'#34d399', lineLabel:'Tiempo (min)' },
+    { label:'Dist. Sprint + Nº Sprint', vars: ['distSprint','nSprints'],   colors:['#f97316','#a78bfa'], lineVar:null },
+    { label:'Acc >2 + Dec >2',          vars: ['nAcel','nDecel'],          colors:['#ec4899','#14b8a6'], lineVar:null },
+    { label:'Acc >3 + Dec >3',          vars: ['nAcel3','nDecel3'],        colors:['#f43f5e','#0ea5e9'], lineVar:null },
+    { label:'Alta Potencia',            vars: ['distMP'],                  colors:['#fbbf24'], lineVar:null },
   ]
 
   const players: any[] = data?.players || []
@@ -6270,7 +6302,7 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
   const pct = (val:number, key:string) => { const ref = refMedia[key]; if(!ref||ref===0) return null; return Math.round((val/ref)*100) }
   const pctColor = (p:number|null) => p===null?'var(--fog)':p>=85?'#22c55e':p>=65?'#f59e0b':'#ef4444'
 
-  const renderGrupoBar = (grupo: {label:string,vars:string[],colors:string[]}, dataSource: 'jugador'|'md') => {
+  const renderGrupoBar = (grupo: {label:string,vars:string[],colors:string[],lineVar?:string|null,lineColor?:string,lineLabel?:string}, dataSource: 'jugador'|'md') => {
     const series = grupo.vars.map((vk, ci) => {
       const varDef = VARS.find(v=>v.key===vk)!
       return {
@@ -6286,6 +6318,15 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
     const names = series[0]?.vals.map((v:any)=>v.name) || []
     const BAR_H = 130
     const yTicks = [1, 0.75, 0.5, 0.25, 0].map(f => Math.round(maxVal * f))
+
+    // Line series (e.g. tiempo/min)
+    const lineVals: number[] = grupo.lineVar
+      ? (dataSource === 'jugador'
+          ? players.map((p:any) => Number(p[grupo.lineVar!])||0)
+          : mdCols.map(md => Math.round(Number(perSession[md]?.[grupo.lineVar!])||0)))
+      : []
+    const maxLineVal = Math.max(...lineVals, 1)
+
     return (
       <div key={grupo.label} style={{ background:'var(--ink3)', borderRadius:12, padding:14, border:'1px solid var(--mist)' }}>
         <div style={{ fontSize:11, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:8 }}>{grupo.label}</div>
@@ -6296,6 +6337,12 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
               {s.label}
             </span>
           ))}
+          {grupo.lineVar && grupo.lineColor && (
+            <span style={{ display:'flex', alignItems:'center', gap:4 }}>
+              <svg width="16" height="8"><line x1="0" y1="4" x2="16" y2="4" stroke={grupo.lineColor} strokeWidth="2" strokeDasharray="4,2"/><circle cx="8" cy="4" r="2.5" fill={grupo.lineColor}/></svg>
+              {grupo.lineLabel || grupo.lineVar}
+            </span>
+          )}
         </div>
         <div style={{ display:'flex', gap:0 }}>
           {/* Y-axis labels */}
@@ -6304,7 +6351,7 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
               <div key={i} style={{ fontSize:8, color:'var(--fog)', fontFamily:'DM Mono,monospace', textAlign:'right', lineHeight:1 }}>{t}</div>
             ))}
           </div>
-          {/* Bars + grid */}
+          {/* Bars + grid + line overlay */}
           <div style={{ flex:1 }}>
             <div style={{ position:'relative', height:BAR_H }}>
               {[100,75,50,25,0].map((p,i)=>(
@@ -6330,8 +6377,41 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
                   </div>
                 ))}
               </div>
+              {/* Line overlay for lineVar (e.g. tiempo/min) */}
+              {grupo.lineVar && lineVals.length > 0 && (() => {
+                const n = names.length
+                const W = 1000
+                const pts = lineVals.map((v, i) => ({
+                  x: n === 1 ? W/2 : (i / (n-1)) * W,
+                  y: v > 0 ? (1 - v/maxLineVal) * BAR_H : null,
+                  v,
+                }))
+                const validPts = pts.filter(p => p.y !== null) as {x:number,y:number,v:number}[]
+                return (
+                  <svg viewBox={`0 0 ${W} ${BAR_H}`} preserveAspectRatio="xMidYMid meet"
+                    style={{ position:'absolute', bottom:0, left:0, right:0, width:'100%', height:`${BAR_H}px`, overflow:'visible', pointerEvents:'none' }}>
+                    {validPts.length > 1 && (
+                      <polyline points={validPts.map(p=>`${p.x},${p.y}`).join(' ')}
+                        fill="none" stroke={grupo.lineColor} strokeWidth="2.5"
+                        strokeDasharray="10,6" vectorEffect="non-scaling-stroke"/>
+                    )}
+                    {pts.map((pt, i) => pt.y === null ? null : (
+                      <g key={i}>
+                        <circle cx={pt.x} cy={pt.y} r="5" fill={grupo.lineColor} stroke="#000" strokeWidth="1.5" vectorEffect="non-scaling-stroke"/>
+                        {pt.v > 0 && (
+                          <text x={pt.x} y={Math.max(pt.y-10, 12)} textAnchor="middle"
+                            fill={grupo.lineColor} fontFamily="DM Mono,monospace" fontWeight="bold"
+                            vectorEffect="non-scaling-stroke" style={{ fontSize:`${BAR_H*0.09}px` }}>
+                            {pt.v}
+                          </text>
+                        )}
+                      </g>
+                    ))}
+                  </svg>
+                )
+              })()}
             </div>
-            {/* X-axis labels — fila separada para no desplazar las barras respecto al eje Y */}
+            {/* X-axis labels */}
             <div style={{ display:'flex', gap:names.length>6?2:6, marginTop:4 }}>
               {names.map((name:string,ni:number)=>(
                 <div key={ni} style={{ flex:1, fontSize:9, color:existingMdLabels.has(name)?'var(--lime)':'var(--fog)', whiteSpace:'nowrap', overflow:'hidden', maxWidth:38, textOverflow:'ellipsis', textAlign:'center', fontWeight:existingMdLabels.has(name)?700:400 }}>{name}</div>

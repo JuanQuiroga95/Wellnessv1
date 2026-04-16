@@ -237,7 +237,135 @@ export async function GET(req: NextRequest) {
       })
     }
 
-    return NextResponse.json({ players, teamAvg, sesionesInfo, perSession, perSessionPlayers, cePerSession, sesionesCount: sesiones.length, ciclo })
+    // Team averages per session (for Cuadro 1 PROM row)
+    const perSessionTeamAvg: Record<string, any> = {}
+    for (const ses of sesionesInfo) {
+      const ps = perSessionPlayers[ses.titulo] || []
+      const withRpe = ps.filter((p: any) => p.rpe !== null)
+      const withMin = ps.filter((p: any) => p.minActivo !== null)
+      const withUa  = ps.filter((p: any) => p.ua_total !== null)
+      perSessionTeamAvg[ses.titulo] = {
+        rpe: withRpe.length ? Math.round(withRpe.reduce((s: number, p: any) => s + p.rpe, 0) / withRpe.length * 10) / 10 : null,
+        minActivo: withMin.length ? Math.round(withMin.reduce((s: number, p: any) => s + p.minActivo, 0) / withMin.length) : null,
+        ua_total: withUa.length ? Math.round(withUa.reduce((s: number, p: any) => s + p.ua_total, 0) / withUa.length) : null,
+      }
+    }
+
+    // ── GPS REAL desde gps_logs ─────────────────────────────────────────────
+    // Devuelve datos reales importados por jugador y agrupados por sesión (MD label)
+    let gpsReal: any[] = []
+    let gpsPerMD: Record<string, any[]> = {}
+    let allMetricCols: string[] = []
+    const teamAvgGps: Record<string, number> = {}
+
+    if (clubId) {
+      // Dynamic columns: check which optional columns exist in gps_logs
+      const GPS_BASE_COLS = ['dist_total','dist_hir','dist_v4','dist_v5','player_load','max_velocity','acc2','dec2','acc3','dec3','dist_per_min']
+      // Fetch all gps_logs for the date range, joined with player info and optional session title
+      const gpsLogs = await sql`
+        SELECT
+          g.jugador_id, u.nombre, j.posicion,
+          g.fecha::text, g.sesion_id,
+          sp.titulo AS md_label,
+          g.dist_total, g.dist_hir, g.dist_v4, g.dist_v5,
+          g.player_load, g.max_velocity, g.acc2, g.dec2, g.acc3, g.dec3,
+          g.dist_per_min, g.metricas
+        FROM gps_logs g
+        JOIN jugadores j ON j.id = g.jugador_id
+        JOIN usuarios u ON u.id = j.usuario_id
+        LEFT JOIN sesiones_plan sp ON sp.id = g.sesion_id
+        WHERE g.club_id = ${clubId}
+          AND g.fecha >= ${desde}::date AND g.fecha <= ${hastaInc}::timestamp
+          AND u.activo = true
+        ORDER BY g.fecha, u.nombre
+      ` as any[]
+
+      if (gpsLogs.length > 0) {
+        // Determine which base columns have any data + dynamic metricas keys
+        const metricaKeys = new Set<string>()
+        for (const r of gpsLogs) {
+          if (r.metricas && typeof r.metricas === 'object') {
+            Object.keys(r.metricas).forEach(k => metricaKeys.add(k))
+          }
+        }
+        const activeCols = GPS_BASE_COLS.filter(k => gpsLogs.some(r => r[k] !== null && r[k] !== undefined))
+        allMetricCols = [...activeCols, ...Array.from(metricaKeys)]
+
+        // Aggregate per player (sum across all sessions in range)
+        const byPlayer: Record<number, any> = {}
+        for (const r of gpsLogs) {
+          if (!byPlayer[r.jugador_id]) {
+            byPlayer[r.jugador_id] = { jugador_id: r.jugador_id, nombre: r.nombre, posicion: r.posicion || '—', sesiones_gps: 0 }
+            for (const k of allMetricCols) byPlayer[r.jugador_id][k] = 0
+          }
+          const p = byPlayer[r.jugador_id]
+          p.sesiones_gps += 1
+          for (const k of activeCols) {
+            if (r[k] !== null && r[k] !== undefined) {
+              // max_velocity and dist_per_min: take max, others sum
+              if (k === 'max_velocity') p[k] = Math.max(p[k] || 0, Number(r[k]) || 0)
+              else p[k] = (p[k] || 0) + (Number(r[k]) || 0)
+            }
+          }
+          if (r.metricas && typeof r.metricas === 'object') {
+            for (const k of metricaKeys) {
+              if (r.metricas[k] !== undefined) p[k] = (p[k] || 0) + (Number(r.metricas[k]) || 0)
+            }
+          }
+        }
+        // Round all numeric values
+        gpsReal = Object.values(byPlayer).map((p: any) => {
+          const out: any = { jugador_id: p.jugador_id, nombre: p.nombre, posicion: p.posicion, sesiones_gps: p.sesiones_gps }
+          for (const k of allMetricCols) out[k] = Math.round((p[k] || 0) * 10) / 10
+          return out
+        }).sort((a: any, b: any) => a.nombre.localeCompare(b.nombre))
+
+        // Team avg GPS
+        const nGps = gpsReal.length || 1
+        for (const k of allMetricCols) {
+          const vals = gpsReal.map((p: any) => Number(p[k]) || 0).filter(x => x > 0)
+          if (vals.length) {
+            teamAvgGps[k] = k === 'max_velocity' || k === 'dist_per_min'
+              ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length * 10) / 10
+              : Math.round(vals.reduce((a, b) => a + b, 0) / nGps * 10) / 10
+          }
+        }
+
+        // Group by MD label (sesion titulo) for per-session breakdown
+        // Players in same MD: aggregate (sum distances, max velocity)
+        const mdMap: Record<string, Record<number, any>> = {}
+        for (const r of gpsLogs) {
+          const mdKey = r.md_label || r.fecha  // fall back to date if no session assigned
+          if (!mdMap[mdKey]) mdMap[mdKey] = {}
+          if (!mdMap[mdKey][r.jugador_id]) {
+            mdMap[mdKey][r.jugador_id] = { jugador_id: r.jugador_id, nombre: r.nombre, posicion: r.posicion || '—', sesiones: 0 }
+            for (const k of allMetricCols) mdMap[mdKey][r.jugador_id][k] = 0
+          }
+          const p = mdMap[mdKey][r.jugador_id]
+          p.sesiones += 1
+          for (const k of activeCols) {
+            if (r[k] !== null && r[k] !== undefined) {
+              if (k === 'max_velocity') p[k] = Math.max(p[k] || 0, Number(r[k]) || 0)
+              else p[k] = (p[k] || 0) + (Number(r[k]) || 0)
+            }
+          }
+          if (r.metricas && typeof r.metricas === 'object') {
+            for (const k of metricaKeys) {
+              if (r.metricas[k] !== undefined) p[k] = (p[k] || 0) + (Number(r.metricas[k]) || 0)
+            }
+          }
+        }
+        for (const [md, players] of Object.entries(mdMap)) {
+          gpsPerMD[md] = Object.values(players).map((p: any) => {
+            const out: any = { jugador_id: p.jugador_id, nombre: p.nombre, posicion: p.posicion, sesiones: p.sesiones }
+            for (const k of allMetricCols) out[k] = Math.round((p[k] || 0) * 10) / 10
+            return out
+          }).sort((a: any, b: any) => a.nombre.localeCompare(b.nombre))
+        }
+      }
+    }
+
+    return NextResponse.json({ players, teamAvg, sesionesInfo, perSession, perSessionPlayers, perSessionTeamAvg, cePerSession, sesionesCount: sesiones.length, ciclo, gpsReal, gpsPerMD, teamAvgGps, allMetricCols, hasRealGps: gpsReal.length > 0 })
   } catch (err) {
     console.error('[GET error]', err)
     return NextResponse.json({ error: String(err) }, { status: 500 })

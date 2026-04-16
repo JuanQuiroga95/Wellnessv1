@@ -159,11 +159,11 @@ function parseExcel(bytes: Uint8Array): Record<string, any>[] {
 // Column order is fixed in standard Catapult "Cuadro Resumen":
 const CATAPULT_COL_ORDER = [
   'dist_total','dist_per_min','dist_v4','dist_hir','dist_v5',
-  'n_sprints','acc2','dec2','max_velocity',
+  'n_sprints','acc2','dec2','acc3','dec3','max_velocity',
 ]
 
 // Row-format column headers (Catapult "DATA BASE" / OpenField report style)
-// Columns: Name, Position, TotDist, MeteragePerMin, 15-20km/h, 20/25km/h, SprintDist, NumSprints, HSR(>19.7), AccB2-3, DecelB2-3, TotPL, TotDur, MaxVel
+// Columns: Name, Position, TotDist, MeteragePerMin, 15-20km/h, 20/25km/h, SprintDist, NumSprints, HSR(>19.7), AccB2-3, DecelB2-3, AccB3, DecelB3, TotPL, TotDur, MaxVel
 const ROW_COL_ORDER = [
   null,          // Name (extracted separately)
   null,          // Position (skip)
@@ -176,6 +176,8 @@ const ROW_COL_ORDER = [
   'dist_hir',   // HSR (>19.7) — this IS the real High Speed Running metric
   'acc2',
   'dec2',
+  'acc3',        // Acc B3 (>3 m/s²)
+  'dec3',        // Dec B3 (>3 m/s²)
   'player_load',
   'duracion_min', // Duration (HH:MM:SS → converted to minutes)
   'max_velocity',
@@ -235,7 +237,7 @@ function parsePdfRowFormat(lines: string[]): Record<string, any>[] | null {
   const FIELD_MAP = [
     'dist_total', 'dist_per_min', 'dist_v4', 'dist_v5', // 20/25 km/h = sprint zone dist
     null, 'n_sprints', 'dist_hir',  // Sprint dist (B6) skip — already captured in dist_v5
-    'acc2', 'dec2', 'player_load', 'duracion_min', 'max_velocity'
+    'acc2', 'dec2', 'acc3', 'dec3', 'player_load', 'duracion_min', 'max_velocity'
   ]
 
   const SUMMARY_WORDS = new Set(['total','moyenne','average','promedio','media','totale','totaux','totals'])
@@ -901,6 +903,14 @@ async function matchPlayers(rows: Record<string,any>[], clubId: number|null) {
     // 3. Exact first-name match — only if first token >= 3 chars (not a single initial)
     if (!jug && rowFirst.length >= 3) {
       if (byNorm.has(rowFirst)) { jug = byNorm.get(rowFirst); method = 'primer_nombre' }
+    }
+
+    // 3b. Single-word PDF name (e.g. "ENOCH") matched against any word in roster full names
+    // Handles players registered with full name in DB but only first name in PDF
+    if (!jug && rowParts.length === 1 && rowFirst.length >= 3) {
+      for (const { j: candidate, parts } of allJugadores) {
+        if (parts.some((w: string) => w === rowFirst)) { jug = candidate; method = 'nombre_unico'; break }
+      }
     }
 
     // 4. Substring match — both strings must be >= 4 chars
