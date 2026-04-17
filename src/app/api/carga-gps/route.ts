@@ -261,9 +261,10 @@ export async function GET(req: NextRequest) {
     const rpeByPlayerDate: Record<string, any> = {}
     for (const log of logs as any[]) { rpeByPlayerDate[`${log.jugador_id}_${log.fecha}`] = log }
     
-    // sesionesInfo: only entrenamiento sessions — partidos are never MD columns
+    // sesionesInfo: includes ALL sessions (entrenamiento + partido) so the frontend
+    // can show the MD column. The calc loops (perSession, cePerSession, gpsPorFecha)
+    // already skip partidos individually — sesionesInfo is only used for display/lookup.
     const sesionesInfo = (sesiones as any[])
-      .filter(s => s.tipo !== 'partido')
       .map(s => ({ id: s.id, fecha: s.fecha, titulo: s.titulo || s.fecha, rpe_objetivo: s.rpe_objetivo, tipo: s.tipo || 'entrenamiento' }))
     const perSessionPlayers: Record<string, any[]> = {}
     for (const ses of sesionesInfo) {
