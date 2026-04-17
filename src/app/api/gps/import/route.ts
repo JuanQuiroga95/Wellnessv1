@@ -432,8 +432,11 @@ async function matchPlayers(rows: Record<string,any>[], clubId: number|null) {
 
 export async function POST(req: NextRequest) {
   try {
-    const s = await getSessionFromRequest(req); if (!s || !isAdmin(s)) return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
-    const body = await req.json(), { fecha, tipo_sesion, sesion_id, confirm, pdfText, rows } = body
+    const s = await getSessionFromRequest(req); 
+    if (!s || !isAdmin(s)) return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
+    
+    const body = await req.json()
+    const { fecha, tipo_sesion, sesion_id, confirm, pdfText, rows } = body
     if (!fecha) return NextResponse.json({ error: 'Falta fecha' }, { status: 400 })
     
     // Llamada al nuevo Motor Maestro
@@ -444,13 +447,22 @@ export async function POST(req: NextRequest) {
     const { matched, unmatched } = await matchPlayers(parsedRows, s.clubId || null)
     if (!confirm) return NextResponse.json({ preview: true, fecha, tipo_sesion, sesion_id, fuente: pdfText ? 'pdf' : 'excel', matched, unmatched, total_filas: parsedRows.length, columnas_detectadas: Object.keys(parsedRows[0]?.metricas||{}) })
     
-    const sql = getDb(), clubId = s.clubId ? Number(s.clubId) : null
-    if (clubId) await sql`DELETE FROM gps_logs WHERE club_id = ${clubId} AND fecha = ${fecha}::date AND tipo_sesion = ${tipo_sesion}`
-    for (const m of matched) {
-      const met = m.metricas || {}
-      await sql`INSERT INTO gps_logs (jugador_id, club_id, fecha, sesion_id, tipo_sesion, dist_total, dist_hir, dist_v4, dist_v5, player_load, max_velocity, acc2, dec2, dist_per_min, n_sprints, metricas, fuente)
-                VALUES (${m.jugador_id}, ${clubId}, ${fecha}, ${sesion_id}, ${tipo_sesion}, ${met.dist_total||0}, ${met.dist_hir||0}, ${met.dist_v4||0}, ${met.dist_v5||0}, ${met.player_load||0}, ${met.max_velocity||0}, ${met.acc2||0}, ${met.dec2||0}, ${met.dist_per_min||0}, ${met.n_sprints||0}, ${JSON.stringify(met)}, ${pdfText?'pdf':'excel'})`
+    const sql = getDb()
+    const clubId = s.clubId ? Number(s.clubId) : null
+    
+    if (clubId) {
+      // FIX: Borrado ultra agresivo para matar los datos duplicados de pruebas anteriores.
+      await sql`DELETE FROM gps_logs WHERE club_id = ${clubId} AND fecha = ${fecha}::date AND sesion_id = ${sesion_id}`
+      
+      for (const m of matched) {
+        const met = m.metricas || {}
+        await sql`INSERT INTO gps_logs (jugador_id, club_id, fecha, sesion_id, tipo_sesion, dist_total, dist_hir, dist_v4, dist_v5, player_load, max_velocity, acc2, dec2, dist_per_min, n_sprints, metricas, fuente)
+                  VALUES (${m.jugador_id}, ${clubId}, ${fecha}, ${sesion_id}, ${tipo_sesion}, ${met.dist_total||0}, ${met.dist_hir||0}, ${met.dist_v4||0}, ${met.dist_v5||0}, ${met.player_load||0}, ${met.max_velocity||0}, ${met.acc2||0}, ${met.dec2||0}, ${met.dist_per_min||0}, ${met.n_sprints||0}, ${JSON.stringify(met)}, ${pdfText?'pdf':'excel'})`
+      }
     }
     return NextResponse.json({ ok: true, saved: matched.length, unmatched })
-  } catch (err) { console.error(err); return NextResponse.json({ error: String(err) }, { status: 500 }) }
+  } catch (err) { 
+    console.error(err)
+    return NextResponse.json({ error: String(err) }, { status: 500 }) 
+  }
 }
