@@ -21,7 +21,7 @@ const GPS_METRIC_META: Record<string, { label: string; unit: string; group: stri
   dist_v3:             { label: 'Vel B3',           unit: 'm',      group: 'Distancia' },
   dist_v4:             { label: 'Vel B4',           unit: 'm',      group: 'Distancia' },
   dist_v5:             { label: 'Vel B5/B6',        unit: 'm',      group: 'Distancia' },
-  player_load:         { label: 'Player Load',      unit: '',        group: 'Carga' },
+  player_load:         { label: 'Player Load',      unit: 'UCE',     group: 'Carga' },
   metabolic_power:     { label: 'Pot. Metabólica',  unit: 'W/kg',   group: 'Carga' },
   avg_metabolic_power: { label: 'Pot. Metab. Med.', unit: 'W/kg',   group: 'Carga' },
   equiv_distance:      { label: 'Dist. Equiv.',     unit: 'm',      group: 'Carga' },
@@ -929,11 +929,13 @@ function CambioCargaPanel() {
   })
 
   const GPS_KEYS = ['distTotal','distHir','distV4','distV5','nSprints','acc2','dec2','maxVelocity','distPerMin']
-  // GPS_FIELD_MAP para métricas que NO vienen directo en row (dist_hir, dist_v4, etc.)
-  // distTotal, nSprints, acc2, dec2 vienen directo en row (del API cambio-carga)
-  const GPS_FIELD_MAP_SESSION: Record<string,string> = {
-    distHir:'dist_hir',      distV4:'dist_v4',
-    distV5:'dist_v5',        maxVelocity:'max_velocity', distPerMin:'dist_per_min',
+  // Keys as they appear in gpsDailyMap:
+  // - camelCase calc keys: distTotal, distSprint, nSprints, nAcel, nDecel
+  // - real GPS keys merged above: dist_hir, dist_v4, dist_v5, max_velocity, dist_per_min, acc2_real, dec2_real
+  const GPS_FIELD_MAP: Record<string,string> = {
+    distTotal:'distTotal',       distHir:'dist_hir',      distV4:'dist_v4',
+    distV5:'dist_v5',            nSprints:'nSprints',     acc2:'acc2_real',
+    dec2:'dec2_real',            maxVelocity:'max_velocity', distPerMin:'dist_per_min',
   }
   const getRowVal = (row: any) => {
     if (chartVar === 'ua') return row.avg_ua||0
@@ -964,17 +966,12 @@ function CambioCargaPanel() {
       return 0
     }
     if (GPS_KEYS.includes(chartVar)) {
-      // distTotal, nSprints, acc2, dec2 vienen directamente en row del API cambio-carga
-      if (chartVar === 'distTotal') return Math.round(Number(row.dist_total) || 0)
-      if (chartVar === 'nSprints')  return Math.round(Number(row.n_sprints)  || 0)
-      if (chartVar === 'acc2')      return Math.round(Number(row.acc2)       || 0)
-      if (chartVar === 'dec2')      return Math.round(Number(row.dec2)       || 0)
-      // El resto (distHir, distV4, distV5, maxVelocity, distPerMin) viene de gpsDailyMap
-      const field = GPS_FIELD_MAP_SESSION[chartVar] || chartVar
+      const field = GPS_FIELD_MAP[chartVar] || chartVar
       if (view === 'diario') {
         const gps = gpsDailyMap[row.fecha]
         return gps ? Math.round(Number(gps[field]) || 0) : 0
       } else {
+        // Vista semanal: usar acumulado de los días de esa semana
         const gps = gpsWeeklyMap[row.semana]
         return gps ? Math.round(Number(gps[field]) || 0) : 0
       }
@@ -2614,13 +2611,6 @@ function SesionEditor({ sesion, defaultFecha, rpeReal = 0, onSave, onDelete, onC
         {bloques.map((bl,i)=>(
           <BloqueMetodologia key={i} bloque={bl} index={i} onChange={(k,v)=>updateBloque(i,k,v)} onRemove={()=>removeBloque(i)} teamPlayers={teamPlayers} />
         ))}
-        {/* Botón + Tarea abajo para no tener que subir */}
-        {bloques.length > 0 && (
-          <div style={{ display:'flex', gap:8, marginTop:8 }}>
-            <button type="button" onClick={addBloque} style={{ fontSize:11, padding:'6px 16px', borderRadius:8, background:'rgba(200,241,53,.1)', color:'var(--lime)', border:'1px solid rgba(200,241,53,.3)', cursor:'pointer', fontWeight:600 }}>+ Tarea</button>
-            <button type="button" onClick={abrirBiblioteca} style={{ fontSize:11, padding:'6px 16px', borderRadius:8, background:'rgba(200,241,53,.06)', color:'var(--lime)', border:'1px solid rgba(200,241,53,.2)', cursor:'pointer' }}>📚 Biblioteca</button>
-          </div>
-        )}
       </div>
 
       {/* ── CE / UCE TOTAL de la sesión ── */}
@@ -3335,13 +3325,10 @@ function CargaExternaPanel() {
   // visible in the calendar from appearing in the UCE/GPS panels.
   // Always show all 8 MD slots (skeleton view) — existingMdLabels controls opacity/hasData
   // calSesiones is used only for display cues, not to filter slots out
-  // existingMdLabels includes ALL sessions (incl. partido) so the MD column lights up.
-  // mdCols extra slots only come from entrenamiento sessions (no extra partido columns).
-  const sesionesEntrenamiento = sesionesInfo.filter((s:any) => s.tipo !== 'partido')
   const existingMdLabels = new Set(sesionesInfo.map((s:any) => s.titulo))
   const mdCols = [
     ...MD_ORDER_LOCAL,
-    ...sesionesEntrenamiento.map((s:any) => s.titulo).filter((t:string) => !MD_ORDER_LOCAL.includes(t))
+    ...sesionesInfo.map((s:any) => s.titulo).filter((t:string) => !MD_ORDER_LOCAL.includes(t))
   ]
   // All columns present in the data, sorted by canonical order (known first, then alphabetical)
   const availableCols: string[] = (() => {
@@ -6154,7 +6141,7 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
     return localDateStr(d)
   }
   const [microcicloOffset, setMicrocicloOffset] = useState(0)
-  const [dateRange, setDateRange] = useState({ desde: getWeekStart(0), hasta: getWeekEnd(0) })
+  const [dateRange, setDateRange] = useState({ desde: getWeekStart(0), hasta: today })
   const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(false)
   const [calSesiones, setCalSesiones] = useState<Set<string>>(new Set()) // fechas+titulos visible in calendar
@@ -6166,7 +6153,7 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
   useEffect(() => {
     // Recalculate date range when microciclo offset changes
     const newDesde = getWeekStart(microcicloOffset)
-    const newHasta = getWeekEnd(microcicloOffset)
+    const newHasta = microcicloOffset === 0 ? today : getWeekEnd(microcicloOffset)
     setDateRange({ desde: newDesde, hasta: newHasta })
   }, [microcicloOffset])
 
@@ -6318,13 +6305,10 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
   }
   // Always show all 8 MD slots (skeleton view) — existingMdLabels controls opacity/hasData
   const MD_ORDER_LOCAL = ['MD+1','MD+2','MD+3','MD-4','MD-3','MD-2','MD-1','MD']
-  // existingMdLabels includes ALL sessions (incl. partido) so the MD column lights up.
-  // mdCols extra slots only come from entrenamiento sessions (no extra partido columns).
-  const sesionesEntrenamiento = sesionesInfo.filter((s:any) => s.tipo !== 'partido')
   const existingMdLabels = new Set(sesionesInfo.map((s:any) => s.titulo))
   const mdCols = [
     ...MD_ORDER_LOCAL,
-    ...sesionesEntrenamiento.map((s:any) => s.titulo).filter((t:string) => !MD_ORDER_LOCAL.includes(t))
+    ...sesionesInfo.map((s:any) => s.titulo).filter((t:string) => !MD_ORDER_LOCAL.includes(t))
   ]
 
   const refMedia: Record<string,number> = {}
@@ -7378,8 +7362,6 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
     })
   })()
   const MD_ORDER_LOCAL = ['MD+1','MD+2','MD+3','MD-4','MD-3','MD-2','MD-1','MD']
-  // existingMdLabels includes ALL sessions (incl. partido) so the MD column lights up.
-  const sesionesEntrenamiento = sesionesInfo.filter((s:any) => s.tipo !== 'partido')
   const existingMdLabels = new Set(sesionesInfo.map((s:any) => s.titulo))
   const mdCols = MD_ORDER_LOCAL
 
@@ -7414,21 +7396,19 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
   // Chart groups for GPS comparison — only show groups for columns actually present
   const availGpsKeys = new Set(GPS_VARS.map(v => v.key))
   const GPS_CHART_GROUPS = [
-    // Grupo 1: DT + Vel B4 + Mts/min
-    ...(availGpsKeys.has('dist_total') || availGpsKeys.has('dist_v4') ? [{
-      title:'DT + VEL B4 + MTS/MIN', color:'#3b82f6',
+    ...(availGpsKeys.has('dist_total') || availGpsKeys.has('dist_hir') ? [{
+      title:'DISTANCIA', color:'#3b82f6',
       bars:[
         ...(availGpsKeys.has('dist_total') ? [{key:'dist_total',label:'Tot Dist',color:'#3b82f6'}] : []),
-        ...(availGpsKeys.has('dist_v4') ? [{key:'dist_v4',label:'Vel B4',color:'#a78bfa'}] : []),
+        ...(availGpsKeys.has('dist_hir') ? [{key:'dist_hir',label:'High Speed',color:'#f59e0b'}] : []),
       ],
       line: availGpsKeys.has('dist_per_min') ? {key:'dist_per_min',label:'Mts/min',color:'#34d399'} : null,
     }] : []),
-    // Grupo 2: HSR + Vel B6 + VM (como línea)
-    ...(availGpsKeys.has('dist_hir') || availGpsKeys.has('dist_v5') ? [{
-      title:'HSR + VEL B6 + VEL MÁX', color:'#f97316',
+    ...(availGpsKeys.has('dist_v4') || availGpsKeys.has('dist_v5') ? [{
+      title:'VELOCIDAD', color:'#ef4444',
       bars:[
-        ...(availGpsKeys.has('dist_hir') ? [{key:'dist_hir',label:'HSR',color:'#f59e0b'}] : []),
         ...(availGpsKeys.has('dist_v5') ? [{key:'dist_v5',label:'Vel B6',color:'#f97316'}] : []),
+        ...(availGpsKeys.has('dist_v4') ? [{key:'dist_v4',label:'Vel B4',color:'#a78bfa'}] : []),
       ],
       line: availGpsKeys.has('max_velocity') ? {key:'max_velocity',label:'Vel Máx',color:'#ef4444'} : null,
     }] : []),
@@ -7763,12 +7743,8 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
             </thead>
             <tbody>
               {GPS_VARS.map((v,i)=>{
-                const vals = mdCols.map(md => mdTeamAvg(md)[v.key] || 0).filter(x => x > 0)
-                // max_velocity and similar peak fields: show max across MDs, not sum
-                const MAX_TOTAL_FIELDS = new Set(['max_velocity','hr_max','dist_per_min','duracion_min'])
-                const total = vals.length === 0 ? 0 : MAX_TOTAL_FIELDS.has(v.key)
-                  ? Math.round(Math.max(...vals) * 10) / 10
-                  : Math.round(vals.reduce((s,x)=>s+x,0)*10)/10
+                const vals = mdCols.map(md => mdTeamAvg(md)[v.key] || 0)
+                const total = Math.round(vals.reduce((s,x)=>s+x,0)*10)/10
                 return (
                   <tr key={v.key} style={{ borderTop:'1px solid var(--mist)', background:i%2===0?'transparent':'rgba(255,255,255,.015)' }}>
                     <td style={{ padding:'7px 14px', color:v.color, fontWeight:600, fontSize:11 }}>{v.label}</td>
@@ -7929,9 +7905,7 @@ function ExpoAIPanel({ teamData }: { teamData: any[] }) {
   const gpsPerMD: Record<string,any[]> = data?.gpsPerMD || {}
   const sesionesInfo: any[] = data?.sesionesInfo || []
   const MD_ORDER_LOCAL = ['MD+1','MD+2','MD-4','MD-3','MD-2','MD-1']
-  // FIX: Excluir partidos — el MD nunca se cuenta como entrenamiento semanal
-  const sesionesEntrenamiento = sesionesInfo.filter((s:any) => s.tipo !== 'partido')
-  const existingMd = new Set(sesionesEntrenamiento.map((s:any)=>s.titulo))
+  const existingMd = new Set(sesionesInfo.map((s:any)=>s.titulo))
 
   // Ref media (avg of selected matches)
   const refMedia: Record<string,number> = {}

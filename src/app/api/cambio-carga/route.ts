@@ -4,6 +4,7 @@ import { getDb } from '@/lib/db'
 import { getSessionFromRequest } from '@/lib/auth'
 function isAdmin(s: any) { return s?.rol === 'admin' || s?.rol === 'master_admin' }
 
+// Local-date helper: avoids UTC-midnight shift from localToday()
 function localToday(): string {
   const d = new Date()
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
@@ -23,14 +24,19 @@ export async function GET(req: NextRequest) {
   const minEntrenamiento = parseInt(searchParams.get('minEntrenamiento') || '60')
   const minPartido = parseInt(searchParams.get('minPartido') || '0')
 
+  // Las columnas fecha son tipo DATE en Postgres → comparar solo con fechas puras (YYYY-MM-DD)
+  // hastaInc = hasta (date type, BETWEEN is inclusive on both ends)
   const hastaInc = hasta
 
   const clubId = s.clubId ? Number(s.clubId) : null
   const isMaster = s.rol === 'master_admin' && !s.clubId
   const sql = getDb()
 
+  // Seguridad: si no es master y no tiene clubId, no puede ver datos de otros clubes
   if (!isMaster && !clubId) return NextResponse.json([])
 
+  // Get all training logs with player names in date range
+  // TO_CHAR garantiza formato YYYY-MM-DD sin importar timezone del driver Neon
   const trainLogs = await sql`
     SELECT 
       el.jugador_id,
@@ -48,6 +54,7 @@ export async function GET(req: NextRequest) {
     ORDER BY el.fecha ASC
   `
 
+  // Get all match logs in date range
   const matchLogs = await sql`
     SELECT 
       pl.jugador_id,
@@ -62,37 +69,21 @@ export async function GET(req: NextRequest) {
     ORDER BY pl.fecha ASC
   `
 
-  // Traer todos los datos reales del GPS en el rango de fechas
-  const gpsLogs = await sql`
-    SELECT 
-      g.jugador_id,
-      u.nombre,
-      TO_CHAR(g.fecha, 'YYYY-MM-DD') AS fecha,
-      g.dist_total,
-      g.n_sprints,
-      g.acc2,
-      g.dec2,
-      g.max_velocity,
-      g.dist_hir,
-      g.dist_per_min
-    FROM gps_logs g
-    JOIN jugadores j ON j.id = g.jugador_id
-    JOIN usuarios u ON u.id = j.usuario_id
-    WHERE g.fecha BETWEEN ${desde}::date AND ${hastaInc}::date
-      AND u.activo = true
-      AND (${isMaster}::boolean OR (u.club_id = ${clubId} AND j.club_id = ${clubId}))
-  `
-
+  // Determine qualifying players:
+  // If minPartido === 0 → no match requirement, all players with training data qualify
+  // If minPartido > 0  → only players with at least one match with >= minPartido minutes
   const qualifyingPlayers = new Set<number>()
   if (minPartido === 0) {
-    for (const log of trainLogs as any[]) qualifyingPlayers.add(log.jugador_id)
-    for (const log of gpsLogs as any[]) qualifyingPlayers.add(log.jugador_id)
+    for (const log of trainLogs as any[]) {
+      qualifyingPlayers.add(log.jugador_id)
+    }
   } else {
     for (const m of matchLogs as any[]) {
       if (m.minutos >= minPartido) qualifyingPlayers.add(m.jugador_id)
     }
   }
 
+  // Load planned sessions to compute CE per date (for UCE = CE × RPE_real)
   const NE_DEFAULT_API: Record<string,number> = {
     'Partido oficial':10,'Partido amistoso':9,'Partido de entrenamiento':8,
     'Partido modificado':7,'Partido reducido':7,'Juego de posición':6,
@@ -113,6 +104,7 @@ export async function GET(req: NextRequest) {
       AND fecha BETWEEN ${desde}::date AND ${hastaInc}::date
     ORDER BY fecha`
 
+  // Build CE per date from session blocks
   const ceByDate: Record<string, number> = {}
   for (const ses of sesionesParaUCE as any[]) {
     let ceTotal = 0
@@ -125,76 +117,65 @@ export async function GET(req: NextRequest) {
     if (ceTotal > 0) ceByDate[ses.fecha] = (ceByDate[ses.fecha] || 0) + ceTotal
   }
 
-  // AGRUPACIÓN DIARIA
-  const byDate: Record<string, any> = {}
-
+  // Inicializar byDate con TODAS las fechas con sesión planificada (hasPlan),
+  // así el coach ve todos los días de entrenamiento aunque no haya RPE cargado aún.
+  const byDate: Record<string, { total_ua: number; total_rpe: number; count: number; players: string[]; hasPlan: boolean }> = {}
   for (const ses of sesionesParaUCE as any[]) {
-    if (!byDate[ses.fecha]) byDate[ses.fecha] = { total_ua: 0, total_rpe: 0, count: 0, players: [], hasPlan: true, dist_total: 0, n_sprints: 0, acc2: 0, dec2: 0, count_gps: 0 }
+    if (!byDate[ses.fecha]) byDate[ses.fecha] = { total_ua: 0, total_rpe: 0, count: 0, players: [], hasPlan: true }
   }
-
+  // Agregar los logs de RPE registrados sobre las sesiones planificadas
   for (const log of trainLogs as any[]) {
     if (!qualifyingPlayers.has(log.jugador_id)) continue
     const dur = log.duracion_min || 0
     if (dur > 0 && dur < minEntrenamiento) continue
-    if (!byDate[log.fecha]) byDate[log.fecha] = { total_ua: 0, total_rpe: 0, count: 0, players: [], hasPlan: false, dist_total: 0, n_sprints: 0, acc2: 0, dec2: 0, count_gps: 0 }
+    if (!byDate[log.fecha]) byDate[log.fecha] = { total_ua: 0, total_rpe: 0, count: 0, players: [], hasPlan: false }
     byDate[log.fecha].total_ua += log.carga_ua || 0
     byDate[log.fecha].total_rpe += log.rpe || 0
     byDate[log.fecha].count += 1
-    if (!byDate[log.fecha].players.includes(log.nombre)) byDate[log.fecha].players.push(log.nombre)
+    if (!byDate[log.fecha].players.includes(log.nombre)) {
+      byDate[log.fecha].players.push(log.nombre)
+    }
   }
 
-  for (const log of gpsLogs as any[]) {
-    if (!qualifyingPlayers.has(log.jugador_id)) continue
-    if (!byDate[log.fecha]) byDate[log.fecha] = { total_ua: 0, total_rpe: 0, count: 0, players: [], hasPlan: false, dist_total: 0, n_sprints: 0, acc2: 0, dec2: 0, count_gps: 0 }
-    
-    byDate[log.fecha].dist_total += Number(log.dist_total) || 0
-    byDate[log.fecha].n_sprints += Number(log.n_sprints) || 0
-    byDate[log.fecha].acc2 += Number(log.acc2) || 0
-    byDate[log.fecha].dec2 += Number(log.dec2) || 0
-    byDate[log.fecha].count_gps += 1
-
-    if (!byDate[log.fecha].players.includes(log.nombre)) byDate[log.fecha].players.push(log.nombre)
-  }
-
+  // Build daily array sorted by date
+  // pct_change: compare to last day that had data (not just previous index)
   const dailyDates = Object.keys(byDate).sort()
   const daily = dailyDates.map((fecha, i) => {
     const avg = byDate[fecha].count > 0 ? Math.round(byDate[fecha].total_ua / byDate[fecha].count) : 0
     const avg_rpe = byDate[fecha].count > 0 ? byDate[fecha].total_rpe / byDate[fecha].count : 0
     const ce = ceByDate[fecha] || 0
     const avg_uce = ce > 0 && avg_rpe > 0 ? Math.round(ce * avg_rpe) : 0
-    
-    const gps_count = byDate[fecha].count_gps || 1 
-    const avg_dist = Math.round(byDate[fecha].dist_total / gps_count)
-    const avg_sprints = Math.round(byDate[fecha].n_sprints / gps_count)
-    const avg_acc = Math.round(byDate[fecha].acc2 / gps_count)
-    const avg_dec = Math.round(byDate[fecha].dec2 / gps_count)
-
+    // Find last previous date that had actual data (ua > 0)
     let prevAvg: number | null = null
     for (let j = i - 1; j >= 0; j--) {
       const pDate = dailyDates[j]
       const pAvg = byDate[pDate].count > 0 ? Math.round(byDate[pDate].total_ua / byDate[pDate].count) : 0
       if (pAvg > 0) { prevAvg = pAvg; break }
     }
-    
+    // pct: if current=0 and prev>0 → -100%. if current>0 and prev=0/null → +100%. else normal calc
     let pct: number | null = null
     if (prevAvg !== null) {
       if (prevAvg === 0 && avg > 0) pct = 100
       else if (prevAvg > 0 && avg === 0) pct = -100
       else if (prevAvg > 0) pct = Math.round(((avg - prevAvg) / prevAvg) * 100)
     } else if (avg > 0) {
-      pct = null 
+      pct = null // first data point, no comparison
     }
     return {
-      fecha, label: fecha, avg_ua: avg, avg_rpe: Math.round(avg_rpe * 10) / 10, avg_uce,
-      // Variables bajo el nombre crudo de GPS para que no se confundan con Calc
-      dist_total: avg_dist, n_sprints: avg_sprints, acc2: avg_acc, dec2: avg_dec,
-      has_gps: byDate[fecha].count_gps > 0,
-      n: Math.max(byDate[fecha].count, byDate[fecha].count_gps),
-      count: Math.max(byDate[fecha].count, byDate[fecha].count_gps),
-      players: byDate[fecha].players, hasPlan: byDate[fecha].hasPlan, pct_change: pct,
+      fecha,
+      label: fecha,
+      avg_ua: avg,
+      avg_rpe: Math.round(avg_rpe * 10) / 10,
+      avg_uce,
+      n: byDate[fecha].count,
+      count: byDate[fecha].count,
+      players: byDate[fecha].players,
+      hasPlan: byDate[fecha].hasPlan,
+      pct_change: pct,
     }
   })
 
+  // Group by ISO week
   function getWeekKey(dateStr: string) {
     const d = new Date(dateStr + 'T12:00:00Z')
     const day = d.getUTCDay() || 7
@@ -204,18 +185,18 @@ export async function GET(req: NextRequest) {
     return `${d.getUTCFullYear()}-S${String(week).padStart(2, '0')}`
   }
 
-  // AGRUPACIÓN SEMANAL (CON GPS)
-  const byWeek: Record<string, any> = {}
+  // byWeek: primero seed desde sesiones planificadas (para mostrar semanas sin RPE)
+  const byWeek: Record<string, { total_ua: number; count: number; label: string; sesiones: number }> = {}
   for (const fecha of Object.keys(byDate).sort()) {
     const wk = getWeekKey(fecha)
     if (!byWeek[wk]) {
       const d = new Date(fecha + 'T12:00:00Z')
       const label = `${wk} (${d.getUTCDate().toString().padStart(2,'0')}/${(d.getUTCMonth()+1).toString().padStart(2,'0')})`
-      byWeek[wk] = { total_ua: 0, count: 0, label, sesiones: 0, dist_total: 0, n_sprints: 0, acc2: 0, dec2: 0, count_gps: 0 }
+      byWeek[wk] = { total_ua: 0, count: 0, label, sesiones: 0 }
     }
     byWeek[wk].sesiones += 1
   }
-  
+  // Luego sumar los logs reales de RPE
   for (const log of trainLogs as any[]) {
     if (!qualifyingPlayers.has(log.jugador_id)) continue
     const durW = log.duracion_min || 0
@@ -223,24 +204,11 @@ export async function GET(req: NextRequest) {
     const wk = getWeekKey(log.fecha)
     if (!byWeek[wk]) {
       const d = new Date(log.fecha + 'T12:00:00Z')
-      byWeek[wk] = { total_ua: 0, count: 0, label: `${wk} (${d.getUTCDate().toString().padStart(2,'0')}/${(d.getUTCMonth()+1).toString().padStart(2,'0')})`, sesiones: 0, dist_total: 0, n_sprints: 0, acc2: 0, dec2: 0, count_gps: 0 }
+      const label = `${wk} (${d.getUTCDate().toString().padStart(2,'0')}/${(d.getUTCMonth()+1).toString().padStart(2,'0')})`
+      byWeek[wk] = { total_ua: 0, count: 0, label, sesiones: 0 }
     }
     byWeek[wk].total_ua += log.carga_ua || 0
     byWeek[wk].count += 1
-  }
-
-  for (const log of gpsLogs as any[]) {
-    if (!qualifyingPlayers.has(log.jugador_id)) continue
-    const wk = getWeekKey(log.fecha)
-    if (!byWeek[wk]) {
-      const d = new Date(log.fecha + 'T12:00:00Z')
-      byWeek[wk] = { total_ua: 0, count: 0, label: `${wk} (${d.getUTCDate().toString().padStart(2,'0')}/${(d.getUTCMonth()+1).toString().padStart(2,'0')})`, sesiones: 0, dist_total: 0, n_sprints: 0, acc2: 0, dec2: 0, count_gps: 0 }
-    }
-    byWeek[wk].dist_total += Number(log.dist_total) || 0
-    byWeek[wk].n_sprints += Number(log.n_sprints) || 0
-    byWeek[wk].acc2 += Number(log.acc2) || 0
-    byWeek[wk].dec2 += Number(log.dec2) || 0
-    byWeek[wk].count_gps += 1
   }
 
   const weekKeys = Object.keys(byWeek).sort()
@@ -248,26 +216,21 @@ export async function GET(req: NextRequest) {
     const avg = byWeek[wk].count > 0 ? Math.round(byWeek[wk].total_ua / byWeek[wk].count) : 0
     const prev = i > 0 ? Math.round(byWeek[weekKeys[i - 1]].total_ua / byWeek[weekKeys[i - 1]].count) : null
     const pct = prev !== null && prev > 0 ? Math.round(((avg - prev) / prev) * 100) : null
-    
-    const gps_c = byWeek[wk].count_gps || 1
     return {
-      semana: wk, label: byWeek[wk].label, avg_ua: avg,
-      dist_total: Math.round(byWeek[wk].dist_total / gps_c),
-      n_sprints: Math.round(byWeek[wk].n_sprints / gps_c),
-      acc2: Math.round(byWeek[wk].acc2 / gps_c),
-      dec2: Math.round(byWeek[wk].dec2 / gps_c),
-      has_gps: byWeek[wk].count_gps > 0,
-      count: Math.max(byWeek[wk].count, byWeek[wk].count_gps),
-      sesiones: byWeek[wk].sesiones, pct_change: pct,
+      semana: wk,
+      label: byWeek[wk].label,
+      avg_ua: avg,
+      count: byWeek[wk].count,
+      sesiones: byWeek[wk].sesiones,
+      pct_change: pct,
     }
   })
 
-  // JUGADORES
-  const byPlayer: Record<number, any> = {}
-  
+  // Build per-player aggregates — usa carga_ua si existe, sino rpe como UA aproximada
+  const byPlayer: Record<number, { jugador_id: number; nombre: string; total_ua: number; total_rpe: number; count: number; count_ua: number }> = {}
   for (const log of trainLogs as any[]) {
     if (!byPlayer[log.jugador_id]) {
-      byPlayer[log.jugador_id] = { jugador_id: log.jugador_id, nombre: log.nombre, total_ua: 0, total_rpe: 0, count: 0, count_ua: 0, dist_total: 0, n_sprints: 0, acc2: 0, dec2: 0, sesiones_gps: 0 }
+      byPlayer[log.jugador_id] = { jugador_id: log.jugador_id, nombre: log.nombre, total_ua: 0, total_rpe: 0, count: 0, count_ua: 0 }
     }
     const ua = Number(log.carga_ua) || 0
     byPlayer[log.jugador_id].total_ua += ua
@@ -275,18 +238,6 @@ export async function GET(req: NextRequest) {
     byPlayer[log.jugador_id].count += 1
     if (ua > 0) byPlayer[log.jugador_id].count_ua += 1
   }
-
-  for (const log of gpsLogs as any[]) {
-    if (!byPlayer[log.jugador_id]) {
-      byPlayer[log.jugador_id] = { jugador_id: log.jugador_id, nombre: log.nombre, total_ua: 0, total_rpe: 0, count: 0, count_ua: 0, dist_total: 0, n_sprints: 0, acc2: 0, dec2: 0, sesiones_gps: 0 }
-    }
-    byPlayer[log.jugador_id].dist_total += Number(log.dist_total) || 0
-    byPlayer[log.jugador_id].n_sprints += Number(log.n_sprints) || 0
-    byPlayer[log.jugador_id].acc2 += Number(log.acc2) || 0
-    byPlayer[log.jugador_id].dec2 += Number(log.dec2) || 0
-    byPlayer[log.jugador_id].sesiones_gps += 1
-  }
-
   const players = Object.values(byPlayer).map(p => ({
     jugador_id: p.jugador_id,
     nombre: p.nombre,
@@ -294,15 +245,11 @@ export async function GET(req: NextRequest) {
     ua: p.count_ua > 0 ? Math.round(p.total_ua / p.count_ua) : 0,
     ua_total: Math.round(p.total_ua),
     sesiones: p.count,
-    // Devolvemos el GPS bajo sus nombres originales para evitar solapamientos
-    dist_total: Math.round(p.dist_total),
-    n_sprints: Math.round(p.n_sprints),
-    acc2: Math.round(p.acc2),
-    dec2: Math.round(p.dec2),
-    hasGps: p.sesiones_gps > 0
   })).sort((a, b) => a.nombre.localeCompare(b.nombre))
 
-  const playersWithData = new Set(Object.values(byDate).flatMap((d: any) => d.players))
-  
+  // Contar solo jugadores que efectivamente aparecen en los datos (pasaron ambos filtros)
+  const playersWithData = new Set(
+    Object.values(byDate).flatMap((d: any) => d.players)
+  )
   return NextResponse.json({ daily, weekly, qualifyingCount: playersWithData.size, players })
 }

@@ -112,8 +112,8 @@ export async function GET(req: NextRequest) {
       } catch {}
     }
 
-    const sesiones = clubId ? await sql`SELECT id, fecha::text, ejercicios, rpe_objetivo, titulo, tipo FROM sesiones_plan WHERE club_id = ${clubId} AND fecha >= ${desde}::date AND fecha <= ${hastaInc}::timestamp ORDER BY fecha`
-    : await sql`SELECT id, fecha::text, ejercicios, rpe_objetivo, titulo, tipo FROM sesiones_plan WHERE admin_id = ${s.userId} AND club_id IS NULL AND fecha >= ${desde}::date AND fecha <= ${hastaInc}::timestamp ORDER BY fecha`
+    const sesiones = clubId ? await sql`SELECT id, fecha::text, ejercicios, rpe_objetivo, titulo FROM sesiones_plan WHERE club_id = ${clubId} AND fecha >= ${desde}::date AND fecha <= ${hastaInc}::timestamp ORDER BY fecha`
+    : await sql`SELECT id, fecha::text, ejercicios, rpe_objetivo, titulo FROM sesiones_plan WHERE admin_id = ${s.userId} AND club_id IS NULL AND fecha >= ${desde}::date AND fecha <= ${hastaInc}::timestamp ORDER BY fecha`
 
     const todosJugadores = clubId ? await sql`SELECT j.id AS jugador_id, u.nombre, j.posicion FROM jugadores j JOIN usuarios u ON u.id = j.usuario_id WHERE (u.club_id = ${clubId} OR j.club_id = ${clubId}) AND u.activo = true ORDER BY u.nombre` : []
 
@@ -121,8 +121,6 @@ export async function GET(req: NextRequest) {
 
     const gpsPorFecha: Record<string, any> = {}
     for (const ses of sesiones as any[]) {
-      // FIX: El partido (MD) nunca se cuenta como entrenamiento semanal
-      if (ses.tipo === 'partido') continue
       const m = sumarMetricasBloques(ses.ejercicios || [])
       if (!gpsPorFecha[ses.fecha]) {
         gpsPorFecha[ses.fecha] = { distTotal:0, distSprint:0, distMP:0, distAcel:0, distDecel:0, nSprints:0, nAcel:0, nDecel:0, nAcel3:0, nDecel3:0, minActivo:0, minPausa:0, rpe_objetivo:0, tipo_sesion:'entrenamiento' }
@@ -132,6 +130,7 @@ export async function GET(req: NextRequest) {
       g.nSprints += m.nSprints; g.nAcel += m.nAcel; g.nDecel += m.nDecel; g.nAcel3 += m.nAcel3||0; g.nDecel3 += m.nDecel3||0
       g.minActivo += m.minActivo; g.minPausa += m.minPausa
       if (Number(ses.rpe_objetivo) > 0) g.rpe_objetivo = Number(ses.rpe_objetivo)
+      if (ses.tipo === 'partido') g.tipo_sesion = 'partido'
     }
 
     const byPlayer: Record<number, any> = {}
@@ -155,17 +154,13 @@ export async function GET(req: NextRequest) {
       const playerLogDates = new Set(playerLogs.map((l: any) => l.fecha))
       for (const fecha of fechasConSesion) {
         const gps = gpsPorFecha[fecha]
-        // FIX: No saltear jugadores sin log. Si no tienen log, scale=1 (sesión completa planificada).
         const playerLog = playerLogs.find((l: any) => l.fecha === fecha)
         const playerMinutes = playerLog?.duracion_min ? Number(playerLog.duracion_min) : null
         const plannedMinutes = gps.minActivo
-        // Si el jugador tiene log con duración diferente, escalar proporcionalmente.
-        // Si no tiene log, scale=1 (valor completo de la sesión planificada).
         let scale = (playerMinutes !== null && plannedMinutes > 0) ? Math.min(playerMinutes / plannedMinutes, (gps.tipo_sesion === 'partido' ? 2.0 : 1.5)) : 1
         p.distTotal += Math.round(gps.distTotal * scale); p.distSprint += Math.round(gps.distSprint * scale); p.distMP += Math.round(gps.distMP * scale)
         p.distAcel += Math.round(gps.distAcel * scale); p.distDecel += Math.round(gps.distDecel * scale); p.nSprints += Math.round(gps.nSprints * scale)
         p.nAcel += Math.round(gps.nAcel * scale); p.nDecel += Math.round(gps.nDecel * scale); p.nAcel3 += Math.round((gps.nAcel3||0) * scale); p.nDecel3 += Math.round((gps.nDecel3||0) * scale)
-        // FIX: Si el jugador no tiene log, sumar minutos planificados para que "Tiempo" no quede en —
         if (!playerLogDates.has(fecha)) p.minActivo += plannedMinutes
         p.diasConGps += 1
       }
@@ -181,7 +176,6 @@ export async function GET(req: NextRequest) {
       nDecel: Math.round(p.nDecel), nAcel3: Math.round(p.nAcel3||0), nDecel3: Math.round(p.nDecel3||0), hasGps: p.distTotal > 0
     })).sort((a: any, b: any) => a.nombre.localeCompare(b.nombre))
 
-    // teamAvg: RPE/UA solo de jugadores con sesiones logueadas; GPS sobre todos los que tienen datos calculados
     const activePlayers = players.filter((p: any) => p.sesiones > 0)
     const playersWithGps = players.filter((p: any) => p.hasGps)
     const n = activePlayers.length || 1
@@ -197,13 +191,10 @@ export async function GET(req: NextRequest) {
 
     const perSession: Record<string, any> = {}
     for (const ses of sesiones as any[]) {
-      // FIX: Los partidos no se incluyen en los cálculos de carga de entrenamiento
-      if (ses.tipo === 'partido') continue
       const label = ses.titulo || ses.fecha
       const m = sumarMetricasBloques(ses.ejercicios || [])
       const ua_total = Number(ses.rpe_objetivo) > 0 ? Math.round(Number(ses.rpe_objetivo) * m.minActivo) : 0
       if (perSession[label]) {
-        // Acumular si hay múltiples sesiones con el mismo título (MD label)
         const p = perSession[label]
         const numKeys = ['distTotal','distSprint','distMP','distAcel','distDecel','nSprints','nAcel','nDecel','nAcel3','nDecel3','minActivo','minPausa']
         for (const k of numKeys) p[k] = (p[k] || 0) + (m[k] || 0)
@@ -213,9 +204,6 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // ── cePerSession: CE (Carga Específica) y UCE por sesión ──
-    // CE = Min × NE (Nivel Especificidad). UCE = CE × RPE_objetivo.
-    // NE defaults match the frontend CoachClient NE_DEFAULT map.
     const NE_DEFAULT: Record<string, number> = {
       'Partido oficial': 10, 'Partido amistoso': 9, 'Partido de entrenamiento': 8,
       'Partido modificado': 7, 'Partido reducido': 7, 'Juego de posición': 6,
@@ -224,11 +212,8 @@ export async function GET(req: NextRequest) {
     }
     const cePerSession: Record<string, any> = {}
     for (const ses of sesiones as any[]) {
-      // FIX: Los partidos no se incluyen en carga específica de entrenamiento
-      if (ses.tipo === 'partido') continue
       const label = ses.titulo || ses.fecha
       const ejercicios: any[] = Array.isArray(ses.ejercicios) ? ses.ejercicios : []
-      // Group bloques by ventana (task type), summing minutos per group
       const ventanaMap: Record<string, { minTotal: number; ne: number }> = {}
       for (const bl of ejercicios) {
         const series  = Number(bl.series)  || 1
@@ -238,34 +223,20 @@ export async function GET(req: NextRequest) {
         const ne = bl.ne ?? NE_DEFAULT[ventana] ?? 5
         if (!ventanaMap[ventana]) ventanaMap[ventana] = { minTotal: 0, ne }
         ventanaMap[ventana].minTotal += series * minutos
-        ventanaMap[ventana].ne = ne  // use last ne seen for this ventana
+        ventanaMap[ventana].ne = ne
       }
       const bloques = Object.entries(ventanaMap).map(([ventana, v]) => ({
-        ventana,
-        minTotal: Math.round(v.minTotal),
-        ne: v.ne,
-        ce: Math.round(v.minTotal * v.ne),
+        ventana, minTotal: Math.round(v.minTotal), ne: v.ne, ce: Math.round(v.minTotal * v.ne),
       }))
       const ce_total = bloques.reduce((s, b) => s + b.ce, 0)
       const rpe_obj = Number(ses.rpe_objetivo) || 0
-      cePerSession[label] = {
-        fecha: ses.fecha,
-        rpe_objetivo: rpe_obj,
-        ce_total,
-        uce_total: rpe_obj > 0 ? Math.round(ce_total * rpe_obj) : 0,
-        bloques,
-      }
+      cePerSession[label] = { fecha: ses.fecha, rpe_objetivo: rpe_obj, ce_total, uce_total: rpe_obj > 0 ? Math.round(ce_total * rpe_obj) : 0, bloques }
     }
 
-    // Cuadro 1 RPE por sesión (Fix Damián)
     const rpeByPlayerDate: Record<string, any> = {}
     for (const log of logs as any[]) { rpeByPlayerDate[`${log.jugador_id}_${log.fecha}`] = log }
     
-    // sesionesInfo: includes ALL sessions (entrenamiento + partido) so the frontend
-    // can show the MD column. The calc loops (perSession, cePerSession, gpsPorFecha)
-    // already skip partidos individually — sesionesInfo is only used for display/lookup.
-    const sesionesInfo = (sesiones as any[])
-      .map(s => ({ id: s.id, fecha: s.fecha, titulo: s.titulo || s.fecha, rpe_objetivo: s.rpe_objetivo, tipo: s.tipo || 'entrenamiento' }))
+    const sesionesInfo = (sesiones as any[]).map(s => ({ id: s.id, fecha: s.fecha, titulo: s.titulo || s.fecha, rpe_objetivo: s.rpe_objetivo }))
     const perSessionPlayers: Record<string, any[]> = {}
     for (const ses of sesionesInfo) {
       perSessionPlayers[ses.titulo] = (todosJugadores as any[]).map((p: any) => {
@@ -274,7 +245,6 @@ export async function GET(req: NextRequest) {
       })
     }
 
-    // Team averages per session (for Cuadro 1 PROM row)
     const perSessionTeamAvg: Record<string, any> = {}
     for (const ses of sesionesInfo) {
       const ps = perSessionPlayers[ses.titulo] || []
@@ -289,17 +259,14 @@ export async function GET(req: NextRequest) {
     }
 
     // ── GPS REAL desde gps_logs ─────────────────────────────────────────────
-    // Devuelve datos reales importados por jugador y agrupados por sesión (MD label)
     let gpsReal: any[] = []
     let gpsPerMD: Record<string, any[]> = {}
     let allMetricCols: string[] = []
     const teamAvgGps: Record<string, number> = {}
 
     if (clubId) {
-      // Dynamic columns: check which optional columns exist in gps_logs
       const GPS_BASE_COLS = ['dist_total','dist_hir','dist_v4','dist_v5','player_load','max_velocity','acc2','dec2','acc3','dec3','dist_per_min','n_sprints','duracion_min']
-      // Fetch all gps_logs for the date range, joined with player info and optional session title
-      // When gps_log has no sesion_id (imported without linking), fall back to matching by date
+      
       const gpsLogs = await sql`
         SELECT
           g.jugador_id, u.nombre, j.posicion,
@@ -326,18 +293,21 @@ export async function GET(req: NextRequest) {
       ` as any[]
 
       if (gpsLogs.length > 0) {
-        // Determine which base columns have any data + dynamic metricas keys
         const metricaKeys = new Set<string>()
+        
         for (const r of gpsLogs) {
           if (r.metricas && typeof r.metricas === 'object') {
-            Object.keys(r.metricas).forEach(k => metricaKeys.add(k))
+            Object.keys(r.metricas).forEach(k => {
+              // FIX: SOLO agregamos la clave si no es una de las columnas base, 
+              // para evitar sumar el valor 2 veces (columna + JSON)
+              if (!GPS_BASE_COLS.includes(k)) metricaKeys.add(k)
+            })
           }
         }
+        
         const activeCols = GPS_BASE_COLS.filter(k => gpsLogs.some(r => r[k] !== null && r[k] !== undefined))
         allMetricCols = [...activeCols, ...Array.from(metricaKeys)]
 
-        // Aggregate per player (sum across all sessions in range)
-        // AVG_PLAYER_FIELDS: these must be averaged, not summed, across sessions
         const AVG_PLAYER_FIELDS = new Set(['max_velocity', 'dist_per_min', 'duracion_min'])
         const byPlayer: Record<number, any> = {}
         for (const r of gpsLogs) {
@@ -348,6 +318,7 @@ export async function GET(req: NextRequest) {
           }
           const p = byPlayer[r.jugador_id]
           p.sesiones_gps += 1
+          
           for (const k of activeCols) {
             if (r[k] !== null && r[k] !== undefined) {
               if (AVG_PLAYER_FIELDS.has(k)) {
@@ -358,13 +329,15 @@ export async function GET(req: NextRequest) {
               }
             }
           }
+          
           if (r.metricas && typeof r.metricas === 'object') {
             for (const k of metricaKeys) {
+              // Ya no corremos el riesgo de sumar dist_total porque lo bloqueamos arriba
               if (r.metricas[k] !== undefined) p[k] = (p[k] || 0) + (Number(r.metricas[k]) || 0)
             }
           }
         }
-        // Round all numeric values; compute avg for AVG_PLAYER_FIELDS
+        
         gpsReal = Object.values(byPlayer).map((p: any) => {
           const out: any = { jugador_id: p.jugador_id, nombre: p.nombre, posicion: p.posicion, sesiones_gps: p.sesiones_gps }
           for (const k of allMetricCols) {
@@ -378,7 +351,6 @@ export async function GET(req: NextRequest) {
           return out
         }).sort((a: any, b: any) => a.nombre.localeCompare(b.nombre))
 
-        // Team avg GPS
         const nGps = gpsReal.length || 1
         const GPS_AVG_FIELDS = new Set(['max_velocity','dist_per_min','duracion_min'])
         const GPS_MAX_FIELDS = new Set(['max_velocity'])
@@ -393,11 +365,9 @@ export async function GET(req: NextRequest) {
           }
         }
 
-        // Group by MD label (sesion titulo) for per-session breakdown
-        // Players in same MD: aggregate (sum distances, max velocity)
         const mdMap: Record<string, Record<number, any>> = {}
         for (const r of gpsLogs) {
-          const mdKey = r.md_label || r.fecha  // fall back to date if no session assigned
+          const mdKey = r.md_label || r.fecha  
           if (!mdMap[mdKey]) mdMap[mdKey] = {}
           if (!mdMap[mdKey][r.jugador_id]) {
             mdMap[mdKey][r.jugador_id] = { jugador_id: r.jugador_id, nombre: r.nombre, posicion: r.posicion || '—', sesiones: 0 }
@@ -405,14 +375,17 @@ export async function GET(req: NextRequest) {
           }
           const p = mdMap[mdKey][r.jugador_id]
           p.sesiones += 1
+          
           for (const k of activeCols) {
             if (r[k] !== null && r[k] !== undefined) {
               if (k === 'max_velocity') p[k] = Math.max(p[k] || 0, Number(r[k]) || 0)
               else p[k] = (p[k] || 0) + (Number(r[k]) || 0)
             }
           }
+          
           if (r.metricas && typeof r.metricas === 'object') {
             for (const k of metricaKeys) {
+              // Misma protección para la tabla por sesión
               if (r.metricas[k] !== undefined) p[k] = (p[k] || 0) + (Number(r.metricas[k]) || 0)
             }
           }
