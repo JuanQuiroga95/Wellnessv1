@@ -7129,12 +7129,24 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
                 </tr>
               </thead>
               <tbody>
-                {players.map((p:any,i:number)=>(
-                  <tr key={i} style={{ borderTop:'1px solid var(--mist)', background:i%2===0?'transparent':'rgba(255,255,255,.015)' }}>
-                    <td style={{ padding:'7px 14px', color:'var(--snow)', fontWeight:500, whiteSpace:'nowrap' }}>{p.nombre}</td>
-                    {VARS.filter(v=>refMedia[v.key]).map(v=>{ const pv=pct(Number(p[v.key])||0,v.key); return <td key={v.key} style={{ padding:'7px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:pv?600:400, color:pctColor(pv) }}>{pv!==null?`${pv}%`:'—'}</td> })}
-                  </tr>
-                ))}
+                {players.map((p:any,i:number)=>{
+                  // Sum only training sessions (exclude 'MD') for each player
+                  const trainingMds = mdCols.filter(md => md !== 'MD' && existingMdLabels.has(md))
+                  const getPlayerTrainingVal = (vk: string) => {
+                    if (trainingMds.length === 0) return 0
+                    return trainingMds.reduce((sum, md) => {
+                      const mdPlayerList: any[] = perSessionPlayers[md] || []
+                      const pData = mdPlayerList.find((x:any) => x.jugador_id === p.jugador_id)
+                      return sum + Math.round(Number(pData?.[vk])||0)
+                    }, 0)
+                  }
+                  return (
+                    <tr key={i} style={{ borderTop:'1px solid var(--mist)', background:i%2===0?'transparent':'rgba(255,255,255,.015)' }}>
+                      <td style={{ padding:'7px 14px', color:'var(--snow)', fontWeight:500, whiteSpace:'nowrap' }}>{p.nombre}</td>
+                      {VARS.filter(v=>refMedia[v.key]).map(v=>{ const pv=pct(getPlayerTrainingVal(v.key),v.key); return <td key={v.key} style={{ padding:'7px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:pv?600:400, color:pctColor(pv) }}>{pv!==null?`${pv}%`:'—'}</td> })}
+                    </tr>
+                  )
+                })}
                 {mdCols.map(md=>(
                   <tr key={md} style={{ borderTop:'1px solid rgba(239,68,68,.15)', background:'rgba(239,68,68,.03)' }}>
                     <td style={{ padding:'7px 14px', color:'#f87171', fontWeight:700, fontSize:10 }}>{md} (prom)</td>
@@ -7143,7 +7155,14 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
                 ))}
                 <tr style={{ borderTop:'2px solid rgba(239,68,68,.3)', background:'rgba(239,68,68,.05)' }}>
                   <td style={{ padding:'8px 14px', fontWeight:800, color:'#f87171', fontSize:10, textTransform:'uppercase' }}>Prom. Equipo</td>
-                  {VARS.filter(v=>refMedia[v.key]).map(v=>{ const pv=pct(Number(teamAvg[v.key])||0,v.key); return <td key={v.key} style={{ padding:'8px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, color:pctColor(pv) }}>{pv!==null?`${pv}%`:'—'}</td> })}
+                  {VARS.filter(v=>refMedia[v.key]).map(v=>{
+                    // teamAvg for training only: average of non-MD training sessions
+                    const trainingMds = mdCols.filter(md => md !== 'MD' && existingMdLabels.has(md))
+                    const trainingVal = trainingMds.length > 0
+                      ? Math.round(trainingMds.reduce((s, md) => s + (Number(perSession[md]?.[v.key])||0), 0) / trainingMds.length)
+                      : 0
+                    const pv=pct(trainingVal,v.key); return <td key={v.key} style={{ padding:'8px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, color:pctColor(pv) }}>{pv!==null?`${pv}%`:'—'}</td>
+                  })}
                 </tr>
               </tbody>
             </table>
