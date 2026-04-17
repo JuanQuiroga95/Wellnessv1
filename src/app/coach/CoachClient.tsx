@@ -8106,10 +8106,11 @@ function ExpoAIPanel({ teamData }: { teamData: any[] }) {
                   {partidos.map((p:any)=><option key={`${p.fecha}_${p.rival}`} value={`${p.fecha}_${p.rival}`} style={{background:'var(--ink2)'}}>{p.fecha} · vs {p.rival||'Partido'}</option>)}
                 </select>
                 {Object.keys(refData[ri]).length>0 && (
-                  <div style={{ fontSize:10, color:'var(--fog)' }}>
-                    VM: <span style={{color:'#f87171',fontFamily:'DM Mono,monospace'}}>{refData[ri].max_velocity}</span> ·
-                    HSR: <span style={{color:'#fbbf24',fontFamily:'DM Mono,monospace'}}>{refData[ri].dist_hir}</span> ·
-                    A+D{'>'}{3}: <span style={{color:'#a78bfa',fontFamily:'DM Mono,monospace'}}>{Math.round((refData[ri].acc3||0)+(refData[ri].dec3||0))}</span>
+                  <div style={{ fontSize:10, color:'var(--fog)', display:'flex', flexWrap:'wrap', gap:'4px 8px' }}>
+                    <span>VM: <span style={{color:'#f87171',fontFamily:'DM Mono,monospace'}}>{refData[ri].max_velocity||'—'}</span></span>
+                    <span>HSR: <span style={{color:'#fbbf24',fontFamily:'DM Mono,monospace'}}>{refData[ri].dist_hir||'—'}</span></span>
+                    <span>A{'>'}{3}: <span style={{color:'#f43f5e',fontFamily:'DM Mono,monospace'}}>{refData[ri].acc3||'—'}</span></span>
+                    <span>D{'>'}{3}: <span style={{color:'#0ea5e9',fontFamily:'DM Mono,monospace'}}>{refData[ri].dec3||'—'}</span></span>
                   </div>
                 )}
               </div>
@@ -8252,19 +8253,19 @@ function ExpoAIPanel({ teamData }: { teamData: any[] }) {
         </div>
       </div>
 
-      {/* ══ TABLA 3: ACE+DEC >3 ══════════════════════════════════════════════ */}
-      <div style={{ background:'var(--ink2)', border:'1px solid rgba(168,85,247,.2)', borderRadius:16, overflow:'hidden', marginBottom:20 }}>
+      {/* ══ TABLA 3: ACE >3 ═══════════════════════════════════════════════════ */}
+      <div style={{ background:'var(--ink2)', border:'1px solid rgba(244,63,94,.2)', borderRadius:16, overflow:'hidden', marginBottom:20 }}>
         <div style={{ padding:'12px 18px', borderBottom:'1px solid var(--mist)' }}>
-          <p style={{ fontSize:12, fontWeight:700, color:'#a78bfa', textTransform:'uppercase', letterSpacing:'0.08em' }}>💥 ACE &gt;3 + DEC &gt;3 (n)</p>
-          <p style={{ fontSize:10, color:'var(--fog)', marginTop:2 }}>Suma de ACE&gt;3 y DEC&gt;3 por sesión · Sumatoria semanal vs promedio de 3 partidos</p>
+          <p style={{ fontSize:12, fontWeight:700, color:'#f43f5e', textTransform:'uppercase', letterSpacing:'0.08em' }}>💥 ACELERACIONES &gt;3 m/s² (n)</p>
+          <p style={{ fontSize:10, color:'var(--fog)', marginTop:2 }}>Nº ACC &gt;3 por sesión · Sumatoria semanal vs promedio de 3 partidos</p>
         </div>
         <div style={{ overflowX:'auto' }}>
           <table style={{ width:'100%', borderCollapse:'collapse', fontSize:11 }}>
             <thead>
               <tr>
-                <th colSpan={2} style={{ padding:'6px 14px', textAlign:'left', background:'rgba(168,85,247,.05)', color:'#a78bfa', fontSize:9, fontWeight:700, textTransform:'uppercase', borderBottom:'1px solid var(--mist)' }}>JUGADOR</th>
-                {MD_TRAIN.map(md=><th key={md} style={{ padding:'6px 8px', textAlign:'center', background:existingMd.has(md)?'rgba(168,85,247,.05)':'transparent', color:existingMd.has(md)?'#a78bfa':'var(--fog)', fontSize:9, fontWeight:700, borderBottom:'1px solid var(--mist)', opacity:existingMd.has(md)?1:0.4 }}>{md}</th>)}
-                <th style={{ padding:'6px 8px', textAlign:'center', background:'rgba(168,85,247,.08)', color:'#a78bfa', fontSize:9, fontWeight:700, borderBottom:'1px solid var(--mist)' }}>SUMA</th>
+                <th colSpan={2} style={{ padding:'6px 14px', textAlign:'left', background:'rgba(244,63,94,.05)', color:'#f43f5e', fontSize:9, fontWeight:700, textTransform:'uppercase', borderBottom:'1px solid var(--mist)' }}>JUGADOR</th>
+                {MD_TRAIN.map(md=><th key={md} style={{ padding:'6px 8px', textAlign:'center', background:existingMd.has(md)?'rgba(244,63,94,.05)':'transparent', color:existingMd.has(md)?'#f43f5e':'var(--fog)', fontSize:9, fontWeight:700, borderBottom:'1px solid var(--mist)', opacity:existingMd.has(md)?1:0.4 }}>{md}</th>)}
+                <th style={{ padding:'6px 8px', textAlign:'center', background:'rgba(244,63,94,.08)', color:'#f43f5e', fontSize:9, fontWeight:700, borderBottom:'1px solid var(--mist)' }}>SUMA</th>
                 {REF_COLS.map(c=><th key={c} style={{ padding:'6px 8px', textAlign:'center', color:'#ef4444', fontSize:9, fontWeight:700, borderBottom:'1px solid var(--mist)', background:'rgba(239,68,68,.04)' }}>MD {c}</th>)}
                 <th style={{ padding:'6px 8px', textAlign:'center', color:'var(--fog)', fontSize:9, fontWeight:700, borderBottom:'1px solid var(--mist)', background:'rgba(239,68,68,.04)' }}>PROM.</th>
                 <th style={{ padding:'6px 8px', textAlign:'center', color:'#ef4444', fontSize:9, fontWeight:700, borderBottom:'1px solid var(--mist)', background:'rgba(245,158,11,.05)' }}>PORCE. %</th>
@@ -8274,25 +8275,20 @@ function ExpoAIPanel({ teamData }: { teamData: any[] }) {
             <tbody>
               {gpsReal.map((p:any,i:number) => {
                 // Sum acc3+dec3 per MD for this player
-                const mdVals = MD_TRAIN.map(md => {
-                  const a = getMdVal(p.nombre, md, 'acc3')
-                  const d = getMdVal(p.nombre, md, 'dec3')
-                  if (a===null && d===null) return null
-                  return (a||0)+(d||0)
-                })
+                const mdVals = MD_TRAIN.map(md => getMdVal(p.nombre, md, 'acc3'))
                 const suma = mdVals.reduce((s,v)=>s+(v||0),0)
-                const refAD = refData.map(r=>((Number(r.acc3)||0)+(Number(r.dec3)||0))).filter(x=>x>0)
-                const promRef = refAD.length ? Math.round(refAD.reduce((s,x)=>s+x,0)/refAD.length) : null
+                const refAcc3 = refData.map(r=>Number(r.acc3)||0).filter(x=>x>0)
+                const promRef = refAcc3.length ? Math.round(refAcc3.reduce((s,x)=>s+x,0)/refAcc3.length) : null
                 const porce = promRef && suma ? Math.round((suma/promRef)*100)/100 : null
                 const porceColor = porce===null?'var(--fog)':porce>1.5?'#ef4444':porce>=1?'#22c55e':'#60a5fa'
                 return (
                   <tr key={i} style={{ borderTop:'1px solid var(--mist)', background:i%2===0?'transparent':'rgba(255,255,255,.015)' }}>
                     <td style={{ padding:'7px 14px', color:'var(--snow)', fontWeight:500, whiteSpace:'nowrap' }}>{p.nombre}</td>
                     <td style={{ padding:'7px 8px', color:'var(--fog)', fontSize:10 }}>{p.posicion||'—'}</td>
-                    {mdVals.map((v,mi) => <td key={mi} style={{ padding:'7px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', color:v!==null?'#a78bfa':'var(--fog)' }}>{v!==null?v:'—'}</td>)}
-                    <td style={{ padding:'7px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, color:'#a78bfa', background:'rgba(168,85,247,.08)' }}>{suma||'—'}</td>
+                    {mdVals.map((v,mi) => <td key={mi} style={{ padding:'7px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', color:v!==null?'#f43f5e':'var(--fog)' }}>{v!==null?v:'—'}</td>)}
+                    <td style={{ padding:'7px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, color:'#f43f5e', background:'rgba(244,63,94,.08)' }}>{suma||'—'}</td>
                     {refData.map((r,ri) => {
-                      const rv = Math.round((Number(r.acc3)||0)+(Number(r.dec3)||0))
+                      const rv = Number(r.acc3)||0
                       return <td key={ri} style={{ padding:'7px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', color:rv?'#ef4444':'var(--fog)', background:'rgba(239,68,68,.04)' }}>{rv||'—'}</td>
                     })}
                     <td style={{ padding:'7px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, color:promRef?'#ef4444':'var(--fog)', background:'rgba(239,68,68,.04)' }}>{promRef||'—'}</td>
@@ -8308,6 +8304,64 @@ function ExpoAIPanel({ teamData }: { teamData: any[] }) {
               })}
             </tbody>
           </table>
+        </div>
+      </div>
+
+      {/* ══ TABLA 4: DEC >3 ═══════════════════════════════════════════════════ */}
+      <div style={{ background:'var(--ink2)', border:'1px solid rgba(14,165,233,.2)', borderRadius:16, overflow:'hidden', marginBottom:20 }}>
+        <div style={{ padding:'12px 18px', borderBottom:'1px solid var(--mist)' }}>
+          <p style={{ fontSize:12, fontWeight:700, color:'#0ea5e9', textTransform:'uppercase', letterSpacing:'0.08em' }}>🛑 DESACELERACIONES &gt;3 m/s² (n)</p>
+          <p style={{ fontSize:10, color:'var(--fog)', marginTop:2 }}>Nº DEC &gt;3 por sesión · Sumatoria semanal vs promedio de 3 partidos</p>
+        </div>
+        <div style={{ overflowX:'auto' }}>
+          <table style={{ width:'100%', borderCollapse:'collapse', fontSize:11 }}>
+            <thead>
+              <tr>
+                <th colSpan={2} style={{ padding:'6px 14px', textAlign:'left', background:'rgba(14,165,233,.05)', color:'#0ea5e9', fontSize:9, fontWeight:700, textTransform:'uppercase', borderBottom:'1px solid var(--mist)' }}>JUGADOR</th>
+                {MD_TRAIN.map(md=><th key={md} style={{ padding:'6px 8px', textAlign:'center', background:existingMd.has(md)?'rgba(14,165,233,.05)':'transparent', color:existingMd.has(md)?'#0ea5e9':'var(--fog)', fontSize:9, fontWeight:700, borderBottom:'1px solid var(--mist)', opacity:existingMd.has(md)?1:0.4 }}>{md}</th>)}
+                <th style={{ padding:'6px 8px', textAlign:'center', background:'rgba(14,165,233,.08)', color:'#0ea5e9', fontSize:9, fontWeight:700, borderBottom:'1px solid var(--mist)' }}>SUMA</th>
+                {REF_COLS.map(c=><th key={c} style={{ padding:'6px 8px', textAlign:'center', color:'#ef4444', fontSize:9, fontWeight:700, borderBottom:'1px solid var(--mist)', background:'rgba(239,68,68,.04)' }}>MD {c}</th>)}
+                <th style={{ padding:'6px 8px', textAlign:'center', color:'var(--fog)', fontSize:9, fontWeight:700, borderBottom:'1px solid var(--mist)', background:'rgba(239,68,68,.04)' }}>PROM.</th>
+                <th style={{ padding:'6px 8px', textAlign:'center', color:'#ef4444', fontSize:9, fontWeight:700, borderBottom:'1px solid var(--mist)', background:'rgba(245,158,11,.05)' }}>PORCE. %</th>
+                <th style={{ padding:'6px 8px', textAlign:'center', color:'#22c55e', fontSize:9, fontWeight:700, borderBottom:'1px solid var(--mist)', background:'rgba(34,197,94,.04)' }}>OBJ.</th>
+              </tr>
+            </thead>
+            <tbody>
+              {gpsReal.map((p:any,i:number) => {
+                const mdVals = MD_TRAIN.map(md => getMdVal(p.nombre, md, 'dec3'))
+                const suma = mdVals.reduce((s,v)=>s+(v||0),0)
+                const refDec3 = refData.map(r=>Number(r.dec3)||0).filter(x=>x>0)
+                const promRef = refDec3.length ? Math.round(refDec3.reduce((s,x)=>s+x,0)/refDec3.length) : null
+                const porce = promRef && suma ? Math.round((suma/promRef)*100)/100 : null
+                const porceColor = porce===null?'var(--fog)':porce>1.5?'#ef4444':porce>=1?'#22c55e':'#60a5fa'
+                return (
+                  <tr key={i} style={{ borderTop:'1px solid var(--mist)', background:i%2===0?'transparent':'rgba(255,255,255,.015)' }}>
+                    <td style={{ padding:'7px 14px', color:'var(--snow)', fontWeight:500, whiteSpace:'nowrap' }}>{p.nombre}</td>
+                    <td style={{ padding:'7px 8px', color:'var(--fog)', fontSize:10 }}>{p.posicion||'—'}</td>
+                    {mdVals.map((v,mi) => <td key={mi} style={{ padding:'7px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', color:v!==null?'#0ea5e9':'var(--fog)' }}>{v!==null?v:'—'}</td>)}
+                    <td style={{ padding:'7px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, color:'#0ea5e9', background:'rgba(14,165,233,.08)' }}>{suma||'—'}</td>
+                    {refData.map((r,ri) => {
+                      const rv = Number(r.dec3)||0
+                      return <td key={ri} style={{ padding:'7px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', color:rv?'#ef4444':'var(--fog)', background:'rgba(239,68,68,.04)' }}>{rv||'—'}</td>
+                    })}
+                    <td style={{ padding:'7px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, color:promRef?'#ef4444':'var(--fog)', background:'rgba(239,68,68,.04)' }}>{promRef||'—'}</td>
+                    <td style={{ padding:'7px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, color:porceColor }}>{porce!==null?porce:'—'}</td>
+                    <td style={{ padding:'7px 8px', textAlign:'center' }}>
+                      {porce===null ? <span style={{color:'var(--fog)',fontSize:10}}>Sin ref.</span>
+                        : porce>=1&&porce<=1.5 ? <span style={{fontSize:16}}>✅</span>
+                        : porce>1.5 ? <span style={{fontSize:14,color:'#ef4444',fontWeight:700}}>⚠️</span>
+                        : <span style={{fontSize:16}}>❌</span>}
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+        <div style={{ padding:'8px 18px', borderTop:'1px solid var(--mist)', display:'flex', gap:16, fontSize:10, color:'var(--fog)' }}>
+          <span style={{color:'#60a5fa'}}>● &lt;1 Bajo</span>
+          <span style={{color:'#22c55e'}}>● 1–1.5 Normal</span>
+          <span style={{color:'#ef4444'}}>● &gt;1.5 Alto (posible sobrecarga)</span>
         </div>
       </div>
       </>)}
