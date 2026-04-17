@@ -317,12 +317,14 @@ function parsePdfBlobColumnar(lines: string[]): Record<string, any>[] | null {
 function parsePdfFromText(rawText: string): Record<string, any>[] {
   const lines = rawText.split('\n').map(l => l.trim()).filter(Boolean)
   const results: Record<string, any>[] = []
+  
   let lastNameFound: string | null = null
+  let pendingMetrics: Record<string, number> | null = null // Buffer para atrapar huérfanos
 
-  // HELPER: Detecta si un texto es basura rezagada de las cabeceras del PDF
   const isGarbageHeader = (s: string) => {
     const n = normStr(s)
-    return ['minute', 'meterage', 'sprints', 'effs', 'gen 2', 'velocidad', 'velocity', 'high speed', 'tot dist'].some(w => n.includes(normStr(w)))
+    // Agregamos cuadro, resumen, catapult, estadisticas, etc.
+    return ['minute', 'meterage', 'sprints', 'effs', 'gen 2', 'velocidad', 'velocity', 'high speed', 'tot dist', 'cuadro', 'resumen', 'catapult', 'estadisticas'].some(w => n.includes(normStr(w)))
   }
 
   for (const line of lines) {
@@ -335,7 +337,6 @@ function parsePdfFromText(rawText: string): Record<string, any>[] {
     const numericParts = parts.slice(dataStart)
     let nameFromLine = parts.slice(0, dataStart).join(' ').trim()
     
-    // FIX 1: Limpiar la fecha si viene pegada al nombre en la misma línea (ej. "11/04/2026 ENOCH ENOCH")
     nameFromLine = nameFromLine.replace(/^\d{1,2}\/\d{1,2}\/\d{2,4}\s*/, '').trim()
 
     if (numericParts.length >= 3) {
@@ -351,17 +352,28 @@ function parsePdfFromText(rawText: string): Record<string, any>[] {
       
       if (finalName && /[a-zA-Z]/.test(finalName)) {
         const check = normStr(finalName)
-        // FIX 2: Evitar que los fragmentos del encabezado se registren como un jugador válido
         if (!['promedio','max','average','total','media','dist','distancia','minute','minuto','variable'].includes(check) && !isGarbageHeader(finalName)) {
           const cleanName = cleanCatapultName(finalName)
           results.push({ nombre_catapult: cleanName, nombre_norm: normalizeName(cleanName), metricas })
+          pendingMetrics = null // Se procesó bien, vaciamos el buffer
+        } else {
+          pendingMetrics = metricas // Si el nombre es basura, guardamos los números por las dudas
         }
+      } else {
+        pendingMetrics = metricas // Si no hay nombre en absoluto, guardamos los números en el buffer
       }
       lastNameFound = null
     } else if (nameFromLine.length > 2 && /[a-zA-Z]/.test(nameFromLine)) {
-      // FIX 3: Evitar guardar basura del encabezado para que NO sobrescriba a Enoch en lastNameFound
-      if (!isGarbageHeader(nameFromLine)) {
-        lastNameFound = nameFromLine
+      if (!isGarbageHeader(nameFromLine) && !['promedio','max','average','total','media'].includes(normStr(nameFromLine))) {
+        // Encontramos un nombre válido, ¿tenemos números huérfanos esperando?
+        if (pendingMetrics) {
+          const cleanName = cleanCatapultName(nameFromLine)
+          results.push({ nombre_catapult: cleanName, nombre_norm: normalizeName(cleanName), metricas: pendingMetrics })
+          pendingMetrics = null // Rescatamos a Enoch, vaciamos el buffer
+        } else {
+          // No hay números esperando, lo guardamos como referencia para la siguiente línea
+          lastNameFound = nameFromLine
+        }
       }
     }
   }
