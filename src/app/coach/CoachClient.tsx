@@ -6723,15 +6723,15 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
                     {
                       title: 'RESISTENCIA', color: '#3b82f6',
                       bars: [
-                        { key:'distTotal',  label:'DT (m)',     color:'#3b82f6' },
-                        { key:'distSprint', label:'Sprint (m)', color:'#ec4899' },
+                        { key:'distTotal', label:'DT (m)', color:'#3b82f6' },
                       ],
                       line: { key:'minActivo', label:'Min Entrenamiento', color:'#f59e0b' },
                     },
                     {
                       title: 'VELOCIDAD', color: '#a78bfa',
                       bars: [
-                        { key:'nSprints', label:'Nº Sprint', color:'#a78bfa' },
+                        { key:'distSprint', label:'Sprint (m)', color:'#ec4899' },
+                        { key:'nSprints',   label:'Nº Sprint',  color:'#a78bfa' },
                       ],
                       line: null,
                     },
@@ -7409,19 +7409,19 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
   // Chart groups for GPS comparison — only show groups for columns actually present
   const availGpsKeys = new Set(GPS_VARS.map(v => v.key))
   const GPS_CHART_GROUPS = [
-    ...(availGpsKeys.has('dist_total') || availGpsKeys.has('dist_hir') ? [{
+    ...(availGpsKeys.has('dist_total') || availGpsKeys.has('dist_v4') ? [{
       title:'DISTANCIA', color:'#3b82f6',
       bars:[
         ...(availGpsKeys.has('dist_total') ? [{key:'dist_total',label:'Tot Dist',color:'#3b82f6'}] : []),
-        ...(availGpsKeys.has('dist_hir') ? [{key:'dist_hir',label:'High Speed',color:'#f59e0b'}] : []),
+        ...(availGpsKeys.has('dist_v4') ? [{key:'dist_v4',label:'Vel B4 (m)',color:'#a78bfa'}] : []),
       ],
       line: availGpsKeys.has('dist_per_min') ? {key:'dist_per_min',label:'Mts/min',color:'#34d399'} : null,
     }] : []),
-    ...(availGpsKeys.has('dist_v4') || availGpsKeys.has('dist_v5') ? [{
+    ...(availGpsKeys.has('dist_hir') || availGpsKeys.has('dist_v5') || availGpsKeys.has('max_velocity') ? [{
       title:'VELOCIDAD', color:'#ef4444',
       bars:[
-        ...(availGpsKeys.has('dist_v5') ? [{key:'dist_v5',label:'Vel B6',color:'#f97316'}] : []),
-        ...(availGpsKeys.has('dist_v4') ? [{key:'dist_v4',label:'Vel B4',color:'#a78bfa'}] : []),
+        ...(availGpsKeys.has('dist_hir') ? [{key:'dist_hir',label:'HSR (m)',color:'#f59e0b'}] : []),
+        ...(availGpsKeys.has('dist_v5') ? [{key:'dist_v5',label:'Vel B6 (m)',color:'#f97316'}] : []),
       ],
       line: availGpsKeys.has('max_velocity') ? {key:'max_velocity',label:'Vel Máx',color:'#ef4444'} : null,
     }] : []),
