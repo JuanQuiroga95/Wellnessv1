@@ -929,13 +929,11 @@ function CambioCargaPanel() {
   })
 
   const GPS_KEYS = ['distTotal','distHir','distV4','distV5','nSprints','acc2','dec2','maxVelocity','distPerMin']
-  // Keys as they appear in gpsDailyMap:
-  // - camelCase calc keys: distTotal, distSprint, nSprints, nAcel, nDecel
-  // - real GPS keys merged above: dist_hir, dist_v4, dist_v5, max_velocity, dist_per_min, acc2_real, dec2_real
-  const GPS_FIELD_MAP: Record<string,string> = {
-    distTotal:'distTotal',       distHir:'dist_hir',      distV4:'dist_v4',
-    distV5:'dist_v5',            nSprints:'nSprints',     acc2:'acc2_real',
-    dec2:'dec2_real',            maxVelocity:'max_velocity', distPerMin:'dist_per_min',
+  // GPS_FIELD_MAP para métricas que NO vienen directo en row (dist_hir, dist_v4, etc.)
+  // distTotal, nSprints, acc2, dec2 vienen directo en row (del API cambio-carga)
+  const GPS_FIELD_MAP_SESSION: Record<string,string> = {
+    distHir:'dist_hir',      distV4:'dist_v4',
+    distV5:'dist_v5',        maxVelocity:'max_velocity', distPerMin:'dist_per_min',
   }
   const getRowVal = (row: any) => {
     if (chartVar === 'ua') return row.avg_ua||0
@@ -966,12 +964,17 @@ function CambioCargaPanel() {
       return 0
     }
     if (GPS_KEYS.includes(chartVar)) {
-      const field = GPS_FIELD_MAP[chartVar] || chartVar
+      // distTotal, nSprints, acc2, dec2 vienen directamente en row del API cambio-carga
+      if (chartVar === 'distTotal') return Math.round(Number(row.dist_total) || 0)
+      if (chartVar === 'nSprints')  return Math.round(Number(row.n_sprints)  || 0)
+      if (chartVar === 'acc2')      return Math.round(Number(row.acc2)       || 0)
+      if (chartVar === 'dec2')      return Math.round(Number(row.dec2)       || 0)
+      // El resto (distHir, distV4, distV5, maxVelocity, distPerMin) viene de gpsDailyMap
+      const field = GPS_FIELD_MAP_SESSION[chartVar] || chartVar
       if (view === 'diario') {
         const gps = gpsDailyMap[row.fecha]
         return gps ? Math.round(Number(gps[field]) || 0) : 0
       } else {
-        // Vista semanal: usar acumulado de los días de esa semana
         const gps = gpsWeeklyMap[row.semana]
         return gps ? Math.round(Number(gps[field]) || 0) : 0
       }
