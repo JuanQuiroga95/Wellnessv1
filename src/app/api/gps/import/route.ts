@@ -127,15 +127,6 @@ function parseExcel(bytes: Uint8Array): Record<string, any>[] {
   return parseRawRows(raw)
 }
 
-const CATAPULT_COL_ORDER = [
-  'dist_total','dist_per_min','dist_v4','dist_hir','dist_v5',
-  'n_sprints','acc2','dec2','acc3','dec3','max_velocity',
-]
-
-const ROW_COL_ORDER = [
-  null, null, 'dist_total', 'dist_per_min', 'dist_v4', 'dist_v5', null, 'n_sprints', 'dist_hir', 'acc2', 'dec2', 'acc3', 'dec3', 'player_load', 'duracion_min', 'max_velocity',
-]
-
 function cleanCatapultName(raw: string): string {
   const parts = raw.trim().replace(/\.$/, '').split(/\s+/)
   const n = parts.length
@@ -241,13 +232,21 @@ function parsePdfCuadroResumen(lines: string[]): Record<string, any>[] | null {
   const results: Record<string, any>[] = []
   for (const line of lines) {
     const trimmed = line.trim(); if (!trimmed) continue
+    if (/page \d+ of|cuadro resumen|catapult/i.test(trimmed)) continue
+    
     const parts = trimmed.split(/\s+/); if (parts.length < 4) continue
-    let dataStart = parts.length; while (dataStart > 0 && /^[\d.]+$/.test(parts[dataStart - 1])) dataStart--
+    let dataStart = parts.length; while (dataStart > 0 && /^[\d.,]+$/.test(parts[dataStart - 1])) dataStart--
     const numericParts = parts.slice(dataStart), nameParts = parts.slice(0, dataStart)
     if (numericParts.length < 3 || nameParts.length === 0) continue
-    const firstNum = parseFloat(numericParts[0]); if (isNaN(firstNum) || firstNum < 500 || firstNum > 20000) continue
-    const nameRaw = nameParts.join(' '), nameNorm2 = normStr(nameRaw)
-    if (SUMMARY_WORDS.has(nameNorm2) || [...SUMMARY_WORDS].some(w => nameNorm2.startsWith(w)) || /^\d{2}\/\d{2}\/\d{4}$/.test(nameRaw.trim())) continue
+    const firstNum = parseFloat(numericParts[0].replace(',', '.')); if (isNaN(firstNum) || firstNum < 500 || firstNum > 20000) continue
+    
+    let nameRaw = nameParts.join(' ').trim()
+    nameRaw = nameRaw.replace(/^[\d\/\-]+\s*/, '').trim() // Strip dates
+    if (nameRaw.length < 2) continue
+
+    const nameNorm2 = normStr(nameRaw)
+    if (SUMMARY_WORDS.has(nameNorm2) || [...SUMMARY_WORDS].some(w => nameNorm2.startsWith(w)) || /^\d{2}\/\d{2}\/\d{4}$/.test(nameRaw)) continue
+    
     const metricas: Record<string, number> = {}
     for (let i = 0; i < numericParts.length && i < CUADRO_RESUMEN_COL_MAP.length; i++) {
       const field = CUADRO_RESUMEN_COL_MAP[i]; if (field) metricas[field] = parseFloat(numericParts[i].replace(',', '.'))
@@ -314,17 +313,18 @@ function parsePdfBlobColumnar(lines: string[]): Record<string, any>[] | null {
   return results.filter(r => Object.values(r.metricas).some(v => v > 0))
 }
 
-function parsePdfFromText(rawText: string): Record<string, any>[] {
-  const lines = rawText.split('\n').map(l => l.trim()).filter(Boolean)
+function parsePdfFromText(lines: string[]): Record<string, any>[] {
   const results: Record<string, any>[] = []
-  
   let lastNameFound: string | null = null
-  let pendingMetrics: Record<string, number> | null = null // Buffer para atrapar huérfanos
+  let pendingMetrics: Record<string, number> | null = null
 
+  // Filtro definitivo para bloquear el secuestro de métricas por texto basura
   const isGarbageHeader = (s: string) => {
     const n = normStr(s)
-    // Agregamos cuadro, resumen, catapult, estadisticas, etc.
-    return ['minute', 'meterage', 'sprints', 'effs', 'gen 2', 'velocidad', 'velocity', 'high speed', 'tot dist', 'cuadro', 'resumen', 'catapult', 'estadisticas'].some(w => n.includes(normStr(w)))
+    const exactMatch = ['promedio', 'max', 'average', 'total', 'media', 'min'].includes(n)
+    const garbageWords = ['minute', 'meterage', 'sprints', 'effs', 'gen 2', 'velocidad', 'velocity', 'high speed', 'tot dist', 'cuadro', 'resumen', 'catapult', 'estadisticas', 'page', 'vs', 'temporada', 'jornada']
+    const containsGarbageWord = garbageWords.some(w => new RegExp(`\\b${normStr(w)}\\b`).test(n))
+    return exactMatch || containsGarbageWord
   }
 
   for (const line of lines) {
@@ -337,7 +337,9 @@ function parsePdfFromText(rawText: string): Record<string, any>[] {
     const numericParts = parts.slice(dataStart)
     let nameFromLine = parts.slice(0, dataStart).join(' ').trim()
     
-    nameFromLine = nameFromLine.replace(/^\d{1,2}\/\d{1,2}\/\d{2,4}\s*/, '').trim()
+    // Limpieza agresiva de fechas y "PAGE X OF Y" que se pegan a los nombres
+    nameFromLine = nameFromLine.replace(/^[\d\/\-]+\s*/, '').trim()
+    nameFromLine = nameFromLine.replace(/^(PAGE|page)\s*\d+\s*(OF|of)\s*\d*\s*/i, '').trim()
 
     if (numericParts.length >= 3) {
       const metricas: Record<string, number> = {}
@@ -351,39 +353,65 @@ function parsePdfFromText(rawText: string): Record<string, any>[] {
       const finalName = nameFromLine || lastNameFound
       
       if (finalName && /[a-zA-Z]/.test(finalName)) {
-        const check = normStr(finalName)
-        if (!['promedio','max','average','total','media','dist','distancia','minute','minuto','variable'].includes(check) && !isGarbageHeader(finalName)) {
+        if (!isGarbageHeader(finalName)) {
           const cleanName = cleanCatapultName(finalName)
           results.push({ nombre_catapult: cleanName, nombre_norm: normalizeName(cleanName), metricas })
-          pendingMetrics = null // Se procesó bien, vaciamos el buffer
+          pendingMetrics = null
         } else {
-          pendingMetrics = metricas // Si el nombre es basura, guardamos los números por las dudas
+          // Destruimos las métricas si el nombre resultó ser basura (ej. Promedio)
+          pendingMetrics = null
         }
       } else {
-        pendingMetrics = metricas // Si no hay nombre en absoluto, guardamos los números en el buffer
+        // Encontramos métricas huérfanas (ej. Enoch fragmentado), las guardamos para la siguiente línea
+        pendingMetrics = metricas
       }
-      lastNameFound = null
+      lastNameFound = null // Reiniciamos para evitar que robe en la próxima iteración
     } else if (nameFromLine.length > 2 && /[a-zA-Z]/.test(nameFromLine)) {
-      if (!isGarbageHeader(nameFromLine) && !['promedio','max','average','total','media'].includes(normStr(nameFromLine))) {
-        // Encontramos un nombre válido, ¿tenemos números huérfanos esperando?
+      if (!isGarbageHeader(nameFromLine)) {
         if (pendingMetrics) {
           const cleanName = cleanCatapultName(nameFromLine)
           results.push({ nombre_catapult: cleanName, nombre_norm: normalizeName(cleanName), metricas: pendingMetrics })
-          pendingMetrics = null // Rescatamos a Enoch, vaciamos el buffer
+          pendingMetrics = null
         } else {
-          // No hay números esperando, lo guardamos como referencia para la siguiente línea
           lastNameFound = nameFromLine
         }
+      } else {
+        lastNameFound = null // Destruimos los encabezados basura (ej. CUADRO RESUMEN)
       }
     }
   }
-  return results.length ? results : (parsePdfRowFormat(lines) || parsePdfCuadroResumen(lines) || parsePdfBlobColumnar(lines) || [])
+  return results
 }
 
-async function parsePdf(bytes: Uint8Array): Promise<Record<string, any>[]> {
-  const pdfParse = (await import('pdf-parse')).default
-  const data = await pdfParse(Buffer.from(bytes))
-  return parsePdfFromText(data.text)
+// NUEVO MOTOR MAESTRO: Ejecuta todos los analizadores y se queda con el mejor resultado
+function parsePdfAllMethods(rawText: string): Record<string, any>[] {
+  const lines = rawText.split('\n').map(l => l.trim()).filter(Boolean)
+  
+  const resText = parsePdfFromText(lines)
+  const resRow = parsePdfRowFormat(lines) || []
+  const resCuadro = parsePdfCuadroResumen(lines) || []
+  const resBlob = parsePdfBlobColumnar(lines) || []
+
+  // Filtramos los métodos que devolvieron resultados
+  const options = [resText, resRow, resCuadro, resBlob].filter(arr => arr && arr.length > 0)
+  
+  if (options.length === 0) return []
+
+  // Ordenamos para quedarnos con el método que rescató la MAYOR CANTIDAD de jugadores
+  options.sort((a, b) => b.length - a.length)
+  const bestResult = options[0]
+
+  // Eliminamos cualquier posible jugador duplicado que se haya filtrado
+  const uniquePlayers: Record<string, any>[] = []
+  const seenNames = new Set<string>()
+  for (const row of bestResult) {
+    if (!seenNames.has(row.nombre_norm)) {
+      seenNames.add(row.nombre_norm)
+      uniquePlayers.push(row)
+    }
+  }
+  
+  return uniquePlayers
 }
 
 async function matchPlayers(rows: Record<string,any>[], clubId: number|null) {
@@ -407,10 +435,15 @@ export async function POST(req: NextRequest) {
     const s = await getSessionFromRequest(req); if (!s || !isAdmin(s)) return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
     const body = await req.json(), { fecha, tipo_sesion, sesion_id, confirm, pdfText, rows } = body
     if (!fecha) return NextResponse.json({ error: 'Falta fecha' }, { status: 400 })
-    let parsedRows = (rows && Array.isArray(rows)) ? parseRawRows(rows) : (pdfText ? parsePdfFromText(pdfText) : [])
+    
+    // Llamada al nuevo Motor Maestro
+    let parsedRows = (rows && Array.isArray(rows)) ? parseRawRows(rows) : (pdfText ? parsePdfAllMethods(pdfText) : [])
+    
     if (!parsedRows.length) return NextResponse.json({ error: 'No se encontraron datos.' }, { status: 400 })
+    
     const { matched, unmatched } = await matchPlayers(parsedRows, s.clubId || null)
     if (!confirm) return NextResponse.json({ preview: true, fecha, tipo_sesion, sesion_id, fuente: pdfText ? 'pdf' : 'excel', matched, unmatched, total_filas: parsedRows.length, columnas_detectadas: Object.keys(parsedRows[0]?.metricas||{}) })
+    
     const sql = getDb(), clubId = s.clubId ? Number(s.clubId) : null
     if (clubId) await sql`DELETE FROM gps_logs WHERE club_id = ${clubId} AND fecha = ${fecha}::date AND tipo_sesion = ${tipo_sesion}`
     for (const m of matched) {
@@ -421,3 +454,5 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true, saved: matched.length, unmatched })
   } catch (err) { console.error(err); return NextResponse.json({ error: String(err) }, { status: 500 }) }
 }
+
+            
