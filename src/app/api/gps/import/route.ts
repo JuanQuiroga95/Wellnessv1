@@ -13,111 +13,133 @@ function normStr(s: string): string {
 }
 const normalizeName = normStr
 
-// ─── UNIVERSAL METRIC MAP (Excel + PDF headers — ES / FR / EN) ───────────────
+// ─── UNIVERSAL METRIC MAP (Catapult + UBICO + Wimu + Oliver) ───────────────
 const METRIC_COL_MAP: Array<[string, string]> = [
+  // DISTANCIA TOTAL
   ['total distance','dist_total'],['total dist','dist_total'],['tot dist','dist_total'],
-  ['dist totale','dist_total'],['distancia total','dist_total'],['distance totale','dist_total'],
+  ['distance','dist_total'],['distancia','dist_total'],['dist totale','dist_total'],
+  ['distancia total','dist_total'],['distance totale','dist_total'],
+  // METROS POR MINUTO
   ['meterage per minute','dist_per_min'],['meterage per min','dist_per_min'],
   ['distance per minute','dist_per_min'],['dist per min','dist_per_min'],['dist/min','dist_per_min'],
   ['metros por minuto','dist_per_min'],['metres par minute','dist_per_min'],
-  ['metres per minute','dist_per_min'],['mts/min','dist_per_min'],['mts min','dist_per_min'],
+  ['m/min','dist_per_min'], // Ubico/Wimu
+  // HIGH SPEED RUNNING
   ['high speed running','dist_hir'],['high speed dist','dist_hir'],['high speed distance','dist_hir'],
   ['high speed','dist_hir'],['hsr','dist_hir'],['high intensity running','dist_hir'],
   ['alta intensidad','dist_hir'],['course haute intensite','dist_hir'],['haute intensite','dist_hir'],
+  // VELOCIDAD BANDAS
   ['vel b4 tot dist','dist_v4'],['vel b4 tot','dist_v4'],['vel b4','dist_v4'],
-  ['velocity band 4','dist_v4'],['v4 dist','dist_v4'],['banda 4','dist_v4'],['bande 4','dist_v4'],
+  ['velocity band 4','dist_v4'],['v4 dist','dist_v4'],['banda 4','dist_v4'],
   ['15-20','dist_v4'],['15 20','dist_v4'],
   ['vel b6 tot dist','dist_v5'],['vel b6 tot','dist_v5'],['vel b6','dist_v5'],
   ['vel b5 tot dist','dist_v5'],['vel b5 tot','dist_v5'],['vel b5','dist_v5'],
   ['velocity band 6','dist_v5'],['velocity band 5','dist_v5'],
   ['v6 dist','dist_v5'],['v5 dist','dist_v5'],
+  // SPRINTS
   ['sprint distance','dist_v5'],['sprint dist','dist_v5'],['distancia sprint','dist_v5'],
-  ['distance sprint','dist_v5'],['dist sprint','dist_v5'],
-  ['banda 6','dist_v5'],['banda 5','dist_v5'],['bande 6','dist_v5'],['bande 5','dist_v5'],
-  ['20 25','dist_v5'],['20/25','dist_v5'],['20-25','dist_v5'],
-  ['player load','player_load'],['playerload','player_load'],['carga jugador','player_load'],
-  ['charge joueur','player_load'],['tot pl','player_load'],
-  ['max velocity','max_velocity'],['max vel','max_velocity'],['top speed','max_velocity'],
-  ['velocidad maxima','max_velocity'],['vitesse maximale','max_velocity'],['vel max','max_velocity'],
-  ['vitesse max','max_velocity'],['vmax','max_velocity'],['velocidad max','max_velocity'],
+  ['banda 6','dist_v5'],['banda 5','dist_v5'],['>20','dist_v5'],['> 20','dist_v5'], // Ubico
+  ['number of sprints','n_sprints'],['number sprints','n_sprints'],['num sprints','n_sprints'],
+  ['numero sprints','n_sprints'],['numero de sprints','n_sprints'],['sprints','n_sprints'],
+  // ACEL / DECEL
   ['acc b2-3 tot effs','acc2'],['acc b2-3 tot','acc2'],['acc b2-3','acc2'],
   ['accelerations b2 3','acc2'],['accelerations b2','acc2'],['aceleraciones b2','acc2'],
   ['acc b2','acc2'],['acc2 eff','acc2'],['acc 2','acc2'],['accel b2','acc2'],
-  ['nombre accelerations','acc2'],
+  ['aceleraciones','acc2'],['accelerations','acc2'], // Ubico
   ['decel b2-3 tot effs','dec2'],['decel b2-3 tot','dec2'],['decel b2-3','dec2'],
   ['decelerations b2 3','dec2'],['decelerations b2','dec2'],['desaceleraciones b2','dec2'],
   ['dec b2','dec2'],['dec2 eff','dec2'],['dec 2','dec2'],['decel b2','dec2'],
-  ['nombre decelerations','dec2'],
-  ['acc b3','acc3'],['acc3 eff','acc3'],['acc 3','acc3'],['accel b3','acc3'],
-  ['dec b3','dec3'],['dec3 eff','dec3'],['dec 3','dec3'],['decel b3','dec3'],
-  ['number of sprints','n_sprints'],['number sprints','n_sprints'],['num sprints','n_sprints'],
-  ['numero sprints','n_sprints'],['numero de sprints','n_sprints'],
-  ['nombre sprints','n_sprints'],['nombre de sprints','n_sprints'],
-  ['n sprints','n_sprints'],
-  ['vel b1','dist_v1'],['velocity band 1','dist_v1'],['banda 1','dist_v1'],['bande 1','dist_v1'],
-  ['vel b2','dist_v2'],['velocity band 2','dist_v2'],['banda 2','dist_v2'],['bande 2','dist_v2'],
-  ['vel b3','dist_v3'],['velocity band 3','dist_v3'],['banda 3','dist_v3'],['bande 3','dist_v3'],
-  ['metabolic power','metabolic_power'],['puissance metabolique','metabolic_power'],
-  ['hr avg','hr_avg'],['fc moyenne','hr_avg'],['fc media','hr_avg'],['frecuencia cardiaca media','hr_avg'],
-  ['hr max','hr_max'],['fc max','hr_max'],['frecuencia cardiaca max','hr_max'],
+  ['desaceleraciones','dec2'],['decelerations','dec2'], // Ubico
+  // PLAYER LOAD / VEL MAX
+  ['player load','player_load'],['playerload','player_load'],['carga jugador','player_load'],
+  ['max velocity','max_velocity'],['max vel','max_velocity'],['top speed','max_velocity'],
+  ['velocidad maxima','max_velocity'],['vitesse maximale','max_velocity'],['vel max','max_velocity'],
+  // DURACION
   ['total duration','duracion_min'],['total dur','duracion_min'],['tot dur','duracion_min'],
-  ['duration','duracion_min'],['duree','duracion_min'],['duracion','duracion_min'],
-  ['temps total','duracion_min'],['time played','duracion_min'],['playing time','duracion_min'],
-  ['elapsed time','duracion_min'],['total time','duracion_min'],
+  ['duration','duracion_min'],['duracion','duracion_min'],['time','duracion_min'],['tiempo','duracion_min']
 ]
 
 function matchMetricCol(h: string): string | null {
   const hn = normStr(h)
-  for (const [label, field] of METRIC_COL_MAP)
-    if (hn.includes(normStr(label))) return field
+  for (const [label, field] of METRIC_COL_MAP) {
+    if (hn.includes(normStr(label)) || hn === normStr(label)) return field
+  }
   return null
 }
 
 const matchExcelCol = matchMetricCol
 
+// ─── NUEVO MOTOR EXCEL INTELIGENTE (UBICO/CATAPULT/WIMU) ───────────────
 function parseRawRows(raw: any[][]): Record<string, any>[] {
   if (raw.length < 2) return []
   const headers = (raw[0] as any[]).map(h => String(h ?? ''))
+  
   const colMap: (string | null)[] = headers.map(h => {
     const ln = normStr(h)
     const isNameCol = ln === 'name' || ln === 'nombre' || ln === 'athlete' || ln === 'player' ||
-      ln === 'jugador' || ln.includes('first name') || ln.includes('player name') || ln.includes('athlete name')
+      ln === 'jugador' || ln.includes('first name') || ln.includes('player name') || ln.includes('athlete name') || ln === 'jugadores'
     if (isNameCol) return '__name__'
-    if (['interval','time','date','fecha','session','period','device','jersey','shirt','position','pos'].some(k => ln === k || ln.startsWith(k + ' '))) return null
+    if (['interval','time','date','fecha','session','period','device','jersey','shirt','position','pos', 'split'].some(k => ln === k || ln.startsWith(k + ' '))) return null
     return matchExcelCol(h)
   })
-  return (raw.slice(1) as any[][])
-    .filter(row => row.some((c: any) => c !== null && c !== ''))
-    .map(row => {
-      let name: string | null = null
-      const metricas: Record<string, number> = {}
-      ;(row as any[]).forEach((cell: any, idx: number) => {
-        const f = colMap[idx]
-        if (!f || cell === null || cell === '') return
-        if (f === '__name__') { name = String(cell).trim(); return }
-        if (f === 'duracion_min') {
-          const durStr = String(cell).trim()
-          const durMatch = durStr.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/)
-          if (durMatch) {
-            const h = durMatch[3] ? parseInt(durMatch[1]) : 0
-            const m = durMatch[3] ? parseInt(durMatch[2]) : parseInt(durMatch[1])
-            const s = durMatch[3] ? parseInt(durMatch[3]) : parseInt(durMatch[2])
-            const totalMin = h * 60 + m + s / 60
-            if (totalMin > 0) metricas[f] = Math.round(totalMin * 10) / 10
-            return
-          }
+
+  const playerRows: Record<string, any> = {}
+
+  raw.slice(1).forEach(row => {
+    if (!row.some((c: any) => c !== null && c !== '')) return
+    
+    let name: string | null = null
+    const metricas: Record<string, number> = {}
+    
+    ;(row as any[]).forEach((cell: any, idx: number) => {
+      const f = colMap[idx]
+      if (!f || cell === null || cell === '') return
+      if (f === '__name__') { name = String(cell).trim(); return }
+      
+      if (f === 'duracion_min') {
+        const durStr = String(cell).trim()
+        const durMatch = durStr.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/)
+        if (durMatch) {
+          const h = durMatch[3] ? parseInt(durMatch[1]) : 0
+          const m = durMatch[3] ? parseInt(durMatch[2]) : parseInt(durMatch[1])
+          const s = durMatch[3] ? parseInt(durMatch[3]) : parseInt(durMatch[2])
+          const totalMin = h * 60 + m + s / 60
+          if (totalMin > 0) metricas[f] = Math.round(totalMin * 10) / 10
+          return
         }
-        const n = parseFloat(String(cell).replace(',', '.'))
-        if (!isNaN(n)) metricas[f] = n
-      })
-      if (!name) return null
-      const nl = name.toLowerCase()
-      const isAggregate = ['team', 'average', 'promedio', 'total', 'equipo', 'media',
-        'squad', 'mean', 'promedio equipo', 'team average'].some(k => nl === k || nl.startsWith(k + ' ') || nl.endsWith(' ' + k))
-      if (isAggregate) return null
-      if (Object.keys(metricas).length === 0) return null
-      return { nombre_catapult: name, nombre_norm: normalizeName(name), metricas }
-    }).filter(Boolean) as any[]
+      }
+
+      let cleanNumStr = String(cell).replace(/\s/g, '').replace(/;/g, '')
+      if (/\d+\.\d+,\d+/.test(cleanNumStr)) {
+        cleanNumStr = cleanNumStr.replace(/\./g, '').replace(',', '.')
+      } else {
+        cleanNumStr = cleanNumStr.replace(',', '.')
+      }
+
+      const n = parseFloat(cleanNumStr)
+      if (!isNaN(n)) metricas[f] = n
+    })
+
+    if (!name) return
+    const nl = name.toLowerCase()
+    const isAggregate = ['team', 'average', 'promedio', 'total', 'equipo', 'media',
+      'squad', 'mean', 'promedio equipo', 'team average'].some(k => nl === k || nl.startsWith(k + ' ') || nl.endsWith(' ' + k))
+    if (isAggregate) return
+    if (Object.keys(metricas).length === 0) return
+
+    const finalNameNorm = normalizeName(name)
+    const distTotalActual = metricas.dist_total || 0
+    
+    if (!playerRows[finalNameNorm] || distTotalActual > (playerRows[finalNameNorm].metricas.dist_total || 0)) {
+      playerRows[finalNameNorm] = { 
+        nombre_catapult: cleanCatapultName(name), 
+        nombre_norm: finalNameNorm, 
+        metricas 
+      }
+    }
+  })
+
+  return Object.values(playerRows)
 }
 
 function parseExcel(bytes: Uint8Array): Record<string, any>[] {
@@ -318,7 +340,6 @@ function parsePdfFromText(lines: string[]): Record<string, any>[] {
   let lastNameFound: string | null = null
   let pendingMetrics: Record<string, number> | null = null
 
-  // Filtro definitivo para bloquear el secuestro de métricas por texto basura
   const isGarbageHeader = (s: string) => {
     const n = normStr(s)
     const exactMatch = ['promedio', 'max', 'average', 'total', 'media', 'min'].includes(n)
@@ -337,7 +358,6 @@ function parsePdfFromText(lines: string[]): Record<string, any>[] {
     const numericParts = parts.slice(dataStart)
     let nameFromLine = parts.slice(0, dataStart).join(' ').trim()
     
-    // Limpieza agresiva de fechas y "PAGE X OF Y" que se pegan a los nombres
     nameFromLine = nameFromLine.replace(/^[\d\/\-]+\s*/, '').trim()
     nameFromLine = nameFromLine.replace(/^(PAGE|page)\s*\d+\s*(OF|of)\s*\d*\s*/i, '').trim()
 
@@ -358,14 +378,12 @@ function parsePdfFromText(lines: string[]): Record<string, any>[] {
           results.push({ nombre_catapult: cleanName, nombre_norm: normalizeName(cleanName), metricas })
           pendingMetrics = null
         } else {
-          // Destruimos las métricas si el nombre resultó ser basura (ej. Promedio)
           pendingMetrics = null
         }
       } else {
-        // Encontramos métricas huérfanas (ej. Enoch fragmentado), las guardamos para la siguiente línea
         pendingMetrics = metricas
       }
-      lastNameFound = null // Reiniciamos para evitar que robe en la próxima iteración
+      lastNameFound = null
     } else if (nameFromLine.length > 2 && /[a-zA-Z]/.test(nameFromLine)) {
       if (!isGarbageHeader(nameFromLine)) {
         if (pendingMetrics) {
@@ -376,14 +394,13 @@ function parsePdfFromText(lines: string[]): Record<string, any>[] {
           lastNameFound = nameFromLine
         }
       } else {
-        lastNameFound = null // Destruimos los encabezados basura (ej. CUADRO RESUMEN)
+        lastNameFound = null 
       }
     }
   }
   return results
 }
 
-// NUEVO MOTOR MAESTRO: Ejecuta todos los analizadores y se queda con el mejor resultado
 function parsePdfAllMethods(rawText: string): Record<string, any>[] {
   const lines = rawText.split('\n').map(l => l.trim()).filter(Boolean)
   
@@ -392,16 +409,13 @@ function parsePdfAllMethods(rawText: string): Record<string, any>[] {
   const resCuadro = parsePdfCuadroResumen(lines) || []
   const resBlob = parsePdfBlobColumnar(lines) || []
 
-  // Filtramos los métodos que devolvieron resultados
   const options = [resText, resRow, resCuadro, resBlob].filter(arr => arr && arr.length > 0)
   
   if (options.length === 0) return []
 
-  // Ordenamos para quedarnos con el método que rescató la MAYOR CANTIDAD de jugadores
   options.sort((a, b) => b.length - a.length)
   const bestResult = options[0]
 
-  // Eliminamos cualquier posible jugador duplicado que se haya filtrado
   const uniquePlayers: Record<string, any>[] = []
   const seenNames = new Set<string>()
   for (const row of bestResult) {
@@ -439,7 +453,7 @@ export async function POST(req: NextRequest) {
     const { fecha, tipo_sesion, sesion_id, confirm, pdfText, rows } = body
     if (!fecha) return NextResponse.json({ error: 'Falta fecha' }, { status: 400 })
     
-    // Llamada al nuevo Motor Maestro
+    // Llamada al Motor Maestro de PDF o al Nuevo Motor Excel de UBICO/CATAPULT
     let parsedRows = (rows && Array.isArray(rows)) ? parseRawRows(rows) : (pdfText ? parsePdfAllMethods(pdfText) : [])
     
     if (!parsedRows.length) return NextResponse.json({ error: 'No se encontraron datos.' }, { status: 400 })
@@ -451,7 +465,6 @@ export async function POST(req: NextRequest) {
     const clubId = s.clubId ? Number(s.clubId) : null
     
     if (clubId) {
-      // FIX: Borrado ultra agresivo para matar los datos duplicados de pruebas anteriores.
       await sql`DELETE FROM gps_logs WHERE club_id = ${clubId} AND fecha = ${fecha}::date AND sesion_id = ${sesion_id}`
       
       for (const m of matched) {
