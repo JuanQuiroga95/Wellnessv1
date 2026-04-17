@@ -7166,12 +7166,13 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
         )}
       </div>
       {/* ══ CUADRO 5: ÍNDICE DE CARGA (CIV) ════════════════════════════ */}
-      {Object.keys(refMedia).length > 0 && existingMdLabels.size > 0 && (() => {
-        // SUMA = suma de los promedios de todas las sesiones MD del microciclo
+      {Object.keys(refMedia).length > 0 && (() => {
+        // SUMA = suma de los promedios de sesiones de entrenamiento (excluye MD)
         // MD = dato del partido (refMedia)
         // CIV = SUMA / MD → 1=igual al partido, 2=doble, etc.
+        const trainingMdsCalc = mdCols.filter(md => md !== 'MD' && existingMdLabels.has(md))
         const civData = VARS.map(v => {
-          const suma = mdCols.reduce((acc, md) => acc + (Number(perSession[md]?.[v.key]) || 0), 0)
+          const suma = trainingMdsCalc.reduce((acc, md) => acc + (Number(perSession[md]?.[v.key]) || 0), 0)
           const md = refMedia[v.key] || 0
           const civ = md > 0 ? Math.round((suma / md) * 100) / 100 : null
           return { ...v, suma: Math.round(suma), md, civ }
@@ -7325,6 +7326,7 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
       const nr = [...partidoRefs]
       nr[slotIdx] = { dist_total:avg.dist_total||0, dist_per_min:avg.dist_per_min||0, dist_hir:avg.dist_hir||0,
         dist_v4:avg.dist_v4||0, dist_v5:avg.dist_v5||0, max_velocity:avg.max_velocity||0,
+        n_sprints:avg.n_sprints||0,
         acc2:avg.acc2||0, dec2:avg.dec2||0, acc3:avg.acc3||0, dec3:avg.dec3||0 }
       setPartidoRefs(nr)
     } catch(e){}
@@ -7903,7 +7905,6 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
       {/* ══ CUADRO 5: ÍNDICE DE CARGA GPS (CIV) ══════════════════════════ */}
       {Object.keys(refMedia).length > 0 && (() => {
         const trainingMds = mdCols.filter(md => md !== 'MD' && existingMdLabels.has(md) && (gpsPerMD[md]||[]).length > 0)
-        if (!trainingMds.length) return null
 
         const civData = GPS_VARS.map(v => {
           // SUMA = sum of team avg across all training MDs (for cumulative) or avg (for avg fields)
