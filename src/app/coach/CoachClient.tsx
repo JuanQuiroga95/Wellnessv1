@@ -798,25 +798,25 @@ function CambioCargaPanel() {
     { key:'uce',             label:'UCE',             color:'#f59e0b', src:'rpe' },
     { key:'rpe',             label:'RPE',             color:'#60a5fa', src:'rpe' },
     { key:'tiempo',          label:'Tiempo (min)',     color:'#34d399', src:'rpe' },
-    { key:'calc_distTotal',  label:'DT (m)',           color:'#fbbf24', src:'calc' },
-    { key:'calc_distSprint', label:'Dist. Sprint (m)', color:'#f97316', src:'calc' },
-    { key:'calc_nSprints',   label:'Nº Sprint',        color:'#a78bfa', src:'calc' },
-    { key:'calc_nAcel',      label:'ACE >2 (m)',        color:'#ec4899', src:'calc' },
-    { key:'calc_nDecel',     label:'DEC >2 (m)',        color:'#14b8a6', src:'calc' },
-    { key:'calc_nAcel3',     label:'ACE >3 (n)',        color:'#f43f5e', src:'calc' },
-    { key:'calc_nDecel3',    label:'DEC >3 (n)',        color:'#0ea5e9', src:'calc' },
+    { key:'calc_nSprints',   label:'Nº Sprint (calc)', color:'#a78bfa', src:'calc' },
+    { key:'calc_nAcel',      label:'ACE 2-3 (calc)',   color:'#ec4899', src:'calc' },
+    { key:'calc_nDecel',     label:'DEC 2-3 (calc)',   color:'#14b8a6', src:'calc' },
+    { key:'calc_nAcel3',     label:'ACE >3 (calc)',    color:'#f43f5e', src:'calc' },
+    { key:'calc_nDecel3',    label:'DEC >3 (calc)',    color:'#0ea5e9', src:'calc' },
     { key:'calc_distMP',     label:'Alta Pot. (m)',    color:'#fb923c', src:'calc' },
   ]
   const CHART_VARS_GPS = [
-    { key:'distTotal',   label:'Dist. Total',    color:'#f59e0b', src:'gps' },
-    { key:'distPerMin',  label:'m/min',           color:'#84cc16', src:'gps' },
-    { key:'distV4',      label:'Vel B4',          color:'#a78bfa', src:'gps' },
-    { key:'distHir',     label:'HSR (High Speed)',color:'#f97316', src:'gps' },
-    { key:'distV5',      label:'Vel B6',          color:'#e879f9', src:'gps' },
-    { key:'maxVelocity', label:'Vel. Máx',        color:'#ef4444', src:'gps' },
-    { key:'nSprints',    label:'Nº Sprints',      color:'#22d3ee', src:'gps' },
-    { key:'acc2',        label:'ACE >2 (n)',       color:'#ec4899', src:'gps' },
-    { key:'dec2',        label:'DEC >2 (n)',       color:'#14b8a6', src:'gps' },
+    { key:'distTotal',   label:'Dist. Total (GPS)',  color:'#f59e0b', src:'gps' },
+    { key:'distPerMin',  label:'m/min',              color:'#84cc16', src:'gps' },
+    { key:'distV4',      label:'Vel B4 (m)',          color:'#a78bfa', src:'gps' },
+    { key:'distHir',     label:'HSR (m)',             color:'#f97316', src:'gps' },
+    { key:'distV5',      label:'Vel B6 (m)',          color:'#e879f9', src:'gps' },
+    { key:'maxVelocity', label:'Vel. Máx (km/h)',    color:'#ef4444', src:'gps' },
+    { key:'nSprintsGps', label:'Nº Sprints (GPS)',   color:'#22d3ee', src:'gps' },
+    { key:'acc2',        label:'ACE 2-3 (n)',         color:'#ec4899', src:'gps' },
+    { key:'dec2',        label:'DEC 2-3 (n)',         color:'#14b8a6', src:'gps' },
+    { key:'acc3gps',     label:'ACE >3 (n)',          color:'#f43f5e', src:'gps' },
+    { key:'dec3gps',     label:'DEC >3 (n)',          color:'#0ea5e9', src:'gps' },
   ]
   const CHART_VARS = [...CHART_VARS_CALC, ...CHART_VARS_GPS]
 
@@ -890,13 +890,17 @@ function CambioCargaPanel() {
       return vals.length ? Math.round(vals.reduce((a,b)=>a+b,0)/n*10)/10 : 0
     }
     const realGps = {
-      dist_hir: avgField('dist_hir'),
-      dist_v4:  avgField('dist_v4'),
-      dist_v5:  avgField('dist_v5'),
+      dist_total:   avgField('dist_total'),
+      dist_hir:     avgField('dist_hir'),
+      dist_v4:      avgField('dist_v4'),
+      dist_v5:      avgField('dist_v5'),
       max_velocity: avgField('max_velocity'),
       dist_per_min: avgField('dist_per_min'),
-      acc2_real: avgField('acc2'),
-      dec2_real: avgField('dec2'),
+      n_sprints:    avgField('n_sprints'),
+      acc2_real:    avgField('acc2'),
+      dec2_real:    avgField('dec2'),
+      acc3_real:    avgField('acc3'),
+      dec3_real:    avgField('dec3'),
     }
     if (gpsDailyMap[s.fecha]) {
       Object.assign(gpsDailyMap[s.fecha], realGps)
@@ -928,14 +932,15 @@ function CambioCargaPanel() {
     }
   })
 
-  const GPS_KEYS = ['distTotal','distHir','distV4','distV5','nSprints','acc2','dec2','maxVelocity','distPerMin']
+  const GPS_KEYS = ['distTotal','distHir','distV4','distV5','nSprintsGps','acc2','dec2','acc3gps','dec3gps','maxVelocity','distPerMin']
   // Keys as they appear in gpsDailyMap:
   // - camelCase calc keys: distTotal, distSprint, nSprints, nAcel, nDecel
   // - real GPS keys merged above: dist_hir, dist_v4, dist_v5, max_velocity, dist_per_min, acc2_real, dec2_real
   const GPS_FIELD_MAP: Record<string,string> = {
-    distTotal:'distTotal',       distHir:'dist_hir',      distV4:'dist_v4',
-    distV5:'dist_v5',            nSprints:'nSprints',     acc2:'acc2_real',
-    dec2:'dec2_real',            maxVelocity:'max_velocity', distPerMin:'dist_per_min',
+    distTotal:'dist_total',      distHir:'dist_hir',      distV4:'dist_v4',
+    distV5:'dist_v5',            nSprintsGps:'n_sprints', acc2:'acc2_real',
+    dec2:'dec2_real',            acc3gps:'acc3_real',     dec3gps:'dec3_real',
+    maxVelocity:'max_velocity',  distPerMin:'dist_per_min',
   }
   const getRowVal = (row: any) => {
     if (chartVar === 'ua') return row.avg_ua||0
