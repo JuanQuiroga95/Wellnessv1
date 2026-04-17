@@ -797,27 +797,26 @@ function CambioCargaPanel() {
     { key:'ua',              label:'UA',              color:'#c8f135', src:'rpe' },
     { key:'uce',             label:'UCE',             color:'#f59e0b', src:'rpe' },
     { key:'rpe',             label:'RPE',             color:'#60a5fa', src:'rpe' },
-    { key:'tiempo',          label:'Tiempo (min)',    color:'#34d399', src:'rpe' },
-    { key:'calc_distTotal',  label:'DT Calc (m)',     color:'#fbbf24', src:'calc' },
-    { key:'calc_distSprint', label:'Sprint Calc (m)', color:'#f97316', src:'calc' },
-    { key:'calc_nSprints',   label:'Nº Sprint Calc',  color:'#a78bfa', src:'calc' },
-    { key:'calc_nAcel',      label:'ACE >2 Calc (m)', color:'#ec4899', src:'calc' },
-    { key:'calc_nDecel',     label:'DEC >2 Calc (m)', color:'#14b8a6', src:'calc' },
-    { key:'calc_nAcel3',     label:'ACE >3 Calc (n)', color:'#f43f5e', src:'calc' },
-    { key:'calc_nDecel3',    label:'DEC >3 Calc (n)', color:'#0ea5e9', src:'calc' },
-    { key:'calc_distMP',     label:'Alta Pot. Calc',  color:'#fb923c', src:'calc' },
+    { key:'tiempo',          label:'Tiempo (min)',     color:'#34d399', src:'rpe' },
+    { key:'calc_distTotal',  label:'DT (m)',           color:'#fbbf24', src:'calc' },
+    { key:'calc_distSprint', label:'Dist. Sprint (m)', color:'#f97316', src:'calc' },
+    { key:'calc_nSprints',   label:'Nº Sprint',        color:'#a78bfa', src:'calc' },
+    { key:'calc_nAcel',      label:'ACE >2 (m)',        color:'#ec4899', src:'calc' },
+    { key:'calc_nDecel',     label:'DEC >2 (m)',        color:'#14b8a6', src:'calc' },
+    { key:'calc_nAcel3',     label:'ACE >3 (n)',        color:'#f43f5e', src:'calc' },
+    { key:'calc_nDecel3',    label:'DEC >3 (n)',        color:'#0ea5e9', src:'calc' },
+    { key:'calc_distMP',     label:'Alta Pot. (m)',    color:'#fb923c', src:'calc' },
   ]
-
   const CHART_VARS_GPS = [
-    { key:'gps_dist_total',   label:'Dist. Total',      color:'#f59e0b', src:'gps' },
-    { key:'gps_dist_per_min', label:'m/min',            color:'#84cc16', src:'gps' },
-    { key:'gps_dist_v4',      label:'Vel B4',           color:'#a78bfa', src:'gps' },
-    { key:'gps_dist_hir',     label:'HSR (High Speed)', color:'#f97316', src:'gps' },
-    { key:'gps_dist_v5',      label:'Vel B6',           color:'#e879f9', src:'gps' },
-    { key:'gps_max_velocity', label:'Vel. Máx',         color:'#ef4444', src:'gps' },
-    { key:'gps_n_sprints',    label:'Nº Sprints',       color:'#22d3ee', src:'gps' },
-    { key:'gps_acc2',         label:'ACE 2-3 (n)',      color:'#ec4899', src:'gps' },
-    { key:'gps_dec2',         label:'DEC 2-3 (n)',      color:'#14b8a6', src:'gps' },
+    { key:'distTotal',   label:'Dist. Total',    color:'#f59e0b', src:'gps' },
+    { key:'distPerMin',  label:'m/min',           color:'#84cc16', src:'gps' },
+    { key:'distV4',      label:'Vel B4',          color:'#a78bfa', src:'gps' },
+    { key:'distHir',     label:'HSR (High Speed)',color:'#f97316', src:'gps' },
+    { key:'distV5',      label:'Vel B6',          color:'#e879f9', src:'gps' },
+    { key:'maxVelocity', label:'Vel. Máx',        color:'#ef4444', src:'gps' },
+    { key:'nSprints',    label:'Nº Sprints',      color:'#22d3ee', src:'gps' },
+    { key:'acc2',        label:'ACE >2 (n)',       color:'#ec4899', src:'gps' },
+    { key:'dec2',        label:'DEC >2 (n)',       color:'#14b8a6', src:'gps' },
   ]
   const CHART_VARS = [...CHART_VARS_CALC, ...CHART_VARS_GPS]
 
@@ -855,15 +854,18 @@ function CambioCargaPanel() {
     return 'rgba(96,165,250,.1)'
   }
 
+  // Build GPS daily map from perSession (keyed by MD label) — we match by fecha
   const gpsDailyMap: Record<string,any> = {}
   const gpsPerSession = gpsData?.perSession || {}
   const gpsSesionesInfo = gpsData?.sesionesInfo || []
   gpsSesionesInfo.forEach((s:any) => {
     if (!s.fecha) return
+    // Buscar por titulo primero, luego por fecha (cuando la sesión no tiene título asignado)
     const key = s.titulo || s.fecha
     const entry = gpsPerSession[key]
     if (!entry) return
     if (gpsDailyMap[s.fecha]) {
+      // Acumular si hay 2+ sesiones el mismo día
       Object.keys(entry).forEach((k: string) => {
         if (typeof entry[k] === 'number') {
           gpsDailyMap[s.fecha][k] = (gpsDailyMap[s.fecha][k] || 0) + entry[k]
@@ -874,6 +876,8 @@ function CambioCargaPanel() {
     }
   })
 
+  // Merge real GPS aggregates (dist_hir, dist_v4, dist_v5, max_velocity, dist_per_min, acc2, dec2)
+  // from gpsPerMD into gpsDailyMap so GPS-source chart vars work correctly
   const gpsPerMDCC: Record<string,any[]> = gpsData?.gpsPerMD || {}
   const gpsSesInfoCC: any[] = gpsData?.sesionesInfo || []
   gpsSesInfoCC.forEach((s:any) => {
@@ -891,6 +895,8 @@ function CambioCargaPanel() {
       dist_v5:  avgField('dist_v5'),
       max_velocity: avgField('max_velocity'),
       dist_per_min: avgField('dist_per_min'),
+      acc2_real: avgField('acc2'),
+      dec2_real: avgField('dec2'),
     }
     if (gpsDailyMap[s.fecha]) {
       Object.assign(gpsDailyMap[s.fecha], realGps)
@@ -899,6 +905,7 @@ function CambioCargaPanel() {
     }
   })
 
+  // Construir mapa semanal acumulando GPS por semana ISO (para vista semanal)
   const _fechaToWeekKey = (dateStr: string) => {
     const d = new Date(dateStr + 'T12:00:00Z')
     const day = d.getUTCDay() || 7
@@ -921,6 +928,13 @@ function CambioCargaPanel() {
     }
   })
 
+  const GPS_KEYS = ['distTotal','distHir','distV4','distV5','nSprints','acc2','dec2','maxVelocity','distPerMin']
+  // GPS_FIELD_MAP para métricas que NO vienen directo en row (dist_hir, dist_v4, etc.)
+  // distTotal, nSprints, acc2, dec2 vienen directo en row (del API cambio-carga)
+  const GPS_FIELD_MAP_SESSION: Record<string,string> = {
+    distHir:'dist_hir',      distV4:'dist_v4',
+    distV5:'dist_v5',        maxVelocity:'max_velocity', distPerMin:'dist_per_min',
+  }
   const getRowVal = (row: any) => {
     if (chartVar === 'ua') return row.avg_ua||0
     if (chartVar === 'uce') return row.avg_uce||0
@@ -929,9 +943,9 @@ function CambioCargaPanel() {
       const rpe = row.avg_rpe || 0
       return rpe > 0 ? Math.round((row.avg_ua || 0) / rpe) : 0
     }
-    
     if (chartVar.startsWith('calc_')) {
       const key = chartVar.replace('calc_','')
+      // Mapeo directo desde gpsDailyMap (datos reales de sesión planificada)
       const SESSION_KEY_MAP: Record<string,string> = {
         distTotal: 'distTotal', distSprint: 'distSprint', nSprints: 'nSprints',
         nAcel: 'nAcel', nDecel: 'nDecel', distMP: 'distMP',
@@ -949,13 +963,14 @@ function CambioCargaPanel() {
       }
       return 0
     }
-
-    if (chartVar.startsWith('gps_')) {
-      const field = chartVar.replace('gps_', '')
-      if (['dist_total', 'n_sprints', 'acc2', 'dec2'].includes(field)) {
-         return Math.round(Number(row[field]) || 0)
-      }
-      
+    if (GPS_KEYS.includes(chartVar)) {
+      // distTotal, nSprints, acc2, dec2 vienen directamente en row del API cambio-carga
+      if (chartVar === 'distTotal') return Math.round(Number(row.dist_total) || 0)
+      if (chartVar === 'nSprints')  return Math.round(Number(row.n_sprints)  || 0)
+      if (chartVar === 'acc2')      return Math.round(Number(row.acc2)       || 0)
+      if (chartVar === 'dec2')      return Math.round(Number(row.dec2)       || 0)
+      // El resto (distHir, distV4, distV5, maxVelocity, distPerMin) viene de gpsDailyMap
+      const field = GPS_FIELD_MAP_SESSION[chartVar] || chartVar
       if (view === 'diario') {
         const gps = gpsDailyMap[row.fecha]
         return gps ? Math.round(Number(gps[field]) || 0) : 0
@@ -966,25 +981,33 @@ function CambioCargaPanel() {
     }
     return 0
   }
-  
   const maxUA = Math.max(...rows.map((r: any) => getRowVal(r)), 1)
   const chartColor = CHART_VARS.find(v=>v.key===chartVar)?.color || '#c8f135'
 
+  // Recalculate pct_change based on the SELECTED variable (not always UA)
+  // Compare each row to the last row that had a non-zero value
   const rowsWithPct = rows.map((row: any, i: number) => {
     const val = getRowVal(row)
+    // Find the last PREVIOUS row that had training data (any non-zero value for this variable,
+    // or fall back to any previous row if none has this variable data)
     let prevVal: number | null = null
+    // First try: last row where this variable had data > 0
     for (let j = i - 1; j >= 0; j--) {
       const pv = getRowVal(rows[j])
       if (pv > 0) { prevVal = pv; break }
     }
+    // If no previous row had this GPS variable > 0, but current > 0 → first occurrence
+    // Check if there was ANY previous row at all (even with val=0)
     const hasPrevRow = i > 0
     let pct: number | null = null
     if (hasPrevRow) {
       if (prevVal === null && val > 0) {
+        // Current is the first nonzero — compare to 0 = +100%
         pct = 100
       } else if (prevVal !== null) {
         if (prevVal > 0 && val === 0) pct = -100
         else if (prevVal > 0 && val > 0) pct = Math.round(((val - prevVal) / prevVal) * 100)
+        // prevVal > 0 handled above; prevVal null already handled
       }
     }
     return { ...row, _pct: pct, _val: val }
@@ -995,10 +1018,11 @@ function CambioCargaPanel() {
       <div>
         <h2 className="display" style={{ fontSize:48, color:'var(--snow)' }}>CAMBIO DE CARGA</h2>
         <p style={{ fontSize:12, color:'var(--silver)', marginTop:2 }}>
-          Variación de Carga Acumulada — jugadores con ≥{minEnt}min entrenamiento y ≥{minPart}min en partido
+          Variación de UCE acumulada — jugadores con ≥{minEnt}min entrenamiento y ≥{minPart}min en partido
         </p>
       </div>
 
+      {/* Filters */}
       <div style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:14, padding:16 }}>
         <div style={{ display:'flex', gap:12, flexWrap:'wrap', alignItems:'flex-end' }}>
           {[['desde','Desde',desde,setDesde,'date'],['hasta','Hasta',hasta,setHasta,'date']].map(([id,lbl,val,setter,type]: any)=>(
@@ -1015,10 +1039,11 @@ function CambioCargaPanel() {
             <label style={{ display:'block', fontSize:10, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:5 }}>Min. Partido</label>
             <input type="number" min={0} max={120} className="wp-input" style={{ width:100, padding:'8px 12px', fontSize:13 }} value={minPart} onChange={e=>setMinPart(Number(e.target.value))} />
           </div>
-          <button className="btn-ghost" style={{ fontSize:12, padding:'8px 14px' }} onClick={()=>load()}>Actualizar</button>
+          <button className="btn-ghost" style={{ fontSize:12, padding:'8px 14px' }} onClick={load}>Actualizar</button>
         </div>
       </div>
 
+      {/* View toggle */}
       <div style={{ display:'flex', gap:8 }}>
         {(['diario','semanal'] as const).map(v=>(
           <button key={v} onClick={()=>setView(v)} style={{ fontSize:12, padding:'7px 16px', borderRadius:10, cursor:'pointer', border: view===v?'2px solid var(--lime)':'1px solid var(--fog)', background: view===v?'rgba(200,241,53,.1)':'var(--ink2)', color: view===v?'var(--lime)':'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', fontWeight:600 }}>
@@ -1027,9 +1052,10 @@ function CambioCargaPanel() {
         ))}
       </div>
 
+      {/* Variable selector — dos grupos: Calculadora y GPS */}
       <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
         <div>
-          <div style={{ fontSize:10, color:'#c8f135', textTransform:'uppercase', letterSpacing:'0.06em', fontWeight:700, marginBottom:6 }}>🏋️ Calculadora (Teórico)</div>
+          <div style={{ fontSize:10, color:'#c8f135', textTransform:'uppercase', letterSpacing:'0.06em', fontWeight:700, marginBottom:6 }}>🏋️ Calculadora</div>
           <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
             {CHART_VARS_CALC.map(v=>(
               <button key={v.key} onClick={()=>setChartVar(v.key as any)}
@@ -1044,7 +1070,7 @@ function CambioCargaPanel() {
           </div>
         </div>
         <div>
-          <div style={{ fontSize:10, color:'#60a5fa', textTransform:'uppercase', letterSpacing:'0.06em', fontWeight:700, marginBottom:6 }}>📡 GPS (Datos Reales)</div>
+          <div style={{ fontSize:10, color:'#60a5fa', textTransform:'uppercase', letterSpacing:'0.06em', fontWeight:700, marginBottom:6 }}>📡 GPS</div>
           <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
             {CHART_VARS_GPS.map(v=>(
               <button key={v.key} onClick={()=>setChartVar(v.key as any)}
@@ -1060,6 +1086,7 @@ function CambioCargaPanel() {
         </div>
       </div>
 
+      {/* Legend */}
       <div style={{ display:'flex', gap:14, flexWrap:'wrap', paddingLeft:4 }}>
         {[['#22c55e','−5% a +15%: Normal'],['#ef4444','>+15%: Aumento alto'],['#60a5fa','<−5%: Reducción notable']].map(([c,l])=>(
           <div key={l} style={{ display:'flex', alignItems:'center', gap:6, fontSize:11, color:'var(--silver)' }}>
@@ -1073,6 +1100,7 @@ function CambioCargaPanel() {
         : rows.length === 0
           ? <div style={{ padding:40, textAlign:'center', color:'var(--silver)' }}>Sin datos para el período seleccionado.<br /><span style={{ fontSize:11 }}>Verificá que haya jugadores con ≥{minEnt}min entrenamiento y ≥{minPart}min en partido.</span></div>
           : <>
+              {/* Summary cards */}
               {rowsWithPct.length >= 2 && (() => {
                 const last = rowsWithPct[rowsWithPct.length - 1]
                 const prev = rowsWithPct.slice(0, -1).reverse().find((r:any) => r._val > 0) || rowsWithPct[rowsWithPct.length - 2]
@@ -1103,6 +1131,7 @@ function CambioCargaPanel() {
                 )
               })()}
 
+              {/* Bar chart */}
               <div style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:16, padding:'16px 18px' }}>
                 <p style={{ fontSize:10, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:14 }}>
                   {CHART_VARS.find(v=>v.key===chartVar)?.label} — {view === 'diario' ? 'por día' : 'por semana'}
@@ -1132,6 +1161,7 @@ function CambioCargaPanel() {
                 </div>
               </div>
 
+              {/* Table */}
               <div style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:16, overflow:'hidden' }}>
                 <div style={{ display:'grid', gridTemplateColumns: view==='diario' ? '1fr 120px 120px 120px' : '1fr 1fr 120px 120px', gap:0, padding:'10px 18px', borderBottom:'1px solid var(--mist)' }}>
                   {(view==='diario'
@@ -1148,7 +1178,7 @@ function CambioCargaPanel() {
                     </span>
                     {view === 'diario'
                       ? <span style={{ fontSize:11, color:'var(--silver)' }} title={row.players?.join(', ')}>
-                          {row.count > 0 ? `${row.count} jugadores` : <span style={{ color:'var(--fog)', fontStyle:'italic' }}>Sin RPE/GPS</span>}
+                          {row.count > 0 ? `${row.count} jugadores` : <span style={{ color:'var(--fog)', fontStyle:'italic' }}>Sin RPE</span>}
                         </span>
                       : <span style={{ fontSize:11, color:'var(--silver)' }}>{row.label}</span>
                     }
@@ -1162,6 +1192,7 @@ function CambioCargaPanel() {
                 ))}
               </div>
 
+              {/* Interpretation guide */}
               <div style={{ background:'rgba(200,241,53,.04)', border:'1px solid rgba(200,241,53,.12)', borderRadius:12, padding:'14px 18px' }}>
                 <p style={{ fontSize:10, fontWeight:700, color:'var(--lime)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:8 }}>Guía de interpretación</p>
                 <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(200px,1fr))', gap:6 }}>
@@ -1185,6 +1216,7 @@ function CambioCargaPanel() {
     </div>
   )
 }
+
 // ── CALENDARIO PANEL ──────────────────────────────────────────────────────────
 
 const OBJETIVOS_FISICOS = ['Fuerza','Resistencia','Velocidad','Recuperación-Compensación','Recuperación','Competición']
@@ -1921,11 +1953,13 @@ function BloqueMetodologia({ bloque, index, onChange, onRemove, teamPlayers = []
   const jugadoresEquipos = Object.values(equipos).flat() as number[]
   const totalJugadoresEquipos = jugadoresEquipos.length
 
+  // Auto total from atacantes + defensores + comodines
   const atacantes = Number(bloque.atacantes) || 0
   const defensores = Number(bloque.defensores) || 0
   const comodines = Number(bloque.comodines) || 0
   const autoTotal = atacantes + defensores + comodines
 
+  // For partido types: prefer auto-total > manual jugadores > team selector
   const calcJugadores = autoTotal > 0 ? autoTotal : (Number(bloque.jugadores) || (esConEquipo ? totalJugadoresEquipos : 0))
   const calc = esConEspacio ? calcularDistancias(calcJugadores, Number(bloque.largo), Number(bloque.ancho), Number(bloque.series), Number(bloque.minutos)) : null
 
@@ -2015,6 +2049,7 @@ function BloqueMetodologia({ bloque, index, onChange, onRemove, teamPlayers = []
         </div>
       )}
 
+      {/* NE — Nivel de Especificidad */}
       {bloque.ventana && (
         <div style={{ marginBottom:8, background:'rgba(200,241,53,.04)', border:'1px solid rgba(200,241,53,.15)', borderRadius:8, padding:'8px 10px' }}>
           <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:6 }}>
@@ -2044,6 +2079,7 @@ function BloqueMetodologia({ bloque, index, onChange, onRemove, teamPlayers = []
             <div><label style={{ fontSize:9, fontWeight:700, color:'#a855f7', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:2 }}>Comodines</label>{inp('comodines','Nº','number')}</div>
           </div>
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:6, marginBottom:6 }}>
+            {/* Jugadores: mostrar siempre — incluso para tipos con equipo (partido amistoso/oficial/entrenamiento) */}
             <div><label style={{ fontSize:9, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:2 }}>
                 Total jugadores
                 {autoTotal > 0 && <span style={{ marginLeft:6, fontSize:8, padding:'1px 5px', borderRadius:3, background:'rgba(200,241,53,.15)', color:'var(--lime)', border:'1px solid rgba(200,241,53,.3)' }}>Auto: {autoTotal}</span>}
@@ -2174,6 +2210,7 @@ function BloqueMetodologia({ bloque, index, onChange, onRemove, teamPlayers = []
         )
       })()}
 
+      {/* CE / UCE inline calculation display */}
       {bloque.ventana && (() => {
         const ne = bloque.ne ?? NE_DEFAULT[bloque.ventana] ?? 5
         const minutos = Number(bloque.minutos) || 0
@@ -2207,7 +2244,6 @@ function BloqueMetodologia({ bloque, index, onChange, onRemove, teamPlayers = []
     </div>
   )
 }
-
 function imprimirSesion(f: any, bloques: any[], teamPlayers: any[] = []) {
   const metricKeys = ['distTotal','distSprint','distMP','distAcel','distDecel','nSprints','nAcel','nDecel']
   const metricLabels = ['Dist. total','Sprint >21km/h','Alta pot. >20W/kg','Acel. >2m/s²','Decel. >-2m/s²','Nº sprints','Nº acel. >3m/s²','Nº decel. >-3m/s²']
@@ -7333,7 +7369,9 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
     })
   })()
   const MD_ORDER_LOCAL = ['MD+1','MD+2','MD+3','MD-4','MD-3','MD-2','MD-1','MD']
-  const existingMdLabels = new Set(sesionesInfo.map((s:any) => s.titulo))
+  // FIX: partidos must never appear as training MD columns (sesionesInfo already filtered backend-side, but guard here too)
+  const sesionesEntrenamiento = sesionesInfo.filter((s:any) => s.tipo !== 'partido')
+  const existingMdLabels = new Set(sesionesEntrenamiento.map((s:any) => s.titulo))
   const mdCols = MD_ORDER_LOCAL
 
   // Ref media (avg of 3 matches)
