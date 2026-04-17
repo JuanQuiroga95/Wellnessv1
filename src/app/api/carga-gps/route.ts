@@ -262,10 +262,12 @@ export async function GET(req: NextRequest) {
     for (const log of logs as any[]) { rpeByPlayerDate[`${log.jugador_id}_${log.fecha}`] = log }
     
     // sesionesInfo: includes ALL sessions (entrenamiento + partido) so the frontend
-    // can show the MD column. The calc loops (perSession, cePerSession, gpsPorFecha)
-    // already skip partidos individually — sesionesInfo is only used for display/lookup.
+    // can show the MD column. Partidos with no titulo default to 'MD'.
     const sesionesInfo = (sesiones as any[])
-      .map(s => ({ id: s.id, fecha: s.fecha, titulo: s.titulo || s.fecha, rpe_objetivo: s.rpe_objetivo, tipo: s.tipo || 'entrenamiento' }))
+      .map(s => {
+        const defaultTitulo = s.tipo === 'partido' ? 'MD' : s.fecha
+        return { id: s.id, fecha: s.fecha, titulo: s.titulo || defaultTitulo, rpe_objetivo: s.rpe_objetivo, tipo: s.tipo || 'entrenamiento' }
+      })
     const perSessionPlayers: Record<string, any[]> = {}
     for (const ses of sesionesInfo) {
       perSessionPlayers[ses.titulo] = (todosJugadores as any[]).map((p: any) => {
