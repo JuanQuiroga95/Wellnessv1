@@ -98,6 +98,7 @@ export async function GET(req: NextRequest) {
     const desde = searchParams.get('desde') || localDaysAgo(7)
     const hasta = searchParams.get('hasta') || localToday()
     const ciclo = searchParams.get('ciclo') || 'microciclo'
+    const calcOnly = searchParams.get('calcOnly') === 'true'
 
     // FIX FECHA: Incluir todo el día seleccionado
     const hastaInc = hasta + ' 23:59:59.999'
@@ -264,7 +265,7 @@ export async function GET(req: NextRequest) {
     let allMetricCols: string[] = []
     const teamAvgGps: Record<string, number> = {}
 
-    if (clubId) {
+    if (clubId && !calcOnly) {
       const GPS_BASE_COLS = ['dist_total','dist_hir','dist_v4','dist_v5','player_load','max_velocity','acc2','dec2','acc3','dec3','dist_per_min','n_sprints','duracion_min']
       
       const gpsLogs = await sql`

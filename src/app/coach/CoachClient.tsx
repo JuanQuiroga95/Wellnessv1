@@ -6780,18 +6780,14 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
                       </div>
                       <div style={{ display:'grid', gridTemplateColumns:'1fr', gap:14 }}>
                         {GROUPS.map(grp => {
-                          // GPS bar keys: prefer real per-player GPS sensor data, fall back to session calculator
+                          // CALC panel: usa SIEMPRE datos de la calculadora (sesión planificada)
+                          // Los datos GPS reales se muestran en Ctrl. Carga GPS, no acá
                           const GPS_BAR_KEYS = new Set(['distTotal','distSprint','nSprints','nAcel','nDecel','distMP','nAcel3','nDecel3'])
-                          const mdGpsPlayers: any[] = gpsPerMD[md] || []
                           const getBarVal = (p: any, key: string) => {
-                            if (!GPS_BAR_KEYS.has(key)) return Number(p[key])||0
-                            const gpsPlayer = mdGpsPlayers.find((g:any) => g.jugador_id === p.jugador_id)
-                            if (gpsPlayer) {
-                              const realKey = GPS_REAL_KEY[key] || key
-                              const realVal = Number(gpsPlayer[realKey])
-                              if (!isNaN(realVal) && realVal > 0) return Math.round(realVal)
-                            }
-                            return Math.round(Number(sesData[key])||0)
+                            // Métricas GPS → valor calculado de la sesión (igual para todos los jugadores)
+                            if (GPS_BAR_KEYS.has(key)) return Math.round(Number(sesData[key])||0)
+                            // Métricas individuales (RPE, UA, tiempo) → dato real del jugador
+                            return Number(p[key])||0
                           }
                           const allBarVals = mdPlayers.flatMap((p:any) => grp.bars.map(b => getBarVal(p, b.key)))
                           const maxBar = Math.max(...allBarVals, 1)
