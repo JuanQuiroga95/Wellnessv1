@@ -7130,20 +7130,17 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
               </thead>
               <tbody>
                 {players.map((p:any,i:number)=>{
-                  // Sum only training sessions (exclude 'MD') for each player
+                  // CALC panel: GPS vars are team-level (from calculator), not per-player.
+                  // Sum training sessions only (exclude 'MD') from perSession (team avg = same for all players)
                   const trainingMds = mdCols.filter(md => md !== 'MD' && existingMdLabels.has(md))
-                  const getPlayerTrainingVal = (vk: string) => {
-                    if (trainingMds.length === 0) return 0
-                    return trainingMds.reduce((sum, md) => {
-                      const mdPlayerList: any[] = perSessionPlayers[md] || []
-                      const pData = mdPlayerList.find((x:any) => x.jugador_id === p.jugador_id)
-                      return sum + Math.round(Number(pData?.[vk])||0)
-                    }, 0)
-                  }
+                  const getTrainingVal = (vk: string) =>
+                    trainingMds.length > 0
+                      ? trainingMds.reduce((s, md) => s + (Number(perSession[md]?.[vk])||0), 0)
+                      : 0
                   return (
                     <tr key={i} style={{ borderTop:'1px solid var(--mist)', background:i%2===0?'transparent':'rgba(255,255,255,.015)' }}>
                       <td style={{ padding:'7px 14px', color:'var(--snow)', fontWeight:500, whiteSpace:'nowrap' }}>{p.nombre}</td>
-                      {VARS.filter(v=>refMedia[v.key]).map(v=>{ const pv=pct(getPlayerTrainingVal(v.key),v.key); return <td key={v.key} style={{ padding:'7px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:pv?600:400, color:pctColor(pv) }}>{pv!==null?`${pv}%`:'—'}</td> })}
+                      {VARS.filter(v=>refMedia[v.key]).map(v=>{ const pv=pct(getTrainingVal(v.key),v.key); return <td key={v.key} style={{ padding:'7px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:pv?600:400, color:pctColor(pv) }}>{pv!==null?`${pv}%`:'—'}</td> })}
                     </tr>
                   )
                 })}
@@ -7156,7 +7153,6 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
                 <tr style={{ borderTop:'2px solid rgba(239,68,68,.3)', background:'rgba(239,68,68,.05)' }}>
                   <td style={{ padding:'8px 14px', fontWeight:800, color:'#f87171', fontSize:10, textTransform:'uppercase' }}>Prom. Equipo</td>
                   {VARS.filter(v=>refMedia[v.key]).map(v=>{
-                    // teamAvg for training only: average of non-MD training sessions
                     const trainingMds = mdCols.filter(md => md !== 'MD' && existingMdLabels.has(md))
                     const trainingVal = trainingMds.length > 0
                       ? Math.round(trainingMds.reduce((s, md) => s + (Number(perSession[md]?.[v.key])||0), 0) / trainingMds.length)
