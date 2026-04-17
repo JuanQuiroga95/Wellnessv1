@@ -61,15 +61,30 @@ const METRIC_COL_MAP: Array<[string, string]> = [
 
 function matchMetricCol(h: string): string | null {
   const hn = normStr(h)
+  
+  // 1. Match Exacto (Prioridad Máxima): Atrapa "Tot Dist" sin confundirse.
   for (const [label, field] of METRIC_COL_MAP) {
-    if (hn.includes(normStr(label)) || hn === normStr(label)) return field
+    if (hn === normStr(label)) return field
+  }
+  
+  // 2. Match Parcial Seguro
+  for (const [label, field] of METRIC_COL_MAP) {
+    if (hn.includes(normStr(label))) {
+      // BLOQUEO UBICO: Si la columna es "distance_vrangeX", ignorarla para que NO sobreescriba la Distancia Total.
+      if (field === 'dist_total' && (hn.includes('vrange') || hn.includes('zone'))) continue
+      
+      // BLOQUEO UBICO: Evitar que "max_acc" pise el contador de aceleraciones normales.
+      if ((field === 'acc2' || field === 'dec2') && hn.includes('max')) continue
+      
+      return field
+    }
   }
   return null
 }
 
 const matchExcelCol = matchMetricCol
 
-// ─── NUEVO MOTOR EXCEL INTELIGENTE (UBICO/CATAPULT/WIMU) ───────────────
+// ─── MOTOR EXCEL INTELIGENTE (UBICO/CATAPULT/WIMU) ───────────────
 function parseRawRows(raw: any[][]): Record<string, any>[] {
   if (raw.length < 2) return []
   const headers = (raw[0] as any[]).map(h => String(h ?? ''))
@@ -263,7 +278,7 @@ function parsePdfCuadroResumen(lines: string[]): Record<string, any>[] | null {
     const firstNum = parseFloat(numericParts[0].replace(',', '.')); if (isNaN(firstNum) || firstNum < 500 || firstNum > 20000) continue
     
     let nameRaw = nameParts.join(' ').trim()
-    nameRaw = nameRaw.replace(/^[\d\/\-]+\s*/, '').trim() // Strip dates
+    nameRaw = nameRaw.replace(/^[\d\/\-]+\s*/, '').trim() 
     if (nameRaw.length < 2) continue
 
     const nameNorm2 = normStr(nameRaw)
