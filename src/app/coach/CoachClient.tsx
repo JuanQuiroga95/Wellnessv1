@@ -7985,7 +7985,6 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
     </div>
   )
 }
-}
 
 
 
