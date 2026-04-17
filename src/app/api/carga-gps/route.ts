@@ -224,7 +224,9 @@ export async function GET(req: NextRequest) {
     }
     const cePerSession: Record<string, any> = {}
     for (const ses of sesiones as any[]) {
-      const label = ses.tipo === 'partido' ? (ses.titulo || 'MD') : (ses.titulo || ses.fecha)
+      // FIX: Los partidos no se incluyen en carga específica de entrenamiento
+      if (ses.tipo === 'partido') continue
+      const label = ses.titulo || ses.fecha
       const ejercicios: any[] = Array.isArray(ses.ejercicios) ? ses.ejercicios : []
       // Group bloques by ventana (task type), summing minutos per group
       const ventanaMap: Record<string, { minTotal: number; ne: number }> = {}
@@ -238,23 +240,12 @@ export async function GET(req: NextRequest) {
         ventanaMap[ventana].minTotal += series * minutos
         ventanaMap[ventana].ne = ne  // use last ne seen for this ventana
       }
-      let bloques = Object.entries(ventanaMap).map(([ventana, v]) => ({
+      const bloques = Object.entries(ventanaMap).map(([ventana, v]) => ({
         ventana,
         minTotal: Math.round(v.minTotal),
         ne: v.ne,
         ce: Math.round(v.minTotal * v.ne),
       }))
-      // PARTIDO fallback: if no bloques, use avg player minutes from logs with NE=10
-      if (ses.tipo === 'partido' && bloques.length === 0) {
-        const logsDelDia = (logs as any[]).filter((l: any) => l.fecha === ses.fecha)
-        const minutos = logsDelDia.length > 0
-          ? Math.round(logsDelDia.reduce((s: number, l: any) => s + (Number(l.duracion_min) || 0), 0) / logsDelDia.length)
-          : 90 // default 90 min if no logs
-        if (minutos > 0) {
-          const ne = 10
-          bloques = [{ ventana: 'Partido oficial', minTotal: minutos, ne, ce: Math.round(minutos * ne) }]
-        }
-      }
       const ce_total = bloques.reduce((s, b) => s + b.ce, 0)
       const rpe_obj = Number(ses.rpe_objetivo) || 0
       cePerSession[label] = {
@@ -271,12 +262,10 @@ export async function GET(req: NextRequest) {
     for (const log of logs as any[]) { rpeByPlayerDate[`${log.jugador_id}_${log.fecha}`] = log }
     
     // sesionesInfo: includes ALL sessions (entrenamiento + partido) so the frontend
-    // can show the MD column. Partidos with no titulo default to 'MD'.
+    // can show the MD column. The calc loops (perSession, cePerSession, gpsPorFecha)
+    // already skip partidos individually — sesionesInfo is only used for display/lookup.
     const sesionesInfo = (sesiones as any[])
-      .map(s => {
-        const defaultTitulo = s.tipo === 'partido' ? 'MD' : s.fecha
-        return { id: s.id, fecha: s.fecha, titulo: s.titulo || defaultTitulo, rpe_objetivo: s.rpe_objetivo, tipo: s.tipo || 'entrenamiento' }
-      })
+      .map(s => ({ id: s.id, fecha: s.fecha, titulo: s.titulo || s.fecha, rpe_objetivo: s.rpe_objetivo, tipo: s.tipo || 'entrenamiento' }))
     const perSessionPlayers: Record<string, any[]> = {}
     for (const ses of sesionesInfo) {
       perSessionPlayers[ses.titulo] = (todosJugadores as any[]).map((p: any) => {

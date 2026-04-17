@@ -6496,7 +6496,7 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
       </div>
 
       {loading ? <div style={{ padding:48, textAlign:'center', color:'var(--silver)' }}>Cargando...</div> :
-      (!players.length && !sesionesInfo.length) ? (
+      !players.length ? (
         <div style={{ padding:48, textAlign:'center', color:'var(--silver)', background:'var(--ink2)', borderRadius:16 }}>Sin datos para este período. Registrá sesiones con RPE en el Calendario.</div>
       ) : (<>
 
