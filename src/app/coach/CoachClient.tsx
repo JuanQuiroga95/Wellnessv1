@@ -7840,26 +7840,151 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
                 </tr>
               </thead>
               <tbody>
-                {gpsReal.map((p:any,i:number)=>(
-                  <tr key={i} style={{ borderTop:'1px solid var(--mist)', background:i%2===0?'transparent':'rgba(255,255,255,.015)' }}>
-                    <td style={{ padding:'7px 14px', color:'var(--snow)', fontWeight:500, whiteSpace:'nowrap' }}>{p.nombre}</td>
-                    {GPS_VARS.filter(v=>refMedia[v.key]).map(v=>{ const pv=pct(Number(p[v.key])||0,v.key); return <td key={v.key} style={{ padding:'7px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:pv?600:400, color:pctColor(pv) }}>{pv!==null?`${pv}%`:'—'}</td> })}
-                  </tr>
-                ))}
+                {gpsReal.map((p:any,i:number)=>{
+                  // Sum only training sessions (exclude 'MD') for each player using real GPS data
+                  const trainingMds = mdCols.filter(md => md !== 'MD' && existingMdLabels.has(md) && (gpsPerMD[md]||[]).length > 0)
+                  const getPlayerTrainingVal = (vk: string) => {
+                    if (trainingMds.length === 0) return 0
+                    return trainingMds.reduce((sum, md) => {
+                      const playerRow = (gpsPerMD[md]||[]).find((x:any) => x.jugador_id === p.jugador_id)
+                      if (!playerRow) return sum
+                      // For avg fields (max_velocity, dist_per_min) — average across sessions; for cumulative — sum
+                      if (AVG_FIELDS_GPS.has(vk)) {
+                        // handled separately below
+                        return sum
+                      }
+                      return sum + (Number(playerRow[vk])||0)
+                    }, 0)
+                  }
+                  const getPlayerTrainingAvg = (vk: string) => {
+                    const mdsWithData = trainingMds.filter(md => {
+                      const r = (gpsPerMD[md]||[]).find((x:any) => x.jugador_id === p.jugador_id)
+                      return r && Number(r[vk]) > 0
+                    })
+                    if (!mdsWithData.length) return 0
+                    return mdsWithData.reduce((sum, md) => {
+                      const r = (gpsPerMD[md]||[]).find((x:any) => x.jugador_id === p.jugador_id)
+                      return sum + (Number(r?.[vk])||0)
+                    }, 0) / mdsWithData.length
+                  }
+                  const getVal = (vk: string) => AVG_FIELDS_GPS.has(vk) ? getPlayerTrainingAvg(vk) : getPlayerTrainingVal(vk)
+                  return (
+                    <tr key={i} style={{ borderTop:'1px solid var(--mist)', background:i%2===0?'transparent':'rgba(255,255,255,.015)' }}>
+                      <td style={{ padding:'7px 14px', color:'var(--snow)', fontWeight:500, whiteSpace:'nowrap' }}>{p.nombre}</td>
+                      {GPS_VARS.filter(v=>refMedia[v.key]).map(v=>{ const pv=pct(getVal(v.key),v.key); return <td key={v.key} style={{ padding:'7px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:pv?600:400, color:pctColor(pv) }}>{pv!==null?`${pv}%`:'—'}</td> })}
+                    </tr>
+                  )
+                })}
                 {mdCols.filter(md=>existingMdLabels.has(md)&&(gpsPerMD[md]||[]).length>0).map(md=>(
                   <tr key={md} style={{ borderTop:'1px solid rgba(239,68,68,.15)', background:'rgba(239,68,68,.03)' }}>
                     <td style={{ padding:'7px 14px', color:'#f87171', fontWeight:700, fontSize:10 }}>{md} (prom)</td>
                     {GPS_VARS.filter(v=>refMedia[v.key]).map(v=>{ const val=mdTeamAvg(md)[v.key]||0; const pv=pct(val,v.key); return <td key={v.key} style={{ padding:'7px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:pv?600:400, color:pctColor(pv) }}>{pv!==null?`${pv}%`:'—'}</td> })}
                   </tr>
                 ))}
+                <tr style={{ borderTop:'2px solid rgba(239,68,68,.3)', background:'rgba(239,68,68,.05)' }}>
+                  <td style={{ padding:'8px 14px', fontWeight:800, color:'#f87171', fontSize:10, textTransform:'uppercase' }}>Prom. Equipo</td>
+                  {GPS_VARS.filter(v=>refMedia[v.key]).map(v=>{
+                    const trainingMds = mdCols.filter(md => md !== 'MD' && existingMdLabels.has(md) && (gpsPerMD[md]||[]).length > 0)
+                    const vals = trainingMds.map(md => mdTeamAvg(md)[v.key]||0).filter(x=>x>0)
+                    const teamVal = vals.length
+                      ? AVG_FIELDS_GPS.has(v.key)
+                        ? Math.round(vals.reduce((s,x)=>s+x,0)/vals.length*10)/10
+                        : Math.round(vals.reduce((s,x)=>s+x,0)*10)/10
+                      : 0
+                    const pv=pct(teamVal,v.key); return <td key={v.key} style={{ padding:'8px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, color:pctColor(pv) }}>{pv!==null?`${pv}%`:'—'}</td>
+                  })}
+                </tr>
               </tbody>
             </table>
           </div>
         )}
       </div>
+
+      {/* ══ CUADRO 5: ÍNDICE DE CARGA GPS (CIV) ══════════════════════════ */}
+      {Object.keys(refMedia).length > 0 && (() => {
+        const trainingMds = mdCols.filter(md => md !== 'MD' && existingMdLabels.has(md) && (gpsPerMD[md]||[]).length > 0)
+        if (!trainingMds.length) return null
+
+        const civData = GPS_VARS.map(v => {
+          // SUMA = sum of team avg across all training MDs (for cumulative) or avg (for avg fields)
+          const mdVals = trainingMds.map(md => mdTeamAvg(md)[v.key]||0).filter(x=>x>0)
+          const suma = !mdVals.length ? 0
+            : AVG_FIELDS_GPS.has(v.key)
+            ? Math.round(mdVals.reduce((s,x)=>s+x,0)/mdVals.length*10)/10
+            : Math.round(mdVals.reduce((s,x)=>s+x,0)*10)/10
+          const ref = refMedia[v.key] || 0
+          const civ = ref > 0 ? Math.round((suma / ref) * 100) / 100 : null
+          return { ...v, suma, ref, civ }
+        }).filter(v => v.ref > 0)
+
+        if (!civData.length) return null
+
+        return (
+          <div style={{ background:'var(--ink2)', border:'1px solid rgba(96,165,250,.25)', borderRadius:16, overflow:'hidden', marginBottom:8 }}>
+            <div style={{ padding:'10px 16px', borderBottom:'1px solid var(--mist)' }}>
+              <p style={{ fontSize:11, fontWeight:700, color:'#60a5fa', textTransform:'uppercase', letterSpacing:'0.08em' }}>
+                CUADRO 5 · ÍNDICE DE CARGA GPS (CIV) — MICROCICLO vs PARTIDO
+              </p>
+              <p style={{ fontSize:10, color:'var(--fog)', marginTop:2 }}>
+                CIV = Suma MD ÷ Partido (GPS real) ·{' '}
+                <span style={{ color:'#60a5fa' }}>Azul &lt;1.0</span> ·{' '}
+                <span style={{ color:'#22c55e' }}>Verde 1.0–1.5</span> ·{' '}
+                <span style={{ color:'#ef4444' }}>Rojo &gt;1.5</span> · 1.0 = igual al partido
+              </p>
+            </div>
+            <div style={{ overflowX:'auto' }}>
+              <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12 }}>
+                <thead>
+                  <tr style={{ background:'rgba(96,165,250,.05)' }}>
+                    <th style={{ padding:'9px 16px', textAlign:'left', color:'var(--silver)', fontSize:9, fontWeight:700, textTransform:'uppercase', letterSpacing:'0.06em' }}>MÉTRICA</th>
+                    <th style={{ padding:'9px 12px', textAlign:'center', color:'#34d399', fontSize:9, fontWeight:700, textTransform:'uppercase', letterSpacing:'0.06em' }}>SUMA MD</th>
+                    <th style={{ padding:'9px 12px', textAlign:'center', color:'#f87171', fontSize:9, fontWeight:700, textTransform:'uppercase', letterSpacing:'0.06em' }}>PARTIDO REF.</th>
+                    <th style={{ padding:'9px 16px', textAlign:'center', color:'#60a5fa', fontSize:9, fontWeight:700, textTransform:'uppercase', letterSpacing:'0.06em' }}>CIV</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {civData.map((v, i) => {
+                    const civColor = v.civ === null ? 'var(--fog)'
+                      : v.civ > 1.5 ? '#ef4444'
+                      : v.civ >= 1.0 ? '#22c55e'
+                      : '#60a5fa'
+                    const civBg = v.civ === null ? 'transparent'
+                      : v.civ > 1.5 ? 'rgba(239,68,68,.08)'
+                      : v.civ >= 1.0 ? 'rgba(34,197,94,.08)'
+                      : 'rgba(96,165,250,.08)'
+                    const civBorder = v.civ === null ? 'transparent'
+                      : v.civ > 1.5 ? 'rgba(239,68,68,.3)'
+                      : v.civ >= 1.0 ? 'rgba(34,197,94,.3)'
+                      : 'rgba(96,165,250,.3)'
+                    return (
+                      <tr key={v.key} style={{ borderTop:'1px solid var(--mist)', background: i%2===0 ? 'transparent' : 'rgba(255,255,255,.015)' }}>
+                        <td style={{ padding:'9px 16px', color: v.color, fontWeight:600 }}>{v.label}</td>
+                        <td style={{ padding:'9px 12px', textAlign:'center', fontFamily:'DM Mono,monospace', color:'#34d399', fontWeight:600 }}>
+                          {v.suma > 0 ? v.suma : '—'}
+                        </td>
+                        <td style={{ padding:'9px 12px', textAlign:'center', fontFamily:'DM Mono,monospace', color:'#f87171', fontWeight:600 }}>
+                          {v.ref > 0 ? v.ref : '—'}
+                        </td>
+                        <td style={{ padding:'9px 16px', textAlign:'center' }}>
+                          {v.civ !== null ? (
+                            <span style={{ fontFamily:'DM Mono,monospace', fontWeight:800, fontSize:15, color:civColor, background:civBg, border:`1px solid ${civBorder}`, borderRadius:8, padding:'3px 10px', display:'inline-block' }}>
+                              {v.civ.toFixed(2)}
+                            </span>
+                          ) : '—'}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )
+      })()}
       </>)}
     </div>
   )
+}
 }
 
 
