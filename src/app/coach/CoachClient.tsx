@@ -7263,7 +7263,7 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
                 CUADRO 5 · ÍNDICE DE CARGA (CIV) — MICROCICLO vs PARTIDO
               </p>
               <p style={{ fontSize:10, color:'var(--fog)', marginTop:2 }}>
-                CIV = Suma Microciclo ÷ Partido · <span style={{ color:'#60a5fa' }}>Azul ≤1.5</span> · <span style={{ color:'#ef4444' }}>Rojo &gt;1.5</span> · 1.0 = igual al partido · 2.0 = doble carga
+                CIV = Suma Microciclo ÷ Partido · <span style={{ color:'#60a5fa' }}>Azul &lt;1.0</span> · <span style={{ color:'#22c55e' }}>Verde 1.0–1.5</span> · <span style={{ color:'#ef4444' }}>Rojo &gt;1.5</span> · 1.0 = igual al partido · 2.0 = doble carga
               </p>
             </div>
             <div style={{ overflowX:'auto' }}>
@@ -7278,9 +7278,9 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
                 </thead>
                 <tbody>
                   {civData.map((v, i) => {
-                    const civColor = v.civ === null ? 'var(--fog)' : v.civ > 1.5 ? '#ef4444' : '#60a5fa'
-                    const civBg = v.civ === null ? 'transparent' : v.civ > 1.5 ? 'rgba(239,68,68,.08)' : 'rgba(96,165,250,.08)'
-                    const civBorder = v.civ === null ? 'transparent' : v.civ > 1.5 ? 'rgba(239,68,68,.25)' : 'rgba(96,165,250,.25)'
+                    const civColor = v.civ === null ? 'var(--fog)' : v.civ > 1.5 ? '#ef4444' : v.civ >= 1.0 ? '#22c55e' : '#60a5fa'
+                    const civBg = v.civ === null ? 'transparent' : v.civ > 1.5 ? 'rgba(239,68,68,.08)' : v.civ >= 1.0 ? 'rgba(34,197,94,.08)' : 'rgba(96,165,250,.08)'
+                    const civBorder = v.civ === null ? 'transparent' : v.civ > 1.5 ? 'rgba(239,68,68,.25)' : v.civ >= 1.0 ? 'rgba(34,197,94,.25)' : 'rgba(96,165,250,.25)'
                     return (
                       <tr key={v.key} style={{ borderTop:'1px solid var(--mist)', background: i%2===0 ? 'transparent' : 'rgba(255,255,255,.015)' }}>
                         <td style={{ padding:'9px 16px', color: v.color, fontWeight:600 }}>{v.label}</td>
@@ -7314,7 +7314,8 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
             </div>
             <div style={{ padding:'8px 16px', borderTop:'1px solid var(--mist)', display:'flex', gap:20, fontSize:10, color:'var(--fog)', flexWrap:'wrap' }}>
               <span>📘 CIV = Carga microciclo ÷ Carga partido</span>
-              <span style={{ color:'#60a5fa' }}>🔵 ≤1.5 — carga controlada</span>
+              <span style={{ color:'#60a5fa' }}>🔵 &lt;1.0 — carga por debajo del partido</span>
+              <span style={{ color:'#22c55e' }}>🟢 1.0–1.5 — carga controlada</span>
               <span style={{ color:'#ef4444' }}>🔴 &gt;1.5 — carga elevada vs partido</span>
               <span>1.0 = igual al partido · 0.5 = mitad · 2.0 = doble</span>
             </div>
@@ -7467,10 +7468,12 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
   })
   const pct = (val:number, key:string) => { const ref=refMedia[key]; if(!ref||ref===0) return null; return Math.round((val/ref)*100) }
   const pctColor = (p:number|null) => p===null?'var(--fog)':p>=85?'#22c55e':p>=65?'#f59e0b':'#ef4444'
-  // refMediaVars: ordered list of vars that have a ref value — used in Cuadro 4 & 5 tables
-  // Uses GPS_METRIC_ORDER for consistent ordering, so player_load always shows if ref exists
+  // refMediaVars: ordered list of vars shown in Cuadro 4 & 5 tables
+  // Includes keys that have a ref value OR that are present in GPS_VARS (microcycle data),
+  // so player_load and others always appear even when partido ref has no data for them
+  const gpsVarKeys = new Set(GPS_VARS.map((v:any) => v.key))
   const refMediaVars = GPS_METRIC_ORDER
-    .filter((key:string) => refMedia[key] > 0)
+    .filter((key:string) => refMedia[key] > 0 || gpsVarKeys.has(key))
     .map((key:string) => {
       const meta = GPS_METRIC_META[key]
       return {
@@ -8233,9 +8236,10 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
       {Object.keys(refMedia).length > 0 && (() => {
         const trainingMds = mdCols.filter(md => md !== 'MD' && existingMdLabels.has(md) && (gpsPerMD[md]||[]).length > 0)
 
-        // CIV iterates refMedia keys (not GPS_VARS) so player_load and other
-        // metrics from the match always appear even if microcycle lacks that column
-        const civData = Object.keys(refMedia).map(key => {
+        // CIV iterates refMedia keys + GPS_VARS keys so player_load and other
+        // metrics always appear even if microcycle or partido lacks that column
+        const civAllKeys = GPS_METRIC_ORDER.filter((k:string) => refMedia[k] > 0 || gpsVarKeys.has(k))
+        const civData = civAllKeys.map((key:string) => {
           const meta = GPS_METRIC_META[key]
           const label = meta ? `${meta.label}${meta.unit ? ' ('+meta.unit+')' : ''}` : key
           const color = GPS_KEY_COLORS[key] || '#94a3b8'
@@ -8247,7 +8251,7 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
           const ref = refMedia[key] || 0
           const civ = ref > 0 ? Math.round((suma / ref) * 100) / 100 : null
           return { key, label, color, suma, ref, civ }
-        }).filter(v => v.ref > 0)
+        }).filter((v:any) => v.ref > 0 || v.suma > 0 || gpsVarKeys.has(v.key))
 
         if (!civData.length) return null
 
