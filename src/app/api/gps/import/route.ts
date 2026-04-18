@@ -50,6 +50,19 @@ const METRIC_COL_MAP: Array<[string, string]> = [
   ['decelerations b2 3','dec2'],['decelerations b2','dec2'],['desaceleraciones b2','dec2'],
   ['dec b2','dec2'],['dec2 eff','dec2'],['dec 2','dec2'],['decel b2','dec2'],
   ['desaceleraciones','dec2'],['decelerations','dec2'], // Ubico
+  // ACEL / DECEL >3 m/s²
+  ['acc b3 tot effs','acc3'],['acc b3 tot','acc3'],['acc b3','acc3'],
+  ['accelerations b3','acc3'],['aceleraciones b3','acc3'],
+  ['acc3 eff','acc3'],['acc 3','acc3'],['accel b3','acc3'],
+  ['ima acceleration b3','acc3'],['ima acc b3','acc3'],
+  ['high accelerations','acc3'],['high intensity accelerations','acc3'],
+  ['explosive accelerations','acc3'],['explosive acc','acc3'],
+  ['decel b3 tot effs','dec3'],['decel b3 tot','dec3'],['decel b3','dec3'],
+  ['decelerations b3','dec3'],['desaceleraciones b3','dec3'],
+  ['dec3 eff','dec3'],['dec 3','dec3'],['decel b3','dec3'],
+  ['ima deceleration b3','dec3'],['ima dec b3','dec3'],
+  ['high decelerations','dec3'],['high intensity decelerations','dec3'],
+  ['explosive decelerations','dec3'],['explosive dec','dec3'],
   // PLAYER LOAD / VEL MAX
   ['player load','player_load'],['playerload','player_load'],['carga jugador','player_load'],
   ['max velocity','max_velocity'],['max vel','max_velocity'],['top speed','max_velocity'],
@@ -74,7 +87,7 @@ function matchMetricCol(h: string): string | null {
       if (field === 'dist_total' && (hn.includes('vrange') || hn.includes('zone'))) continue
       
       // BLOQUEO UBICO: Evitar que "max_acc" pise el contador de aceleraciones normales.
-      if ((field === 'acc2' || field === 'dec2') && hn.includes('max')) continue
+      if ((field === 'acc2' || field === 'acc3' || field === 'dec2' || field === 'dec3') && hn.includes('max') && !hn.includes('b3') && !hn.includes('b2')) continue
       
       return field
     }
