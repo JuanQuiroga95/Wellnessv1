@@ -307,7 +307,17 @@ export async function GET(req: NextRequest) {
         }
         
         const activeCols = GPS_BASE_COLS.filter(k => gpsLogs.some(r => r[k] !== null && r[k] !== undefined))
-        allMetricCols = [...activeCols, ...Array.from(metricaKeys)]
+        
+        // FIX: acc3/dec3 pueden estar en metricas JSON en vez de columnas directas (importaciones viejas)
+        // Si no están en activeCols pero sí en algún metricas, agregarlos explícitamente
+        const fallbackCols: string[] = []
+        for (const k of ['acc3', 'dec3']) {
+          if (!activeCols.includes(k) && gpsLogs.some(r => r.metricas?.[k] !== undefined)) {
+            fallbackCols.push(k)
+          }
+        }
+        
+        allMetricCols = [...activeCols, ...fallbackCols, ...Array.from(metricaKeys)]
 
         const AVG_PLAYER_FIELDS = new Set(['max_velocity', 'dist_per_min', 'duracion_min'])
         const byPlayer: Record<number, any> = {}
@@ -336,11 +346,9 @@ export async function GET(req: NextRequest) {
               // Ya no corremos el riesgo de sumar dist_total porque lo bloqueamos arriba
               if (r.metricas[k] !== undefined) p[k] = (p[k] || 0) + (Number(r.metricas[k]) || 0)
             }
-            // Fallback: acc3/dec3 are base cols but older imports only saved them in metricas JSON
-            for (const k of ['acc3', 'dec3']) {
-              if (r.metricas[k] !== undefined && (Number(r[k]) || 0) === 0) {
-                p[k] = (p[k] || 0) + (Number(r.metricas[k]) || 0)
-              }
+            // Fallback para cols base que no llegaron como columnas directas (e.g. acc3/dec3 en imports viejos)
+            for (const k of fallbackCols) {
+              if (r.metricas[k] !== undefined) p[k] = (p[k] || 0) + (Number(r.metricas[k]) || 0)
             }
           }
         }
@@ -390,6 +398,10 @@ export async function GET(req: NextRequest) {
           if (r.metricas && typeof r.metricas === 'object') {
             for (const k of metricaKeys) {
               // Misma protección para la tabla por sesión
+              if (r.metricas[k] !== undefined) p[k] = (p[k] || 0) + (Number(r.metricas[k]) || 0)
+            }
+            // Fallback para cols base que no llegaron como columnas directas (acc3/dec3 en imports viejos)
+            for (const k of fallbackCols) {
               if (r.metricas[k] !== undefined) p[k] = (p[k] || 0) + (Number(r.metricas[k]) || 0)
             }
           }
