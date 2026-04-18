@@ -354,13 +354,10 @@ export async function GET(req: NextRequest) {
 
         const nGps = gpsReal.length || 1
         const GPS_AVG_FIELDS = new Set(['max_velocity','dist_per_min','duracion_min'])
-        const GPS_MAX_FIELDS = new Set(['max_velocity'])
         for (const k of allMetricCols) {
           const vals = gpsReal.map((p: any) => Number(p[k]) || 0).filter(x => x > 0)
           if (vals.length) {
-            teamAvgGps[k] = GPS_MAX_FIELDS.has(k)
-              ? Math.round(Math.max(...vals) * 10) / 10
-              : GPS_AVG_FIELDS.has(k)
+            teamAvgGps[k] = GPS_AVG_FIELDS.has(k)
               ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length * 10) / 10
               : Math.round(vals.reduce((a, b) => a + b, 0) / nGps * 10) / 10
           }

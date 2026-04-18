@@ -21,7 +21,7 @@ const GPS_METRIC_META: Record<string, { label: string; unit: string; group: stri
   dist_v3:             { label: 'Vel B3',           unit: 'm',      group: 'Distancia' },
   dist_v4:             { label: 'Vel B4',           unit: 'm',      group: 'Distancia' },
   dist_v5:             { label: 'Vel B5/B6',        unit: 'm',      group: 'Distancia' },
-  player_load:         { label: 'Player Load',      unit: 'UCE',     group: 'Carga' },
+  player_load:         { label: 'Player Load',      unit: '',        group: 'Carga' },
   metabolic_power:     { label: 'Pot. Metabólica',  unit: 'W/kg',   group: 'Carga' },
   avg_metabolic_power: { label: 'Pot. Metab. Med.', unit: 'W/kg',   group: 'Carga' },
   equiv_distance:      { label: 'Dist. Equiv.',     unit: 'm',      group: 'Carga' },
@@ -7402,7 +7402,7 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
       const nr = [...partidoRefs]
       nr[slotIdx] = { dist_total:avg.dist_total||0, dist_per_min:avg.dist_per_min||0, dist_hir:avg.dist_hir||0,
         dist_v4:avg.dist_v4||0, dist_v5:avg.dist_v5||0, max_velocity:avg.max_velocity||0,
-        n_sprints:avg.n_sprints||0,
+        n_sprints:avg.n_sprints||0, player_load:avg.player_load||0,
         acc2:avg.acc2||0, dec2:avg.dec2||0, acc3:avg.acc3||0, dec3:avg.dec3||0 }
       setPartidoRefs(nr)
     } catch(e){}
@@ -7831,7 +7831,7 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
               </tr>
             </thead>
             <tbody>
-              {GPS_VARS.filter(v => v.key !== 'player_load').map((v,i)=>{
+              {GPS_VARS.map((v,i)=>{
                 const vals = mdCols.map(md => mdTeamAvg(md)[v.key] || 0)
                 // For avg fields (max_velocity, dist_per_min): show avg of MDs, not sum
                 const hasData = vals.some(x=>x>0)
