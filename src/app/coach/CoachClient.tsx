@@ -7906,10 +7906,13 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
                     if (!meta) return null
                     const label = `${meta.label}${meta.unit ? ' ('+meta.unit+')' : ''}`
                     const color = GPS_KEY_COLORS[key] || '#94a3b8'
-                    // Only show fields present in GPS_VARS (data) OR that have a value in any ref
+                    // Show if: present in GPS_VARS (current microcycle data),
+                    // OR has a value in any ref slot (manually entered or loaded),
+                    // OR is a key metric that should always be editable
+                    const ALWAYS_SHOW = new Set(['dist_total','dist_hir','dist_v4','dist_v5','dist_per_min','max_velocity','n_sprints','acc2','dec2','player_load'])
                     const hasValue = partidoRefs.some((r:any) => Number(r[key]) > 0)
                     const inData = GPS_VARS.some((v:any) => v.key === key)
-                    if (!inData && !hasValue) return null
+                    if (!ALWAYS_SHOW.has(key) && !inData && !hasValue) return null
                     return (
                       <div key={key}>
                         <label style={{ fontSize:9, color, display:'block', marginBottom:2, textTransform:'uppercase', fontWeight:600 }}>{label}</label>
