@@ -42,27 +42,29 @@ const METRIC_COL_MAP: Array<[string, string]> = [
   ['number of sprints','n_sprints'],['number sprints','n_sprints'],['num sprints','n_sprints'],
   ['numero sprints','n_sprints'],['numero de sprints','n_sprints'],['sprints','n_sprints'],
   // ACEL / DECEL
-  ['acc b2-3 tot effs','acc2'],['acc b2-3 tot','acc2'],['acc b2-3','acc2'],
-  ['accelerations b2 3','acc2'],['accelerations b2','acc2'],['aceleraciones b2','acc2'],
-  ['acc b2','acc2'],['acc2 eff','acc2'],['acc 2','acc2'],['accel b2','acc2'],
-  ['aceleraciones','acc2'],['accelerations','acc2'], // Ubico
-  ['decel b2-3 tot effs','dec2'],['decel b2-3 tot','dec2'],['decel b2-3','dec2'],
-  ['decelerations b2 3','dec2'],['decelerations b2','dec2'],['desaceleraciones b2','dec2'],
-  ['dec b2','dec2'],['dec2 eff','dec2'],['dec 2','dec2'],['decel b2','dec2'],
-  ['desaceleraciones','dec2'],['decelerations','dec2'], // Ubico
-  // ACEL / DECEL >3 m/s²
-  ['acc b3 tot effs','acc3'],['acc b3 tot','acc3'],['acc b3','acc3'],
-  ['accelerations b3','acc3'],['aceleraciones b3','acc3'],
-  ['acc3 eff','acc3'],['acc 3','acc3'],['accel b3','acc3'],
-  ['ima acceleration b3','acc3'],['ima acc b3','acc3'],
-  ['high accelerations','acc3'],['high intensity accelerations','acc3'],
-  ['explosive accelerations','acc3'],['explosive acc','acc3'],
-  ['decel b3 tot effs','dec3'],['decel b3 tot','dec3'],['decel b3','dec3'],
-  ['decelerations b3','dec3'],['desaceleraciones b3','dec3'],
-  ['dec3 eff','dec3'],['dec 3','dec3'],['decel b3','dec3'],
-  ['ima deceleration b3','dec3'],['ima dec b3','dec3'],
-  ['high decelerations','dec3'],['high intensity decelerations','dec3'],
-  ['explosive decelerations','dec3'],['explosive dec','dec3'],
+  // NOMENCLATURA DEL CLUB: "ACE >3" = Acc B2-3 (Gen 2) de Catapult → se guarda como acc3
+  // "DEC >3" = Decel B2-3 (Gen 2) de Catapult → se guarda como dec3
+  ['acc b2-3 tot effs','acc3'],['acc b2-3 tot','acc3'],['acc b2-3','acc3'],
+  ['accelerations b2 3','acc3'],['accelerations b2','acc3'],['aceleraciones b2','acc3'],
+  ['acc b2','acc3'],['acc2 eff','acc3'],['acc 2','acc3'],['accel b2','acc3'],
+  ['aceleraciones','acc3'],['accelerations','acc3'], // Ubico
+  ['decel b2-3 tot effs','dec3'],['decel b2-3 tot','dec3'],['decel b2-3','dec3'],
+  ['decelerations b2 3','dec3'],['decelerations b2','dec3'],['desaceleraciones b2','dec3'],
+  ['dec b2','dec3'],['dec2 eff','dec3'],['dec 2','dec3'],['decel b2','dec3'],
+  ['desaceleraciones','dec3'],['decelerations','dec3'], // Ubico
+  // ACEL / DECEL B3 (banda superior, si existiera en algún export)
+  ['acc b3 tot effs','acc2'],['acc b3 tot','acc2'],['acc b3','acc2'],
+  ['accelerations b3','acc2'],['aceleraciones b3','acc2'],
+  ['acc3 eff','acc2'],['acc 3','acc2'],['accel b3','acc2'],
+  ['ima acceleration b3','acc2'],['ima acc b3','acc2'],
+  ['high accelerations','acc2'],['high intensity accelerations','acc2'],
+  ['explosive accelerations','acc2'],['explosive acc','acc2'],
+  ['decel b3 tot effs','dec2'],['decel b3 tot','dec2'],['decel b3','dec2'],
+  ['decelerations b3','dec2'],['desaceleraciones b3','dec2'],
+  ['dec3 eff','dec2'],['dec 3','dec2'],['decel b3','dec2'],
+  ['ima deceleration b3','dec2'],['ima dec b3','dec2'],
+  ['high decelerations','dec2'],['high intensity decelerations','dec2'],
+  ['explosive decelerations','dec2'],['explosive dec','dec2'],
   // PLAYER LOAD / VEL MAX
   ['player load','player_load'],['playerload','player_load'],['carga jugador','player_load'],
   ['max velocity','max_velocity'],['max vel','max_velocity'],['top speed','max_velocity'],
@@ -197,7 +199,7 @@ function cleanCatapultName(raw: string): string {
 function parsePdfRowFormat(lines: string[]): Record<string, any>[] | null {
   const POS_CODES = ['CAM','CDM','LB','RB','LW','RW','WB','CB','CM','ST','FB','GK','CF','AM','DM','LM','RM','W']
   const posDetect = new RegExp(POS_CODES.join('|'))
-  const FIELD_MAP = ['dist_total', 'dist_per_min', 'dist_v4', 'dist_v5', null, 'n_sprints', 'dist_hir', 'acc2', 'dec2', 'acc3', 'dec3', 'player_load', 'duracion_min', 'max_velocity']
+  const FIELD_MAP = ['dist_total', 'dist_per_min', 'dist_v4', 'dist_v5', null, 'n_sprints', 'dist_hir', 'acc3', 'dec3', 'acc2', 'dec2', 'player_load', 'duracion_min', 'max_velocity']
   const SUMMARY_WORDS = new Set(['total','moyenne','average','promedio','media','totale','totaux','totals'])
   const results: Record<string, any>[] = []
   const lonePosCodes = lines.filter(l => l.trim()).filter(l => POS_CODES.includes(l.trim()))
@@ -391,7 +393,7 @@ function parsePdfFromText(lines: string[]): Record<string, any>[] {
 
     if (numericParts.length >= 3) {
       const metricas: Record<string, number> = {}
-      const colOrder = ['dist_total', 'dist_per_min', 'dist_v4', 'dist_hir', 'dist_v5', 'n_sprints', 'acc2', 'dec2', 'max_velocity']
+      const colOrder = ['dist_total', 'dist_per_min', 'dist_v4', 'dist_hir', 'dist_v5', 'n_sprints', 'acc3', 'dec3', 'max_velocity']
       
       for (let i = 0; i < numericParts.length && i < colOrder.length; i++) {
         const val = parseFloat(numericParts[i].replace(',', '.'))
