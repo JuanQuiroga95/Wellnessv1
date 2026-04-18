@@ -909,6 +909,39 @@ function CambioCargaPanel() {
     }
   })
 
+  // Also merge GPS data keyed by date (when GPS was imported without sesion_id link)
+  // gpsPerMDCC may have keys like "2026-04-12" instead of "MD"
+  Object.entries(gpsPerMDCC).forEach(([key, mdPlayers]: [string, any]) => {
+    // Only process date-format keys (YYYY-MM-DD), not MD labels
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(key)) return
+    const fecha = key
+    const players = mdPlayers as any[]
+    if (!players.length) return
+    const n = players.length
+    const avgField = (k: string) => {
+      const vals = players.map((p:any) => Number(p[k])||0).filter(x=>x>0)
+      return vals.length ? Math.round(vals.reduce((a,b)=>a+b,0)/n*10)/10 : 0
+    }
+    const realGps = {
+      dist_total:   avgField('dist_total'),
+      dist_hir:     avgField('dist_hir'),
+      dist_v4:      avgField('dist_v4'),
+      dist_v5:      avgField('dist_v5'),
+      max_velocity: avgField('max_velocity'),
+      dist_per_min: avgField('dist_per_min'),
+      n_sprints:    avgField('n_sprints'),
+      acc2_real:    avgField('acc2'),
+      dec2_real:    avgField('dec2'),
+      acc3_real:    avgField('acc3'),
+      dec3_real:    avgField('dec3'),
+    }
+    if (gpsDailyMap[fecha]) {
+      Object.assign(gpsDailyMap[fecha], realGps)
+    } else {
+      gpsDailyMap[fecha] = realGps
+    }
+  })
+
   // Construir mapa semanal acumulando GPS por semana ISO (para vista semanal)
   const _fechaToWeekKey = (dateStr: string) => {
     const d = new Date(dateStr + 'T12:00:00Z')
@@ -5386,6 +5419,29 @@ function AcumPanel({ teamData }) {
 
   const miciPlayers: any[] = miciData?.players || []
   const miciTeamAvg = miciData?.teamAvg || {}
+  const miciPerSession: Record<string,any> = miciData?.perSession || {}
+  const miciPerSessionPlayers: Record<string,any[]> = miciData?.perSessionPlayers || {}
+  const miciSesionesInfo: any[] = miciData?.sesionesInfo || []
+  const miciExistingMds = new Set(miciSesionesInfo.map((s:any) => s.titulo))
+  // Training MDs only (exclude 'MD' = partido)
+  const miciTrainingMds = ['MD+1','MD+2','MD+3','MD-4','MD-3','MD-2','MD-1'].filter(md => miciExistingMds.has(md))
+
+  // Calc GPS vars: same for all players (from session plan), summed across training MDs only
+  const getMiciSessionVal = (vk: string) =>
+    miciTrainingMds.reduce((sum, md) => sum + (Number(miciPerSession[md]?.[vk]) || 0), 0)
+
+  // RPE/UA/minActivo: real per-player log data
+  const getMiciPlayerRpeVal = (jugador_id: number, vk: string) =>
+    miciTrainingMds.reduce((sum, md) => {
+      const pData = (miciPerSessionPlayers[md] || []).find((x:any) => x.jugador_id === jugador_id)
+      return sum + (Number(pData?.[vk]) || 0)
+    }, 0)
+
+  // Team avg for RPE vars
+  const getMiciTeamRpeVal = (vk: string) => {
+    const vals = miciPlayers.map((p:any) => Number(p[vk])||0).filter(x=>x>0)
+    return vals.length ? Math.round(vals.reduce((s,x)=>s+x,0)/vals.length*10)/10 : 0
+  }
 
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
@@ -5438,25 +5494,40 @@ function AcumPanel({ teamData }) {
                 </tr>
               </thead>
               <tbody>
-                {miciPlayers.map((p:any,i:number)=>(
-                  <tr key={i} style={{ borderTop:'1px solid var(--mist)', background:i%2===0?'transparent':'rgba(255,255,255,.015)' }}>
-                    <td style={{ padding:'8px 14px', color:'var(--snow)', fontWeight:500, whiteSpace:'nowrap' }}>{p.nombre}</td>
-                    <td style={{ padding:'8px 8px', color:'var(--fog)', fontSize:10 }}>{p.posicion||'—'}</td>
-                    {MICI_VARS.map(v=>(
-                      <td key={v.key} style={{ padding:'8px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', color:p[v.key]?v.color:'var(--fog)' }}>
-                        {p[v.key]||'—'}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
+                {miciPlayers.map((p:any,i:number)=>{
+                  const RPE_KEYS = new Set(['ua_total','minActivo'])
+                  return (
+                    <tr key={i} style={{ borderTop:'1px solid var(--mist)', background:i%2===0?'transparent':'rgba(255,255,255,.015)' }}>
+                      <td style={{ padding:'8px 14px', color:'var(--snow)', fontWeight:500, whiteSpace:'nowrap' }}>{p.nombre}</td>
+                      <td style={{ padding:'8px 8px', color:'var(--fog)', fontSize:10 }}>{p.posicion||'—'}</td>
+                      {MICI_VARS.map(v=>{
+                        // RPE/UA/tiempo: real per-player data. Calc GPS vars: same for everyone (session plan)
+                        const val = RPE_KEYS.has(v.key)
+                          ? getMiciPlayerRpeVal(p.jugador_id, v.key)
+                          : getMiciSessionVal(v.key)
+                        return (
+                          <td key={v.key} style={{ padding:'8px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', color:val?v.color:'var(--fog)' }}>
+                            {val||'—'}
+                          </td>
+                        )
+                      })}
+                    </tr>
+                  )
+                })}
                 <tr style={{ borderTop:'2px solid rgba(200,241,53,.4)', background:'rgba(200,241,53,.04)' }}>
                   <td style={{ padding:'8px 14px', fontWeight:800, color:'var(--lime)', fontSize:10, textTransform:'uppercase' }}>PROM. EQUIPO</td>
                   <td/>
-                  {MICI_VARS.map(v=>(
-                    <td key={v.key} style={{ padding:'8px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, color:'var(--lime)' }}>
-                      {miciTeamAvg[v.key]||'—'}
-                    </td>
-                  ))}
+                  {MICI_VARS.map(v=>{
+                    const RPE_KEYS = new Set(['ua_total','minActivo'])
+                    const val = RPE_KEYS.has(v.key)
+                      ? getMiciTeamRpeVal(v.key)
+                      : getMiciSessionVal(v.key)
+                    return (
+                      <td key={v.key} style={{ padding:'8px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, color:'var(--lime)' }}>
+                        {Math.round(Number(val)*10)/10||'—'}
+                      </td>
+                    )
+                  })}
                 </tr>
               </tbody>
             </table>
@@ -7192,7 +7263,7 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
                 CUADRO 5 · ÍNDICE DE CARGA (CIV) — MICROCICLO vs PARTIDO
               </p>
               <p style={{ fontSize:10, color:'var(--fog)', marginTop:2 }}>
-                CIV = Suma MD ÷ Partido · <span style={{ color:'#60a5fa' }}>Azul ≤1.5</span> · <span style={{ color:'#ef4444' }}>Rojo &gt;1.5</span> · 1.0 = igual al partido · 2.0 = doble carga
+                CIV = Suma Microciclo ÷ Partido · <span style={{ color:'#60a5fa' }}>Azul ≤1.5</span> · <span style={{ color:'#ef4444' }}>Rojo &gt;1.5</span> · 1.0 = igual al partido · 2.0 = doble carga
               </p>
             </div>
             <div style={{ overflowX:'auto' }}>
@@ -7200,7 +7271,7 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
                 <thead>
                   <tr style={{ background:'rgba(96,165,250,.05)' }}>
                     <th style={{ padding:'9px 16px', textAlign:'left', color:'var(--silver)', fontSize:9, fontWeight:700, textTransform:'uppercase', letterSpacing:'0.06em' }}>MÉTRICA</th>
-                    <th style={{ padding:'9px 12px', textAlign:'center', color:'#34d399', fontSize:9, fontWeight:700, textTransform:'uppercase', letterSpacing:'0.06em' }}>SUMA MD</th>
+                    <th style={{ padding:'9px 12px', textAlign:'center', color:'#34d399', fontSize:9, fontWeight:700, textTransform:'uppercase', letterSpacing:'0.06em' }}>SUMA MICROCICLO</th>
                     <th style={{ padding:'9px 12px', textAlign:'center', color:'#f87171', fontSize:9, fontWeight:700, textTransform:'uppercase', letterSpacing:'0.06em' }}>PARTIDO</th>
                     <th style={{ padding:'9px 16px', textAlign:'center', color:'#60a5fa', fontSize:9, fontWeight:700, textTransform:'uppercase', letterSpacing:'0.06em' }}>CIV</th>
                   </tr>
@@ -7393,7 +7464,7 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
   const pctColor = (p:number|null) => p===null?'var(--fog)':p>=85?'#22c55e':p>=65?'#f59e0b':'#ef4444'
 
   // Team avg GPS for a given MD — works across all dynamic GPS_VARS
-  const MAX_FIELDS_GPS = new Set(['max_velocity','hr_max'])
+  const MAX_FIELDS_GPS = new Set(['hr_max'])
   const AVG_FIELDS_GPS = new Set(['max_velocity','hr_max','dist_per_min','duracion_min'])
   const mdTeamAvg = (md: string) => {
     const rows = gpsPerMD[md] || []
@@ -7760,9 +7831,13 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
               </tr>
             </thead>
             <tbody>
-              {GPS_VARS.map((v,i)=>{
+              {GPS_VARS.filter(v => v.key !== 'player_load').map((v,i)=>{
                 const vals = mdCols.map(md => mdTeamAvg(md)[v.key] || 0)
-                const total = Math.round(vals.reduce((s,x)=>s+x,0)*10)/10
+                // For avg fields (max_velocity, dist_per_min): show avg of MDs, not sum
+                const hasData = vals.some(x=>x>0)
+                const total = AVG_FIELDS_GPS.has(v.key)
+                  ? (() => { const nonZero = vals.filter(x=>x>0); return nonZero.length ? Math.round(nonZero.reduce((s,x)=>s+x,0)/nonZero.length*10)/10 : 0 })()
+                  : Math.round(vals.reduce((s,x)=>s+x,0)*10)/10
                 return (
                   <tr key={v.key} style={{ borderTop:'1px solid var(--mist)', background:i%2===0?'transparent':'rgba(255,255,255,.015)' }}>
                     <td style={{ padding:'7px 14px', color:v.color, fontWeight:600, fontSize:11 }}>{v.label}</td>
@@ -7932,7 +8007,7 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
                 CUADRO 5 · ÍNDICE DE CARGA GPS (CIV) — MICROCICLO vs PARTIDO
               </p>
               <p style={{ fontSize:10, color:'var(--fog)', marginTop:2 }}>
-                CIV = Suma MD ÷ Partido (GPS real) ·{' '}
+                CIV = Suma Microciclo ÷ Partido (GPS real) ·{' '}
                 <span style={{ color:'#60a5fa' }}>Azul &lt;1.0</span> ·{' '}
                 <span style={{ color:'#22c55e' }}>Verde 1.0–1.5</span> ·{' '}
                 <span style={{ color:'#ef4444' }}>Rojo &gt;1.5</span> · 1.0 = igual al partido
@@ -7943,7 +8018,7 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
                 <thead>
                   <tr style={{ background:'rgba(96,165,250,.05)' }}>
                     <th style={{ padding:'9px 16px', textAlign:'left', color:'var(--silver)', fontSize:9, fontWeight:700, textTransform:'uppercase', letterSpacing:'0.06em' }}>MÉTRICA</th>
-                    <th style={{ padding:'9px 12px', textAlign:'center', color:'#34d399', fontSize:9, fontWeight:700, textTransform:'uppercase', letterSpacing:'0.06em' }}>SUMA MD</th>
+                    <th style={{ padding:'9px 12px', textAlign:'center', color:'#34d399', fontSize:9, fontWeight:700, textTransform:'uppercase', letterSpacing:'0.06em' }}>SUMA MICROCICLO</th>
                     <th style={{ padding:'9px 12px', textAlign:'center', color:'#f87171', fontSize:9, fontWeight:700, textTransform:'uppercase', letterSpacing:'0.06em' }}>PARTIDO REF.</th>
                     <th style={{ padding:'9px 16px', textAlign:'center', color:'#60a5fa', fontSize:9, fontWeight:700, textTransform:'uppercase', letterSpacing:'0.06em' }}>CIV</th>
                   </tr>
@@ -8005,7 +8080,8 @@ function ExpoAIPanel({ teamData }: { teamData: any[] }) {
   const [loading, setLoading] = useState(false)
   const [partidos, setPartidos] = useState<any[]>([])
   const [selectedPartidos, setSelectedPartidos] = useState<(any|null)[]>([null,null,null])
-  const [refData, setRefData] = useState<any[]>([{},{},{}])  // GPS data per match
+  const [refData, setRefData] = useState<any[]>([{},{},{}])  // GPS team avg per match
+  const [refPlayers, setRefPlayers] = useState<any[][]>([[],[],[]])  // GPS per-player per match
   const [showRefInput, setShowRefInput] = useState(false)
 
   useEffect(() => { cargar() }, [desde, hasta])
@@ -8030,7 +8106,11 @@ function ExpoAIPanel({ teamData }: { teamData: any[] }) {
 
   async function selectPartido(slotIdx: number, partido: any) {
     const updated = [...selectedPartidos]; updated[slotIdx] = partido || null; setSelectedPartidos(updated)
-    if (!partido) { const nr=[...refData]; nr[slotIdx]={}; setRefData(nr); return }
+    if (!partido) {
+      const nr=[...refData]; nr[slotIdx]={}; setRefData(nr)
+      const np=[...refPlayers]; np[slotIdx]=[]; setRefPlayers(np)
+      return
+    }
     try {
       const r = await fetch(`/api/carga-gps?desde=${partido.fecha}&hasta=${partido.fecha}&ciclo=microciclo`)
       const d = await r.json()
@@ -8039,6 +8119,7 @@ function ExpoAIPanel({ teamData }: { teamData: any[] }) {
       nr[slotIdx] = { max_velocity: avg.max_velocity||0, dist_hir: avg.dist_hir||0, acc3: avg.acc3||0, dec3: avg.dec3||0,
         acc2: avg.acc2||0, dec2: avg.dec2||0, dist_per_min: avg.dist_per_min||0, dist_total: avg.dist_total||0 }
       setRefData(nr)
+      const np = [...refPlayers]; np[slotIdx] = d?.gpsReal || []; setRefPlayers(np)
     } catch(e){}
   }
 
@@ -8056,6 +8137,26 @@ function ExpoAIPanel({ teamData }: { teamData: any[] }) {
       const vals = refSlots.map(r=>Number(r[k])||0).filter(x=>x>0)
       if (vals.length) refMedia[k] = Math.round(vals.reduce((s,x)=>s+x,0)/vals.length*10)/10
     })
+  }
+
+  // Get individual player value from a reference match slot
+  const getRefPlayerVal = (playerName: string, slotIdx: number, key: string): number | null => {
+    const players: any[] = refPlayers[slotIdx] || []
+    const p = players.find((x:any) => x.nombre === playerName)
+    if (!p) return null
+    const v = Number(p[key])
+    return isNaN(v) || v === 0 ? null : v
+  }
+
+  // Avg of a key across all selected match slots for a specific player
+  const getRefPlayerAvg = (playerName: string, key: string): number | null => {
+    const vals = refPlayers
+      .map((players: any[]) => {
+        const p = players.find((x:any) => x.nombre === playerName)
+        return p ? Number(p[key]) || 0 : 0
+      })
+      .filter(v => v > 0)
+    return vals.length ? Math.round(vals.reduce((s,x)=>s+x,0)/vals.length*10)/10 : null
   }
 
   // Get per-player per-MD value.
@@ -8159,8 +8260,7 @@ function ExpoAIPanel({ teamData }: { teamData: any[] }) {
             <tbody>
               {gpsReal.map((p:any,i:number) => {
                 const vm = Number(p.max_velocity)||0
-                const refVals = refData.map(r=>Number(r.max_velocity)||0).filter(x=>x>0)
-                const vmProm = refVals.length ? Math.round(refVals.reduce((s,x)=>s+x,0)/refVals.length*10)/10 : null
+                const vmProm = getRefPlayerAvg(p.nombre, 'max_velocity')
                 const v80 = vmProm ? Math.round(vmProm*0.8*10)/10 : null
                 // Count MD sessions where player exceeded 80% VM ref
                 let exposiciones = 0
@@ -8182,11 +8282,10 @@ function ExpoAIPanel({ teamData }: { teamData: any[] }) {
                         {mv.val!==null ? mv.val : '—'}
                       </td>
                     ))}
-                    {refData.map((r,ri) => (
-                      <td key={ri} style={{ padding:'7px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', color:Number(r.max_velocity)?'#ef4444':'var(--fog)', background:'rgba(239,68,68,.04)' }}>
-                        {Number(r.max_velocity)||'—'}
-                      </td>
-                    ))}
+                    {refData.map((r,ri) => {
+                      const pv = getRefPlayerVal(p.nombre, ri, 'max_velocity')
+                      return <td key={ri} style={{ padding:'7px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', color:pv?'#ef4444':'var(--fog)', background:'rgba(239,68,68,.04)' }}>{pv||'—'}</td>
+                    })}
                     <td style={{ padding:'7px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, color:vmProm?'#ef4444':'var(--fog)', background:'rgba(239,68,68,.04)' }}>{vmProm||'—'}</td>
                     <td style={{ padding:'7px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, color:'#f59e0b', background:'rgba(245,158,11,.04)' }}>{v80||'—'}</td>
                     <td style={{ padding:'7px 8px', textAlign:'center', background:'rgba(34,197,94,.04)' }}>
@@ -8225,8 +8324,7 @@ function ExpoAIPanel({ teamData }: { teamData: any[] }) {
               {gpsReal.map((p:any,i:number) => {
                 const mdVals = MD_TRAIN.map(md => getMdVal(p.nombre, md, 'dist_hir'))
                 const suma = mdVals.reduce((s,v)=>s+(v||0),0)
-                const refHsr = refData.map(r=>Number(r.dist_hir)||0).filter(x=>x>0)
-                const promRef = refHsr.length ? Math.round(refHsr.reduce((s,x)=>s+x,0)/refHsr.length) : null
+                const promRef = getRefPlayerAvg(p.nombre, 'dist_hir')
                 const porce = promRef && suma ? Math.round((suma/promRef)*100)/100 : null
                 const objOk = porce!==null ? (porce>=1 && porce<=1.5 ? true : (porce>1.5 ? false : null)) : null
                 const porceColor = porce===null?'var(--fog)':porce>1.5?'#ef4444':porce>=1?'#22c55e':'#60a5fa'
@@ -8236,7 +8334,7 @@ function ExpoAIPanel({ teamData }: { teamData: any[] }) {
                     <td style={{ padding:'7px 8px', color:'var(--fog)', fontSize:10 }}>{p.posicion||'—'}</td>
                     {mdVals.map((v,mi) => <td key={mi} style={{ padding:'7px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', color:v!==null?'#fbbf24':'var(--fog)' }}>{v!==null?v:'—'}</td>)}
                     <td style={{ padding:'7px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, color:'#fbbf24', background:'rgba(251,191,36,.08)' }}>{suma||'—'}</td>
-                    {refData.map((r,ri) => <td key={ri} style={{ padding:'7px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', color:Number(r.dist_hir)?'#ef4444':'var(--fog)', background:'rgba(239,68,68,.04)' }}>{Number(r.dist_hir)||'—'}</td>)}
+                    {refData.map((r,ri) => { const pv=getRefPlayerVal(p.nombre,ri,'dist_hir'); return <td key={ri} style={{ padding:'7px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', color:pv?'#ef4444':'var(--fog)', background:'rgba(239,68,68,.04)' }}>{pv||'—'}</td> })}
                     <td style={{ padding:'7px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, color:promRef?'#ef4444':'var(--fog)', background:'rgba(239,68,68,.04)' }}>{promRef||'—'}</td>
                     <td style={{ padding:'7px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, color:porceColor }}>{porce!==null?porce:'—'}</td>
                     <td style={{ padding:'7px 8px', textAlign:'center' }}>
@@ -8282,8 +8380,7 @@ function ExpoAIPanel({ teamData }: { teamData: any[] }) {
                 // Sum acc3+dec3 per MD for this player
                 const mdVals = MD_TRAIN.map(md => getMdVal(p.nombre, md, 'acc3'))
                 const suma = mdVals.reduce((s,v)=>s+(v||0),0)
-                const refAcc3 = refData.map(r=>Number(r.acc3)||0).filter(x=>x>0)
-                const promRef = refAcc3.length ? Math.round(refAcc3.reduce((s,x)=>s+x,0)/refAcc3.length) : null
+                const promRef = (() => { const v = getRefPlayerAvg(p.nombre, 'acc3'); return v ? Math.round(v) : null })()
                 const porce = promRef && suma ? Math.round((suma/promRef)*100)/100 : null
                 const porceColor = porce===null?'var(--fog)':porce>1.5?'#ef4444':porce>=1?'#22c55e':'#60a5fa'
                 return (
@@ -8293,8 +8390,8 @@ function ExpoAIPanel({ teamData }: { teamData: any[] }) {
                     {mdVals.map((v,mi) => <td key={mi} style={{ padding:'7px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', color:v!==null?'#f43f5e':'var(--fog)' }}>{v!==null?v:'—'}</td>)}
                     <td style={{ padding:'7px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, color:'#f43f5e', background:'rgba(244,63,94,.08)' }}>{suma||'—'}</td>
                     {refData.map((r,ri) => {
-                      const rv = Number(r.acc3)||0
-                      return <td key={ri} style={{ padding:'7px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', color:rv?'#ef4444':'var(--fog)', background:'rgba(239,68,68,.04)' }}>{rv||'—'}</td>
+                      const pv = getRefPlayerVal(p.nombre, ri, 'acc3')
+                      return <td key={ri} style={{ padding:'7px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', color:pv?'#ef4444':'var(--fog)', background:'rgba(239,68,68,.04)' }}>{pv||'—'}</td>
                     })}
                     <td style={{ padding:'7px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, color:promRef?'#ef4444':'var(--fog)', background:'rgba(239,68,68,.04)' }}>{promRef||'—'}</td>
                     <td style={{ padding:'7px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, color:porceColor }}>{porce!==null?porce:'—'}</td>
@@ -8335,8 +8432,7 @@ function ExpoAIPanel({ teamData }: { teamData: any[] }) {
               {gpsReal.map((p:any,i:number) => {
                 const mdVals = MD_TRAIN.map(md => getMdVal(p.nombre, md, 'dec3'))
                 const suma = mdVals.reduce((s,v)=>s+(v||0),0)
-                const refDec3 = refData.map(r=>Number(r.dec3)||0).filter(x=>x>0)
-                const promRef = refDec3.length ? Math.round(refDec3.reduce((s,x)=>s+x,0)/refDec3.length) : null
+                const promRef = (() => { const v = getRefPlayerAvg(p.nombre, 'dec3'); return v ? Math.round(v) : null })()
                 const porce = promRef && suma ? Math.round((suma/promRef)*100)/100 : null
                 const porceColor = porce===null?'var(--fog)':porce>1.5?'#ef4444':porce>=1?'#22c55e':'#60a5fa'
                 return (
@@ -8346,8 +8442,8 @@ function ExpoAIPanel({ teamData }: { teamData: any[] }) {
                     {mdVals.map((v,mi) => <td key={mi} style={{ padding:'7px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', color:v!==null?'#0ea5e9':'var(--fog)' }}>{v!==null?v:'—'}</td>)}
                     <td style={{ padding:'7px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, color:'#0ea5e9', background:'rgba(14,165,233,.08)' }}>{suma||'—'}</td>
                     {refData.map((r,ri) => {
-                      const rv = Number(r.dec3)||0
-                      return <td key={ri} style={{ padding:'7px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', color:rv?'#ef4444':'var(--fog)', background:'rgba(239,68,68,.04)' }}>{rv||'—'}</td>
+                      const pv = getRefPlayerVal(p.nombre, ri, 'dec3')
+                      return <td key={ri} style={{ padding:'7px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', color:pv?'#ef4444':'var(--fog)', background:'rgba(239,68,68,.04)' }}>{pv||'—'}</td>
                     })}
                     <td style={{ padding:'7px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, color:promRef?'#ef4444':'var(--fog)', background:'rgba(239,68,68,.04)' }}>{promRef||'—'}</td>
                     <td style={{ padding:'7px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, color:porceColor }}>{porce!==null?porce:'—'}</td>
