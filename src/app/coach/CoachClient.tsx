@@ -7868,6 +7868,223 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
             </tbody>
           </table>
         </div>
+        {/* ── Gráficos Cuadro 2: promedio equipo por MD ── */}
+        {GPS_CHART_GROUPS.length > 0 && (() => {
+          const BAR_H = 160
+          const activeMds = mdCols.filter(md => existingMdLabels.has(md) && (gpsPerMD[md]||[]).length > 0)
+          if (!activeMds.length) return null
+          return (
+            <div style={{ padding:16, borderTop:'1px solid var(--mist)' }}>
+              <p style={{ fontSize:10, fontWeight:700, color:'#60a5fa', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:12 }}>📊 GRÁFICO AGRUPADO · PROMEDIO EQUIPO POR MD</p>
+              <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(260px,1fr))', gap:16 }}>
+                {GPS_CHART_GROUPS.map(grp => {
+                  const vals = activeMds.map(md => grp.bars.map(b => mdTeamAvg(md)[b.key]||0))
+                  const allVals = vals.flat()
+                  const maxBar = Math.max(...allVals, 1)
+                  const lineVals = grp.line ? activeMds.map(md => mdTeamAvg(md)[grp.line!.key]||0) : []
+                  const maxLine = Math.max(...lineVals, 1)
+                  const n = activeMds.length
+                  return (
+                    <div key={grp.title} style={{ background:'var(--ink3)', borderRadius:12, padding:14, border:`1px solid ${grp.color}30` }}>
+                      <div style={{ fontSize:11, fontWeight:800, color:grp.color, textTransform:'uppercase', letterSpacing:'0.08em', textAlign:'center', marginBottom:4, borderBottom:`1px solid ${grp.color}30`, paddingBottom:6 }}>{grp.title}</div>
+                      <div style={{ display:'flex', flexWrap:'wrap', gap:6, justifyContent:'center', marginBottom:8 }}>
+                        {grp.bars.map(b=>(
+                          <span key={b.key} style={{ display:'flex', alignItems:'center', gap:3, fontSize:10, color:'var(--silver)' }}>
+                            <span style={{ width:8, height:8, borderRadius:2, background:b.color, display:'inline-block' }}/>{b.label}
+                          </span>
+                        ))}
+                        {grp.line && <span style={{ display:'flex', alignItems:'center', gap:3, fontSize:10, color:'var(--silver)' }}>
+                          <svg width="14" height="6"><line x1="0" y1="3" x2="14" y2="3" stroke={grp.line.color} strokeWidth="2" strokeDasharray="4,2"/><circle cx="7" cy="3" r="2" fill={grp.line.color}/></svg>
+                          {grp.line.label}
+                        </span>}
+                      </div>
+                      <div style={{ position:'relative', height:`${BAR_H+28}px` }}>
+                        {[0,25,50,75,100].map(p=>(
+                          <div key={p} style={{ position:'absolute', left:0, right:0, bottom:`${(p/100)*BAR_H+20}px`, borderTop:'1px solid rgba(255,255,255,.04)' }}/>
+                        ))}
+                        <div style={{ position:'absolute', bottom:20, left:0, right:0, display:'flex', alignItems:'flex-end', gap:6, padding:'0 4px' }}>
+                          {activeMds.map((md, mi) => (
+                            <div key={md} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', minWidth:0 }}>
+                              <div style={{ display:'flex', gap:2, alignItems:'flex-end', width:'100%', justifyContent:'center' }}>
+                                {grp.bars.map((b,bi) => {
+                                  const val = mdTeamAvg(md)[b.key]||0
+                                  const h = Math.max((val/maxBar)*BAR_H, val>0?4:2)
+                                  return (
+                                    <div key={bi} title={`${md}: ${val}`}
+                                      style={{ position:'relative', flex:1, maxWidth:24, height:`${h}px`, background:val>0?b.color:`${b.color}18`, borderRadius:'3px 3px 0 0', minWidth:6 }}>
+                                      {val>0 && h>=16 && <span style={{ position:'absolute', top:'50%', left:'50%', transform:'translate(-50%,-50%) rotate(-90deg)', fontSize:7, color:'#fff', fontFamily:'DM Mono,monospace', fontWeight:700, whiteSpace:'nowrap', textShadow:'0 1px 2px rgba(0,0,0,.9)' }}>{val}</span>}
+                                    </div>
+                                  )
+                                })}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                        {grp.line && lineVals.length >= 1 && (() => {
+                          const W = 1000
+                          const allPts = lineVals.map((v,i)=>({ x: n===1?W/2:(i/(n-1))*W, y: v>0?(1-(v/maxLine))*BAR_H*0.85+BAR_H*0.05:null, v }))
+                          const validPts = allPts.filter(pt=>pt.y!==null) as {x:number,y:number,v:number}[]
+                          return (
+                            <svg viewBox={`0 0 ${W} ${BAR_H}`} preserveAspectRatio="xMidYMid meet"
+                              style={{ position:'absolute', bottom:20, left:0, right:0, width:'100%', height:`${BAR_H}px`, overflow:'visible', pointerEvents:'none' }}>
+                              {validPts.length>1 && <polyline points={validPts.map(p=>`${p.x},${p.y}`).join(' ')} fill="none" stroke={grp.line.color} strokeWidth="2.5" strokeDasharray="12,7" vectorEffect="non-scaling-stroke"/>}
+                              {allPts.map((pt,i)=>pt.y===null?null:(
+                                <g key={i}>
+                                  <circle cx={pt.x} cy={pt.y} r="4.5" fill={grp.line!.color} stroke="#000" strokeWidth="1.5" vectorEffect="non-scaling-stroke"/>
+                                  {pt.v>0 && <text x={pt.x} y={Math.max(pt.y-8,12)} textAnchor="middle" fill={grp.line!.color} fontFamily="DM Mono,monospace" fontWeight="bold" vectorEffect="non-scaling-stroke" style={{ fontSize:`${BAR_H*0.08}px` }}>{pt.v}</text>}
+                                </g>
+                              ))}
+                            </svg>
+                          )
+                        })()}
+                        <div style={{ position:'absolute', bottom:0, left:0, right:0, display:'flex', gap:6, padding:'0 4px' }}>
+                          {activeMds.map(md=>(
+                            <div key={md} style={{ flex:1, textAlign:'center', minWidth:0 }}>
+                              <div style={{ fontSize:9, color:'#60a5fa', fontWeight:700, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{md}</div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )
+        })()}
+      </div>
+
+      {/* ══ CUADRO 3: TOTALES POR MD (GPS REAL) ═══════════════════════════ */}
+      <div style={{ background:'var(--ink2)', border:'1px solid rgba(168,85,247,.2)', borderRadius:16, overflow:'hidden', marginBottom:20 }}>
+        <div style={{ padding:'10px 16px', borderBottom:'1px solid var(--mist)' }}>
+          <p style={{ fontSize:11, fontWeight:700, color:'#a78bfa', textTransform:'uppercase', letterSpacing:'0.08em' }}>CUADRO 3 · TOTALES EQUIPO POR MD (GPS REAL)</p>
+          <p style={{ fontSize:10, color:'var(--fog)', marginTop:2 }}>Suma total del equipo (promedio × nº jugadores con datos) en cada sesión</p>
+        </div>
+        <div style={{ overflowX:'auto' }}>
+          <table style={{ width:'100%', borderCollapse:'collapse', fontSize:11 }}>
+            <thead>
+              <tr style={{ background:'rgba(168,85,247,.05)' }}>
+                <th style={{ padding:'8px 14px', textAlign:'left', color:'var(--silver)', fontSize:9, fontWeight:700, textTransform:'uppercase' }}>Métrica</th>
+                {mdCols.map(md=>(
+                  <th key={md} style={{ padding:'8px 10px', textAlign:'center', color:existingMdLabels.has(md)&&(gpsPerMD[md]||[]).length>0?'#a78bfa':'var(--fog)', fontSize:10, fontWeight:700, whiteSpace:'nowrap', opacity:existingMdLabels.has(md)&&(gpsPerMD[md]||[]).length>0?1:0.5 }}>{md}</th>
+                ))}
+                <th style={{ padding:'8px 10px', textAlign:'center', color:'#34d399', fontSize:9, fontWeight:700 }}>TOTAL</th>
+              </tr>
+            </thead>
+            <tbody>
+              {GPS_VARS.map((v,i)=>{
+                const vals = mdCols.map(md => {
+                  const players = gpsPerMD[md] || []
+                  if (!players.length) return 0
+                  // For avg fields: team avg (already correct); for cumulative: sum all players
+                  if (AVG_FIELDS_GPS.has(v.key)) return mdTeamAvg(md)[v.key] || 0
+                  return Math.round(players.reduce((s:number,p:any)=>s+(Number(p[v.key])||0),0)*10)/10
+                })
+                const total = AVG_FIELDS_GPS.has(v.key)
+                  ? (() => { const nz=vals.filter(x=>x>0); return nz.length?Math.round(nz.reduce((s,x)=>s+x,0)/nz.length*10)/10:0 })()
+                  : Math.round(vals.reduce((s,x)=>s+x,0)*10)/10
+                return (
+                  <tr key={v.key} style={{ borderTop:'1px solid var(--mist)', background:i%2===0?'transparent':'rgba(255,255,255,.015)' }}>
+                    <td style={{ padding:'7px 14px', color:v.color, fontWeight:600, fontSize:11 }}>{v.label}</td>
+                    {vals.map((val,j)=>(
+                      <td key={j} style={{ padding:'7px 10px', textAlign:'center', fontFamily:'DM Mono,monospace', color:val>0?v.color:'var(--fog)', fontWeight:val>0?600:400 }}>{val>0?val:'—'}</td>
+                    ))}
+                    <td style={{ padding:'7px 10px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, color:'#34d399' }}>{total>0?total:'—'}</td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+        {/* Gráficos Cuadro 3: totales por MD */}
+        {GPS_CHART_GROUPS.length > 0 && (() => {
+          const BAR_H = 160
+          const activeMds = mdCols.filter(md => existingMdLabels.has(md) && (gpsPerMD[md]||[]).length > 0)
+          if (!activeMds.length) return null
+          return (
+            <div style={{ padding:16, borderTop:'1px solid var(--mist)' }}>
+              <p style={{ fontSize:10, fontWeight:700, color:'#a78bfa', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:12 }}>📊 GRÁFICO AGRUPADO · TOTALES EQUIPO POR MD</p>
+              <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(260px,1fr))', gap:16 }}>
+                {GPS_CHART_GROUPS.map(grp => {
+                  const getTotal = (md:string, key:string) => {
+                    const players = gpsPerMD[md] || []
+                    if (!players.length) return 0
+                    if (AVG_FIELDS_GPS.has(key)) return mdTeamAvg(md)[key]||0
+                    return Math.round(players.reduce((s:number,p:any)=>s+(Number(p[key])||0),0)*10)/10
+                  }
+                  const allVals = activeMds.flatMap(md => grp.bars.map(b => getTotal(md, b.key)))
+                  const maxBar = Math.max(...allVals, 1)
+                  const lineVals = grp.line ? activeMds.map(md => getTotal(md, grp.line!.key)) : []
+                  const maxLine = Math.max(...lineVals, 1)
+                  const n = activeMds.length
+                  return (
+                    <div key={grp.title} style={{ background:'var(--ink3)', borderRadius:12, padding:14, border:`1px solid ${grp.color}30` }}>
+                      <div style={{ fontSize:11, fontWeight:800, color:grp.color, textTransform:'uppercase', letterSpacing:'0.08em', textAlign:'center', marginBottom:4, borderBottom:`1px solid ${grp.color}30`, paddingBottom:6 }}>{grp.title}</div>
+                      <div style={{ display:'flex', flexWrap:'wrap', gap:6, justifyContent:'center', marginBottom:8 }}>
+                        {grp.bars.map(b=>(
+                          <span key={b.key} style={{ display:'flex', alignItems:'center', gap:3, fontSize:10, color:'var(--silver)' }}>
+                            <span style={{ width:8, height:8, borderRadius:2, background:b.color, display:'inline-block' }}/>{b.label}
+                          </span>
+                        ))}
+                        {grp.line && <span style={{ display:'flex', alignItems:'center', gap:3, fontSize:10, color:'var(--silver)' }}>
+                          <svg width="14" height="6"><line x1="0" y1="3" x2="14" y2="3" stroke={grp.line.color} strokeWidth="2" strokeDasharray="4,2"/><circle cx="7" cy="3" r="2" fill={grp.line.color}/></svg>
+                          {grp.line.label}
+                        </span>}
+                      </div>
+                      <div style={{ position:'relative', height:`${BAR_H+28}px` }}>
+                        {[0,25,50,75,100].map(p=>(
+                          <div key={p} style={{ position:'absolute', left:0, right:0, bottom:`${(p/100)*BAR_H+20}px`, borderTop:'1px solid rgba(255,255,255,.04)' }}/>
+                        ))}
+                        <div style={{ position:'absolute', bottom:20, left:0, right:0, display:'flex', alignItems:'flex-end', gap:6, padding:'0 4px' }}>
+                          {activeMds.map((md, mi) => (
+                            <div key={md} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', minWidth:0 }}>
+                              <div style={{ display:'flex', gap:2, alignItems:'flex-end', width:'100%', justifyContent:'center' }}>
+                                {grp.bars.map((b,bi) => {
+                                  const val = getTotal(md, b.key)
+                                  const h = Math.max((val/maxBar)*BAR_H, val>0?4:2)
+                                  return (
+                                    <div key={bi} title={`${md}: ${val}`}
+                                      style={{ position:'relative', flex:1, maxWidth:24, height:`${h}px`, background:val>0?b.color:`${b.color}18`, borderRadius:'3px 3px 0 0', minWidth:6 }}>
+                                      {val>0 && h>=16 && <span style={{ position:'absolute', top:'50%', left:'50%', transform:'translate(-50%,-50%) rotate(-90deg)', fontSize:7, color:'#fff', fontFamily:'DM Mono,monospace', fontWeight:700, whiteSpace:'nowrap', textShadow:'0 1px 2px rgba(0,0,0,.9)' }}>{val}</span>}
+                                    </div>
+                                  )
+                                })}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                        {grp.line && lineVals.length >= 1 && (() => {
+                          const W = 1000
+                          const allPts = lineVals.map((v,i)=>({ x: n===1?W/2:(i/(n-1))*W, y: v>0?(1-(v/maxLine))*BAR_H*0.85+BAR_H*0.05:null, v }))
+                          const validPts = allPts.filter(pt=>pt.y!==null) as {x:number,y:number,v:number}[]
+                          return (
+                            <svg viewBox={`0 0 ${W} ${BAR_H}`} preserveAspectRatio="xMidYMid meet"
+                              style={{ position:'absolute', bottom:20, left:0, right:0, width:'100%', height:`${BAR_H}px`, overflow:'visible', pointerEvents:'none' }}>
+                              {validPts.length>1 && <polyline points={validPts.map(p=>`${p.x},${p.y}`).join(' ')} fill="none" stroke={grp.line.color} strokeWidth="2.5" strokeDasharray="12,7" vectorEffect="non-scaling-stroke"/>}
+                              {allPts.map((pt,i)=>pt.y===null?null:(
+                                <g key={i}>
+                                  <circle cx={pt.x} cy={pt.y} r="4.5" fill={grp.line!.color} stroke="#000" strokeWidth="1.5" vectorEffect="non-scaling-stroke"/>
+                                  {pt.v>0 && <text x={pt.x} y={Math.max(pt.y-8,12)} textAnchor="middle" fill={grp.line!.color} fontFamily="DM Mono,monospace" fontWeight="bold" vectorEffect="non-scaling-stroke" style={{ fontSize:`${BAR_H*0.08}px` }}>{pt.v}</text>}
+                                </g>
+                              ))}
+                            </svg>
+                          )
+                        })()}
+                        <div style={{ position:'absolute', bottom:0, left:0, right:0, display:'flex', gap:6, padding:'0 4px' }}>
+                          {activeMds.map(md=>(
+                            <div key={md} style={{ flex:1, textAlign:'center', minWidth:0 }}>
+                              <div style={{ fontSize:9, color:'#a78bfa', fontWeight:700, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{md}</div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )
+        })()}
       </div>
 
       {/* ══ CUADRO 4: % sobre el partido (GPS) ═════════════════════════════ */}
