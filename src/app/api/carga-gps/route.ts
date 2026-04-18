@@ -336,6 +336,12 @@ export async function GET(req: NextRequest) {
               // Ya no corremos el riesgo de sumar dist_total porque lo bloqueamos arriba
               if (r.metricas[k] !== undefined) p[k] = (p[k] || 0) + (Number(r.metricas[k]) || 0)
             }
+            // Fallback: acc3/dec3 are base cols but older imports only saved them in metricas JSON
+            for (const k of ['acc3', 'dec3']) {
+              if (r.metricas[k] !== undefined && (Number(r[k]) || 0) === 0) {
+                p[k] = (p[k] || 0) + (Number(r.metricas[k]) || 0)
+              }
+            }
           }
         }
         

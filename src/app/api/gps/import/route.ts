@@ -484,8 +484,8 @@ export async function POST(req: NextRequest) {
       
       for (const m of matched) {
         const met = m.metricas || {}
-        await sql`INSERT INTO gps_logs (jugador_id, club_id, fecha, sesion_id, tipo_sesion, dist_total, dist_hir, dist_v4, dist_v5, player_load, max_velocity, acc2, dec2, dist_per_min, n_sprints, metricas, fuente)
-                  VALUES (${m.jugador_id}, ${clubId}, ${fecha}, ${sesion_id}, ${tipo_sesion}, ${met.dist_total||0}, ${met.dist_hir||0}, ${met.dist_v4||0}, ${met.dist_v5||0}, ${met.player_load||0}, ${met.max_velocity||0}, ${met.acc2||0}, ${met.dec2||0}, ${met.dist_per_min||0}, ${met.n_sprints||0}, ${JSON.stringify(met)}, ${pdfText?'pdf':'excel'})`
+        await sql`INSERT INTO gps_logs (jugador_id, club_id, fecha, sesion_id, tipo_sesion, dist_total, dist_hir, dist_v4, dist_v5, player_load, max_velocity, acc2, dec2, acc3, dec3, dist_per_min, n_sprints, metricas, fuente)
+                  VALUES (${m.jugador_id}, ${clubId}, ${fecha}, ${sesion_id}, ${tipo_sesion}, ${met.dist_total||0}, ${met.dist_hir||0}, ${met.dist_v4||0}, ${met.dist_v5||0}, ${met.player_load||0}, ${met.max_velocity||0}, ${met.acc2||0}, ${met.dec2||0}, ${met.acc3||0}, ${met.dec3||0}, ${met.dist_per_min||0}, ${met.n_sprints||0}, ${JSON.stringify(met)}, ${pdfText?'pdf':'excel'})`
       }
     }
     return NextResponse.json({ ok: true, saved: matched.length, unmatched })
