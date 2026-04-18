@@ -7457,14 +7457,28 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
   const existingMdLabels = new Set(sesionesInfo.map((s:any) => s.titulo))
   const mdCols = MD_ORDER_LOCAL
 
-  // Ref media (avg of 3 matches)
+  // Ref media (avg of 3 matches) — computed over ALL GPS_METRIC_META keys,
+  // independent of GPS_VARS so player_load and others always show even if
+  // the current microcycle doesn't have that column imported
   const refMedia: Record<string,number> = {}
-  GPS_VARS.forEach(v => {
-    const vals = partidoRefs.map(r=>Number(r[v.key])||0).filter(x=>x>0)
-    if (vals.length) refMedia[v.key] = Math.round(vals.reduce((s,x)=>s+x,0)/vals.length*10)/10
+  Object.keys(GPS_METRIC_META).forEach(key => {
+    const vals = partidoRefs.map((r:any) => Number(r[key])||0).filter(x=>x>0)
+    if (vals.length) refMedia[key] = Math.round(vals.reduce((s:number,x:number)=>s+x,0)/vals.length*10)/10
   })
   const pct = (val:number, key:string) => { const ref=refMedia[key]; if(!ref||ref===0) return null; return Math.round((val/ref)*100) }
   const pctColor = (p:number|null) => p===null?'var(--fog)':p>=85?'#22c55e':p>=65?'#f59e0b':'#ef4444'
+  // refMediaVars: ordered list of vars that have a ref value — used in Cuadro 4 & 5 tables
+  // Uses GPS_METRIC_ORDER for consistent ordering, so player_load always shows if ref exists
+  const refMediaVars = GPS_METRIC_ORDER
+    .filter((key:string) => refMedia[key] > 0)
+    .map((key:string) => {
+      const meta = GPS_METRIC_META[key]
+      return {
+        key,
+        label: meta ? `${meta.label}${meta.unit ? ' ('+meta.unit+')' : ''}` : key,
+        color: GPS_KEY_COLORS[key] || '#94a3b8',
+      }
+    })
 
   // Team avg GPS for a given MD — works across all dynamic GPS_VARS
   const MAX_FIELDS_GPS = new Set(['hr_max'])
@@ -7887,22 +7901,32 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
                   {selectedPartidos[ri] && <button onClick={()=>selectPartido(ri,null)} style={{ fontSize:10, padding:'4px 8px', borderRadius:6, background:'rgba(239,68,68,.1)', color:'#f87171', border:'1px solid rgba(239,68,68,.2)', cursor:'pointer' }}>✕</button>}
                 </div>
                 <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(100px,1fr))', gap:6 }}>
-                  {GPS_VARS.map(v=>(
-                    <div key={v.key}>
-                      <label style={{ fontSize:9, color:v.color, display:'block', marginBottom:2, textTransform:'uppercase', fontWeight:600 }}>{v.label}</label>
-                      <input className="wp-input" type="number" placeholder="—" style={{ padding:'4px 7px', fontSize:11, width:'100%', background:partidoRefs[ri]?.[v.key]?'rgba(239,68,68,.08)':'transparent' }}
-                        value={partidoRefs[ri]?.[v.key]||''}
-                        onChange={e=>{ const nr=[...partidoRefs]; nr[ri]={...nr[ri],[v.key]:Number(e.target.value)||''}; setPartidoRefs(nr) }}
-                      />
-                    </div>
-                  ))}
+                  {GPS_METRIC_ORDER.map(key=>{
+                    const meta = GPS_METRIC_META[key]
+                    if (!meta) return null
+                    const label = `${meta.label}${meta.unit ? ' ('+meta.unit+')' : ''}`
+                    const color = GPS_KEY_COLORS[key] || '#94a3b8'
+                    // Only show fields present in GPS_VARS (data) OR that have a value in any ref
+                    const hasValue = partidoRefs.some((r:any) => Number(r[key]) > 0)
+                    const inData = GPS_VARS.some((v:any) => v.key === key)
+                    if (!inData && !hasValue) return null
+                    return (
+                      <div key={key}>
+                        <label style={{ fontSize:9, color, display:'block', marginBottom:2, textTransform:'uppercase', fontWeight:600 }}>{label}</label>
+                        <input className="wp-input" type="number" placeholder="—" style={{ padding:'4px 7px', fontSize:11, width:'100%', background:partidoRefs[ri]?.[key]?'rgba(239,68,68,.08)':'transparent' }}
+                          value={partidoRefs[ri]?.[key]||''}
+                          onChange={e=>{ const nr=[...partidoRefs]; nr[ri]={...nr[ri],[key]:Number(e.target.value)||''}; setPartidoRefs(nr) }}
+                        />
+                      </div>
+                    )
+                  })}
                 </div>
               </div>
             ))}
             {Object.keys(refMedia).length>0 && (
               <div style={{ padding:'8px 12px', background:'rgba(239,68,68,.08)', borderRadius:8, display:'flex', flexWrap:'wrap', gap:10 }}>
                 <span style={{ fontSize:10, color:'#f87171', fontWeight:700 }}>📊 Media referencia:</span>
-                {GPS_VARS.filter(v=>refMedia[v.key]).map(v=>(
+                {refMediaVars.map(v=>(
                   <span key={v.key} style={{ fontSize:11, color:v.color, fontFamily:'DM Mono,monospace' }}>{v.label}: <strong>{refMedia[v.key]}</strong></span>
                 ))}
               </div>
@@ -7917,7 +7941,7 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
               <thead>
                 <tr style={{ background:'rgba(239,68,68,.04)' }}>
                   <th style={{ padding:'7px 14px', textAlign:'left', color:'var(--silver)', fontSize:9, fontWeight:700, textTransform:'uppercase' }}>Jugador / MD</th>
-                  {GPS_VARS.filter(v=>refMedia[v.key]).map(v=>(
+                  {refMediaVars.map(v=>(
                     <th key={v.key} style={{ padding:'7px 8px', textAlign:'center', color:v.color, fontSize:9, fontWeight:700, textTransform:'uppercase', whiteSpace:'nowrap' }}>
                       {v.label}<div style={{ fontSize:8, color:'var(--fog)', fontWeight:400 }}>ref:{refMedia[v.key]}</div>
                     </th>
@@ -7956,19 +7980,19 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
                   return (
                     <tr key={i} style={{ borderTop:'1px solid var(--mist)', background:i%2===0?'transparent':'rgba(255,255,255,.015)' }}>
                       <td style={{ padding:'7px 14px', color:'var(--snow)', fontWeight:500, whiteSpace:'nowrap' }}>{p.nombre}</td>
-                      {GPS_VARS.filter(v=>refMedia[v.key]).map(v=>{ const pv=pct(getVal(v.key),v.key); return <td key={v.key} style={{ padding:'7px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:pv?600:400, color:pctColor(pv) }}>{pv!==null?`${pv}%`:'—'}</td> })}
+                      {refMediaVars.map(v=>{ const pv=pct(getVal(v.key),v.key); return <td key={v.key} style={{ padding:'7px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:pv?600:400, color:pctColor(pv) }}>{pv!==null?`${pv}%`:'—'}</td> })}
                     </tr>
                   )
                 })}
                 {mdCols.filter(md=>existingMdLabels.has(md)&&(gpsPerMD[md]||[]).length>0).map(md=>(
                   <tr key={md} style={{ borderTop:'1px solid rgba(239,68,68,.15)', background:'rgba(239,68,68,.03)' }}>
                     <td style={{ padding:'7px 14px', color:'#f87171', fontWeight:700, fontSize:10 }}>{md} (prom)</td>
-                    {GPS_VARS.filter(v=>refMedia[v.key]).map(v=>{ const val=mdTeamAvg(md)[v.key]||0; const pv=pct(val,v.key); return <td key={v.key} style={{ padding:'7px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:pv?600:400, color:pctColor(pv) }}>{pv!==null?`${pv}%`:'—'}</td> })}
+                    {refMediaVars.map(v=>{ const val=mdTeamAvg(md)[v.key]||0; const pv=pct(val,v.key); return <td key={v.key} style={{ padding:'7px 8px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:pv?600:400, color:pctColor(pv) }}>{pv!==null?`${pv}%`:'—'}</td> })}
                   </tr>
                 ))}
                 <tr style={{ borderTop:'2px solid rgba(239,68,68,.3)', background:'rgba(239,68,68,.05)' }}>
                   <td style={{ padding:'8px 14px', fontWeight:800, color:'#f87171', fontSize:10, textTransform:'uppercase' }}>Prom. Equipo</td>
-                  {GPS_VARS.filter(v=>refMedia[v.key]).map(v=>{
+                  {refMediaVars.map(v=>{
                     const trainingMds = mdCols.filter(md => md !== 'MD' && existingMdLabels.has(md) && (gpsPerMD[md]||[]).length > 0)
                     const vals = trainingMds.map(md => mdTeamAvg(md)[v.key]||0).filter(x=>x>0)
                     const teamVal = vals.length
@@ -7989,16 +8013,20 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
       {Object.keys(refMedia).length > 0 && (() => {
         const trainingMds = mdCols.filter(md => md !== 'MD' && existingMdLabels.has(md) && (gpsPerMD[md]||[]).length > 0)
 
-        const civData = GPS_VARS.map(v => {
-          // SUMA = sum of team avg across all training MDs (for cumulative) or avg (for avg fields)
-          const mdVals = trainingMds.map(md => mdTeamAvg(md)[v.key]||0).filter(x=>x>0)
+        // CIV iterates refMedia keys (not GPS_VARS) so player_load and other
+        // metrics from the match always appear even if microcycle lacks that column
+        const civData = Object.keys(refMedia).map(key => {
+          const meta = GPS_METRIC_META[key]
+          const label = meta ? `${meta.label}${meta.unit ? ' ('+meta.unit+')' : ''}` : key
+          const color = GPS_KEY_COLORS[key] || '#94a3b8'
+          const mdVals = trainingMds.map((md:string) => mdTeamAvg(md)[key]||0).filter((x:number)=>x>0)
           const suma = !mdVals.length ? 0
-            : AVG_FIELDS_GPS.has(v.key)
-            ? Math.round(mdVals.reduce((s,x)=>s+x,0)/mdVals.length*10)/10
-            : Math.round(mdVals.reduce((s,x)=>s+x,0)*10)/10
-          const ref = refMedia[v.key] || 0
+            : AVG_FIELDS_GPS.has(key)
+            ? Math.round(mdVals.reduce((s:number,x:number)=>s+x,0)/mdVals.length*10)/10
+            : Math.round(mdVals.reduce((s:number,x:number)=>s+x,0)*10)/10
+          const ref = refMedia[key] || 0
           const civ = ref > 0 ? Math.round((suma / ref) * 100) / 100 : null
-          return { ...v, suma, ref, civ }
+          return { key, label, color, suma, ref, civ }
         }).filter(v => v.ref > 0)
 
         if (!civData.length) return null
