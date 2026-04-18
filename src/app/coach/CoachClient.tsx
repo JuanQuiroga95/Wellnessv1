@@ -7436,6 +7436,9 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
     Object.values(gpsPerMD).forEach((players: any) =>
       (players as any[]).forEach((p: any) => Object.keys(p).forEach(k => { if (!SKIP.has(k)) colSet.add(k) }))
     )
+    // Also include any keys present in partido refs (e.g. player_load from match import)
+    // so they show up in Cuadros 4 & 5 even if the current microcycle lacks that column
+    partidoRefs.forEach((ref: any) => Object.keys(ref).forEach(k => { if (k in GPS_METRIC_META) colSet.add(k) }))
     const rawCols = Array.from(colSet)
     const ordered = [
       ...GPS_METRIC_ORDER.filter(k => rawCols.includes(k)),
