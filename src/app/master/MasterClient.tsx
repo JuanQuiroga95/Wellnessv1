@@ -597,6 +597,21 @@ function CoachesTab({ coaches, clubs, showNewCoach, setShowNewCoach, reload }) {
   )
 }
 
+function daysSince(dateStr: string | null): number | null {
+  if (!dateStr) return null
+  const diff = Date.now() - new Date(dateStr).getTime()
+  return Math.floor(diff / (1000 * 60 * 60 * 24))
+}
+
+function subscriptionBadge(days: number | null) {
+  if (days === null) return { label: 'Sin fecha', color: '#6b7280', bg: 'rgba(107,114,128,.12)' }
+  if (days < 30)  return { label: `${days}d`, color: '#22c55e', bg: 'rgba(34,197,94,.12)' }
+  if (days < 90)  return { label: `${Math.floor(days/30)}m ${days%30}d`, color: '#60a5fa', bg: 'rgba(96,165,250,.12)' }
+  if (days < 180) return { label: `${Math.floor(days/30)}m`, color: '#f59e0b', bg: 'rgba(245,158,11,.12)' }
+  if (days < 365) return { label: `${Math.floor(days/30)}m`, color: '#f97316', bg: 'rgba(249,115,22,.12)' }
+  return { label: `${Math.floor(days/365)}a ${Math.floor((days%365)/30)}m`, color: '#ef4444', bg: 'rgba(239,68,68,.12)' }
+}
+
 function CoachRow({ coach, clubs, last, onRefresh }) {
   const [open, setOpen] = useState(false)
   const [clubId, setClubId] = useState(String(coach.club_id||''))
@@ -606,6 +621,10 @@ function CoachRow({ coach, clubs, last, onRefresh }) {
   const [currentPass, setCurrentPass] = useState(coach.password_plain || null)
   // Sync when coach data refreshes
   useEffect(() => { setCurrentPass(coach.password_plain || null) }, [coach.password_plain])
+
+  const diasDesdeCreacion = daysSince(coach.created_at)
+  const diasDesdeLogin = daysSince(coach.last_login)
+  const subBadge = subscriptionBadge(diasDesdeCreacion)
 
   async function assignClub() {
     setSaving(true)
@@ -635,6 +654,15 @@ function CoachRow({ coach, clubs, last, onRefresh }) {
           <div style={{ fontWeight:600, fontSize:14, color:'var(--snow)' }}>{coach.nombre}</div>
           <div style={{ fontSize:11, color:'var(--silver)', marginTop:1 }}>@{coach.usuario}</div>
         </div>
+        {/* Subscription duration */}
+        <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', gap:3, flexShrink:0 }}>
+          <span style={{ fontSize:10, padding:'2px 8px', borderRadius:10, background:subBadge.bg, color:subBadge.color, fontFamily:'DM Mono,monospace', fontWeight:600, border:`1px solid ${subBadge.color}33` }}>
+            📅 {subBadge.label}
+          </span>
+          <span style={{ fontSize:10, color: diasDesdeLogin === null ? 'var(--fog)' : diasDesdeLogin <= 3 ? '#22c55e' : diasDesdeLogin <= 14 ? '#f59e0b' : '#ef4444', fontFamily:'DM Mono,monospace' }}>
+            {diasDesdeLogin === null ? '⚪ Sin ingresos' : diasDesdeLogin === 0 ? '🟢 Hoy' : diasDesdeLogin === 1 ? '🟢 Ayer' : diasDesdeLogin <= 3 ? `🟢 Hace ${diasDesdeLogin}d` : diasDesdeLogin <= 14 ? `🟡 Hace ${diasDesdeLogin}d` : `🔴 Hace ${diasDesdeLogin}d`}
+          </span>
+        </div>
         {(() => {
           const clubObj = clubs.find((c: any) => c.id === coach.club_id)
           return coach.club_nombre
@@ -652,6 +680,34 @@ function CoachRow({ coach, clubs, last, onRefresh }) {
 
       {open && (
         <div style={{ padding:'14px 24px 20px', background:'var(--ink3)', borderTop:'1px solid var(--mist)' }}>
+          {/* Subscription stats */}
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:8, marginBottom:16 }}>
+            {[
+              { label:'Creado el', val: coach.created_at ? new Date(coach.created_at).toLocaleDateString('es-AR') : '—', color:'var(--silver)' },
+              { label:'Antigüedad', val: diasDesdeCreacion !== null ? `${diasDesdeCreacion} días` : '—', color: subBadge.color },
+              { label:'Último ingreso', val: coach.last_login ? new Date(coach.last_login).toLocaleDateString('es-AR') : 'Nunca', color: diasDesdeLogin !== null && diasDesdeLogin <= 7 ? '#22c55e' : '#f59e0b' },
+              { label:'Total ingresos', val: coach.login_count || 0, color:'#60a5fa' },
+            ].map(s => (
+              <div key={s.label} style={{ background:'var(--ink2)', borderRadius:10, padding:'10px 12px', textAlign:'center' }}>
+                <div style={{ fontSize:9, color:'var(--fog)', textTransform:'uppercase', letterSpacing:'.05em', marginBottom:4 }}>{s.label}</div>
+                <div style={{ fontSize:14, fontWeight:600, color:s.color, fontFamily:'DM Mono,monospace' }}>{s.val}</div>
+              </div>
+            ))}
+          </div>
+          {/* Renewal alert */}
+          {diasDesdeCreacion !== null && (
+            <div style={{ marginBottom:14, padding:'8px 12px', borderRadius:8, fontSize:11,
+              background: diasDesdeCreacion >= 330 ? 'rgba(239,68,68,.1)' : diasDesdeCreacion >= 80 ? 'rgba(245,158,11,.08)' : 'rgba(34,197,94,.06)',
+              color: diasDesdeCreacion >= 330 ? '#f87171' : diasDesdeCreacion >= 80 ? '#fbbf24' : '#4ade80',
+              border: `1px solid ${diasDesdeCreacion >= 330 ? 'rgba(239,68,68,.3)' : diasDesdeCreacion >= 80 ? 'rgba(245,158,11,.2)' : 'rgba(34,197,94,.15)'}`,
+            }}>
+              {diasDesdeCreacion >= 330 ? `⚠️ Renovación inminente — cumple 1 año en ${365 - diasDesdeCreacion} días`
+                : diasDesdeCreacion >= 170 ? `📅 Cumple 6 meses en ${180 - diasDesdeCreacion} días`
+                : diasDesdeCreacion >= 80 ? `📅 Cumple 3 meses en ${90 - diasDesdeCreacion} días`
+                : diasDesdeCreacion >= 25 ? `📅 Cumple 1 mes en ${30 - diasDesdeCreacion} días`
+                : `✅ Cuenta nueva — ${30 - diasDesdeCreacion} días hasta el primer mes`}
+            </div>
+          )}
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 }}>
 
             {/* Assign club */}

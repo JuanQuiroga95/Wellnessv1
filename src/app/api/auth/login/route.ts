@@ -53,6 +53,11 @@ export async function POST(req: NextRequest) {
       } catch { /* clubs table may not exist yet */ }
     }
 
+    // Track login date and count
+    try {
+      await sql`UPDATE usuarios SET last_login = NOW(), login_count = COALESCE(login_count, 0) + 1 WHERE id = ${u.id}`
+    } catch {}
+
     const token = await createToken({
       userId: u.id,
       usuario: u.usuario,

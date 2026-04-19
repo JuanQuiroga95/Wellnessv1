@@ -108,8 +108,17 @@ export async function GET(req: NextRequest) {
 
     if (clubId) {
       try {
-        await sql`UPDATE jugadores j SET club_id = ${clubId} FROM usuarios u WHERE u.id = j.usuario_id AND u.club_id = ${clubId} AND j.club_id IS NULL`
-        await sql`UPDATE usuarios u SET club_id = ${clubId} FROM jugadores j WHERE j.usuario_id = u.id AND j.club_id = ${clubId} AND u.club_id IS NULL`
+        // Solo reparar si realmente hay registros sin club_id — evita writes innecesarios en cada request
+        const needsRepair = await sql`
+          SELECT 1 FROM jugadores j
+          JOIN usuarios u ON u.id = j.usuario_id
+          WHERE u.club_id = ${clubId} AND j.club_id IS NULL
+          LIMIT 1
+        `
+        if ((needsRepair as any[]).length > 0) {
+          await sql`UPDATE jugadores j SET club_id = ${clubId} FROM usuarios u WHERE u.id = j.usuario_id AND u.club_id = ${clubId} AND j.club_id IS NULL`
+          await sql`UPDATE usuarios u SET club_id = ${clubId} FROM jugadores j WHERE j.usuario_id = u.id AND j.club_id = ${clubId} AND u.club_id IS NULL`
+        }
       } catch {}
     }
 
@@ -120,9 +129,16 @@ export async function GET(req: NextRequest) {
 
     const logs = clubId ? await sql`SELECT el.jugador_id, el.fecha::text, el.rpe::int, el.duracion_min::int, el.carga_ua::int FROM entrenamiento_logs el JOIN jugadores j ON j.id = el.jugador_id JOIN usuarios u ON u.id = j.usuario_id WHERE el.fecha >= ${desde}::date AND el.fecha <= ${hastaInc}::timestamp AND u.activo = true AND (u.club_id = ${clubId} OR j.club_id = ${clubId}) ORDER BY el.fecha` : []
 
+    // Cache sumarMetricasBloques por sesión — evita triple cálculo del mismo JSON
+    const metricsCache: Record<number, Record<string, number>> = {}
+    const getMetrics = (ses: any) => {
+      if (!metricsCache[ses.id]) metricsCache[ses.id] = sumarMetricasBloques(ses.ejercicios || [])
+      return metricsCache[ses.id]
+    }
+
     const gpsPorFecha: Record<string, any> = {}
     for (const ses of sesiones as any[]) {
-      const m = sumarMetricasBloques(ses.ejercicios || [])
+      const m = getMetrics(ses)
       if (!gpsPorFecha[ses.fecha]) {
         gpsPorFecha[ses.fecha] = { distTotal:0, distSprint:0, distMP:0, distAcel:0, distDecel:0, nSprints:0, nAcel:0, nDecel:0, nAcel3:0, nDecel3:0, minActivo:0, minPausa:0, rpe_objetivo:0, tipo_sesion:'entrenamiento' }
       }
@@ -193,7 +209,7 @@ export async function GET(req: NextRequest) {
     const perSession: Record<string, any> = {}
     for (const ses of sesiones as any[]) {
       const label = ses.titulo || ses.fecha
-      const m = sumarMetricasBloques(ses.ejercicios || [])
+      const m = getMetrics(ses)
       const ua_total = Number(ses.rpe_objetivo) > 0 ? Math.round(Number(ses.rpe_objetivo) * m.minActivo) : 0
       if (perSession[label]) {
         const p = perSession[label]

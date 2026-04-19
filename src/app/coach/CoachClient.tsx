@@ -2371,11 +2371,14 @@ function imprimirSesion(f: any, bloques: any[], teamPlayers: any[] = []) {
 
   const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Sesión ${f.fecha}</title>
   <style>
-    body{font-family:Arial,sans-serif;max-width:800px;margin:0 auto;padding:20px;color:#111}
-    h1{font-size:24px;margin-bottom:4px}
-    .meta{font-size:12px;color:#666;margin-bottom:16px}
-    @media print{body{padding:10px}.no-print{display:none}}
-  </style></head><body>
+    :root{color-scheme:light}
+    *{box-sizing:border-box}
+    body{font-family:Arial,sans-serif;max-width:800px;margin:0 auto;padding:20px;color:#111;background:#fff}
+    h1{font-size:24px;margin-bottom:4px;color:#111}
+    h3{color:#333}
+    .meta{font-size:12px;color:#555;margin-bottom:16px}
+    @media print{body{padding:10px;background:#fff;color:#111}.no-print{display:none}@page{margin:1.5cm}}
+  </style></head><body style="background:#fff;color:#111">
   <div class="no-print" style="margin-bottom:16px">
     <button onclick="window.print()" style="padding:8px 20px;background:#1a1a1a;color:white;border:none;border-radius:6px;cursor:pointer;font-size:13px">🖨️ Imprimir / Guardar PDF</button>
   </div>
@@ -2653,6 +2656,13 @@ function SesionEditor({ sesion, defaultFecha, rpeReal = 0, onSave, onDelete, onC
         {bloques.map((bl,i)=>(
           <BloqueMetodologia key={i} bloque={bl} index={i} onChange={(k,v)=>updateBloque(i,k,v)} onRemove={()=>removeBloque(i)} teamPlayers={teamPlayers} />
         ))}
+        {/* Botón + Tarea abajo — para no tener que scrollear al header */}
+        {bloques.length > 0 && (
+          <div style={{ display:'flex', gap:8, marginTop:8 }}>
+            <button type="button" onClick={addBloque} style={{ flex:1, fontSize:12, padding:'8px', borderRadius:8, background:'rgba(200,241,53,.08)', color:'var(--lime)', border:'1px dashed rgba(200,241,53,.3)', cursor:'pointer', fontWeight:600 }}>+ Agregar tarea</button>
+            <button type="button" onClick={abrirBiblioteca} style={{ fontSize:12, padding:'8px 14px', borderRadius:8, background:'transparent', color:'var(--silver)', border:'1px dashed var(--mist)', cursor:'pointer' }}>📚 Biblioteca</button>
+          </div>
+        )}
       </div>
 
       {/* ── CE / UCE TOTAL de la sesión ── */}
@@ -6225,10 +6235,22 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
   const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(false)
   const [calSesiones, setCalSesiones] = useState<Set<string>>(new Set()) // fechas+titulos visible in calendar
-  const [partidoRefs, setPartidoRefs] = useState<any[]>([{},{},{}])
+  const [partidoRefs, setPartidoRefs] = useState<any[]>(() => {
+    try { const s = localStorage.getItem('wp_calc_partidoRefs'); return s ? JSON.parse(s) : [{},{},{}] } catch { return [{},{},{}] }
+  })
   const [showRefInput, setShowRefInput] = useState(false)
   const [partidos, setPartidos] = useState<any[]>([])
-  const [selectedPartidos, setSelectedPartidos] = useState<(any|null)[]>([null,null,null])
+  const [selectedPartidos, setSelectedPartidos] = useState<(any|null)[]>(() => {
+    try { const s = localStorage.getItem('wp_calc_selectedPartidos'); return s ? JSON.parse(s) : [null,null,null] } catch { return [null,null,null] }
+  })
+
+  useEffect(() => {
+    try { localStorage.setItem('wp_calc_partidoRefs', JSON.stringify(partidoRefs)) } catch {}
+  }, [partidoRefs])
+
+  useEffect(() => {
+    try { localStorage.setItem('wp_calc_selectedPartidos', JSON.stringify(selectedPartidos)) } catch {}
+  }, [selectedPartidos])
 
   useEffect(() => {
     // Recalculate date range when microciclo offset changes
@@ -7354,10 +7376,22 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
   const [dateRange, setDateRange] = useState({ desde: getWeekStart(0), hasta: today })
   const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(false)
-  const [partidoRefs, setPartidoRefs] = useState<any[]>([{},{},{}])
+  const [partidoRefs, setPartidoRefs] = useState<any[]>(() => {
+    try { const s = localStorage.getItem('wp_gps_partidoRefs'); return s ? JSON.parse(s) : [{},{},{}] } catch { return [{},{},{}] }
+  })
   const [showRefInput, setShowRefInput] = useState(false)
   const [partidos, setPartidos] = useState<any[]>([])
-  const [selectedPartidos, setSelectedPartidos] = useState<(any|null)[]>([null,null,null])
+  const [selectedPartidos, setSelectedPartidos] = useState<(any|null)[]>(() => {
+    try { const s = localStorage.getItem('wp_gps_selectedPartidos'); return s ? JSON.parse(s) : [null,null,null] } catch { return [null,null,null] }
+  })
+
+  useEffect(() => {
+    try { localStorage.setItem('wp_gps_partidoRefs', JSON.stringify(partidoRefs)) } catch {}
+  }, [partidoRefs])
+
+  useEffect(() => {
+    try { localStorage.setItem('wp_gps_selectedPartidos', JSON.stringify(selectedPartidos)) } catch {}
+  }, [selectedPartidos])
 
   useEffect(() => {
     const newDesde = getWeekStart(microcicloOffset)
@@ -7753,7 +7787,7 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
                                   <div key={p} style={{ position:'absolute', left:0, right:0, bottom:`${(p/100)*BAR_H+28}px`, borderTop:'1px solid rgba(255,255,255,.04)' }}/>
                                 ))}
                                 <div style={{ position:'absolute', bottom:28, left:0, right:0, display:'flex', alignItems:'flex-end', gap:8, padding:'0 4px' }}>
-                                  {mdPlayers.map((p:any, pi:number)=>{
+                                  {[...mdPlayers].sort((a:any,b:any)=>(Number(b[grp.bars[0].key])||0)-(Number(a[grp.bars[0].key])||0)).map((p:any, pi:number)=>{
                                     const nameColor = POS_COLS[p.nombre]||'#888'
                                     return (
                                       <div key={pi} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', minWidth:0 }}>
@@ -8321,6 +8355,54 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
           </div>
         )
       })()}
+
+      {/* ══ RANKING DE LOGROS ════════════════════════════════════════════ */}
+      {gpsReal.length > 0 && (() => {
+        const RANKINGS = [
+          { key:'max_velocity', label:'Velocidad Máxima', unit:'km/h', icon:'⚡', color:'#ef4444', isMax:true },
+          { key:'dist_hir',     label:'High Speed Running', unit:'m', icon:'🏃', color:'#f59e0b', isMax:false },
+        ]
+        return (
+          <div style={{ background:'var(--ink2)', border:'1px solid rgba(251,191,36,.2)', borderRadius:16, overflow:'hidden', marginBottom:8 }}>
+            <div style={{ padding:'10px 16px', borderBottom:'1px solid var(--mist)' }}>
+              <p style={{ fontSize:11, fontWeight:700, color:'#fbbf24', textTransform:'uppercase', letterSpacing:'0.08em' }}>🏆 RANKING DE LOGROS — MICROCICLO</p>
+              <p style={{ fontSize:10, color:'var(--fog)', marginTop:2 }}>Top 3 jugadores por velocidad máxima y HSR en el período seleccionado</p>
+            </div>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:1, background:'var(--mist)' }}>
+              {RANKINGS.map(rank => {
+                const sorted = [...gpsReal]
+                  .filter((p:any) => Number(p[rank.key]) > 0)
+                  .sort((a:any,b:any) => Number(b[rank.key]) - Number(a[rank.key]))
+                  .slice(0, 3)
+                const medals = ['🥇','🥈','🥉']
+                const medalColors = ['#fbbf24','#94a3b8','#b87333']
+                return (
+                  <div key={rank.key} style={{ background:'var(--ink2)', padding:'16px' }}>
+                    <div style={{ fontSize:12, fontWeight:700, color:rank.color, marginBottom:12 }}>{rank.icon} {rank.label}</div>
+                    {sorted.length === 0 ? (
+                      <p style={{ fontSize:11, color:'var(--fog)' }}>Sin datos</p>
+                    ) : sorted.map((p:any, i:number) => (
+                      <div key={i} style={{ display:'flex', alignItems:'center', gap:10, marginBottom:i<2?10:0, padding:'8px 10px', borderRadius:10,
+                        background: i===0 ? 'rgba(251,191,36,.08)' : 'rgba(255,255,255,.02)',
+                        border: i===0 ? '1px solid rgba(251,191,36,.2)' : '1px solid transparent' }}>
+                        <span style={{ fontSize:20, lineHeight:1 }}>{medals[i]}</span>
+                        <div style={{ flex:1, minWidth:0 }}>
+                          <div style={{ fontSize:12, fontWeight:600, color:'var(--snow)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{p.nombre}</div>
+                          <div style={{ fontSize:10, color:'var(--fog)' }}>{p.posicion||'—'}</div>
+                        </div>
+                        <div style={{ fontFamily:'DM Mono,monospace', fontWeight:800, fontSize:16, color:medalColors[i] }}>
+                          {Number(p[rank.key]).toFixed(rank.key==='max_velocity'?1:0)} <span style={{ fontSize:10, fontWeight:400, color:'var(--fog)' }}>{rank.unit}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )
+      })()}
+
       </>)}
     </div>
   )
@@ -9221,6 +9303,14 @@ ${secciones_data.map(sec => `
         </ManualSection>
         <ManualSection title="Variables que se importan">
           <p style={{ fontSize:12, color:'var(--silver)', lineHeight:1.65 }}>Distancia total, dist. por banda de velocidad (B1–B6), Dist/min, High Speed Running, Vel. máxima, Nº sprints, ACC/DEC por banda (B1–B4 y totales), Player Load, Potencia Metabólica media, Dist. equivalente, FC media/máxima y Zonas de FC.</p>
+        </ManualSection>
+        <ManualSection title="¿No usás Catapult? Importá desde cualquier GPS">
+          <p style={{ fontSize:12, color:'var(--silver)', lineHeight:1.65, marginBottom:8 }}>
+            W&P no es exclusivo de Catapult. Podés importar datos desde <strong style={{ color:'var(--snow)' }}>cualquier sistema GPS</strong> (Statsports, GPSports, Polar Team Pro, Wimu, etc.) siempre que exportes un <strong style={{ color:'var(--snow)' }}>Excel (.xlsx) con una columna de nombre de jugador y columnas de métricas</strong>.
+          </p>
+          <ManualRow label="Formato mínimo requerido" desc="Una columna con el nombre del jugador (puede llamarse 'Name', 'Player', 'Jugador' o similar) y al menos una columna numérica con datos GPS. El sistema detecta automáticamente las columnas disponibles." />
+          <ManualRow label="Columnas recomendadas" desc="Distancia total, distancia en alta velocidad, velocidad máxima, aceleraciones y desaceleraciones. Podés tener cualquier nombre de columna — el sistema las importa todas." />
+          <ManualRow label="Sin GPS del todo" desc="Si no usás ningún sistema GPS, podés ignorar completamente esta sección. Los paneles de Ctrl. Carga CALC, Acumulado Individual y Cambio de Carga funcionan 100% solo con RPE y datos del Calendario." />
         </ManualSection>
       </div>
     ),

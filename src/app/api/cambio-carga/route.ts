@@ -31,57 +31,57 @@ export async function GET(req: NextRequest) {
 
   if (!isMaster && !clubId) return NextResponse.json([])
 
-  const trainLogs = await sql`
-    SELECT 
-      el.jugador_id,
-      u.nombre,
-      TO_CHAR(el.fecha, 'YYYY-MM-DD') AS fecha,
-      el.carga_ua,
-      el.duracion_min,
-      el.rpe
-    FROM entrenamiento_logs el
-    JOIN jugadores j ON j.id = el.jugador_id
-    JOIN usuarios u ON u.id = j.usuario_id
-    WHERE el.fecha BETWEEN ${desde}::date AND ${hastaInc}::date
-      AND u.activo = true
-      AND (${isMaster}::boolean OR (u.club_id = ${clubId} AND j.club_id = ${clubId}))
-    ORDER BY el.fecha ASC
-  `
-
-  const matchLogs = await sql`
-    SELECT 
-      pl.jugador_id,
-      TO_CHAR(pl.fecha, 'YYYY-MM-DD') AS fecha,
-      pl.minutos
-    FROM partido_logs pl
-    JOIN jugadores j ON j.id = pl.jugador_id
-    JOIN usuarios u ON u.id = j.usuario_id
-    WHERE pl.fecha BETWEEN ${desde}::date AND ${hastaInc}::date
-      AND u.activo = true
-      AND (${isMaster}::boolean OR (u.club_id = ${clubId} AND j.club_id = ${clubId}))
-    ORDER BY pl.fecha ASC
-  `
-
-  // Traer todos los datos reales del GPS en el rango de fechas
-  const gpsLogs = await sql`
-    SELECT 
-      g.jugador_id,
-      u.nombre,
-      TO_CHAR(g.fecha, 'YYYY-MM-DD') AS fecha,
-      g.dist_total,
-      g.n_sprints,
-      g.acc2,
-      g.dec2,
-      g.max_velocity,
-      g.dist_hir,
-      g.dist_per_min
-    FROM gps_logs g
-    JOIN jugadores j ON j.id = g.jugador_id
-    JOIN usuarios u ON u.id = j.usuario_id
-    WHERE g.fecha BETWEEN ${desde}::date AND ${hastaInc}::date
-      AND u.activo = true
-      AND (${isMaster}::boolean OR (u.club_id = ${clubId} AND j.club_id = ${clubId}))
-  `
+  // Ejecutar las 3 queries en paralelo — son independientes entre sí
+  const [trainLogs, matchLogs, gpsLogs] = await Promise.all([
+    sql`
+      SELECT 
+        el.jugador_id,
+        u.nombre,
+        TO_CHAR(el.fecha, 'YYYY-MM-DD') AS fecha,
+        el.carga_ua,
+        el.duracion_min,
+        el.rpe
+      FROM entrenamiento_logs el
+      JOIN jugadores j ON j.id = el.jugador_id
+      JOIN usuarios u ON u.id = j.usuario_id
+      WHERE el.fecha BETWEEN ${desde}::date AND ${hastaInc}::date
+        AND u.activo = true
+        AND (${isMaster}::boolean OR (u.club_id = ${clubId} AND j.club_id = ${clubId}))
+      ORDER BY el.fecha ASC
+    `,
+    sql`
+      SELECT 
+        pl.jugador_id,
+        TO_CHAR(pl.fecha, 'YYYY-MM-DD') AS fecha,
+        pl.minutos
+      FROM partido_logs pl
+      JOIN jugadores j ON j.id = pl.jugador_id
+      JOIN usuarios u ON u.id = j.usuario_id
+      WHERE pl.fecha BETWEEN ${desde}::date AND ${hastaInc}::date
+        AND u.activo = true
+        AND (${isMaster}::boolean OR (u.club_id = ${clubId} AND j.club_id = ${clubId}))
+      ORDER BY pl.fecha ASC
+    `,
+    sql`
+      SELECT 
+        g.jugador_id,
+        u.nombre,
+        TO_CHAR(g.fecha, 'YYYY-MM-DD') AS fecha,
+        g.dist_total,
+        g.n_sprints,
+        g.acc2,
+        g.dec2,
+        g.max_velocity,
+        g.dist_hir,
+        g.dist_per_min
+      FROM gps_logs g
+      JOIN jugadores j ON j.id = g.jugador_id
+      JOIN usuarios u ON u.id = j.usuario_id
+      WHERE g.fecha BETWEEN ${desde}::date AND ${hastaInc}::date
+        AND u.activo = true
+        AND (${isMaster}::boolean OR (u.club_id = ${clubId} AND j.club_id = ${clubId}))
+    `,
+  ])
 
   const qualifyingPlayers = new Set<number>()
   if (minPartido === 0) {
