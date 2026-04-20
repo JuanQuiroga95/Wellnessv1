@@ -4,7 +4,7 @@ export default function Topbar({ nombre, rol, activeTab, onTabChange, tabs, club
   const router = useRouter()
   async function logout() { await fetch('/api/auth/logout', { method:'POST' }); router.push('/landing.html') }
   return (
-    <header style={{ position:'sticky', top:0, zIndex:50, background:'rgba(8,8,8,0.92)', backdropFilter:'blur(12px)', borderBottom:'1px solid var(--mist)' }}>
+    <header className="no-print" style={{ position:'sticky', top:0, zIndex:50, background:'rgba(8,8,8,0.92)', backdropFilter:'blur(12px)', borderBottom:'1px solid var(--mist)' }}>
       <div style={{ borderBottom:'1px solid var(--mist)', padding:'6px 20px', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
         <div style={{ display:'flex', alignItems:'center', gap:10 }}>
           <div style={{ width:28, height:28, background:'var(--lime)', borderRadius:6, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>

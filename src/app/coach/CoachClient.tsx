@@ -5353,7 +5353,7 @@ function AcumBarChart({ players, vars, accentColor = '#c8f135' }: { players: any
                     {!showInside && <div style={{ fontSize:11, color:selVar.color, fontFamily:'DM Mono,monospace', fontWeight:800, marginBottom:3, whiteSpace:'nowrap' }}>{d.val}</div>}
                     <div style={{ width:'55%', minWidth:20, maxWidth:48, borderRadius:'5px 5px 0 0',
                       height:`${barH}px`, position:'relative',
-                      background: selVar.color, flexShrink:0, opacity:0.85,
+                      background: selVar.color, flexShrink:0, opacity:1,
                       display:'flex', alignItems:'center', justifyContent:'center' }}>
                       {showInside && (
                         <span style={{ fontSize:10, color:'#fff', fontFamily:'DM Mono,monospace', fontWeight:800,
@@ -7608,7 +7608,15 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
           </div>
           <div><label style={{ fontSize:10, color:'var(--fog)', display:'block', marginBottom:3, textTransform:'uppercase' }}>Desde</label><input className="wp-input" type="date" value={dateRange.desde} onChange={e=>setDateRange(r=>({ ...r, desde: e.target.value }))} /></div>
           <div><label style={{ fontSize:10, color:'var(--fog)', display:'block', marginBottom:3, textTransform:'uppercase' }}>Hasta</label><input className="wp-input" type="date" value={dateRange.hasta} onChange={e=>setDateRange(r=>({ ...r, hasta: e.target.value }))} /></div>
-          <button onClick={()=>window.print()} style={{ fontSize:11, padding:'8px 14px', borderRadius:8, background:'rgba(96,165,250,.1)', color:'#60a5fa', border:'1px solid rgba(96,165,250,.3)', cursor:'pointer' }}>🖨️ PDF</button>
+          <button onClick={()=>{
+            // Agregar hoja de estilos de impresión landscape temporalmente
+            const style = document.createElement('style')
+            style.id = '__gps-print-landscape__'
+            style.textContent = `@media print { @page { size: A4 landscape; margin: 1cm; } }`
+            document.head.appendChild(style)
+            window.print()
+            setTimeout(() => { const s = document.getElementById('__gps-print-landscape__'); if(s) s.remove() }, 1000)
+          }} style={{ fontSize:11, padding:'8px 14px', borderRadius:8, background:'rgba(96,165,250,.1)', color:'#60a5fa', border:'1px solid rgba(96,165,250,.3)', cursor:'pointer' }}>🖨️ PDF</button>
         </div>
       </div>
 
@@ -7620,7 +7628,7 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
       ) : (<>
 
       {/* ══ CUADRO 1: Por MD — datos REALES por jugador ════════════════════ */}
-      <div style={{ marginBottom:20 }}>
+      <div style={{ marginBottom:20, pageBreakBefore:'auto', breakBefore:'auto' }}>
         <div style={{ padding:'10px 0 12px' }}>
           <p style={{ fontSize:11, fontWeight:700, color:'#60a5fa', textTransform:'uppercase', letterSpacing:'0.08em' }}>CUADRO 1 · GPS REAL POR SESIÓN · MD+1 → MD</p>
           <p style={{ fontSize:10, color:'var(--fog)', marginTop:2 }}>Datos reales individuales por jugador en cada sesión del microciclo</p>
@@ -7872,7 +7880,7 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
       </div>
 
       {/* ══ CUADRO 2: Totales por MD (GPS) ══════════════════════════════════ */}
-      <div style={{ background:'var(--ink2)', border:'1px solid rgba(96,165,250,.2)', borderRadius:16, overflow:'hidden', marginBottom:20 }}>
+      <div style={{ background:'var(--ink2)', border:'1px solid rgba(96,165,250,.2)', borderRadius:16, overflow:'hidden', marginBottom:20, pageBreakBefore:'always', breakBefore:'page' }}>
         <div style={{ padding:'10px 16px', borderBottom:'1px solid var(--mist)' }}>
           <p style={{ fontSize:11, fontWeight:700, color:'#60a5fa', textTransform:'uppercase', letterSpacing:'0.08em' }}>CUADRO 2 · PROMEDIO EQUIPO POR MD (GPS REAL)</p>
           <p style={{ fontSize:10, color:'var(--fog)', marginTop:2 }}>Promedio del equipo en cada sesión · MD+1 → MD</p>
@@ -7996,7 +8004,7 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
       </div>
 
       {/* ══ CUADRO 3: TOTALES POR MD (GPS REAL) ═══════════════════════════ */}
-      <div style={{ background:'var(--ink2)', border:'1px solid rgba(168,85,247,.2)', borderRadius:16, overflow:'hidden', marginBottom:20 }}>
+      <div style={{ background:'var(--ink2)', border:'1px solid rgba(168,85,247,.2)', borderRadius:16, overflow:'hidden', marginBottom:20, pageBreakBefore:'always', breakBefore:'page' }}>
         <div style={{ padding:'10px 16px', borderBottom:'1px solid var(--mist)' }}>
           <p style={{ fontSize:11, fontWeight:700, color:'#a78bfa', textTransform:'uppercase', letterSpacing:'0.08em' }}>CUADRO 3 · TOTALES EQUIPO POR MD (GPS REAL)</p>
           <p style={{ fontSize:10, color:'var(--fog)', marginTop:2 }}>Suma total del equipo (promedio × nº jugadores con datos) en cada sesión</p>
@@ -8129,7 +8137,7 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
       </div>
 
       {/* ══ CUADRO 4: % sobre el partido (GPS) ═════════════════════════════ */}
-      <div style={{ background:'var(--ink2)', border:'1px solid rgba(239,68,68,.2)', borderRadius:16, overflow:'hidden', marginBottom:8 }}>
+      <div style={{ background:'var(--ink2)', border:'1px solid rgba(239,68,68,.2)', borderRadius:16, overflow:'hidden', marginBottom:8, pageBreakBefore:'always', breakBefore:'page' }}>
         <div style={{ padding:'10px 16px', borderBottom:'1px solid var(--mist)', display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:8 }}>
           <div>
             <p style={{ fontSize:11, fontWeight:700, color:'#f87171', textTransform:'uppercase', letterSpacing:'0.08em' }}>CUADRO 4 · % SOBRE EL PARTIDO GPS (= 100%)</p>
@@ -8294,7 +8302,7 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
         if (!civData.length) return null
 
         return (
-          <div style={{ background:'var(--ink2)', border:'1px solid rgba(96,165,250,.25)', borderRadius:16, overflow:'hidden', marginBottom:8 }}>
+          <div style={{ background:'var(--ink2)', border:'1px solid rgba(96,165,250,.25)', borderRadius:16, overflow:'hidden', marginBottom:8, pageBreakBefore:'always', breakBefore:'page' }}>
             <div style={{ padding:'10px 16px', borderBottom:'1px solid var(--mist)' }}>
               <p style={{ fontSize:11, fontWeight:700, color:'#60a5fa', textTransform:'uppercase', letterSpacing:'0.08em' }}>
                 CUADRO 5 · ÍNDICE DE CARGA GPS (CIV) — MICROCICLO vs PARTIDO
@@ -8363,7 +8371,7 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
           { key:'dist_hir',     label:'High Speed Running', unit:'m', icon:'🏃', color:'#f59e0b', isMax:false },
         ]
         return (
-          <div style={{ background:'var(--ink2)', border:'1px solid rgba(251,191,36,.2)', borderRadius:16, overflow:'hidden', marginBottom:8 }}>
+          <div style={{ background:'var(--ink2)', border:'1px solid rgba(251,191,36,.2)', borderRadius:16, overflow:'hidden', marginBottom:8, pageBreakBefore:'always', breakBefore:'page' }}>
             <div style={{ padding:'10px 16px', borderBottom:'1px solid var(--mist)' }}>
               <p style={{ fontSize:11, fontWeight:700, color:'#fbbf24', textTransform:'uppercase', letterSpacing:'0.08em' }}>🏆 RANKING DE LOGROS — MICROCICLO</p>
               <p style={{ fontSize:10, color:'var(--fog)', marginTop:2 }}>Top 3 jugadores por velocidad máxima y HSR en el período seleccionado</p>

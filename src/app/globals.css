@@ -27,3 +27,147 @@ html{font-size:16px}body{font-family:'DM Sans',system-ui,sans-serif;background:v
 .nav-tab{padding:9px 16px;border-radius:8px;font-size:14px;font-weight:500;color:var(--silver);background:transparent;border:none;cursor:pointer;white-space:nowrap;transition:color .15s,background .15s}
 .nav-tab:hover{color:var(--snow);background:var(--mist)}
 .nav-tab.active{color:var(--lime);background:rgba(200,241,53,.1)}
+
+/* ─── PRINT / PDF ─────────────────────────────────────────────────────────── */
+@media print {
+  /* Reset variables para fondo blanco */
+  :root {
+    --ink: #fff !important;
+    --ink2: #fff !important;
+    --ink3: #f5f5f5 !important;
+    --mist: #ddd !important;
+    --fog: #555 !important;
+    --silver: #444 !important;
+    --snow: #111 !important;
+    --lime: #6aa800 !important;
+    --green: #16a34a !important;
+    --amber: #b45309 !important;
+    --red: #dc2626 !important;
+  }
+
+  @page {
+    margin: 1.2cm 1cm;
+    size: A4 portrait;
+  }
+
+  /* Páginas de tablas largas en landscape */
+  .print-landscape {
+    page: landscape;
+  }
+  @page landscape {
+    size: A4 landscape;
+    margin: 1cm;
+  }
+
+  html, body {
+    background: #fff !important;
+    color: #111 !important;
+    font-size: 10px !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Ocultar navegación, botones y elementos de UI */
+  .no-print,
+  nav, header,
+  [class*="nav-tab"],
+  button:not(.print-visible),
+  .scanline,
+  .ticker-wrap {
+    display: none !important;
+  }
+
+  /* Cada sección principal no se parte entre páginas */
+  .card,
+  [style*="border-radius:14px"],
+  [style*="border-radius:16px"],
+  [style*="border-radius:12px"] {
+    page-break-inside: avoid;
+    break-inside: avoid;
+    border: 1px solid #ccc !important;
+    background: #fff !important;
+  }
+
+  /* Tablas: encabezado se repite en cada página */
+  thead { display: table-header-group; }
+  tfoot { display: table-footer-group; }
+  tr    { page-break-inside: avoid; break-inside: avoid; }
+
+  /* Forzar colores de texto visibles */
+  * {
+    color: inherit !important;
+    border-color: #ccc !important;
+  }
+
+  /* Textos específicos que usan CSS vars */
+  [style*="color:var(--snow)"],
+  [style*="color: var(--snow)"]  { color: #111 !important; }
+  [style*="color:var(--silver)"],
+  [style*="color: var(--silver)"]{ color: #555 !important; }
+  [style*="color:var(--fog)"],
+  [style*="color: var(--fog)"]   { color: #666 !important; }
+  [style*="color:var(--lime)"],
+  [style*="color: var(--lime)"]  { color: #4a7c00 !important; }
+
+  /* Fondos de tarjetas y secciones */
+  [style*="background:var(--ink)"],
+  [style*="background: var(--ink)"],
+  [style*="background:var(--ink2)"],
+  [style*="background: var(--ink2)"],
+  [style*="background:var(--ink3)"],
+  [style*="background: var(--ink3)"] { background: #fff !important; }
+
+  /* Bordes de separadores */
+  [style*="border.*var(--mist)"],
+  [style*="borderBottom.*var(--mist)"] { border-color: #ddd !important; }
+
+  /* Barras de gráficos — mantener color sólido y forzar opacidad 1 */
+  [style*="background:#60a5fa"],
+  [style*="background: #60a5fa"] { background: #2563eb !important; opacity: 1 !important; }
+  [style*="background:#c8f135"],
+  [style*="background: #c8f135"] { background: #5a8000 !important; opacity: 1 !important; }
+  [style*="background:#22c55e"],
+  [style*="background: #22c55e"] { background: #16a34a !important; opacity: 1 !important; }
+  [style*="background:#f59e0b"],
+  [style*="background: #f59e0b"] { background: #b45309 !important; opacity: 1 !important; }
+  [style*="background:#ef4444"],
+  [style*="background: #ef4444"] { background: #dc2626 !important; opacity: 1 !important; }
+  [style*="background:#a78bfa"],
+  [style*="background: #a78bfa"] { background: #7c3aed !important; opacity: 1 !important; }
+  [style*="background:#ec4899"],
+  [style*="background: #ec4899"] { background: #be185d !important; opacity: 1 !important; }
+  [style*="background:#38bdf8"],
+  [style*="background: #38bdf8"] { background: #0284c7 !important; opacity: 1 !important; }
+  [style*="background:#f97316"],
+  [style*="background: #f97316"] { background: #c2410c !important; opacity: 1 !important; }
+
+  /* Líneas de grid de gráficos */
+  [style*="rgba(255,255,255,.05)"],
+  [style*="rgba(255,255,255,0.05)"] { border-color: #ddd !important; }
+
+  /* Overflow: mostrar tablas completas sin scroll */
+  [style*="overflowX:auto"],
+  [style*="overflow-x:auto"],
+  [style*="overflow-x: auto"] {
+    overflow: visible !important;
+  }
+
+  /* Números flotantes en gráficos — asegurar color */
+  [style*="fontFamily:'DM Mono'"],
+  [style*="fontFamily: 'DM Mono'"],
+  .mono {
+    color: #111 !important;
+  }
+
+  /* Badges de estado */
+  [style*="background:rgba(34,197,94"],
+  [style*="background: rgba(34,197,94"] { background: #dcfce7 !important; color: #166534 !important; }
+  [style*="background:rgba(245,158,11"],
+  [style*="background: rgba(245,158,11"] { background: #fef3c7 !important; color: #92400e !important; }
+  [style*="background:rgba(239,68,68"],
+  [style*="background: rgba(239,68,68"] { background: #fee2e2 !important; color: #991b1b !important; }
+  [style*="background:rgba(96,165,250"],
+  [style*="background: rgba(96,165,250"] { background: #dbeafe !important; color: #1e40af !important; }
+  [style*="background:rgba(200,241,53"],
+  [style*="background: rgba(200,241,53"] { background: #f0ffe0 !important; color: #3a5c00 !important; }
+}
