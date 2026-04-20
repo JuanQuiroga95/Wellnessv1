@@ -4021,7 +4021,7 @@ function ComparativaPanel({ teamData }: { teamData: any[] }) {
             // SVG bar chart builder (portrait-friendly, pure HTML)
             const mkBars = (items: {name:string, val:number, sub?:string}[], bars: {key:string,label:string,color:string}[], lineKey?: string, lineColor?: string) => {
               if (!items.length) return '<p style="color:#aaa;font-size:10px;text-align:center;padding:8px">Sin datos</p>'
-              const BAR_H = 110, TOP = 18, BOT = 38, COL_W = Math.max(Math.floor(600/items.length), 44)
+              const BAR_H = 200, TOP = 24, BOT = 48, COL_W = Math.max(Math.floor(800/items.length), 60)
               const W = items.length * COL_W
               const allVals = items.flatMap(it => bars.map(b => Number((it as any)[b.key])||0))
               const maxBar = Math.max(...allVals, 1)
@@ -5622,7 +5622,7 @@ function AcumPanel({ teamData }) {
             // SVG bar chart builder (portrait-friendly, pure HTML)
             const mkBars = (items: {name:string, val:number, sub?:string}[], bars: {key:string,label:string,color:string}[], lineKey?: string, lineColor?: string) => {
               if (!items.length) return '<p style="color:#aaa;font-size:10px;text-align:center;padding:8px">Sin datos</p>'
-              const BAR_H = 110, TOP = 18, BOT = 38, COL_W = Math.max(Math.floor(600/items.length), 44)
+              const BAR_H = 200, TOP = 24, BOT = 48, COL_W = Math.max(Math.floor(800/items.length), 60)
               const W = items.length * COL_W
               const allVals = items.flatMap(it => bars.map(b => Number((it as any)[b.key])||0))
               const maxBar = Math.max(...allVals, 1)
@@ -6874,7 +6874,7 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
             // SVG bar chart builder (portrait-friendly, pure HTML)
             const mkBars = (items: {name:string, val:number, sub?:string}[], bars: {key:string,label:string,color:string}[], lineKey?: string, lineColor?: string) => {
               if (!items.length) return '<p style="color:#aaa;font-size:10px;text-align:center;padding:8px">Sin datos</p>'
-              const BAR_H = 110, TOP = 18, BOT = 38, COL_W = Math.max(Math.floor(600/items.length), 44)
+              const BAR_H = 200, TOP = 24, BOT = 48, COL_W = Math.max(Math.floor(800/items.length), 60)
               const W = items.length * COL_W
               const allVals = items.flatMap(it => bars.map(b => Number((it as any)[b.key])||0))
               const maxBar = Math.max(...allVals, 1)
@@ -8144,7 +8144,7 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
 
             // ── Helpers ──────────────────────────────────────────────────────
             const buildBarSVG = (players: any[], varList: {key:string,label:string,color:string}[], lineKey?: string, lineColor?: string) => {
-              const BAR_H = 120, TOP = 20, BOT = 36, W_COL = 52
+              const BAR_H = players.length <= 2 ? 140 : players.length <= 5 ? 160 : 200, TOP = 24, BOT = 44, W_COL = players.length <= 2 ? 120 : players.length <= 5 ? 90 : 70
               const totalW = Math.max(players.length * W_COL, 200)
               if (!players.length) return '<p style="color:#aaa;font-size:10px;text-align:center;">Sin datos</p>'
               const allVals = players.flatMap(p => varList.map(v => Number(p[v.key])||0))
@@ -8163,12 +8163,12 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
                   const bx = x0 + vi*(bw+1)
                   const by = TOP + BAR_H - h
                   bars += `<rect x="${bx.toFixed(1)}" y="${by.toFixed(1)}" width="${bw.toFixed(1)}" height="${Math.max(h,0).toFixed(1)}" fill="${v.color}" rx="2" opacity="0.9"/>`
-                  if (val > 0 && h > 14) bars += `<text x="${(bx+bw/2).toFixed(1)}" y="${(by+h/2+3).toFixed(1)}" text-anchor="middle" fill="#fff" font-size="7" font-weight="700" transform="rotate(-90,${(bx+bw/2).toFixed(1)},${(by+h/2).toFixed(1)})">${val}</text>`
-                  else if (val > 0) bars += `<text x="${(bx+bw/2).toFixed(1)}" y="${(by-3).toFixed(1)}" text-anchor="middle" fill="${v.color}" font-size="7" font-weight="700">${val}</text>`
+                  if (val > 0 && h > 14) bars += `<text x="${(bx+bw/2).toFixed(1)}" y="${(by+h/2+3).toFixed(1)}" text-anchor="middle" fill="#fff" font-size="9" font-weight="700" transform="rotate(-90,${(bx+bw/2).toFixed(1)},${(by+h/2).toFixed(1)})">${val}</text>`
+                  else if (val > 0) bars += `<text x="${(bx+bw/2).toFixed(1)}" y="${(by-3).toFixed(1)}" text-anchor="middle" fill="${v.color}" font-size="9" font-weight="700">${val}</text>`
                 })
                 const cx = x0 + (W_COL-8)/2
-                labels += `<text x="${cx.toFixed(1)}" y="${(TOP+BAR_H+14).toFixed(1)}" text-anchor="middle" fill="#333" font-size="8" font-weight="600">${(p.nombre||'').split(' ')[0]}</text>`
-                labels += `<text x="${cx.toFixed(1)}" y="${(TOP+BAR_H+24).toFixed(1)}" text-anchor="middle" fill="#888" font-size="7">${p.posicion||''}</text>`
+                labels += `<text x="${cx.toFixed(1)}" y="${(TOP+BAR_H+16).toFixed(1)}" text-anchor="middle" fill="#333" font-size="10" font-weight="600">${(p.nombre||'').split(' ')[0]}</text>`
+                labels += `<text x="${cx.toFixed(1)}" y="${(TOP+BAR_H+28).toFixed(1)}" text-anchor="middle" fill="#888" font-size="9">${p.posicion||''}</text>`
               })
               let linePath = ''
               if (lineKey && lineVals.some(v=>v>0)) {
