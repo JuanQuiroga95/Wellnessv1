@@ -7611,7 +7611,8 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
           <button onClick={()=>{
             const win = window.open('', '_blank')
             if (!win) return
-            const colorMap: Record<string,string> = {
+
+            const CM: Record<string,string> = {
               dist_total:'#1d4ed8', dist_per_min:'#059669', dist_hir:'#b45309',
               dist_v4:'#6d28d9', dist_v5:'#c2410c', n_sprints:'#be185d',
               max_velocity:'#dc2626', acc2:'#5b21b6', dec2:'#0e7490',
@@ -7620,122 +7621,359 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
               dist_v2:'#334155', dist_v3:'#0284c7', acc1:'#7e22ce', dec1:'#0891b2',
               acc4:'#e11d48', dec4:'#0284c7', metabolic_power:'#c2410c',
             }
-            const fc = (key: string) => colorMap[key] || '#374151'
-            const thS = (c: string) => `padding:4px 7px;text-align:center;font-size:8px;font-weight:700;text-transform:uppercase;border-bottom:2px solid #ddd;color:${c};white-space:nowrap;background:#f8fafc;`
-            const tdS = (c: string, b=false) => `padding:5px 7px;text-align:center;font-family:monospace;font-size:10px;color:${c};font-weight:${b?700:400};border-bottom:1px solid #eee;`
+            const fc = (k: string) => CM[k] || '#374151'
+            const thS = (c: string) => `padding:4px 7px;text-align:center;font-size:8px;font-weight:700;text-transform:uppercase;border-bottom:2px solid #e5e7eb;color:${c};white-space:nowrap;background:#f8fafc;`
+            const tdS = (c: string, b=false) => `padding:5px 7px;text-align:center;font-family:monospace;font-size:10px;color:${c};font-weight:${b?700:400};border-bottom:1px solid #f0f0f0;`
+            const thL = (c: string) => `padding:4px 12px;text-align:left;font-size:8px;font-weight:700;text-transform:uppercase;border-bottom:2px solid #e5e7eb;color:${c};background:#f8fafc;`
+            const tdL = (c: string, b=false) => `padding:5px 12px;color:${c};font-weight:${b?700:400};border-bottom:1px solid #f0f0f0;font-size:10px;`
+
             const allMDs = ['MD+1','MD+2','MD+3','MD-4','MD-3','MD-2','MD-1','MD']
             const dateDates = Object.keys(gpsPerMD).filter(k => !allMDs.includes(k)).sort()
-            const allSections = [
+            const allSecs = [
               ...dateDates.map(d => ({key:d, label:`📅 ${d}`, isDate:true})),
               ...allMDs.map(m => ({key:m, label:m, isDate:false}))
             ]
-            // Cuadro 1
+            const mdWithData = allMDs.filter(md => (gpsPerMD[md]||[]).length > 0)
+            const trainingMds = mdWithData.filter(md => md !== 'MD')
+
+            // ── Helpers ──────────────────────────────────────────────────────
+            const buildBarSVG = (players: any[], varList: {key:string,label:string,color:string}[], lineKey?: string, lineColor?: string) => {
+              const BAR_H = 120, TOP = 20, BOT = 36, W_COL = 52
+              const totalW = Math.max(players.length * W_COL, 200)
+              if (!players.length) return '<p style="color:#aaa;font-size:10px;text-align:center;">Sin datos</p>'
+              const allVals = players.flatMap(p => varList.map(v => Number(p[v.key])||0))
+              const maxBar = Math.max(...allVals, 1)
+              const lineVals = lineKey ? players.map(p => Number(p[lineKey])||0) : []
+              const maxLine = Math.max(...lineVals, 1)
+              const n = players.length
+              let bars = ''
+              let labels = ''
+              players.forEach((p, pi) => {
+                const x0 = pi * W_COL + 4
+                const bw = Math.max((W_COL - 8) / varList.length - 1, 6)
+                varList.forEach((v, vi) => {
+                  const val = Number(p[v.key])||0
+                  const h = val > 0 ? Math.max((val/maxBar)*BAR_H, 4) : 0
+                  const bx = x0 + vi*(bw+1)
+                  const by = TOP + BAR_H - h
+                  bars += `<rect x="${bx.toFixed(1)}" y="${by.toFixed(1)}" width="${bw.toFixed(1)}" height="${Math.max(h,0).toFixed(1)}" fill="${v.color}" rx="2" opacity="0.9"/>`
+                  if (val > 0 && h > 14) bars += `<text x="${(bx+bw/2).toFixed(1)}" y="${(by+h/2+3).toFixed(1)}" text-anchor="middle" fill="#fff" font-size="7" font-weight="700" transform="rotate(-90,${(bx+bw/2).toFixed(1)},${(by+h/2).toFixed(1)})">${val}</text>`
+                  else if (val > 0) bars += `<text x="${(bx+bw/2).toFixed(1)}" y="${(by-3).toFixed(1)}" text-anchor="middle" fill="${v.color}" font-size="7" font-weight="700">${val}</text>`
+                })
+                const cx = x0 + (W_COL-8)/2
+                labels += `<text x="${cx.toFixed(1)}" y="${(TOP+BAR_H+14).toFixed(1)}" text-anchor="middle" fill="#333" font-size="8" font-weight="600">${(p.nombre||'').split(' ')[0]}</text>`
+                labels += `<text x="${cx.toFixed(1)}" y="${(TOP+BAR_H+24).toFixed(1)}" text-anchor="middle" fill="#888" font-size="7">${p.posicion||''}</text>`
+              })
+              let linePath = ''
+              if (lineKey && lineVals.some(v=>v>0)) {
+                const pts = players.map((p, pi) => {
+                  const val = Number(p[lineKey])||0
+                  const cx = pi*W_COL + 4 + (W_COL-8)/2
+                  const cy = val > 0 ? TOP + BAR_H - (val/maxLine)*BAR_H*0.85 : null
+                  return {cx, cy, val}
+                }).filter(pt => pt.cy !== null)
+                if (pts.length > 1) {
+                  linePath = `<polyline points="${pts.map(pt=>`${pt.cx.toFixed(1)},${pt.cy!.toFixed(1)}`).join(' ')}" fill="none" stroke="${lineColor||'#34d399'}" stroke-width="1.5" stroke-dasharray="4,2"/>`
+                  pts.forEach(pt => {
+                    linePath += `<circle cx="${pt.cx.toFixed(1)}" cy="${pt.cy!.toFixed(1)}" r="3" fill="${lineColor||'#34d399'}" stroke="#fff" stroke-width="1"/>`
+                    linePath += `<text x="${pt.cx.toFixed(1)}" y="${(pt.cy!-5).toFixed(1)}" text-anchor="middle" fill="${lineColor||'#34d399'}" font-size="7" font-weight="700">${pt.val}</text>`
+                  })
+                }
+              }
+              return `<svg viewBox="0 0 ${totalW} ${TOP+BAR_H+BOT}" width="100%" style="overflow:visible;display:block;">${bars}${linePath}${labels}</svg>`
+            }
+
+            const buildTableForSection = (players: any[], isDate: boolean, label: string, fecha: string) => {
+              const avg: Record<string,number> = {}
+              GPS_VARS.forEach((v:any) => {
+                const vals = players.map((p:any) => Number(p[v.key])||0).filter(x=>x>0)
+                if (vals.length) avg[v.key] = AVG_FIELDS_GPS.has(v.key)
+                  ? Math.round(vals.reduce((s:number,x:number)=>s+x,0)/vals.length*10)/10
+                  : Math.round(vals.reduce((s:number,x:number)=>s+x,0)/vals.length*10)/10
+              })
+              return `
+              <div style="margin-bottom:20px;page-break-inside:avoid;">
+                <div style="background:#eff6ff;border-left:4px solid #3b82f6;padding:5px 12px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;">
+                  <b style="color:#1d4ed8;font-size:12px;">${label}</b>
+                  <span style="color:#555;font-size:10px;">${fecha}</span>
+                </div>
+                <div style="overflow:visible;">
+                  <table style="width:100%;border-collapse:collapse;table-layout:auto;">
+                    <thead><tr>
+                      <th style="${thL('#555')}">Jugador</th>
+                      <th style="${thL('#555')}">Pos.</th>
+                      ${!isDate ? `<th style="${thS('#555')}">Ses.</th>` : ''}
+                      ${GPS_VARS.map((v:any) => `<th style="${thS(fc(v.key))}">${v.label.replace(/ \(.*\)/,'')}</th>`).join('')}
+                    </tr></thead>
+                    <tbody>
+                      ${players.map((p:any,i:number) => `<tr style="background:${i%2===0?'#fff':'#f9fafb'};">
+                        <td style="${tdL('#111',true)} white-space:nowrap;">${p.nombre}</td>
+                        <td style="${tdL('#555')} font-size:9px;">${p.posicion||'—'}</td>
+                        ${!isDate ? `<td style="${tdS('#555')}">${p.sesiones||1}</td>` : ''}
+                        ${GPS_VARS.map((v:any) => { const val=p[v.key]; const has=val!=null&&Number(val)!==0; return `<td style="${tdS(has?fc(v.key):'#ccc',has)}">${has?val:'—'}</td>` }).join('')}
+                      </tr>`).join('')}
+                      <tr style="background:#eff6ff;border-top:2px solid #93c5fd;">
+                        <td style="${tdL('#1d4ed8',true)} font-size:9px;text-transform:uppercase;" colspan="2">PROM. EQUIPO</td>
+                        ${!isDate ? '<td></td>' : ''}
+                        ${GPS_VARS.map((v:any) => { const val=avg[v.key]; return `<td style="${tdS(val?fc(v.key):'#ccc',!!val)}">${val||'—'}</td>` }).join('')}
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>`
+            }
+
+            // ── CUADRO 1 ─────────────────────────────────────────────────────
             let c1 = ''
-            allSections.forEach(({key, label, isDate}) => {
+            allSecs.forEach(({key, label, isDate}) => {
               const players: any[] = gpsPerMD[key] || []
               if (!players.length) return
               const ses = sesionesInfo?.find((s:any) => s.titulo === key)
-              const avg = mdTeamAvg(key)
-              c1 += `<div class="pb" style="margin-bottom:20px;">
-                <div style="background:#eff6ff;border-left:4px solid #3b82f6;padding:5px 12px;margin-bottom:6px;display:flex;justify-content:space-between;">
-                  <b style="color:#1d4ed8;">${label}</b>
-                  <span style="color:#555;font-size:10px;">${ses ? ses.fecha : ''}</span>
-                </div>
-                <table style="width:100%;border-collapse:collapse;">
-                  <thead><tr>
-                    <th style="padding:4px 10px;text-align:left;font-size:8px;font-weight:700;text-transform:uppercase;border-bottom:2px solid #ddd;color:#555;background:#f8fafc;">Jugador</th>
-                    <th style="padding:4px 7px;text-align:left;font-size:8px;font-weight:700;text-transform:uppercase;border-bottom:2px solid #ddd;color:#555;background:#f8fafc;">Pos.</th>
-                    ${!isDate ? `<th style="${thS('#555')}">Ses.</th>` : ''}
-                    ${GPS_VARS.map((v:any) => `<th style="${thS(fc(v.key))}">${v.label.replace(/ \(.*\)/,'')}</th>`).join('')}
-                  </tr></thead>
-                  <tbody>
-                    ${players.map((p:any,i:number) => `<tr style="background:${i%2===0?'#fff':'#f9fafb'};">
-                      <td style="padding:5px 10px;font-weight:600;color:#111;white-space:nowrap;border-bottom:1px solid #eee;">${p.nombre}</td>
-                      <td style="padding:5px 7px;color:#555;font-size:9px;border-bottom:1px solid #eee;">${p.posicion||'—'}</td>
-                      ${!isDate ? `<td style="${tdS('#555')}">${p.sesiones||1}</td>` : ''}
-                      ${GPS_VARS.map((v:any) => { const val=p[v.key]; const has=val!=null&&Number(val)!==0; return `<td style="${tdS(has?fc(v.key):'#bbb',has)}">${has?val:'—'}</td>` }).join('')}
-                    </tr>`).join('')}
-                    <tr style="background:#eff6ff;border-top:2px solid #93c5fd;">
-                      <td style="padding:5px 10px;font-weight:800;color:#1d4ed8;font-size:9px;" colspan="2">PROM. EQUIPO</td>
-                      ${!isDate ? '<td></td>' : ''}
-                      ${GPS_VARS.map((v:any) => { const val=avg[v.key]; return `<td style="${tdS(val?fc(v.key):'#bbb',!!val)}">${val||'—'}</td>` }).join('')}
-                    </tr>
-                  </tbody>
-                </table>
-              </div>`
+              c1 += buildTableForSection(players, isDate, label, ses?.fecha || '')
             })
-            // Cuadro 2
-            const mdWithData = allMDs.filter(md => (gpsPerMD[md]||[]).length > 0)
+
+            // ── Gráficos Cuadro 1 (comparativa por jugador, para el MD con datos) ──
+            let c1charts = ''
+            const mainMd = mdWithData.find(md => md === 'MD') || mdWithData[0]
+            if (mainMd) {
+              const players: any[] = gpsPerMD[mainMd] || []
+              GPS_CHART_GROUPS.forEach(grp => {
+                const hasData = players.some(p => grp.bars.some(b => Number(p[b.key])>0))
+                if (!hasData) return
+                c1charts += `<div style="margin-bottom:16px;page-break-inside:avoid;">
+                  <div style="font-size:10px;font-weight:800;color:${grp.color};text-transform:uppercase;letter-spacing:.06em;text-align:center;padding:4px 0;border-bottom:1px solid ${grp.color}30;margin-bottom:8px;">${grp.title}</div>
+                  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px;">
+                    ${grp.bars.map(b=>`<span style="display:flex;align-items:center;gap:4px;font-size:9px;color:#555;"><span style="width:8px;height:8px;border-radius:2px;background:${b.color};display:inline-block;"></span>${b.label}</span>`).join('')}
+                    ${grp.line ? `<span style="display:flex;align-items:center;gap:4px;font-size:9px;color:#555;">─── ${grp.line.label}</span>` : ''}
+                  </div>
+                  ${buildBarSVG(players, grp.bars, grp.line?.key, grp.line?.color)}
+                </div>`
+              })
+            }
+
+            // ── CUADRO 2: promedio por MD ─────────────────────────────────────
             let c2 = `<table style="width:100%;border-collapse:collapse;">
               <thead><tr>
-                <th style="padding:4px 12px;text-align:left;font-size:8px;font-weight:700;text-transform:uppercase;border-bottom:2px solid #ddd;color:#555;background:#f8fafc;">Métrica</th>
+                <th style="${thL('#555')}">Métrica</th>
                 ${mdWithData.map(md=>`<th style="${thS('#1d4ed8')}">${md}</th>`).join('')}
                 <th style="${thS('#059669')}">Total</th>
               </tr></thead>
               <tbody>
                 ${GPS_VARS.map((v:any,vi:number) => {
                   const vals = mdWithData.map(md=>mdTeamAvg(md)[v.key]||0)
-                  const nonZero = vals.filter(x=>x>0)
-                  const tot = nonZero.length ? (nonZero.reduce((s:number,x:number)=>s+x,0)/nonZero.length).toFixed(1) : '—'
+                  const nz = vals.filter(x=>x>0)
+                  const tot = nz.length ? (AVG_FIELDS_GPS.has(v.key) ? (nz.reduce((s:number,x:number)=>s+x,0)/nz.length) : nz.reduce((s:number,x:number)=>s+x,0)).toFixed(1) : '—'
                   return `<tr style="background:${vi%2===0?'#fff':'#f9fafb'};">
-                    <td style="padding:5px 12px;font-weight:600;color:${fc(v.key)};border-bottom:1px solid #eee;">${v.label}</td>
-                    ${mdWithData.map(md=>{const val=mdTeamAvg(md)[v.key];return`<td style="${tdS(val?fc(v.key):'#bbb',!!val)}">${val||'—'}</td>`}).join('')}
+                    <td style="${tdL(fc(v.key),true)}">${v.label}</td>
+                    ${mdWithData.map(md=>{const val=mdTeamAvg(md)[v.key];return`<td style="${tdS(val?fc(v.key):'#ccc',!!val)}">${val||'—'}</td>`}).join('')}
                     <td style="${tdS('#059669',true)}">${tot}</td>
                   </tr>`
                 }).join('')}
               </tbody>
             </table>`
-            // Cuadro 4
-            const hasRef = Object.keys(refMedia).length > 0
-            let c4 = hasRef ? `<table style="width:100%;border-collapse:collapse;">
+
+            // Gráficos Cuadro 2 (barras por MD)
+            let c2charts = ''
+            GPS_CHART_GROUPS.forEach(grp => {
+              const mdsOk = mdWithData.filter(md => grp.bars.some(b => (mdTeamAvg(md)[b.key]||0) > 0))
+              if (!mdsOk.length) return
+              const pseudoPlayers = mdsOk.map(md => {
+                const avg = mdTeamAvg(md)
+                return { nombre: md, posicion: '', ...Object.fromEntries(GPS_VARS.map((v:any) => [v.key, avg[v.key]||0])) }
+              })
+              c2charts += `<div style="margin-bottom:16px;page-break-inside:avoid;">
+                <div style="font-size:10px;font-weight:800;color:${grp.color};text-transform:uppercase;text-align:center;padding:4px 0;border-bottom:1px solid ${grp.color}30;margin-bottom:8px;">${grp.title}</div>
+                ${buildBarSVG(pseudoPlayers, grp.bars, grp.line?.key, grp.line?.color)}
+              </div>`
+            })
+
+            // ── CUADRO 3: totales por MD ──────────────────────────────────────
+            let c3 = `<table style="width:100%;border-collapse:collapse;">
               <thead><tr>
-                <th style="padding:4px 12px;text-align:left;font-size:8px;font-weight:700;text-transform:uppercase;border-bottom:2px solid #ddd;color:#555;background:#fff5f5;">Jugador</th>
-                ${refMediaVars.map((v:any)=>`<th style="${thS(fc(v.key))}">${v.label.replace(/ \(.*\)/,'')}</th>`).join('')}
+                <th style="${thL('#555')}">Métrica</th>
+                ${mdWithData.map(md=>`<th style="${thS('#6d28d9')}">${md}</th>`).join('')}
+                <th style="${thS('#059669')}">Total</th>
               </tr></thead>
               <tbody>
-                ${gpsReal.map((p:any,i:number) => {
-                  const getV = (key:string) => { const vs=mdWithData.filter(md=>md!=='MD').map(md=>(gpsPerMD[md]||[]).find((x:any)=>x.nombre===p.nombre)?.[key]||0).filter((x:number)=>x>0); return vs.length?vs.reduce((s:number,x:number)=>s+x,0)/vs.length:0 }
-                  return `<tr style="background:${i%2===0?'#fff':'#fafafa'};">
-                    <td style="padding:5px 12px;font-weight:600;color:#111;white-space:nowrap;border-bottom:1px solid #eee;">${p.nombre}</td>
-                    ${refMediaVars.map((v:any)=>{const pv=pct(getV(v.key),v.key);const col=pv===null?'#bbb':pv>=85?'#15803d':pv>=65?'#b45309':'#dc2626';return`<td style="${tdS(col,pv!==null)}">${pv!==null?pv+'%':'—'}</td>`}).join('')}
+                ${GPS_VARS.map((v:any,vi:number) => {
+                  const vals = mdWithData.map(md => {
+                    const players = gpsPerMD[md] || []
+                    if (!players.length) return 0
+                    if (AVG_FIELDS_GPS.has(v.key)) return mdTeamAvg(md)[v.key]||0
+                    return Math.round(players.reduce((s:number,p:any)=>s+(Number(p[v.key])||0),0)*10)/10
+                  })
+                  const nz = vals.filter(x=>x>0)
+                  const tot = nz.length ? (AVG_FIELDS_GPS.has(v.key) ? (nz.reduce((s:number,x:number)=>s+x,0)/nz.length) : vals.reduce((s:number,x:number)=>s+x,0)).toFixed(1) : '—'
+                  return `<tr style="background:${vi%2===0?'#fff':'#f9fafb'};">
+                    <td style="${tdL(fc(v.key),true)}">${v.label}</td>
+                    ${vals.map(val=>`<td style="${tdS(val>0?fc(v.key):'#ccc',val>0)}">${val>0?val:'—'}</td>`).join('')}
+                    <td style="${tdS('#059669',true)}">${tot}</td>
                   </tr>`
                 }).join('')}
-                <tr style="background:#fff5f5;border-top:2px solid #fca5a5;">
-                  <td style="padding:5px 12px;font-weight:800;color:#dc2626;font-size:9px;">MD (prom)</td>
-                  ${refMediaVars.map(()=>`<td style="${tdS('#15803d',true)}">100%</td>`).join('')}
-                </tr>
               </tbody>
-            </table>` : '<p style="color:#888;padding:12px;">Sin partidos de referencia seleccionados.</p>'
+            </table>`
+
+            // ── CUADRO 4: % sobre partido ─────────────────────────────────────
+            const hasRef = Object.keys(refMedia).length > 0
+            let c4 = ''
+            if (hasRef) {
+              c4 = `<table style="width:100%;border-collapse:collapse;">
+                <thead><tr>
+                  <th style="${thL('#555')}">Jugador</th>
+                  ${refMediaVars.map((v:any)=>`<th style="${thS(fc(v.key))}">${v.label.replace(/ \(.*\)/,'')}</th>`).join('')}
+                </tr></thead>
+                <tbody>
+                  ${gpsReal.map((p:any,i:number) => {
+                    const getV = (key:string) => {
+                      const vs=trainingMds.map(md=>(gpsPerMD[md]||[]).find((x:any)=>x.nombre===p.nombre)?.[key]||0).filter((x:number)=>x>0)
+                      return vs.length?(AVG_FIELDS_GPS.has(key)?vs.reduce((s:number,x:number)=>s+x,0)/vs.length:vs.reduce((s:number,x:number)=>s+x,0)/vs.length):0
+                    }
+                    return `<tr style="background:${i%2===0?'#fff':'#fafafa'};">
+                      <td style="${tdL('#111',true)} white-space:nowrap;">${p.nombre}</td>
+                      ${refMediaVars.map((v:any)=>{const pv=pct(getV(v.key),v.key);const col=pv===null?'#ccc':pv>=85?'#15803d':pv>=65?'#b45309':'#dc2626';return`<td style="${tdS(col,pv!==null)}">${pv!==null?pv+'%':'—'}</td>`}).join('')}
+                    </tr>`
+                  }).join('')}
+                  ${mdWithData.filter(md=>md!=='MD').map(md=>`<tr style="background:#fff5f5;">
+                    <td style="${tdL('#dc2626',true)} font-size:9px;">${md} (prom)</td>
+                    ${refMediaVars.map((v:any)=>{const pv=pct(mdTeamAvg(md)[v.key]||0,v.key);const col=pv===null?'#ccc':pv>=85?'#15803d':pv>=65?'#b45309':'#dc2626';return`<td style="${tdS(col,pv!==null)}">${pv!==null?pv+'%':'—'}</td>`}).join('')}
+                  </tr>`).join('')}
+                  <tr style="background:#fff5f5;border-top:2px solid #fca5a5;">
+                    <td style="${tdL('#dc2626',true)} text-transform:uppercase;font-size:9px;">MD (ref = 100%)</td>
+                    ${refMediaVars.map(()=>`<td style="${tdS('#15803d',true)}">100%</td>`).join('')}
+                  </tr>
+                </tbody>
+              </table>`
+            }
+
+            // ── CUADRO 5: CIV ────────────────────────────────────────────────
+            let c5 = ''
+            if (hasRef) {
+              const civAllKeys = GPS_METRIC_ORDER.filter((k:string) => refMedia[k] > 0 || gpsVarKeys.has(k))
+              const civRows = civAllKeys.map((key:string) => {
+                const meta = GPS_METRIC_META[key]
+                const label = meta ? `${meta.label}${meta.unit?' ('+meta.unit+')':''}` : key
+                const mdVals = trainingMds.map((md:string) => mdTeamAvg(md)[key]||0).filter((x:number)=>x>0)
+                const suma = !mdVals.length ? 0 : AVG_FIELDS_GPS.has(key)
+                  ? Math.round(mdVals.reduce((s:number,x:number)=>s+x,0)/mdVals.length*10)/10
+                  : Math.round(mdVals.reduce((s:number,x:number)=>s+x,0)*10)/10
+                const ref = refMedia[key]||0
+                const civ = ref > 0 ? Math.round((suma/ref)*100)/100 : null
+                return {key, label, suma, ref, civ}
+              }).filter((v:any) => v.ref > 0 || v.suma > 0)
+
+              if (civRows.length) {
+                c5 = `<table style="width:100%;border-collapse:collapse;">
+                  <thead><tr>
+                    <th style="${thL('#555')}">Métrica</th>
+                    <th style="${thS('#059669')}">Suma Microciclo</th>
+                    <th style="${thS('#dc2626')}">Partido Ref.</th>
+                    <th style="${thS('#1d4ed8')}">CIV</th>
+                  </tr></thead>
+                  <tbody>
+                    ${civRows.map((v:any,i:number) => {
+                      const civColor = v.civ===null?'#999':v.civ>1.5?'#dc2626':v.civ>=1.0?'#15803d':'#1d4ed8'
+                      return `<tr style="background:${i%2===0?'#fff':'#f9fafb'};">
+                        <td style="${tdL(fc(v.key),true)}">${v.label}</td>
+                        <td style="${tdS('#059669',v.suma>0)}">${v.suma>0?v.suma:'—'}</td>
+                        <td style="${tdS('#dc2626',v.ref>0)}">${v.ref>0?v.ref:'—'}</td>
+                        <td style="padding:5px 12px;text-align:center;border-bottom:1px solid #f0f0f0;">${v.civ!==null?`<b style="color:${civColor};font-size:12px;">${v.civ.toFixed(2)}</b>`:'—'}</td>
+                      </tr>`
+                    }).join('')}
+                  </tbody>
+                </table>`
+              }
+            }
+
+            // ── RANKING DE LOGROS ─────────────────────────────────────────────
+            const RANKINGS = [
+              {key:'max_velocity', label:'⚡ Velocidad Máxima', unit:'km/h', color:'#dc2626', dec:1},
+              {key:'dist_hir',     label:'🏃 High Speed Running', unit:'m', color:'#b45309', dec:0},
+            ]
+            const medals = ['🥇','🥈','🥉']
+            let ranking = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">'
+            RANKINGS.forEach(rank => {
+              const sorted = [...gpsReal]
+                .filter((p:any) => Number(p[rank.key]) > 0)
+                .sort((a:any,b:any) => Number(b[rank.key]) - Number(a[rank.key]))
+                .slice(0, 3)
+              ranking += `<div>
+                <div style="font-size:12px;font-weight:800;color:${rank.color};margin-bottom:10px;">${rank.label}</div>
+                ${sorted.length === 0 ? '<p style="color:#aaa;font-size:10px;">Sin datos</p>' :
+                  sorted.map((p:any,i:number) => `<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;background:${i===0?'#fffbeb':'#fafafa'};border:1px solid ${i===0?'#fde68a':'#e5e7eb'};margin-bottom:6px;">
+                    <span style="font-size:18px;">${medals[i]}</span>
+                    <div style="flex:1;">
+                      <div style="font-size:11px;font-weight:600;color:#111;">${p.nombre}</div>
+                      <div style="font-size:9px;color:#888;">${p.posicion||''}</div>
+                    </div>
+                    <div style="font-family:monospace;font-weight:800;font-size:14px;color:${rank.color};">${Number(p[rank.key]).toFixed(rank.dec)} <span style="font-size:9px;font-weight:400;color:#888;">${rank.unit}</span></div>
+                  </div>`).join('')
+                }
+              </div>`
+            })
+            ranking += '</div>'
+
+            // ── ESTILOS Y HTML FINAL ──────────────────────────────────────────
+            const css = `
+              body{font-family:Arial,sans-serif;color:#111;background:#fff;margin:0;padding:12px;font-size:10px;}
+              h2{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;margin:0 0 10px;padding-bottom:5px;}
+              .sec{margin-bottom:24px;}
+              .charts{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-top:12px;}
+              @media print{
+                @page{size:A4 landscape;margin:.8cm;}
+                body{padding:0;}
+                .np{display:none;}
+                .sec{page-break-before:always;margin-bottom:0;}
+                .sec.first{page-break-before:auto;}
+                .charts{grid-template-columns:repeat(3,1fr);}
+              }
+            `
 
             const html = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
               <title>W&P GPS ${dateRange.desde} – ${dateRange.hasta}</title>
-              <style>
-                body{font-family:Arial,sans-serif;color:#111;background:#fff;margin:0;padding:16px;font-size:10px;}
-                h2{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;margin:0 0 8px;padding-bottom:5px;}
-                .pb{page-break-before:auto;} .pb+.pb{page-break-before:always;}
-                .sec{margin-bottom:24px;page-break-before:always;}
-                .sec:first-child{page-break-before:auto;}
-                @media print{@page{size:A4 landscape;margin:1cm;}body{padding:0;}.np{display:none;}}
-              </style>
+              <style>${css}</style>
             </head><body>
               <div class="np" style="margin-bottom:14px;display:flex;gap:10px;align-items:center;">
                 <button onclick="window.print()" style="padding:8px 20px;background:#1d4ed8;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:13px;">🖨️ Imprimir / Guardar PDF</button>
-                <span style="font-size:11px;color:#666;">Orientación Horizontal (Landscape) — confirmar en diálogo de impresión si es necesario</span>
+                <span style="font-size:11px;color:#666;">Orientación: Horizontal (Landscape)</span>
               </div>
-              <div style="background:#0f172a;color:#c8f135;padding:8px 16px;border-radius:6px;margin-bottom:14px;display:flex;justify-content:space-between;">
+              <div style="background:#0f172a;color:#c8f135;padding:8px 16px;border-radius:6px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;">
                 <b style="font-size:13px;letter-spacing:.05em;">W&P — CONTROL DE CARGA · GPS</b>
                 <span style="font-size:10px;color:#94a3b8;">${dateRange.desde} → ${dateRange.hasta}</span>
               </div>
-              <div class="sec" style="page-break-before:auto;">
+
+              <div class="sec first">
                 <h2 style="color:#1d4ed8;border-bottom:2px solid #93c5fd;">CUADRO 1 · GPS REAL POR SESIÓN · MD+1 → MD</h2>
-                ${c1||'<p style="color:#888;">Sin datos GPS para este período.</p>'}
+                ${c1 || '<p style="color:#888;">Sin datos GPS para este período.</p>'}
+                ${c1charts ? `<div style="margin-top:16px;"><h3 style="font-size:10px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px;">📊 COMPARATIVA GPS · ${mainMd||''}</h3><div class="charts">${c1charts}</div></div>` : ''}
+              </div>
+
+              <div class="sec">
+                <h2 style="color:#1d4ed8;border-bottom:2px solid #bfdbfe;">CUADRO 2 · PROMEDIO EQUIPO POR MD (GPS REAL)</h2>
+                ${c2}
+                ${c2charts ? `<div style="margin-top:16px;"><h3 style="font-size:10px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px;">📊 GRÁFICO AGRUPADO · PROMEDIO EQUIPO</h3><div class="charts">${c2charts}</div></div>` : ''}
+              </div>
+
+              <div class="sec">
+                <h2 style="color:#6d28d9;border-bottom:2px solid #ddd8fe;">CUADRO 3 · TOTALES EQUIPO POR MD (GPS REAL)</h2>
+                ${c3}
+              </div>
+
+              ${hasRef ? `
+              <div class="sec">
+                <h2 style="color:#dc2626;border-bottom:2px solid #fca5a5;">CUADRO 4 · % SOBRE EL PARTIDO (= 100%)</h2>
+                ${c4}
               </div>
               <div class="sec">
-                <h2 style="color:#1d4ed8;border-bottom:2px solid #bfdbfe;">CUADRO 2 · PROMEDIO EQUIPO POR MD</h2>
-                ${c2}
+                <h2 style="color:#1d4ed8;border-bottom:2px solid #bfdbfe;">CUADRO 5 · ÍNDICE DE CARGA GPS (CIV)</h2>
+                ${c5 || '<p style="color:#888;">Sin datos suficientes.</p>'}
+              </div>` : ''}
+
+              <div class="sec">
+                <h2 style="color:#b45309;border-bottom:2px solid #fde68a;">🏆 RANKING DE LOGROS — MICROCICLO</h2>
+                ${ranking}
               </div>
-              ${hasRef?`<div class="sec"><h2 style="color:#dc2626;border-bottom:2px solid #fca5a5;">CUADRO 4 · % SOBRE EL PARTIDO (= 100%)</h2>${c4}</div>`:''}
             </body></html>`
+
             win.document.write(html)
             win.document.close()
           }} style={{ fontSize:11, padding:'8px 14px', borderRadius:8, background:'rgba(96,165,250,.1)', color:'#60a5fa', border:'1px solid rgba(96,165,250,.3)', cursor:'pointer' }}>🖨️ PDF</button>
