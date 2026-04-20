@@ -4015,7 +4015,55 @@ function ComparativaPanel({ teamData }: { teamData: any[] }) {
             <label style={{ fontSize:10, color:'var(--fog)', display:'block', marginBottom:3, textTransform:'uppercase' }}>Hasta</label>
             <input className="wp-input" type="date" value={hasta} onChange={e=>setHasta(e.target.value)} />
           </div>
-          <button onClick={()=>window.print()} style={{ fontSize:11, padding:'8px 14px', borderRadius:8, background:'rgba(200,241,53,.1)', color:'var(--lime)', border:'1px solid rgba(200,241,53,.3)', cursor:'pointer', marginBottom:1 }}>🖨️ PDF</button>
+          <button onClick={()=>{
+            const win = window.open('', '_blank'); if (!win) return
+            const thS = (c: string) => `padding:4px 8px;text-align:center;font-size:8px;font-weight:700;text-transform:uppercase;border-bottom:2px solid #e5e7eb;color:${c};white-space:nowrap;background:#f8fafc;`
+            const tdS = (c: string, b=false) => `padding:5px 8px;text-align:center;font-family:monospace;font-size:10px;color:${c};font-weight:${b?700:400};border-bottom:1px solid #f0f0f0;`
+            const thL = (c: string) => `padding:4px 12px;text-align:left;font-size:8px;font-weight:700;text-transform:uppercase;border-bottom:2px solid #e5e7eb;color:${c};background:#f8fafc;`
+            const tdL = (c: string, b=false) => `padding:5px 12px;color:${c};font-weight:${b?700:400};border-bottom:1px solid #f0f0f0;font-size:10px;`
+            const pctColor = (p: number|null) => p===null?'#aaa':p>=85?'#15803d':p>=65?'#b45309':'#dc2626'
+
+            const tableRows = filtered.map((p:any, i:number) => `<tr style="background:${i%2===0?'#fff':'#f9fafb'};">
+              <td style="${tdL('#111',true)} white-space:nowrap;">${p.nombre}</td>
+              <td style="${tdL('#555')} font-size:9px;">${p.posicion||'—'}</td>
+              ${VARS.map((v:any) => { const val=Number(p[v.key])||0; return `<td style="${tdS(val?v.color.replace('var(--silver)','#888'):'#ccc',!!val)}">${val||'—'}</td>` }).join('')}
+            </tr>`).join('')
+
+            // Position avg rows
+            const posGroups: Record<string,any[]> = {}
+            filtered.forEach((p:any) => { const pos=p.posicion||'Sin pos'; if(!posGroups[pos]) posGroups[pos]=[]; posGroups[pos].push(p) })
+            const posRows = Object.entries(posGroups).map(([pos, ps]) => {
+              return `<tr style="background:#f0fdf4;border-top:2px solid #bbf7d0;">
+                <td style="${tdL('#15803d',true)}" colspan="2">⬆ Prom. ${pos}</td>
+                ${VARS.map((v:any) => { const vals=ps.map((p:any)=>Number(p[v.key])||0).filter(x=>x>0); const avg=vals.length?(vals.reduce((s:number,x:number)=>s+x,0)/vals.length).toFixed(1):'—'; return `<td style="${tdS('#15803d',vals.length>0)}">${avg}</td>` }).join('')}
+              </tr>`
+            }).join('')
+
+            const html = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>W&P Comparativa ${desde} – ${hasta}</title>
+              <style>body{font-family:Arial,sans-serif;color:#111;background:#fff;margin:0;padding:12px;font-size:10px;}
+              h2{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;margin:0 0 10px;padding-bottom:5px;}
+              @media print{@page{size:A4 landscape;margin:.8cm;}body{padding:0;}.np{display:none;}}</style>
+            </head><body>
+              <div class="np" style="margin-bottom:12px;display:flex;gap:10px;align-items:center;">
+                <button onclick="window.print()" style="padding:8px 20px;background:#4a7c00;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:13px;">🖨️ Imprimir / Guardar PDF</button>
+                <span style="font-size:11px;color:#666;">Orientación: Horizontal (Landscape)</span>
+              </div>
+              <div style="background:#0f172a;color:#c8f135;padding:8px 16px;border-radius:6px;margin-bottom:12px;display:flex;justify-content:space-between;">
+                <b style="font-size:13px;">W&P — COMPARATIVA GPS · ${posFilter==='todas'?'Todas las posiciones':posFilter}</b>
+                <span style="font-size:10px;color:#94a3b8;">${desde} → ${hasta}</span>
+              </div>
+              <h2 style="color:#4a7c00;border-bottom:2px solid #c8f135;">TABLA COMPARATIVA POR JUGADOR</h2>
+              <table style="width:100%;border-collapse:collapse;">
+                <thead><tr>
+                  <th style="${thL('#555')}">Jugador</th>
+                  <th style="${thL('#555')}">Pos.</th>
+                  ${VARS.map((v:any)=>`<th style="${thS(v.color.replace('var(--silver)','#888'))}">${v.label}${v.unit?' ('+v.unit+')':''}</th>`).join('')}
+                </tr></thead>
+                <tbody>${tableRows}${posRows}</tbody>
+              </table>
+            </body></html>`
+            win.document.write(html); win.document.close()
+          }} style={{ fontSize:11, padding:'8px 14px', borderRadius:8, background:'rgba(200,241,53,.1)', color:'var(--lime)', border:'1px solid rgba(200,241,53,.3)', cursor:'pointer', marginBottom:1 }}>🖨️ PDF</button>
         </div>
       </div>
 
@@ -5488,7 +5536,87 @@ function AcumPanel({ teamData }) {
               <label style={{ fontSize:9, color:'var(--fog)', display:'block', marginBottom:3, textTransform:'uppercase' }}>Hasta</label>
               <input className="wp-input" type="date" value={miciHasta} onChange={e=>setMiciHasta(e.target.value)} />
             </div>
-            <button onClick={()=>window.print()} style={{ fontSize:11, padding:'8px 12px', borderRadius:8, background:'rgba(200,241,53,.1)', color:'var(--lime)', border:'1px solid rgba(200,241,53,.3)', cursor:'pointer' }}>🖨️ PDF</button>
+            <button onClick={()=>{
+              const win = window.open('', '_blank'); if (!win) return
+              const thS = (c: string) => `padding:4px 8px;text-align:center;font-size:8px;font-weight:700;text-transform:uppercase;border-bottom:2px solid #e5e7eb;color:${c};white-space:nowrap;background:#f8fafc;`
+              const tdS = (c: string, b=false) => `padding:5px 8px;text-align:center;font-family:monospace;font-size:10px;color:${c};font-weight:${b?700:400};border-bottom:1px solid #f0f0f0;`
+              const thL = (c: string) => `padding:4px 12px;text-align:left;font-size:8px;font-weight:700;text-transform:uppercase;border-bottom:2px solid #e5e7eb;color:${c};background:#f8fafc;`
+              const tdL = (c: string, b=false) => `padding:5px 12px;color:${c};font-weight:${b?700:400};border-bottom:1px solid #f0f0f0;font-size:10px;`
+
+              const allMDs = ['MD+1','MD+2','MD+3','MD-4','MD-3','MD-2','MD-1']
+              const activeMDs = allMDs.filter(md => miciExistingMds.has(md))
+
+              // Table: players x MDs with UA, RPE, minActivo
+              const RPE_VARS = [{key:'rpe',label:'RPE',color:'#c8f135'},{key:'ua_total',label:'UA',color:'#60a5fa'},{key:'minActivo',label:'Min',color:'#34d399'}]
+              let t1 = `<table style="width:100%;border-collapse:collapse;margin-bottom:20px;">
+                <thead><tr>
+                  <th style="${thL('#555')}">Jugador</th>
+                  ${activeMDs.map(md=>`<th style="${thS('#c8f135')}" colspan="3">${md}</th>`).join('')}
+                  <th style="${thS('#60a5fa')}" colspan="3">TOTAL</th>
+                </tr><tr>
+                  <th style="${thL('#555')}"></th>
+                  ${activeMDs.map(()=>RPE_VARS.map(v=>`<th style="${thS(v.color)}">${v.label}</th>`).join('')).join('')}
+                  ${RPE_VARS.map(v=>`<th style="${thS(v.color)}">${v.label}</th>`).join('')}
+                </tr></thead>
+                <tbody>
+                  ${miciPlayers.map((p:any,i:number)=>`<tr style="background:${i%2===0?'#fff':'#f9fafb'};">
+                    <td style="${tdL('#111',true)}">${p.nombre}</td>
+                    ${activeMDs.map(md=>{
+                      const sess=(miciPerSessionPlayers[md]||[]).find((x:any)=>x.jugador_id===p.jugador_id)
+                      return RPE_VARS.map(v=>{const val=Number(sess?.[v.key])||0;return`<td style="${tdS(val?v.color:'#ccc',!!val)}">${val||'—'}</td>`}).join('')
+                    }).join('')}
+                    ${RPE_VARS.map(v=>{const val=Number(p[v.key])||0;return`<td style="${tdS(val?v.color:'#ccc',!!val)}">${val||'—'}</td>`}).join('')}
+                  </tr>`).join('')}
+                  <tr style="background:#eff6ff;border-top:2px solid #93c5fd;">
+                    <td style="${tdL('#1d4ed8',true)} font-size:9px;">PROM. EQUIPO</td>
+                    ${activeMDs.map(md=>{
+                      const avg=miciPerSession[md]||{}
+                      return RPE_VARS.map(v=>{const val=Number(avg[v.key])||0;return`<td style="${tdS(val?v.color:'#ccc',!!val)}">${val||'—'}</td>`}).join('')
+                    }).join('')}
+                    ${RPE_VARS.map(v=>{const val=getMiciTeamRpeVal(v.key);return`<td style="${tdS(val?v.color:'#ccc',!!val)}">${val||'—'}</td>`}).join('')}
+                  </tr>
+                </tbody>
+              </table>`
+
+              // Table: calc GPS per MD
+              let t2 = `<h2 style="color:#f59e0b;border-bottom:2px solid #fde68a;font-size:12px;font-weight:800;text-transform:uppercase;margin:0 0 10px;padding-bottom:5px;">CARGA CALCULADA (GPS) POR SESIÓN</h2>
+              <table style="width:100%;border-collapse:collapse;margin-bottom:20px;">
+                <thead><tr>
+                  <th style="${thL('#555')}">Métrica</th>
+                  ${activeMDs.map(md=>`<th style="${thS('#f59e0b')}">${md}</th>`).join('')}
+                  <th style="${thS('#059669')}">Total</th>
+                </tr></thead>
+                <tbody>
+                  ${MICI_VARS.map((v:any,i:number)=>{
+                    const vals=activeMDs.map(md=>Number(miciPerSession[md]?.[v.key])||0)
+                    const tot=vals.reduce((s:number,x:number)=>s+x,0)
+                    return`<tr style="background:${i%2===0?'#fff':'#f9fafb'};">
+                      <td style="${tdL(v.color,true)}">${v.label}</td>
+                      ${vals.map(val=>`<td style="${tdS(val?v.color:'#ccc',!!val)}">${val||'—'}</td>`).join('')}
+                      <td style="${tdS('#059669',tot>0)}">${tot||'—'}</td>
+                    </tr>`
+                  }).join('')}
+                </tbody>
+              </table>`
+
+              const html = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>W&P Acumulativo Microciclo ${miciDesde} – ${miciHasta}</title>
+                <style>body{font-family:Arial,sans-serif;color:#111;background:#fff;margin:0;padding:12px;font-size:10px;}
+                h2{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;margin:0 0 10px;padding-bottom:5px;}
+                @media print{@page{size:A4 landscape;margin:.8cm;}body{padding:0;}.np{display:none;}}</style>
+              </head><body>
+                <div class="np" style="margin-bottom:12px;display:flex;gap:10px;align-items:center;">
+                  <button onclick="window.print()" style="padding:8px 20px;background:#4a7c00;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:13px;">🖨️ Imprimir / Guardar PDF</button>
+                  <span style="font-size:11px;color:#666;">Orientación: Horizontal (Landscape)</span>
+                </div>
+                <div style="background:#0f172a;color:#c8f135;padding:8px 16px;border-radius:6px;margin-bottom:12px;display:flex;justify-content:space-between;">
+                  <b style="font-size:13px;">W&P — ACUMULATIVO MICROCICLO ${miciNum}</b>
+                  <span style="font-size:10px;color:#94a3b8;">${miciDesde} → ${miciHasta}</span>
+                </div>
+                <h2 style="color:#60a5fa;border-bottom:2px solid #93c5fd;">RPE · UA · MINUTOS POR JUGADOR Y MD</h2>
+                ${t1}${t2}
+              </body></html>`
+              win.document.write(html); win.document.close()
+            }} style={{ fontSize:11, padding:'8px 12px', borderRadius:8, background:'rgba(200,241,53,.1)', color:'var(--lime)', border:'1px solid rgba(200,241,53,.3)', cursor:'pointer' }}>🖨️ PDF</button>
           </div>
         </div>
         {miciLoading ? (
@@ -6576,7 +6704,134 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
           </div>
           <div><label style={{ fontSize:10, color:'var(--fog)', display:'block', marginBottom:3, textTransform:'uppercase' }}>Desde</label><input className="wp-input" type="date" value={dateRange.desde} onChange={e=>setDateRange(r=>({ ...r, desde: e.target.value }))} /></div>
           <div><label style={{ fontSize:10, color:'var(--fog)', display:'block', marginBottom:3, textTransform:'uppercase' }}>Hasta</label><input className="wp-input" type="date" value={dateRange.hasta} onChange={e=>setDateRange(r=>({ ...r, hasta: e.target.value }))} /></div>
-          <button onClick={()=>window.print()} style={{ fontSize:11, padding:'8px 14px', borderRadius:8, background:'rgba(200,241,53,.1)', color:'var(--lime)', border:'1px solid rgba(200,241,53,.3)', cursor:'pointer' }}>🖨️ PDF</button>
+          <button onClick={()=>{
+            const win = window.open('', '_blank'); if (!win) return
+            const thS = (c: string) => `padding:4px 8px;text-align:center;font-size:8px;font-weight:700;text-transform:uppercase;border-bottom:2px solid #e5e7eb;color:${c};white-space:nowrap;background:#f8fafc;`
+            const tdS = (c: string, b=false) => `padding:5px 8px;text-align:center;font-family:monospace;font-size:10px;color:${c};font-weight:${b?700:400};border-bottom:1px solid #f0f0f0;`
+            const thL = (c: string) => `padding:4px 12px;text-align:left;font-size:8px;font-weight:700;text-transform:uppercase;border-bottom:2px solid #e5e7eb;color:${c};background:#f8fafc;`
+            const tdL = (c: string, b=false) => `padding:5px 12px;color:${c};font-weight:${b?700:400};border-bottom:1px solid #f0f0f0;font-size:10px;`
+            const pctColor = (p: number|null) => p===null?'#aaa':p>=80?'#15803d':p>=50?'#b45309':'#dc2626'
+
+            const activeMDs = MD_ORDER_LOCAL.filter(md => existingMdLabels.has(md) && calSesiones.has(md))
+            const trainingMDs = activeMDs.filter(md => md !== 'MD')
+
+            // Cuadro 1: RPE por jugador x MD
+            const c1 = `<table style="width:100%;border-collapse:collapse;margin-bottom:16px;">
+              <thead><tr>
+                <th style="${thL('#555')}">Jugador</th>
+                ${activeMDs.map(md=>`<th style="${thS('#c8f135')}">${md}</th>`).join('')}
+                <th style="${thS('#60a5fa')}">Total UA</th>
+              </tr></thead><tbody>
+              ${players.map((p:any,i:number)=>`<tr style="background:${i%2===0?'#fff':'#f9fafb'};">
+                <td style="${tdL('#111',true)}">${p.nombre}</td>
+                ${activeMDs.map(md=>{const sess=(perSessionPlayers[md]||[]).find((x:any)=>x.jugador_id===p.jugador_id);const val=Number(sess?.rpe)||0;return`<td style="${tdS(val?'#c8f135':'#ccc',!!val)}">${val||'—'}</td>`}).join('')}
+                <td style="${tdS('#60a5fa',!!Number(p.ua_total))}">${Number(p.ua_total)||'—'}</td>
+              </tr>`).join('')}
+              <tr style="background:#eff6ff;border-top:2px solid #93c5fd;">
+                <td style="${tdL('#1d4ed8',true)} font-size:9px;">PROM. EQUIPO</td>
+                ${activeMDs.map(md=>{const val=Number(perSessionTeamAvg[md]?.rpe)||0;return`<td style="${tdS(val?'#c8f135':'#ccc',!!val)}">${val||'—'}</td>`}).join('')}
+                <td style="${tdS('#60a5fa',true)}">${(()=>{const vs=players.map((p:any)=>Number(p.ua_total)||0).filter(x=>x>0);return vs.length?(vs.reduce((s:number,x:number)=>s+x,0)/vs.length).toFixed(0):'—'})()}</td>
+              </tr></tbody>
+            </table>`
+
+            // Cuadro 2: UA por jugador x MD
+            const c2 = `<table style="width:100%;border-collapse:collapse;margin-bottom:16px;">
+              <thead><tr>
+                <th style="${thL('#555')}">Jugador</th>
+                ${activeMDs.map(md=>`<th style="${thS('#60a5fa')}">${md}</th>`).join('')}
+                <th style="${thS('#34d399')}">Total</th>
+              </tr></thead><tbody>
+              ${players.map((p:any,i:number)=>`<tr style="background:${i%2===0?'#fff':'#f9fafb'};">
+                <td style="${tdL('#111',true)}">${p.nombre}</td>
+                ${activeMDs.map(md=>{const sess=(perSessionPlayers[md]||[]).find((x:any)=>x.jugador_id===p.jugador_id);const val=Number(sess?.ua_total)||0;return`<td style="${tdS(val?'#60a5fa':'#ccc',!!val)}">${val||'—'}</td>`}).join('')}
+                <td style="${tdS('#34d399',!!Number(p.ua_total))}">${Number(p.ua_total)||'—'}</td>
+              </tr>`).join('')}
+              <tr style="background:#eff6ff;border-top:2px solid #93c5fd;">
+                <td style="${tdL('#1d4ed8',true)} font-size:9px;">PROM. EQUIPO</td>
+                ${activeMDs.map(md=>{const val=Number(perSessionTeamAvg[md]?.ua_total)||0;return`<td style="${tdS(val?'#60a5fa':'#ccc',!!val)}">${val||'—'}</td>`}).join('')}
+                <td style="${tdS('#34d399',true)}">${(()=>{const vs=players.map((p:any)=>Number(p.ua_total)||0).filter(x=>x>0);return vs.length?(vs.reduce((s:number,x:number)=>s+x,0)/vs.length).toFixed(0):'—'})()}</td>
+              </tr></tbody>
+            </table>`
+
+            // Cuadro 3: GPS calculado por MD
+            const c3 = `<table style="width:100%;border-collapse:collapse;margin-bottom:16px;">
+              <thead><tr>
+                <th style="${thL('#555')}">Métrica</th>
+                ${activeMDs.map(md=>`<th style="${thS('#f59e0b')}">${md}</th>`).join('')}
+                <th style="${thS('#059669')}">Total</th>
+              </tr></thead><tbody>
+              ${VARS.map((v:any,i:number)=>{
+                const vals=activeMDs.map(md=>Number(perSession[md]?.[v.key])||0)
+                const tot=vals.reduce((s:number,x:number)=>s+x,0)
+                return`<tr style="background:${i%2===0?'#fff':'#f9fafb'};">
+                  <td style="${tdL(v.color.replace('var(--lime)','#4a7c00').replace('var(--silver)','#888'),true)}">${v.label}</td>
+                  ${vals.map(val=>`<td style="${tdS(val?v.color.replace('var(--lime)','#4a7c00'):'#ccc',!!val)}">${val||'—'}</td>`).join('')}
+                  <td style="${tdS('#059669',tot>0)}">${tot||'—'}</td>
+                </tr>`
+              }).join('')}
+              </tbody>
+            </table>`
+
+            // Cuadro 4 & 5: % sobre partido (if ref available)
+            const hasRef = Object.keys(refMedia).length > 0
+            let c4c5 = ''
+            if (hasRef) {
+              const pct = (val:number, key:string) => { const ref=refMedia[key]; if(!ref) return null; return Math.round((val/ref)*100) }
+              // Per-player avg across training MDs
+              c4c5 = `<div style="page-break-before:always;margin-top:16px;">
+                <h2 style="color:#dc2626;border-bottom:2px solid #fca5a5;font-size:12px;font-weight:800;text-transform:uppercase;margin:0 0 10px;padding-bottom:5px;">CUADRO 4 · % SOBRE EL PARTIDO (= 100%)</h2>
+                <table style="width:100%;border-collapse:collapse;">
+                  <thead><tr>
+                    <th style="${thL('#555')}">Jugador / MD</th>
+                    ${VARS.map((v:any)=>`<th style="${thS(v.color.replace('var(--lime)','#4a7c00').replace('var(--silver)','#888'))}">${v.label}</th>`).join('')}
+                  </tr></thead><tbody>
+                  ${players.map((p:any,i:number)=>{
+                    const getV=(key:string)=>{const vs=trainingMDs.map(md=>(perSessionPlayers[md]||[]).find((x:any)=>x.jugador_id===p.jugador_id)?.[key]||0).filter((x:number)=>x>0);return vs.length?vs.reduce((s:number,x:number)=>s+x,0)/vs.length:0}
+                    return`<tr style="background:${i%2===0?'#fff':'#fafafa'};">
+                      <td style="${tdL('#111',true)}">${p.nombre}</td>
+                      ${VARS.map((v:any)=>{const pv=pct(getV(v.key),v.key);return`<td style="${tdS(pctColor(pv),pv!==null)}">${pv!==null?pv+'%':'—'}</td>`}).join('')}
+                    </tr>`
+                  }).join('')}
+                  ${trainingMDs.map(md=>`<tr style="background:#fff5f5;">
+                    <td style="${tdL('#dc2626',true)} font-size:9px;">${md}</td>
+                    ${VARS.map((v:any)=>{const pv=pct(Number(perSessionTeamAvg[md]?.[v.key])||0,v.key);return`<td style="${tdS(pctColor(pv),pv!==null)}">${pv!==null?pv+'%':'—'}</td>`}).join('')}
+                  </tr>`).join('')}
+                  <tr style="background:#fff5f5;border-top:2px solid #fca5a5;">
+                    <td style="${tdL('#dc2626',true)} font-size:9px;text-transform:uppercase;">MD Ref = 100%</td>
+                    ${VARS.map(()=>`<td style="${tdS('#15803d',true)}">100%</td>`).join('')}
+                  </tr>
+                  </tbody>
+                </table>
+              </div>`
+            }
+
+            const html = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>W&P Ctrl. Carga Calc ${dateRange.desde} – ${dateRange.hasta}</title>
+              <style>body{font-family:Arial,sans-serif;color:#111;background:#fff;margin:0;padding:12px;font-size:10px;}
+              h2{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;margin:0 0 10px;padding-bottom:5px;}
+              .sec{margin-bottom:20px;}
+              @media print{@page{size:A4 landscape;margin:.8cm;}body{padding:0;}.np{display:none;}.pb{page-break-before:always;}}</style>
+            </head><body>
+              <div class="np" style="margin-bottom:12px;display:flex;gap:10px;align-items:center;">
+                <button onclick="window.print()" style="padding:8px 20px;background:#4a7c00;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:13px;">🖨️ Imprimir / Guardar PDF</button>
+                <span style="font-size:11px;color:#666;">Orientación: Horizontal (Landscape)</span>
+              </div>
+              <div style="background:#0f172a;color:#c8f135;padding:8px 16px;border-radius:6px;margin-bottom:12px;display:flex;justify-content:space-between;">
+                <b style="font-size:13px;">W&P — CONTROL DE CARGA · CALCULADO</b>
+                <span style="font-size:10px;color:#94a3b8;">${dateRange.desde} → ${dateRange.hasta}</span>
+              </div>
+              <div class="sec">
+                <h2 style="color:#c8f135;border-bottom:2px solid #c8f135;">CUADRO 1 · RPE POR JUGADOR Y MD</h2>${c1}
+              </div>
+              <div class="sec pb">
+                <h2 style="color:#60a5fa;border-bottom:2px solid #93c5fd;">CUADRO 2 · UA (RPE × MIN) POR JUGADOR Y MD</h2>${c2}
+              </div>
+              <div class="sec pb">
+                <h2 style="color:#f59e0b;border-bottom:2px solid #fde68a;">CUADRO 3 · CARGA GPS CALCULADA POR SESIÓN</h2>${c3}
+              </div>
+              ${c4c5}
+            </body></html>`
+            win.document.write(html); win.document.close()
+          }} style={{ fontSize:11, padding:'8px 14px', borderRadius:8, background:'rgba(200,241,53,.1)', color:'var(--lime)', border:'1px solid rgba(200,241,53,.3)', cursor:'pointer' }}>🖨️ PDF</button>
           <button onClick={()=>cargar()} disabled={loading} title="Actualizar datos" style={{ fontSize:11, padding:'8px 14px', borderRadius:8, background:loading?'rgba(255,255,255,.04)':'rgba(96,165,250,.1)', color:loading?'var(--fog)':'#60a5fa', border:'1px solid rgba(96,165,250,.3)', cursor:loading?'default':'pointer' }}>🔄 {loading?'Cargando…':'Actualizar'}</button>
         </div>
       </div>
