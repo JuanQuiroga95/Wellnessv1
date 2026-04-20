@@ -4017,50 +4017,130 @@ function ComparativaPanel({ teamData }: { teamData: any[] }) {
           </div>
           <button onClick={()=>{
             const win = window.open('', '_blank'); if (!win) return
+
+            // SVG bar chart builder (portrait-friendly, pure HTML)
+            const mkBars = (items: {name:string, val:number, sub?:string}[], bars: {key:string,label:string,color:string}[], lineKey?: string, lineColor?: string) => {
+              if (!items.length) return '<p style="color:#aaa;font-size:10px;text-align:center;padding:8px">Sin datos</p>'
+              const BAR_H = 110, TOP = 18, BOT = 38, COL_W = Math.max(Math.floor(600/items.length), 44)
+              const W = items.length * COL_W
+              const allVals = items.flatMap(it => bars.map(b => Number((it as any)[b.key])||0))
+              const maxBar = Math.max(...allVals, 1)
+              const lineVals = lineKey ? items.map(it => Number((it as any)[lineKey])||0) : []
+              const maxLine = Math.max(...lineVals.filter(v=>v>0), 1)
+              let svg = `<svg viewBox="0 0 ${W} ${TOP+BAR_H+BOT}" width="100%" style="overflow:visible;display:block;">`
+              // grid lines
+              ;[0,25,50,75,100].forEach(p => {
+                const y = TOP + BAR_H - (p/100)*BAR_H
+                svg += `<line x1="0" y1="${y.toFixed(1)}" x2="${W}" y2="${y.toFixed(1)}" stroke="#e5e7eb" stroke-width="0.5"/>`
+              })
+              // bars
+              items.forEach((it, pi) => {
+                const x0 = pi * COL_W + 2
+                const bw = Math.max((COL_W - 4) / bars.length - 1, 6)
+                bars.forEach((b, bi) => {
+                  const val = Number((it as any)[b.key])||0
+                  const h = val > 0 ? Math.max((val/maxBar)*BAR_H, 4) : 0
+                  const bx = x0 + bi*(bw+1)
+                  const by = TOP + BAR_H - h
+                  svg += `<rect x="${bx.toFixed(1)}" y="${by.toFixed(1)}" width="${bw.toFixed(1)}" height="${Math.max(h,0).toFixed(1)}" fill="${b.color}" rx="2"/>`
+                  if (val > 0) {
+                    if (h > 16) svg += `<text x="${(bx+bw/2).toFixed(1)}" y="${(by+h/2+3).toFixed(1)}" text-anchor="middle" fill="#fff" font-size="7" font-weight="700" transform="rotate(-90,${(bx+bw/2).toFixed(1)},${(by+h/2).toFixed(1)})">${val}</text>`
+                    else svg += `<text x="${(bx+bw/2).toFixed(1)}" y="${(by-2).toFixed(1)}" text-anchor="middle" fill="${b.color}" font-size="7" font-weight="700">${val}</text>`
+                  }
+                })
+                // x label
+                const cx = x0 + (COL_W-4)/2
+                svg += `<text x="${cx.toFixed(1)}" y="${(TOP+BAR_H+12).toFixed(1)}" text-anchor="middle" fill="#333" font-size="8" font-weight="600">${it.name}</text>`
+                if (it.sub) svg += `<text x="${cx.toFixed(1)}" y="${(TOP+BAR_H+22).toFixed(1)}" text-anchor="middle" fill="#888" font-size="7">${it.sub}</text>`
+              })
+              // line overlay
+              if (lineKey && lineVals.some(v=>v>0)) {
+                const pts = items.map((it,pi) => {
+                  const val = Number((it as any)[lineKey])||0
+                  const cx = pi*COL_W + 2 + (COL_W-4)/2
+                  const cy = val > 0 ? TOP + BAR_H - (val/maxLine)*BAR_H*0.85 : null
+                  return {cx, cy, val}
+                }).filter(pt => pt.cy !== null)
+                if (pts.length > 1) svg += `<polyline points="${pts.map(p=>`${p.cx.toFixed(1)},${p.cy!.toFixed(1)}`).join(' ')}" fill="none" stroke="${lineColor||'#34d399'}" stroke-width="1.5" stroke-dasharray="4,2"/>`
+                pts.forEach(pt => {
+                  svg += `<circle cx="${pt.cx.toFixed(1)}" cy="${pt.cy!.toFixed(1)}" r="3" fill="${lineColor||'#34d399'}" stroke="#fff" stroke-width="1"/>`
+                  svg += `<text x="${pt.cx.toFixed(1)}" y="${(pt.cy!-5).toFixed(1)}" text-anchor="middle" fill="${lineColor||'#34d399'}" font-size="7" font-weight="700">${pt.val}</text>`
+                })
+              }
+              svg += '</svg>'
+              return svg
+            }
+            const mkChartBlock = (title: string, color: string, svgHtml: string, legendItems: {label:string,color:string}[]) => `
+              <div style="border:1px solid ${color}30;border-radius:8px;padding:10px;page-break-inside:avoid;">
+                <div style="font-size:9px;font-weight:800;color:${color};text-transform:uppercase;letter-spacing:.06em;text-align:center;padding-bottom:5px;border-bottom:1px solid ${color}20;margin-bottom:6px;">${title}</div>
+                <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:6px;">
+                  ${legendItems.map(l=>`<span style="display:flex;align-items:center;gap:3px;font-size:8px;color:#555;"><span style="width:8px;height:8px;border-radius:2px;background:${l.color};display:inline-block;"></span>${l.label}</span>`).join('')}
+                </div>
+                ${svgHtml}
+              </div>`
+
             const thS = (c: string) => `padding:4px 8px;text-align:center;font-size:8px;font-weight:700;text-transform:uppercase;border-bottom:2px solid #e5e7eb;color:${c};white-space:nowrap;background:#f8fafc;`
             const tdS = (c: string, b=false) => `padding:5px 8px;text-align:center;font-family:monospace;font-size:10px;color:${c};font-weight:${b?700:400};border-bottom:1px solid #f0f0f0;`
             const thL = (c: string) => `padding:4px 12px;text-align:left;font-size:8px;font-weight:700;text-transform:uppercase;border-bottom:2px solid #e5e7eb;color:${c};background:#f8fafc;`
             const tdL = (c: string, b=false) => `padding:5px 12px;color:${c};font-weight:${b?700:400};border-bottom:1px solid #f0f0f0;font-size:10px;`
-            const pctColor = (p: number|null) => p===null?'#aaa':p>=85?'#15803d':p>=65?'#b45309':'#dc2626'
 
+            // Table
             const tableRows = filtered.map((p:any, i:number) => `<tr style="background:${i%2===0?'#fff':'#f9fafb'};">
               <td style="${tdL('#111',true)} white-space:nowrap;">${p.nombre}</td>
               <td style="${tdL('#555')} font-size:9px;">${p.posicion||'—'}</td>
               ${VARS.map((v:any) => { const val=Number(p[v.key])||0; return `<td style="${tdS(val?v.color.replace('var(--silver)','#888'):'#ccc',!!val)}">${val||'—'}</td>` }).join('')}
             </tr>`).join('')
-
-            // Position avg rows
             const posGroups: Record<string,any[]> = {}
-            filtered.forEach((p:any) => { const pos=p.posicion||'Sin pos'; if(!posGroups[pos]) posGroups[pos]=[]; posGroups[pos].push(p) })
-            const posRows = Object.entries(posGroups).map(([pos, ps]) => {
-              return `<tr style="background:#f0fdf4;border-top:2px solid #bbf7d0;">
-                <td style="${tdL('#15803d',true)}" colspan="2">⬆ Prom. ${pos}</td>
-                ${VARS.map((v:any) => { const vals=ps.map((p:any)=>Number(p[v.key])||0).filter(x=>x>0); const avg=vals.length?(vals.reduce((s:number,x:number)=>s+x,0)/vals.length).toFixed(1):'—'; return `<td style="${tdS('#15803d',vals.length>0)}">${avg}</td>` }).join('')}
+            filtered.forEach((p:any) => { const pos=p.posicion||'—'; if(!posGroups[pos]) posGroups[pos]=[]; posGroups[pos].push(p) })
+            const posRows = Object.entries(posGroups).map(([pos, ps]) =>
+              `<tr style="background:#f0fdf4;border-top:2px solid #bbf7d0;">
+                <td style="${tdL('#15803d',true)}" colspan="2">Prom. ${pos}</td>
+                ${VARS.map((v:any) => { const vs=ps.map((p:any)=>Number(p[v.key])||0).filter(x=>x>0); const avg=vs.length?(vs.reduce((s:number,x:number)=>s+x,0)/vs.length).toFixed(1):'—'; return `<td style="${tdS(vs.length?v.color.replace('var(--silver)','#888'):'#ccc',vs.length>0)}">${avg}</td>` }).join('')}
               </tr>`
+            ).join('')
+
+            // Charts: one per metric, bars = positions or players
+            const chartVars = VARS.filter((v:any) => v.key !== 'sesiones')
+            const chartsHtml = chartVars.map((v:any) => {
+              const items = posFilter === 'todas'
+                ? Object.entries(posGroups).map(([pos, ps]) => {
+                    const vals = ps.map((p:any)=>Number(p[v.key])||0).filter(x=>x>0)
+                    return { name: pos.split(' ').map((w:string)=>w[0]).join('').slice(0,4), sub: pos, [v.key]: vals.length?(vals.reduce((s:number,x:number)=>s+x,0)/vals.length).toFixed(1):'0' }
+                  }).filter((it:any) => Number(it[v.key]) > 0)
+                : filtered.map((p:any) => ({ name: p.nombre.split(' ')[0], [v.key]: Number(p[v.key])||0 })).filter((it:any) => it[v.key] > 0)
+              if (!items.length) return ''
+              return mkChartBlock(v.label, v.color.replace('var(--silver)','#888').replace('var(--lime)','#4a7c00'), mkBars(items as any, [{key:v.key,label:v.label,color:v.color.replace('var(--silver)','#888').replace('var(--lime)','#4a7c00')}]), [{label:v.label,color:v.color.replace('var(--silver)','#888').replace('var(--lime)','#4a7c00')}])
             }).join('')
 
             const html = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>W&P Comparativa ${desde} – ${hasta}</title>
               <style>body{font-family:Arial,sans-serif;color:#111;background:#fff;margin:0;padding:12px;font-size:10px;}
               h2{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;margin:0 0 10px;padding-bottom:5px;}
-              @media print{@page{size:A4 landscape;margin:.8cm;}body{padding:0;}.np{display:none;}}</style>
-            </head><body>
+              .sec{margin-bottom:20px;}.pb{page-break-before:always;}
+              .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+              .grid3{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+              @media print{@page{size:A4 landscape;margin:.8cm;}body{padding:0;}.np{display:none;}.pb{page-break-before:always;}.grid3{grid-template-columns:1fr 1fr;}}</style></head><body>
               <div class="np" style="margin-bottom:12px;display:flex;gap:10px;align-items:center;">
-                <button onclick="window.print()" style="padding:8px 20px;background:#4a7c00;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:13px;">🖨️ Imprimir / Guardar PDF</button>
+                <button onclick="window.print()" style="padding:8px 20px;background:#1d4ed8;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:13px;">🖨️ Imprimir / Guardar PDF</button>
                 <span style="font-size:11px;color:#666;">Orientación: Horizontal (Landscape)</span>
               </div>
               <div style="background:#0f172a;color:#c8f135;padding:8px 16px;border-radius:6px;margin-bottom:12px;display:flex;justify-content:space-between;">
-                <b style="font-size:13px;">W&P — COMPARATIVA GPS · ${posFilter==='todas'?'Todas las posiciones':posFilter}</b>
+                <b style="font-size:13px;">W&P — COMPARATIVA · ${posFilter==='todas'?'Todas las posiciones':posFilter}</b>
                 <span style="font-size:10px;color:#94a3b8;">${desde} → ${hasta}</span>
               </div>
-              <h2 style="color:#4a7c00;border-bottom:2px solid #c8f135;">TABLA COMPARATIVA POR JUGADOR</h2>
-              <table style="width:100%;border-collapse:collapse;">
-                <thead><tr>
-                  <th style="${thL('#555')}">Jugador</th>
-                  <th style="${thL('#555')}">Pos.</th>
-                  ${VARS.map((v:any)=>`<th style="${thS(v.color.replace('var(--silver)','#888'))}">${v.label}${v.unit?' ('+v.unit+')':''}</th>`).join('')}
-                </tr></thead>
-                <tbody>${tableRows}${posRows}</tbody>
-              </table>
+              <div class="sec">
+                <h2 style="color:#4a7c00;border-bottom:2px solid #c8f135;">TABLA COMPARATIVA POR JUGADOR</h2>
+                <table style="width:100%;border-collapse:collapse;">
+                  <thead><tr>
+                    <th style="${thL('#555')}">Jugador</th><th style="${thL('#555')}">Pos.</th>
+                    ${VARS.map((v:any)=>`<th style="${thS(v.color.replace('var(--silver)','#888').replace('var(--lime)','#4a7c00'))}">${v.label}${v.unit?' ('+v.unit+')':''}</th>`).join('')}
+                  </tr></thead>
+                  <tbody>${tableRows}${posRows}</tbody>
+                </table>
+              </div>
+              <div class="sec pb">
+                <h2 style="color:#4a7c00;border-bottom:2px solid #c8f135;">📊 GRÁFICOS POR MÉTRICA</h2>
+                <div class="grid3">${chartsHtml}</div>
+              </div>
             </body></html>`
             win.document.write(html); win.document.close()
           }} style={{ fontSize:11, padding:'8px 14px', borderRadius:8, background:'rgba(200,241,53,.1)', color:'var(--lime)', border:'1px solid rgba(200,241,53,.3)', cursor:'pointer', marginBottom:1 }}>🖨️ PDF</button>
@@ -5538,6 +5618,68 @@ function AcumPanel({ teamData }) {
             </div>
             <button onClick={()=>{
               const win = window.open('', '_blank'); if (!win) return
+
+            // SVG bar chart builder (portrait-friendly, pure HTML)
+            const mkBars = (items: {name:string, val:number, sub?:string}[], bars: {key:string,label:string,color:string}[], lineKey?: string, lineColor?: string) => {
+              if (!items.length) return '<p style="color:#aaa;font-size:10px;text-align:center;padding:8px">Sin datos</p>'
+              const BAR_H = 110, TOP = 18, BOT = 38, COL_W = Math.max(Math.floor(600/items.length), 44)
+              const W = items.length * COL_W
+              const allVals = items.flatMap(it => bars.map(b => Number((it as any)[b.key])||0))
+              const maxBar = Math.max(...allVals, 1)
+              const lineVals = lineKey ? items.map(it => Number((it as any)[lineKey])||0) : []
+              const maxLine = Math.max(...lineVals.filter(v=>v>0), 1)
+              let svg = `<svg viewBox="0 0 ${W} ${TOP+BAR_H+BOT}" width="100%" style="overflow:visible;display:block;">`
+              // grid lines
+              ;[0,25,50,75,100].forEach(p => {
+                const y = TOP + BAR_H - (p/100)*BAR_H
+                svg += `<line x1="0" y1="${y.toFixed(1)}" x2="${W}" y2="${y.toFixed(1)}" stroke="#e5e7eb" stroke-width="0.5"/>`
+              })
+              // bars
+              items.forEach((it, pi) => {
+                const x0 = pi * COL_W + 2
+                const bw = Math.max((COL_W - 4) / bars.length - 1, 6)
+                bars.forEach((b, bi) => {
+                  const val = Number((it as any)[b.key])||0
+                  const h = val > 0 ? Math.max((val/maxBar)*BAR_H, 4) : 0
+                  const bx = x0 + bi*(bw+1)
+                  const by = TOP + BAR_H - h
+                  svg += `<rect x="${bx.toFixed(1)}" y="${by.toFixed(1)}" width="${bw.toFixed(1)}" height="${Math.max(h,0).toFixed(1)}" fill="${b.color}" rx="2"/>`
+                  if (val > 0) {
+                    if (h > 16) svg += `<text x="${(bx+bw/2).toFixed(1)}" y="${(by+h/2+3).toFixed(1)}" text-anchor="middle" fill="#fff" font-size="7" font-weight="700" transform="rotate(-90,${(bx+bw/2).toFixed(1)},${(by+h/2).toFixed(1)})">${val}</text>`
+                    else svg += `<text x="${(bx+bw/2).toFixed(1)}" y="${(by-2).toFixed(1)}" text-anchor="middle" fill="${b.color}" font-size="7" font-weight="700">${val}</text>`
+                  }
+                })
+                // x label
+                const cx = x0 + (COL_W-4)/2
+                svg += `<text x="${cx.toFixed(1)}" y="${(TOP+BAR_H+12).toFixed(1)}" text-anchor="middle" fill="#333" font-size="8" font-weight="600">${it.name}</text>`
+                if (it.sub) svg += `<text x="${cx.toFixed(1)}" y="${(TOP+BAR_H+22).toFixed(1)}" text-anchor="middle" fill="#888" font-size="7">${it.sub}</text>`
+              })
+              // line overlay
+              if (lineKey && lineVals.some(v=>v>0)) {
+                const pts = items.map((it,pi) => {
+                  const val = Number((it as any)[lineKey])||0
+                  const cx = pi*COL_W + 2 + (COL_W-4)/2
+                  const cy = val > 0 ? TOP + BAR_H - (val/maxLine)*BAR_H*0.85 : null
+                  return {cx, cy, val}
+                }).filter(pt => pt.cy !== null)
+                if (pts.length > 1) svg += `<polyline points="${pts.map(p=>`${p.cx.toFixed(1)},${p.cy!.toFixed(1)}`).join(' ')}" fill="none" stroke="${lineColor||'#34d399'}" stroke-width="1.5" stroke-dasharray="4,2"/>`
+                pts.forEach(pt => {
+                  svg += `<circle cx="${pt.cx.toFixed(1)}" cy="${pt.cy!.toFixed(1)}" r="3" fill="${lineColor||'#34d399'}" stroke="#fff" stroke-width="1"/>`
+                  svg += `<text x="${pt.cx.toFixed(1)}" y="${(pt.cy!-5).toFixed(1)}" text-anchor="middle" fill="${lineColor||'#34d399'}" font-size="7" font-weight="700">${pt.val}</text>`
+                })
+              }
+              svg += '</svg>'
+              return svg
+            }
+            const mkChartBlock = (title: string, color: string, svgHtml: string, legendItems: {label:string,color:string}[]) => `
+              <div style="border:1px solid ${color}30;border-radius:8px;padding:10px;page-break-inside:avoid;">
+                <div style="font-size:9px;font-weight:800;color:${color};text-transform:uppercase;letter-spacing:.06em;text-align:center;padding-bottom:5px;border-bottom:1px solid ${color}20;margin-bottom:6px;">${title}</div>
+                <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:6px;">
+                  ${legendItems.map(l=>`<span style="display:flex;align-items:center;gap:3px;font-size:8px;color:#555;"><span style="width:8px;height:8px;border-radius:2px;background:${l.color};display:inline-block;"></span>${l.label}</span>`).join('')}
+                </div>
+                ${svgHtml}
+              </div>`
+
               const thS = (c: string) => `padding:4px 8px;text-align:center;font-size:8px;font-weight:700;text-transform:uppercase;border-bottom:2px solid #e5e7eb;color:${c};white-space:nowrap;background:#f8fafc;`
               const tdS = (c: string, b=false) => `padding:5px 8px;text-align:center;font-family:monospace;font-size:10px;color:${c};font-weight:${b?700:400};border-bottom:1px solid #f0f0f0;`
               const thL = (c: string) => `padding:4px 12px;text-align:left;font-size:8px;font-weight:700;text-transform:uppercase;border-bottom:2px solid #e5e7eb;color:${c};background:#f8fafc;`
@@ -5545,10 +5687,10 @@ function AcumPanel({ teamData }) {
 
               const allMDs = ['MD+1','MD+2','MD+3','MD-4','MD-3','MD-2','MD-1']
               const activeMDs = allMDs.filter(md => miciExistingMds.has(md))
-
-              // Table: players x MDs with UA, RPE, minActivo
               const RPE_VARS = [{key:'rpe',label:'RPE',color:'#c8f135'},{key:'ua_total',label:'UA',color:'#60a5fa'},{key:'minActivo',label:'Min',color:'#34d399'}]
-              let t1 = `<table style="width:100%;border-collapse:collapse;margin-bottom:20px;">
+
+              // Table RPE/UA/Min
+              const t1 = `<table style="width:100%;border-collapse:collapse;margin-bottom:16px;">
                 <thead><tr>
                   <th style="${thL('#555')}">Jugador</th>
                   ${activeMDs.map(md=>`<th style="${thS('#c8f135')}" colspan="3">${md}</th>`).join('')}
@@ -5557,63 +5699,85 @@ function AcumPanel({ teamData }) {
                   <th style="${thL('#555')}"></th>
                   ${activeMDs.map(()=>RPE_VARS.map(v=>`<th style="${thS(v.color)}">${v.label}</th>`).join('')).join('')}
                   ${RPE_VARS.map(v=>`<th style="${thS(v.color)}">${v.label}</th>`).join('')}
-                </tr></thead>
-                <tbody>
-                  ${miciPlayers.map((p:any,i:number)=>`<tr style="background:${i%2===0?'#fff':'#f9fafb'};">
-                    <td style="${tdL('#111',true)}">${p.nombre}</td>
-                    ${activeMDs.map(md=>{
-                      const sess=(miciPerSessionPlayers[md]||[]).find((x:any)=>x.jugador_id===p.jugador_id)
-                      return RPE_VARS.map(v=>{const val=Number(sess?.[v.key])||0;return`<td style="${tdS(val?v.color:'#ccc',!!val)}">${val||'—'}</td>`}).join('')
-                    }).join('')}
-                    ${RPE_VARS.map(v=>{const val=Number(p[v.key])||0;return`<td style="${tdS(val?v.color:'#ccc',!!val)}">${val||'—'}</td>`}).join('')}
-                  </tr>`).join('')}
-                  <tr style="background:#eff6ff;border-top:2px solid #93c5fd;">
-                    <td style="${tdL('#1d4ed8',true)} font-size:9px;">PROM. EQUIPO</td>
-                    ${activeMDs.map(md=>{
-                      const avg=miciPerSession[md]||{}
-                      return RPE_VARS.map(v=>{const val=Number(avg[v.key])||0;return`<td style="${tdS(val?v.color:'#ccc',!!val)}">${val||'—'}</td>`}).join('')
-                    }).join('')}
-                    ${RPE_VARS.map(v=>{const val=getMiciTeamRpeVal(v.key);return`<td style="${tdS(val?v.color:'#ccc',!!val)}">${val||'—'}</td>`}).join('')}
-                  </tr>
-                </tbody>
+                </tr></thead><tbody>
+                ${miciPlayers.map((p:any,i:number)=>`<tr style="background:${i%2===0?'#fff':'#f9fafb'};">
+                  <td style="${tdL('#111',true)}">${p.nombre}</td>
+                  ${activeMDs.map(md=>{const s=(miciPerSessionPlayers[md]||[]).find((x:any)=>x.jugador_id===p.jugador_id);return RPE_VARS.map(v=>{const val=Number(s?.[v.key])||0;return`<td style="${tdS(val?v.color:'#ccc',!!val)}">${val||'—'}</td>`}).join('')}).join('')}
+                  ${RPE_VARS.map(v=>{const val=Number(p[v.key])||0;return`<td style="${tdS(val?v.color:'#ccc',!!val)}">${val||'—'}</td>`}).join('')}
+                </tr>`).join('')}
+                <tr style="background:#eff6ff;border-top:2px solid #93c5fd;">
+                  <td style="${tdL('#1d4ed8',true)} font-size:9px;">PROM. EQUIPO</td>
+                  ${activeMDs.map(md=>{const avg=miciPerSession[md]||{};return RPE_VARS.map(v=>{const val=Number(avg[v.key])||0;return`<td style="${tdS(val?v.color:'#ccc',!!val)}">${val||'—'}</td>`}).join('')}).join('')}
+                  ${RPE_VARS.map(v=>{const val=getMiciTeamRpeVal(v.key);return`<td style="${tdS(val?v.color:'#ccc',!!val)}">${val||'—'}</td>`}).join('')}
+                </tr></tbody>
               </table>`
 
-              // Table: calc GPS per MD
-              let t2 = `<h2 style="color:#f59e0b;border-bottom:2px solid #fde68a;font-size:12px;font-weight:800;text-transform:uppercase;margin:0 0 10px;padding-bottom:5px;">CARGA CALCULADA (GPS) POR SESIÓN</h2>
-              <table style="width:100%;border-collapse:collapse;margin-bottom:20px;">
+              // Table GPS calculado
+              const t2 = `<table style="width:100%;border-collapse:collapse;margin-bottom:16px;">
                 <thead><tr>
                   <th style="${thL('#555')}">Métrica</th>
                   ${activeMDs.map(md=>`<th style="${thS('#f59e0b')}">${md}</th>`).join('')}
                   <th style="${thS('#059669')}">Total</th>
-                </tr></thead>
-                <tbody>
-                  ${MICI_VARS.map((v:any,i:number)=>{
-                    const vals=activeMDs.map(md=>Number(miciPerSession[md]?.[v.key])||0)
-                    const tot=vals.reduce((s:number,x:number)=>s+x,0)
-                    return`<tr style="background:${i%2===0?'#fff':'#f9fafb'};">
-                      <td style="${tdL(v.color,true)}">${v.label}</td>
-                      ${vals.map(val=>`<td style="${tdS(val?v.color:'#ccc',!!val)}">${val||'—'}</td>`).join('')}
-                      <td style="${tdS('#059669',tot>0)}">${tot||'—'}</td>
-                    </tr>`
-                  }).join('')}
+                </tr></thead><tbody>
+                ${MICI_VARS.map((v:any,i:number)=>{
+                  const vals=activeMDs.map(md=>Number(miciPerSession[md]?.[v.key])||0)
+                  const tot=vals.reduce((s:number,x:number)=>s+x,0)
+                  return`<tr style="background:${i%2===0?'#fff':'#f9fafb'};">
+                    <td style="${tdL(v.color,true)}">${v.label}</td>
+                    ${vals.map(val=>`<td style="${tdS(val?v.color:'#ccc',!!val)}">${val||'—'}</td>`).join('')}
+                    <td style="${tdS('#059669',tot>0)}">${tot||'—'}</td>
+                  </tr>`
+                }).join('')}
                 </tbody>
               </table>`
 
-              const html = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>W&P Acumulativo Microciclo ${miciDesde} – ${miciHasta}</title>
+              // Charts: UA por jugador + GPS por MD
+              const playerItems = miciPlayers.map((p:any) => ({ name: p.nombre.split(' ')[0], sub: p.posicion, ua_total: Number(p.ua_total)||0, rpe: Number(p.rpe)||0, minActivo: Number(p.minActivo)||0 }))
+              const mdItems = activeMDs.map(md => { const s=miciPerSession[md]||{}; return { name: md, ...Object.fromEntries(MICI_VARS.map((v:any)=>[v.key,Number(s[v.key])||0])) } })
+
+              const charts1 = [
+                mkChartBlock('UA por Jugador','#60a5fa', mkBars(playerItems as any,[{key:'ua_total',label:'UA',color:'#60a5fa'}]),[{label:'UA',color:'#60a5fa'}]),
+                mkChartBlock('RPE por Jugador','#c8f135', mkBars(playerItems as any,[{key:'rpe',label:'RPE',color:'#c8f135'}]),[{label:'RPE',color:'#c8f135'}]),
+                mkChartBlock('Minutos por Jugador','#34d399', mkBars(playerItems as any,[{key:'minActivo',label:'Min',color:'#34d399'}]),[{label:'Minutos',color:'#34d399'}]),
+              ].join('')
+
+              const charts2 = MICI_VARS.map((v:any) => {
+                const hasData = mdItems.some((it:any) => it[v.key] > 0)
+                if (!hasData) return ''
+                return mkChartBlock(v.label+' por MD', v.color, mkBars(mdItems as any,[{key:v.key,label:v.label,color:v.color}]),[{label:v.label,color:v.color}])
+              }).join('')
+
+              const html = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>W&P Acumulativo ${miciDesde} – ${miciHasta}</title>
                 <style>body{font-family:Arial,sans-serif;color:#111;background:#fff;margin:0;padding:12px;font-size:10px;}
-                h2{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;margin:0 0 10px;padding-bottom:5px;}
-                @media print{@page{size:A4 landscape;margin:.8cm;}body{padding:0;}.np{display:none;}}</style>
-              </head><body>
+              h2{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;margin:0 0 10px;padding-bottom:5px;}
+              .sec{margin-bottom:20px;}.pb{page-break-before:always;}
+              .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+              .grid3{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+              @media print{@page{size:A4 landscape;margin:.8cm;}body{padding:0;}.np{display:none;}.pb{page-break-before:always;}.grid3{grid-template-columns:1fr 1fr;}}</style></head><body>
                 <div class="np" style="margin-bottom:12px;display:flex;gap:10px;align-items:center;">
-                  <button onclick="window.print()" style="padding:8px 20px;background:#4a7c00;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:13px;">🖨️ Imprimir / Guardar PDF</button>
-                  <span style="font-size:11px;color:#666;">Orientación: Horizontal (Landscape)</span>
-                </div>
+                <button onclick="window.print()" style="padding:8px 20px;background:#1d4ed8;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:13px;">🖨️ Imprimir / Guardar PDF</button>
+                <span style="font-size:11px;color:#666;">Orientación: Horizontal (Landscape)</span>
+              </div>
                 <div style="background:#0f172a;color:#c8f135;padding:8px 16px;border-radius:6px;margin-bottom:12px;display:flex;justify-content:space-between;">
                   <b style="font-size:13px;">W&P — ACUMULATIVO MICROCICLO ${miciNum}</b>
                   <span style="font-size:10px;color:#94a3b8;">${miciDesde} → ${miciHasta}</span>
                 </div>
-                <h2 style="color:#60a5fa;border-bottom:2px solid #93c5fd;">RPE · UA · MINUTOS POR JUGADOR Y MD</h2>
-                ${t1}${t2}
+                <div class="sec">
+                  <h2 style="color:#60a5fa;border-bottom:2px solid #93c5fd;">RPE · UA · MINUTOS POR JUGADOR Y MD</h2>
+                  ${t1}
+                </div>
+                <div class="sec pb">
+                  <h2 style="color:#f59e0b;border-bottom:2px solid #fde68a;">CARGA GPS CALCULADA POR SESIÓN</h2>
+                  ${t2}
+                </div>
+                <div class="sec pb">
+                  <h2 style="color:#60a5fa;border-bottom:2px solid #93c5fd;">📊 GRÁFICOS POR JUGADOR</h2>
+                  <div class="grid3">${charts1}</div>
+                </div>
+                <div class="sec pb">
+                  <h2 style="color:#f59e0b;border-bottom:2px solid #fde68a;">📊 GRÁFICOS CARGA GPS POR MD</h2>
+                  <div class="grid3">${charts2}</div>
+                </div>
               </body></html>`
               win.document.write(html); win.document.close()
             }} style={{ fontSize:11, padding:'8px 12px', borderRadius:8, background:'rgba(200,241,53,.1)', color:'var(--lime)', border:'1px solid rgba(200,241,53,.3)', cursor:'pointer' }}>🖨️ PDF</button>
@@ -6706,6 +6870,68 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
           <div><label style={{ fontSize:10, color:'var(--fog)', display:'block', marginBottom:3, textTransform:'uppercase' }}>Hasta</label><input className="wp-input" type="date" value={dateRange.hasta} onChange={e=>setDateRange(r=>({ ...r, hasta: e.target.value }))} /></div>
           <button onClick={()=>{
             const win = window.open('', '_blank'); if (!win) return
+
+            // SVG bar chart builder (portrait-friendly, pure HTML)
+            const mkBars = (items: {name:string, val:number, sub?:string}[], bars: {key:string,label:string,color:string}[], lineKey?: string, lineColor?: string) => {
+              if (!items.length) return '<p style="color:#aaa;font-size:10px;text-align:center;padding:8px">Sin datos</p>'
+              const BAR_H = 110, TOP = 18, BOT = 38, COL_W = Math.max(Math.floor(600/items.length), 44)
+              const W = items.length * COL_W
+              const allVals = items.flatMap(it => bars.map(b => Number((it as any)[b.key])||0))
+              const maxBar = Math.max(...allVals, 1)
+              const lineVals = lineKey ? items.map(it => Number((it as any)[lineKey])||0) : []
+              const maxLine = Math.max(...lineVals.filter(v=>v>0), 1)
+              let svg = `<svg viewBox="0 0 ${W} ${TOP+BAR_H+BOT}" width="100%" style="overflow:visible;display:block;">`
+              // grid lines
+              ;[0,25,50,75,100].forEach(p => {
+                const y = TOP + BAR_H - (p/100)*BAR_H
+                svg += `<line x1="0" y1="${y.toFixed(1)}" x2="${W}" y2="${y.toFixed(1)}" stroke="#e5e7eb" stroke-width="0.5"/>`
+              })
+              // bars
+              items.forEach((it, pi) => {
+                const x0 = pi * COL_W + 2
+                const bw = Math.max((COL_W - 4) / bars.length - 1, 6)
+                bars.forEach((b, bi) => {
+                  const val = Number((it as any)[b.key])||0
+                  const h = val > 0 ? Math.max((val/maxBar)*BAR_H, 4) : 0
+                  const bx = x0 + bi*(bw+1)
+                  const by = TOP + BAR_H - h
+                  svg += `<rect x="${bx.toFixed(1)}" y="${by.toFixed(1)}" width="${bw.toFixed(1)}" height="${Math.max(h,0).toFixed(1)}" fill="${b.color}" rx="2"/>`
+                  if (val > 0) {
+                    if (h > 16) svg += `<text x="${(bx+bw/2).toFixed(1)}" y="${(by+h/2+3).toFixed(1)}" text-anchor="middle" fill="#fff" font-size="7" font-weight="700" transform="rotate(-90,${(bx+bw/2).toFixed(1)},${(by+h/2).toFixed(1)})">${val}</text>`
+                    else svg += `<text x="${(bx+bw/2).toFixed(1)}" y="${(by-2).toFixed(1)}" text-anchor="middle" fill="${b.color}" font-size="7" font-weight="700">${val}</text>`
+                  }
+                })
+                // x label
+                const cx = x0 + (COL_W-4)/2
+                svg += `<text x="${cx.toFixed(1)}" y="${(TOP+BAR_H+12).toFixed(1)}" text-anchor="middle" fill="#333" font-size="8" font-weight="600">${it.name}</text>`
+                if (it.sub) svg += `<text x="${cx.toFixed(1)}" y="${(TOP+BAR_H+22).toFixed(1)}" text-anchor="middle" fill="#888" font-size="7">${it.sub}</text>`
+              })
+              // line overlay
+              if (lineKey && lineVals.some(v=>v>0)) {
+                const pts = items.map((it,pi) => {
+                  const val = Number((it as any)[lineKey])||0
+                  const cx = pi*COL_W + 2 + (COL_W-4)/2
+                  const cy = val > 0 ? TOP + BAR_H - (val/maxLine)*BAR_H*0.85 : null
+                  return {cx, cy, val}
+                }).filter(pt => pt.cy !== null)
+                if (pts.length > 1) svg += `<polyline points="${pts.map(p=>`${p.cx.toFixed(1)},${p.cy!.toFixed(1)}`).join(' ')}" fill="none" stroke="${lineColor||'#34d399'}" stroke-width="1.5" stroke-dasharray="4,2"/>`
+                pts.forEach(pt => {
+                  svg += `<circle cx="${pt.cx.toFixed(1)}" cy="${pt.cy!.toFixed(1)}" r="3" fill="${lineColor||'#34d399'}" stroke="#fff" stroke-width="1"/>`
+                  svg += `<text x="${pt.cx.toFixed(1)}" y="${(pt.cy!-5).toFixed(1)}" text-anchor="middle" fill="${lineColor||'#34d399'}" font-size="7" font-weight="700">${pt.val}</text>`
+                })
+              }
+              svg += '</svg>'
+              return svg
+            }
+            const mkChartBlock = (title: string, color: string, svgHtml: string, legendItems: {label:string,color:string}[]) => `
+              <div style="border:1px solid ${color}30;border-radius:8px;padding:10px;page-break-inside:avoid;">
+                <div style="font-size:9px;font-weight:800;color:${color};text-transform:uppercase;letter-spacing:.06em;text-align:center;padding-bottom:5px;border-bottom:1px solid ${color}20;margin-bottom:6px;">${title}</div>
+                <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:6px;">
+                  ${legendItems.map(l=>`<span style="display:flex;align-items:center;gap:3px;font-size:8px;color:#555;"><span style="width:8px;height:8px;border-radius:2px;background:${l.color};display:inline-block;"></span>${l.label}</span>`).join('')}
+                </div>
+                ${svgHtml}
+              </div>`
+
             const thS = (c: string) => `padding:4px 8px;text-align:center;font-size:8px;font-weight:700;text-transform:uppercase;border-bottom:2px solid #e5e7eb;color:${c};white-space:nowrap;background:#f8fafc;`
             const tdS = (c: string, b=false) => `padding:5px 8px;text-align:center;font-family:monospace;font-size:10px;color:${c};font-weight:${b?700:400};border-bottom:1px solid #f0f0f0;`
             const thL = (c: string) => `padding:4px 12px;text-align:left;font-size:8px;font-weight:700;text-transform:uppercase;border-bottom:2px solid #e5e7eb;color:${c};background:#f8fafc;`
@@ -6716,7 +6942,7 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
             const trainingMDs = activeMDs.filter(md => md !== 'MD')
 
             // Cuadro 1: RPE por jugador x MD
-            const c1 = `<table style="width:100%;border-collapse:collapse;margin-bottom:16px;">
+            const c1 = `<table style="width:100%;border-collapse:collapse;margin-bottom:8px;">
               <thead><tr>
                 <th style="${thL('#555')}">Jugador</th>
                 ${activeMDs.map(md=>`<th style="${thS('#c8f135')}">${md}</th>`).join('')}
@@ -6724,7 +6950,7 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
               </tr></thead><tbody>
               ${players.map((p:any,i:number)=>`<tr style="background:${i%2===0?'#fff':'#f9fafb'};">
                 <td style="${tdL('#111',true)}">${p.nombre}</td>
-                ${activeMDs.map(md=>{const sess=(perSessionPlayers[md]||[]).find((x:any)=>x.jugador_id===p.jugador_id);const val=Number(sess?.rpe)||0;return`<td style="${tdS(val?'#c8f135':'#ccc',!!val)}">${val||'—'}</td>`}).join('')}
+                ${activeMDs.map(md=>{const s=(perSessionPlayers[md]||[]).find((x:any)=>x.jugador_id===p.jugador_id);const val=Number(s?.rpe)||0;return`<td style="${tdS(val?'#c8f135':'#ccc',!!val)}">${val||'—'}</td>`}).join('')}
                 <td style="${tdS('#60a5fa',!!Number(p.ua_total))}">${Number(p.ua_total)||'—'}</td>
               </tr>`).join('')}
               <tr style="background:#eff6ff;border-top:2px solid #93c5fd;">
@@ -6735,7 +6961,7 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
             </table>`
 
             // Cuadro 2: UA por jugador x MD
-            const c2 = `<table style="width:100%;border-collapse:collapse;margin-bottom:16px;">
+            const c2 = `<table style="width:100%;border-collapse:collapse;margin-bottom:8px;">
               <thead><tr>
                 <th style="${thL('#555')}">Jugador</th>
                 ${activeMDs.map(md=>`<th style="${thS('#60a5fa')}">${md}</th>`).join('')}
@@ -6743,7 +6969,7 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
               </tr></thead><tbody>
               ${players.map((p:any,i:number)=>`<tr style="background:${i%2===0?'#fff':'#f9fafb'};">
                 <td style="${tdL('#111',true)}">${p.nombre}</td>
-                ${activeMDs.map(md=>{const sess=(perSessionPlayers[md]||[]).find((x:any)=>x.jugador_id===p.jugador_id);const val=Number(sess?.ua_total)||0;return`<td style="${tdS(val?'#60a5fa':'#ccc',!!val)}">${val||'—'}</td>`}).join('')}
+                ${activeMDs.map(md=>{const s=(perSessionPlayers[md]||[]).find((x:any)=>x.jugador_id===p.jugador_id);const val=Number(s?.ua_total)||0;return`<td style="${tdS(val?'#60a5fa':'#ccc',!!val)}">${val||'—'}</td>`}).join('')}
                 <td style="${tdS('#34d399',!!Number(p.ua_total))}">${Number(p.ua_total)||'—'}</td>
               </tr>`).join('')}
               <tr style="background:#eff6ff;border-top:2px solid #93c5fd;">
@@ -6754,7 +6980,7 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
             </table>`
 
             // Cuadro 3: GPS calculado por MD
-            const c3 = `<table style="width:100%;border-collapse:collapse;margin-bottom:16px;">
+            const c3 = `<table style="width:100%;border-collapse:collapse;margin-bottom:8px;">
               <thead><tr>
                 <th style="${thL('#555')}">Métrica</th>
                 ${activeMDs.map(md=>`<th style="${thS('#f59e0b')}">${md}</th>`).join('')}
@@ -6763,56 +6989,73 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
               ${VARS.map((v:any,i:number)=>{
                 const vals=activeMDs.map(md=>Number(perSession[md]?.[v.key])||0)
                 const tot=vals.reduce((s:number,x:number)=>s+x,0)
+                const vc=v.color.replace('var(--lime)','#4a7c00').replace('var(--silver)','#888')
                 return`<tr style="background:${i%2===0?'#fff':'#f9fafb'};">
-                  <td style="${tdL(v.color.replace('var(--lime)','#4a7c00').replace('var(--silver)','#888'),true)}">${v.label}</td>
-                  ${vals.map(val=>`<td style="${tdS(val?v.color.replace('var(--lime)','#4a7c00'):'#ccc',!!val)}">${val||'—'}</td>`).join('')}
+                  <td style="${tdL(vc,true)}">${v.label}</td>
+                  ${vals.map(val=>`<td style="${tdS(val?vc:'#ccc',!!val)}">${val||'—'}</td>`).join('')}
                   <td style="${tdS('#059669',tot>0)}">${tot||'—'}</td>
                 </tr>`
               }).join('')}
               </tbody>
             </table>`
 
-            // Cuadro 4 & 5: % sobre partido (if ref available)
+            // Cuadro 4: % sobre partido
             const hasRef = Object.keys(refMedia).length > 0
-            let c4c5 = ''
-            if (hasRef) {
-              const pct = (val:number, key:string) => { const ref=refMedia[key]; if(!ref) return null; return Math.round((val/ref)*100) }
-              // Per-player avg across training MDs
-              c4c5 = `<div style="page-break-before:always;margin-top:16px;">
-                <h2 style="color:#dc2626;border-bottom:2px solid #fca5a5;font-size:12px;font-weight:800;text-transform:uppercase;margin:0 0 10px;padding-bottom:5px;">CUADRO 4 · % SOBRE EL PARTIDO (= 100%)</h2>
-                <table style="width:100%;border-collapse:collapse;">
-                  <thead><tr>
-                    <th style="${thL('#555')}">Jugador / MD</th>
-                    ${VARS.map((v:any)=>`<th style="${thS(v.color.replace('var(--lime)','#4a7c00').replace('var(--silver)','#888'))}">${v.label}</th>`).join('')}
-                  </tr></thead><tbody>
-                  ${players.map((p:any,i:number)=>{
-                    const getV=(key:string)=>{const vs=trainingMDs.map(md=>(perSessionPlayers[md]||[]).find((x:any)=>x.jugador_id===p.jugador_id)?.[key]||0).filter((x:number)=>x>0);return vs.length?vs.reduce((s:number,x:number)=>s+x,0)/vs.length:0}
-                    return`<tr style="background:${i%2===0?'#fff':'#fafafa'};">
-                      <td style="${tdL('#111',true)}">${p.nombre}</td>
-                      ${VARS.map((v:any)=>{const pv=pct(getV(v.key),v.key);return`<td style="${tdS(pctColor(pv),pv!==null)}">${pv!==null?pv+'%':'—'}</td>`}).join('')}
-                    </tr>`
-                  }).join('')}
-                  ${trainingMDs.map(md=>`<tr style="background:#fff5f5;">
-                    <td style="${tdL('#dc2626',true)} font-size:9px;">${md}</td>
-                    ${VARS.map((v:any)=>{const pv=pct(Number(perSessionTeamAvg[md]?.[v.key])||0,v.key);return`<td style="${tdS(pctColor(pv),pv!==null)}">${pv!==null?pv+'%':'—'}</td>`}).join('')}
-                  </tr>`).join('')}
-                  <tr style="background:#fff5f5;border-top:2px solid #fca5a5;">
-                    <td style="${tdL('#dc2626',true)} font-size:9px;text-transform:uppercase;">MD Ref = 100%</td>
-                    ${VARS.map(()=>`<td style="${tdS('#15803d',true)}">100%</td>`).join('')}
-                  </tr>
-                  </tbody>
-                </table>
-              </div>`
-            }
+            const pct = (val:number, key:string) => { const r=refMedia[key]; if(!r) return null; return Math.round((val/r)*100) }
+            const c4 = hasRef ? `<table style="width:100%;border-collapse:collapse;margin-bottom:8px;">
+              <thead><tr>
+                <th style="${thL('#555')}">Jugador / MD</th>
+                ${VARS.map((v:any)=>`<th style="${thS(v.color.replace('var(--lime)','#4a7c00').replace('var(--silver)','#888'))}">${v.label}</th>`).join('')}
+              </tr></thead><tbody>
+              ${players.map((p:any,i:number)=>{
+                const getV=(key:string)=>{const vs=trainingMDs.map(md=>(perSessionPlayers[md]||[]).find((x:any)=>x.jugador_id===p.jugador_id)?.[key]||0).filter((x:number)=>x>0);return vs.length?vs.reduce((s:number,x:number)=>s+x,0)/vs.length:0}
+                return`<tr style="background:${i%2===0?'#fff':'#fafafa'};">
+                  <td style="${tdL('#111',true)}">${p.nombre}</td>
+                  ${VARS.map((v:any)=>{const pv=pct(getV(v.key),v.key);return`<td style="${tdS(pctColor(pv),pv!==null)}">${pv!==null?pv+'%':'—'}</td>`}).join('')}
+                </tr>`
+              }).join('')}
+              ${trainingMDs.map(md=>`<tr style="background:#fff5f5;">
+                <td style="${tdL('#dc2626',true)} font-size:9px;">${md}</td>
+                ${VARS.map((v:any)=>{const pv=pct(Number(perSessionTeamAvg[md]?.[v.key])||0,v.key);return`<td style="${tdS(pctColor(pv),pv!==null)}">${pv!==null?pv+'%':'—'}</td>`}).join('')}
+              </tr>`).join('')}
+              <tr style="background:#fff5f5;border-top:2px solid #fca5a5;">
+                <td style="${tdL('#dc2626',true)} font-size:9px;">MD = 100%</td>
+                ${VARS.map(()=>`<td style="${tdS('#15803d',true)}">100%</td>`).join('')}
+              </tr>
+              </tbody></table>` : ''
+
+            // Charts: jugadores (UA, RPE) + por MD (GRUPOS)
+            const playerItems = players.map((p:any) => ({ name: p.nombre.split(' ')[0], sub: p.posicion, ua_total:Number(p.ua_total)||0, rpe:Number(p.rpe)||0, minActivo:Number(p.minActivo)||0 }))
+            const mdItems = activeMDs.map(md => { const s=perSession[md]||{}; return { name: md, ...Object.fromEntries(VARS.map((v:any)=>[v.key,Number(s[v.key])||0])) } })
+
+            const charts1 = [
+              mkChartBlock('UA por Jugador','#60a5fa',mkBars(playerItems as any,[{key:'ua_total',label:'UA',color:'#60a5fa'}]),[{label:'UA',color:'#60a5fa'}]),
+              mkChartBlock('RPE por Jugador','#c8f135',mkBars(playerItems as any,[{key:'rpe',label:'RPE',color:'#c8f135'}]),[{label:'RPE',color:'#c8f135'}]),
+              mkChartBlock('Minutos por Jugador','#34d399',mkBars(playerItems as any,[{key:'minActivo',label:'Min',color:'#34d399'}]),[{label:'Min',color:'#34d399'}]),
+            ].join('')
+
+            const GRUPOS_PDF = [
+              {label:'DT + Tiempo', bars:[{key:'distTotal',label:'DT (m)',color:'#f59e0b'}], lineKey:'minActivo', lineColor:'#34d399'},
+              {label:'Sprint + Nº Sprint', bars:[{key:'distSprint',label:'Dist. Sprint',color:'#f97316'},{key:'nSprints',label:'Nº Sprints',color:'#a78bfa'}], lineKey:null},
+              {label:'Acc + Dec >2', bars:[{key:'nAcel',label:'Ace >2',color:'#ec4899'},{key:'nDecel',label:'Dec >2',color:'#14b8a6'}], lineKey:null},
+              {label:'Acc + Dec >3', bars:[{key:'nAcel3',label:'Ace >3',color:'#f43f5e'},{key:'nDecel3',label:'Dec >3',color:'#0ea5e9'}], lineKey:null},
+              {label:'Alta Potencia', bars:[{key:'distMP',label:'Alta Pot.',color:'#fbbf24'}], lineKey:null},
+            ]
+            const charts2 = GRUPOS_PDF.map(g => {
+              const hasData = mdItems.some((it:any)=>g.bars.some(b=>it[b.key]>0))
+              if (!hasData) return ''
+              return mkChartBlock(g.label, g.bars[0].color, mkBars(mdItems as any, g.bars as any, g.lineKey||undefined, '#34d399'), g.bars as any)
+            }).join('')
 
             const html = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>W&P Ctrl. Carga Calc ${dateRange.desde} – ${dateRange.hasta}</title>
               <style>body{font-family:Arial,sans-serif;color:#111;background:#fff;margin:0;padding:12px;font-size:10px;}
               h2{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;margin:0 0 10px;padding-bottom:5px;}
-              .sec{margin-bottom:20px;}
-              @media print{@page{size:A4 landscape;margin:.8cm;}body{padding:0;}.np{display:none;}.pb{page-break-before:always;}}</style>
-            </head><body>
+              .sec{margin-bottom:20px;}.pb{page-break-before:always;}
+              .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+              .grid3{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+              @media print{@page{size:A4 landscape;margin:.8cm;}body{padding:0;}.np{display:none;}.pb{page-break-before:always;}.grid3{grid-template-columns:1fr 1fr;}}</style></head><body>
               <div class="np" style="margin-bottom:12px;display:flex;gap:10px;align-items:center;">
-                <button onclick="window.print()" style="padding:8px 20px;background:#4a7c00;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:13px;">🖨️ Imprimir / Guardar PDF</button>
+                <button onclick="window.print()" style="padding:8px 20px;background:#1d4ed8;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:13px;">🖨️ Imprimir / Guardar PDF</button>
                 <span style="font-size:11px;color:#666;">Orientación: Horizontal (Landscape)</span>
               </div>
               <div style="background:#0f172a;color:#c8f135;padding:8px 16px;border-radius:6px;margin-bottom:12px;display:flex;justify-content:space-between;">
@@ -6828,7 +7071,15 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
               <div class="sec pb">
                 <h2 style="color:#f59e0b;border-bottom:2px solid #fde68a;">CUADRO 3 · CARGA GPS CALCULADA POR SESIÓN</h2>${c3}
               </div>
-              ${c4c5}
+              ${hasRef ? `<div class="sec pb"><h2 style="color:#dc2626;border-bottom:2px solid #fca5a5;">CUADRO 4 · % SOBRE EL PARTIDO</h2>${c4}</div>` : ''}
+              <div class="sec pb">
+                <h2 style="color:#60a5fa;border-bottom:2px solid #93c5fd;">📊 GRÁFICOS POR JUGADOR</h2>
+                <div class="grid3">${charts1}</div>
+              </div>
+              <div class="sec pb">
+                <h2 style="color:#f59e0b;border-bottom:2px solid #fde68a;">📊 GRÁFICOS CARGA CALCULADA POR MD</h2>
+                <div class="grid3">${charts2}</div>
+              </div>
             </body></html>`
             win.document.write(html); win.document.close()
           }} style={{ fontSize:11, padding:'8px 14px', borderRadius:8, background:'rgba(200,241,53,.1)', color:'var(--lime)', border:'1px solid rgba(200,241,53,.3)', cursor:'pointer' }}>🖨️ PDF</button>
@@ -8172,14 +8423,14 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
               body{font-family:Arial,sans-serif;color:#111;background:#fff;margin:0;padding:12px;font-size:10px;}
               h2{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;margin:0 0 10px;padding-bottom:5px;}
               .sec{margin-bottom:24px;}
-              .charts{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-top:12px;}
+              .charts{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin-top:12px;}
               @media print{
                 @page{size:A4 landscape;margin:.8cm;}
                 body{padding:0;}
                 .np{display:none;}
                 .sec{page-break-before:always;margin-bottom:0;}
                 .sec.first{page-break-before:auto;}
-                .charts{grid-template-columns:repeat(3,1fr);}
+                .charts{grid-template-columns:repeat(2,1fr);}
               }
             `
 
