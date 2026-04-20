@@ -7609,13 +7609,135 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
           <div><label style={{ fontSize:10, color:'var(--fog)', display:'block', marginBottom:3, textTransform:'uppercase' }}>Desde</label><input className="wp-input" type="date" value={dateRange.desde} onChange={e=>setDateRange(r=>({ ...r, desde: e.target.value }))} /></div>
           <div><label style={{ fontSize:10, color:'var(--fog)', display:'block', marginBottom:3, textTransform:'uppercase' }}>Hasta</label><input className="wp-input" type="date" value={dateRange.hasta} onChange={e=>setDateRange(r=>({ ...r, hasta: e.target.value }))} /></div>
           <button onClick={()=>{
-            // Agregar hoja de estilos de impresión landscape temporalmente
-            const style = document.createElement('style')
-            style.id = '__gps-print-landscape__'
-            style.textContent = `@media print { @page { size: A4 landscape; margin: 1cm; } }`
-            document.head.appendChild(style)
-            window.print()
-            setTimeout(() => { const s = document.getElementById('__gps-print-landscape__'); if(s) s.remove() }, 1000)
+            const win = window.open('', '_blank')
+            if (!win) return
+            const colorMap: Record<string,string> = {
+              dist_total:'#1d4ed8', dist_per_min:'#059669', dist_hir:'#b45309',
+              dist_v4:'#6d28d9', dist_v5:'#c2410c', n_sprints:'#be185d',
+              max_velocity:'#dc2626', acc2:'#5b21b6', dec2:'#0e7490',
+              acc3:'#be123c', dec3:'#0369a1', player_load:'#92400e',
+              hr_avg:'#b91c1c', hr_max:'#991b1b', dist_v1:'#475569',
+              dist_v2:'#334155', dist_v3:'#0284c7', acc1:'#7e22ce', dec1:'#0891b2',
+              acc4:'#e11d48', dec4:'#0284c7', metabolic_power:'#c2410c',
+            }
+            const fc = (key: string) => colorMap[key] || '#374151'
+            const thS = (c: string) => `padding:4px 7px;text-align:center;font-size:8px;font-weight:700;text-transform:uppercase;border-bottom:2px solid #ddd;color:${c};white-space:nowrap;background:#f8fafc;`
+            const tdS = (c: string, b=false) => `padding:5px 7px;text-align:center;font-family:monospace;font-size:10px;color:${c};font-weight:${b?700:400};border-bottom:1px solid #eee;`
+            const allMDs = ['MD+1','MD+2','MD+3','MD-4','MD-3','MD-2','MD-1','MD']
+            const dateDates = Object.keys(gpsPerMD).filter(k => !allMDs.includes(k)).sort()
+            const allSections = [
+              ...dateDates.map(d => ({key:d, label:`📅 ${d}`, isDate:true})),
+              ...allMDs.map(m => ({key:m, label:m, isDate:false}))
+            ]
+            // Cuadro 1
+            let c1 = ''
+            allSections.forEach(({key, label, isDate}) => {
+              const players: any[] = gpsPerMD[key] || []
+              if (!players.length) return
+              const ses = sesionesInfo?.find((s:any) => s.titulo === key)
+              const avg = mdTeamAvg(key)
+              c1 += `<div class="pb" style="margin-bottom:20px;">
+                <div style="background:#eff6ff;border-left:4px solid #3b82f6;padding:5px 12px;margin-bottom:6px;display:flex;justify-content:space-between;">
+                  <b style="color:#1d4ed8;">${label}</b>
+                  <span style="color:#555;font-size:10px;">${ses ? ses.fecha : ''}</span>
+                </div>
+                <table style="width:100%;border-collapse:collapse;">
+                  <thead><tr>
+                    <th style="padding:4px 10px;text-align:left;font-size:8px;font-weight:700;text-transform:uppercase;border-bottom:2px solid #ddd;color:#555;background:#f8fafc;">Jugador</th>
+                    <th style="padding:4px 7px;text-align:left;font-size:8px;font-weight:700;text-transform:uppercase;border-bottom:2px solid #ddd;color:#555;background:#f8fafc;">Pos.</th>
+                    ${!isDate ? `<th style="${thS('#555')}">Ses.</th>` : ''}
+                    ${GPS_VARS.map((v:any) => `<th style="${thS(fc(v.key))}">${v.label.replace(/ \(.*\)/,'')}</th>`).join('')}
+                  </tr></thead>
+                  <tbody>
+                    ${players.map((p:any,i:number) => `<tr style="background:${i%2===0?'#fff':'#f9fafb'};">
+                      <td style="padding:5px 10px;font-weight:600;color:#111;white-space:nowrap;border-bottom:1px solid #eee;">${p.nombre}</td>
+                      <td style="padding:5px 7px;color:#555;font-size:9px;border-bottom:1px solid #eee;">${p.posicion||'—'}</td>
+                      ${!isDate ? `<td style="${tdS('#555')}">${p.sesiones||1}</td>` : ''}
+                      ${GPS_VARS.map((v:any) => { const val=p[v.key]; const has=val!=null&&Number(val)!==0; return `<td style="${tdS(has?fc(v.key):'#bbb',has)}">${has?val:'—'}</td>` }).join('')}
+                    </tr>`).join('')}
+                    <tr style="background:#eff6ff;border-top:2px solid #93c5fd;">
+                      <td style="padding:5px 10px;font-weight:800;color:#1d4ed8;font-size:9px;" colspan="2">PROM. EQUIPO</td>
+                      ${!isDate ? '<td></td>' : ''}
+                      ${GPS_VARS.map((v:any) => { const val=avg[v.key]; return `<td style="${tdS(val?fc(v.key):'#bbb',!!val)}">${val||'—'}</td>` }).join('')}
+                    </tr>
+                  </tbody>
+                </table>
+              </div>`
+            })
+            // Cuadro 2
+            const mdWithData = allMDs.filter(md => (gpsPerMD[md]||[]).length > 0)
+            let c2 = `<table style="width:100%;border-collapse:collapse;">
+              <thead><tr>
+                <th style="padding:4px 12px;text-align:left;font-size:8px;font-weight:700;text-transform:uppercase;border-bottom:2px solid #ddd;color:#555;background:#f8fafc;">Métrica</th>
+                ${mdWithData.map(md=>`<th style="${thS('#1d4ed8')}">${md}</th>`).join('')}
+                <th style="${thS('#059669')}">Total</th>
+              </tr></thead>
+              <tbody>
+                ${GPS_VARS.map((v:any,vi:number) => {
+                  const vals = mdWithData.map(md=>mdTeamAvg(md)[v.key]||0)
+                  const nonZero = vals.filter(x=>x>0)
+                  const tot = nonZero.length ? (nonZero.reduce((s:number,x:number)=>s+x,0)/nonZero.length).toFixed(1) : '—'
+                  return `<tr style="background:${vi%2===0?'#fff':'#f9fafb'};">
+                    <td style="padding:5px 12px;font-weight:600;color:${fc(v.key)};border-bottom:1px solid #eee;">${v.label}</td>
+                    ${mdWithData.map(md=>{const val=mdTeamAvg(md)[v.key];return`<td style="${tdS(val?fc(v.key):'#bbb',!!val)}">${val||'—'}</td>`}).join('')}
+                    <td style="${tdS('#059669',true)}">${tot}</td>
+                  </tr>`
+                }).join('')}
+              </tbody>
+            </table>`
+            // Cuadro 4
+            const hasRef = Object.keys(refMedia).length > 0
+            let c4 = hasRef ? `<table style="width:100%;border-collapse:collapse;">
+              <thead><tr>
+                <th style="padding:4px 12px;text-align:left;font-size:8px;font-weight:700;text-transform:uppercase;border-bottom:2px solid #ddd;color:#555;background:#fff5f5;">Jugador</th>
+                ${refMediaVars.map((v:any)=>`<th style="${thS(fc(v.key))}">${v.label.replace(/ \(.*\)/,'')}</th>`).join('')}
+              </tr></thead>
+              <tbody>
+                ${gpsReal.map((p:any,i:number) => {
+                  const getV = (key:string) => { const vs=mdWithData.filter(md=>md!=='MD').map(md=>(gpsPerMD[md]||[]).find((x:any)=>x.nombre===p.nombre)?.[key]||0).filter((x:number)=>x>0); return vs.length?vs.reduce((s:number,x:number)=>s+x,0)/vs.length:0 }
+                  return `<tr style="background:${i%2===0?'#fff':'#fafafa'};">
+                    <td style="padding:5px 12px;font-weight:600;color:#111;white-space:nowrap;border-bottom:1px solid #eee;">${p.nombre}</td>
+                    ${refMediaVars.map((v:any)=>{const pv=pct(getV(v.key),v.key);const col=pv===null?'#bbb':pv>=85?'#15803d':pv>=65?'#b45309':'#dc2626';return`<td style="${tdS(col,pv!==null)}">${pv!==null?pv+'%':'—'}</td>`}).join('')}
+                  </tr>`
+                }).join('')}
+                <tr style="background:#fff5f5;border-top:2px solid #fca5a5;">
+                  <td style="padding:5px 12px;font-weight:800;color:#dc2626;font-size:9px;">MD (prom)</td>
+                  ${refMediaVars.map(()=>`<td style="${tdS('#15803d',true)}">100%</td>`).join('')}
+                </tr>
+              </tbody>
+            </table>` : '<p style="color:#888;padding:12px;">Sin partidos de referencia seleccionados.</p>'
+
+            const html = `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">
+              <title>W&P GPS ${dateRange.desde} – ${dateRange.hasta}</title>
+              <style>
+                body{font-family:Arial,sans-serif;color:#111;background:#fff;margin:0;padding:16px;font-size:10px;}
+                h2{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;margin:0 0 8px;padding-bottom:5px;}
+                .pb{page-break-before:auto;} .pb+.pb{page-break-before:always;}
+                .sec{margin-bottom:24px;page-break-before:always;}
+                .sec:first-child{page-break-before:auto;}
+                @media print{@page{size:A4 landscape;margin:1cm;}body{padding:0;}.np{display:none;}}
+              </style>
+            </head><body>
+              <div class="np" style="margin-bottom:14px;display:flex;gap:10px;align-items:center;">
+                <button onclick="window.print()" style="padding:8px 20px;background:#1d4ed8;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:13px;">🖨️ Imprimir / Guardar PDF</button>
+                <span style="font-size:11px;color:#666;">Orientación Horizontal (Landscape) — confirmar en diálogo de impresión si es necesario</span>
+              </div>
+              <div style="background:#0f172a;color:#c8f135;padding:8px 16px;border-radius:6px;margin-bottom:14px;display:flex;justify-content:space-between;">
+                <b style="font-size:13px;letter-spacing:.05em;">W&P — CONTROL DE CARGA · GPS</b>
+                <span style="font-size:10px;color:#94a3b8;">${dateRange.desde} → ${dateRange.hasta}</span>
+              </div>
+              <div class="sec" style="page-break-before:auto;">
+                <h2 style="color:#1d4ed8;border-bottom:2px solid #93c5fd;">CUADRO 1 · GPS REAL POR SESIÓN · MD+1 → MD</h2>
+                ${c1||'<p style="color:#888;">Sin datos GPS para este período.</p>'}
+              </div>
+              <div class="sec">
+                <h2 style="color:#1d4ed8;border-bottom:2px solid #bfdbfe;">CUADRO 2 · PROMEDIO EQUIPO POR MD</h2>
+                ${c2}
+              </div>
+              ${hasRef?`<div class="sec"><h2 style="color:#dc2626;border-bottom:2px solid #fca5a5;">CUADRO 4 · % SOBRE EL PARTIDO (= 100%)</h2>${c4}</div>`:''}
+            </body></html>`
+            win.document.write(html)
+            win.document.close()
           }} style={{ fontSize:11, padding:'8px 14px', borderRadius:8, background:'rgba(96,165,250,.1)', color:'#60a5fa', border:'1px solid rgba(96,165,250,.3)', cursor:'pointer' }}>🖨️ PDF</button>
         </div>
       </div>
