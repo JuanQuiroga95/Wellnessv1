@@ -53,6 +53,12 @@ export async function POST(req: NextRequest) {
       } catch { /* clubs table may not exist yet */ }
     }
 
+    // Ensure login tracking columns exist (safe migration — runs only if columns missing)
+    try {
+      await sql`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS last_login TIMESTAMPTZ`
+      await sql`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS login_count INTEGER NOT NULL DEFAULT 0`
+    } catch {}
+
     // Track login date and count
     try {
       await sql`UPDATE usuarios SET last_login = NOW(), login_count = COALESCE(login_count, 0) + 1 WHERE id = ${u.id}`

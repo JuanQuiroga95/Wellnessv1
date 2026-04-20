@@ -190,6 +190,26 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // Additional migrations for login tracking and new indexes
+  const extra_migrations = [
+    [`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS last_login TIMESTAMPTZ`, 'usuarios.last_login'],
+    [`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS login_count INTEGER NOT NULL DEFAULT 0`, 'usuarios.login_count'],
+    [`CREATE INDEX IF NOT EXISTS idx_sesiones_plan_club_fecha ON sesiones_plan(club_id, fecha)`, 'idx_sesiones_plan_club_fecha'],
+  ]
+  for (const [sql_str, label] of extra_migrations) {
+    try {
+      await sql.unsafe(sql_str as string)
+      done.push(label as string)
+    } catch(e: any) {
+      const msg = e?.message || String(e)
+      if (msg.includes('already exists') || msg.includes('duplicate') || msg.includes('ya existe')) {
+        done.push(`${label} (ya existe)`)
+      } else {
+        errs.push(`${label}: ${msg.slice(0, 100)}`)
+      }
+    }
+  }
+
   return NextResponse.json({ ok: true, done, errs })
 }
 
