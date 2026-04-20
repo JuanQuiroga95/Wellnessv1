@@ -58,6 +58,12 @@ export default function MasterClient({ session, clubs: initialClubs, coaches: in
     fetch('/api/migrate', { method: 'POST' }).catch(() => {})
   }, [])
 
+  // Auto-refresh cada 60 segundos para mantener ingresos actualizados
+  useEffect(() => {
+    const interval = setInterval(() => { reload() }, 60_000)
+    return () => clearInterval(interval)
+  }, [])
+
   async function logout() {
     await fetch('/api/auth/logout', {method:'POST'})
     router.push('/login')

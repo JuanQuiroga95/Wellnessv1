@@ -21,7 +21,8 @@ export default async function MasterPage() {
         LEFT JOIN usuarios u ON u.club_id=c.id
         GROUP BY c.id ORDER BY c.nombre`,
     sql`SELECT u.id, u.nombre, u.usuario, u.activo, u.club_id, c.nombre AS club_nombre,
-               u.created_at::text, u.password_plain
+               u.created_at::text, u.password_plain,
+               u.last_login::text, u.login_count
         FROM usuarios u LEFT JOIN clubs c ON c.id=u.club_id
         WHERE u.rol='admin' ORDER BY u.nombre`,
   ])
