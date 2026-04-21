@@ -942,7 +942,7 @@ function InvitesTab() {
   }
 
   async function revokeToken(token: string) {
-    if (!confirm('¿Revocar este link? Ya no podrá usarse.')) return
+    if (!confirm('¿Eliminar esta invitación?')) return
     await fetch('/api/invites', {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
@@ -1057,6 +1057,7 @@ function InvitesTab() {
                     </div>
                   </div>
                   <div style={{ fontSize:10, color:'var(--fog)' }}>{new Date(t.used_at).toLocaleDateString('es-AR')}</div>
+                  <button onClick={() => revokeToken(t.token)} style={{ fontSize:11, padding:'4px 10px', borderRadius:6, border:'1px solid rgba(239,68,68,.3)', background:'rgba(239,68,68,.08)', color:'#f87171', cursor:'pointer' }}>Eliminar</button>
                 </div>
               ))}
             </div>
