@@ -65,6 +65,11 @@ export async function DELETE(req: NextRequest) {
   const id = req.nextUrl.searchParams.get('id')
   if (!id) return NextResponse.json({ error: 'id requerido' }, { status: 400 })
   const sql = getDb()
-  await sql`DELETE FROM usuarios WHERE id = ${Number(id)} AND rol = 'admin'`
+  const uid = Number(id)
+  // Limpiar FK references antes de eliminar para evitar constraint violations
+  await sql`UPDATE sesiones_plan SET admin_id = NULL WHERE admin_id = ${uid}`
+  await sql`UPDATE invite_tokens SET created_by = NULL WHERE created_by = ${uid}`
+  await sql`UPDATE invite_tokens SET used_by = NULL WHERE used_by = ${uid}`
+  await sql`DELETE FROM usuarios WHERE id = ${uid} AND rol = 'admin'`
   return NextResponse.json({ ok: true })
 }
