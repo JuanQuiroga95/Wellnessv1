@@ -136,4 +136,16 @@ export const SCHEMA_STATEMENTS = [
   `ALTER TABLE gps_logs ADD COLUMN IF NOT EXISTS duracion_min NUMERIC(6,1)`,
   `ALTER TABLE sesiones_plan ADD COLUMN IF NOT EXISTS rival VARCHAR(100)`,
   `ALTER TABLE sesiones_plan ADD COLUMN IF NOT EXISTS rival_foto TEXT`,
+  // ── Demo accounts & invite tokens ────────────────────────────────────────────
+  `ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS demo_expires_at TIMESTAMPTZ`,
+  `CREATE TABLE IF NOT EXISTS invite_tokens (
+    id SERIAL PRIMARY KEY,
+    token VARCHAR(64) NOT NULL UNIQUE,
+    created_by INTEGER REFERENCES usuarios(id),
+    used_by INTEGER REFERENCES usuarios(id),
+    expires_at TIMESTAMPTZ NOT NULL,
+    used_at TIMESTAMPTZ,
+    nota TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+  )`,
 ]

@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 export default function MasterClient({ session, clubs: initialClubs, coaches: initialCoaches }) {
   const [clubs, setClubs] = useState(initialClubs)
   const [coaches, setCoaches] = useState(initialCoaches)
-  const [tab, setTab] = useState<'clubs'|'coaches'|'borrar'>('clubs')
+  const [tab, setTab] = useState<'clubs'|'coaches'|'invites'|'borrar'>('clubs')
   const [showNewClub, setShowNewClub] = useState(false)
   const [showNewCoach, setShowNewCoach] = useState(false)
   const [repairing, setRepairing] = useState(false)
@@ -108,9 +108,9 @@ export default function MasterClient({ session, clubs: initialClubs, coaches: in
 
         {/* Tabs */}
         <div style={{ display:'flex', gap:4, background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:10, padding:3, marginBottom:20, alignSelf:'flex-start', width:'fit-content' }}>
-          {(['clubs','coaches','borrar'] as const).map(t=>(
+          {(['clubs','coaches','invites','borrar'] as const).map(t=>(
             <button key={t} onClick={()=>setTab(t)} style={{ padding:'8px 24px', borderRadius:7, cursor:'pointer', fontSize:12, fontWeight:600, border:'none', background:tab===t?(t==='borrar'?'#ef4444':'var(--lime)'):'transparent', color:tab===t?(t==='borrar'?'#fff':'var(--ink)'):'var(--silver)', transition:'all .12s', textTransform:'uppercase', letterSpacing:'0.06em' }}>
-              {t === 'clubs' ? '🏟️ Clubes' : t === 'coaches' ? '👨‍🏫 Profesores' : '🗑 Borrar Datos'}
+              {t === 'clubs' ? '🏟️ Clubes' : t === 'coaches' ? '👨‍🏫 Profesores' : t === 'invites' ? '🔗 Invitaciones' : '🗑 Borrar Datos'}
             </button>
           ))}
         </div>
@@ -151,6 +151,8 @@ export default function MasterClient({ session, clubs: initialClubs, coaches: in
         {tab === 'coaches' && (
           <CoachesTab coaches={coaches} clubs={clubs} showNewCoach={showNewCoach} setShowNewCoach={setShowNewCoach} reload={reload} />
         )}
+        {/* INVITES TAB */}
+        {tab === 'invites' && <InvitesTab />}
         {/* BORRAR DATOS TAB */}
         {tab === 'borrar' && (
           <BorrarDatosTab clubs={clubs} coaches={coaches} />
@@ -836,6 +838,188 @@ function NewCoachForm({ clubs, onSuccess, onCancel }) {
         <button onClick={onCancel} className="btn-ghost" style={{ flex:1 }}>Cancelar</button>
         <button onClick={submit} disabled={loading} className="btn-lime" style={{ flex:2 }}>{loading?'Creando...':'Crear profesor →'}</button>
       </div>
+    </div>
+  )
+}
+
+// ── Invites Tab ───────────────────────────────────────────────────────────────
+function InvitesTab() {
+  const [tokens, setTokens] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [creating, setCreating] = useState(false)
+  const [nota, setNota] = useState('')
+  const [expiraDias, setExpiraDias] = useState('3')
+  const [copiedId, setCopiedId] = useState<number|null>(null)
+
+  const baseUrl = typeof window !== 'undefined' ? window.location.origin : ''
+
+  async function load() {
+    setLoading(true)
+    const r = await fetch('/api/invites')
+    const d = await r.json()
+    if (Array.isArray(d)) setTokens(d)
+    setLoading(false)
+  }
+
+  useEffect(() => { load() }, [])
+
+  async function createToken() {
+    setCreating(true)
+    const r = await fetch('/api/invites', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ nota, expiraDias: parseInt(expiraDias) })
+    })
+    const d = await r.json()
+    if (d.ok) { setNota(''); await load() }
+    setCreating(false)
+  }
+
+  async function revokeToken(token: string) {
+    if (!confirm('¿Revocar este link? Ya no podrá usarse.')) return
+    await fetch('/api/invites', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token })
+    })
+    await load()
+  }
+
+  function copyLink(token: string, id: number) {
+    navigator.clipboard.writeText(`${baseUrl}/registro?token=${token}`)
+    setCopiedId(id)
+    setTimeout(() => setCopiedId(null), 2000)
+  }
+
+  const active = tokens.filter(t => !t.used_at && new Date(t.expires_at) > new Date())
+  const used = tokens.filter(t => t.used_at)
+  const expired = tokens.filter(t => !t.used_at && new Date(t.expires_at) <= new Date())
+
+  return (
+    <div style={{ display:'flex', flexDirection:'column', gap:20 }}>
+      <div>
+        <h2 className="display" style={{ fontSize:40, color:'var(--snow)' }}>INVITACIONES DEMO</h2>
+        <p style={{ fontSize:12, color:'var(--silver)', marginTop:2 }}>
+          Generá links de un solo uso para que profes se registren solos. 7 días de acceso completo.
+        </p>
+      </div>
+
+      {/* Crear nuevo link */}
+      <div style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:16, padding:20 }}>
+        <p style={{ fontSize:11, fontWeight:700, color:'var(--lime)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:14 }}>
+          🔗 Generar nuevo link
+        </p>
+        <div style={{ display:'grid', gridTemplateColumns:'1fr auto auto', gap:10, alignItems:'flex-end' }}>
+          <div>
+            <label style={{ fontSize:10, color:'var(--fog)', display:'block', marginBottom:4, textTransform:'uppercase' }}>
+              Nota (quién es — opcional)
+            </label>
+            <input
+              className="wp-input"
+              value={nota}
+              onChange={e => setNota(e.target.value)}
+              placeholder="Ej: Profe Juan, Club Atletico Rosario"
+              maxLength={100}
+            />
+          </div>
+          <div>
+            <label style={{ fontSize:10, color:'var(--fog)', display:'block', marginBottom:4, textTransform:'uppercase' }}>
+              Expira en
+            </label>
+            <select className="wp-input" value={expiraDias} onChange={e => setExpiraDias(e.target.value)} style={{ appearance:'none' as any, minWidth:110 }}>
+              {[1,2,3,5,7,14,30].map(d => (
+                <option key={d} value={d} style={{ background:'var(--ink2)' }}>{d} {d===1?'día':'días'}</option>
+              ))}
+            </select>
+          </div>
+          <button
+            onClick={createToken}
+            disabled={creating}
+            className="btn-lime"
+            style={{ fontSize:13, padding:'10px 20px', whiteSpace:'nowrap' as any }}
+          >
+            {creating ? 'Generando...' : '+ Generar link'}
+          </button>
+        </div>
+      </div>
+
+      {loading ? (
+        <div style={{ padding:32, textAlign:'center', color:'var(--silver)' }}>Cargando...</div>
+      ) : (
+        <>
+          {active.length > 0 && (
+            <div style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:16, overflow:'hidden' }}>
+              <div style={{ padding:'10px 16px', borderBottom:'1px solid var(--mist)' }}>
+                <p style={{ fontSize:11, fontWeight:700, color:'#22c55e', textTransform:'uppercase', letterSpacing:'0.08em' }}>✅ Disponibles ({active.length})</p>
+              </div>
+              {active.map(t => {
+                const link = `${baseUrl}/registro?token=${t.token}`
+                const expiresIn = Math.ceil((new Date(t.expires_at).getTime() - Date.now()) / (1000*60*60*24))
+                return (
+                  <div key={t.id} style={{ padding:'12px 16px', borderBottom:'1px solid var(--mist)', display:'flex', alignItems:'center', gap:12, flexWrap:'wrap' as any }}>
+                    <div style={{ flex:1, minWidth:200 }}>
+                      {t.nota && <div style={{ fontSize:12, fontWeight:600, color:'var(--snow)', marginBottom:2 }}>{t.nota}</div>}
+                      <div style={{ fontSize:11, color:'var(--fog)', fontFamily:'DM Mono,monospace', wordBreak:'break-all' as any }}>
+                        {link.length > 70 ? link.slice(0,70)+'...' : link}
+                      </div>
+                    </div>
+                    <div style={{ fontSize:10, color:'#f59e0b', whiteSpace:'nowrap' as any }}>⏱ {expiresIn}d restante{expiresIn!==1?'s':''}</div>
+                    <button onClick={() => copyLink(t.token, t.id)} style={{ fontSize:12, padding:'6px 14px', borderRadius:7, border:'1px solid rgba(200,241,53,.4)', background: copiedId===t.id ? 'rgba(34,197,94,.15)' : 'rgba(200,241,53,.1)', color: copiedId===t.id ? '#22c55e' : 'var(--lime)', cursor:'pointer', whiteSpace:'nowrap' as any }}>
+                      {copiedId===t.id ? '✅ Copiado' : '📋 Copiar link'}
+                    </button>
+                    <button onClick={() => revokeToken(t.token)} style={{ fontSize:12, padding:'6px 12px', borderRadius:7, border:'1px solid rgba(239,68,68,.3)', background:'rgba(239,68,68,.08)', color:'#f87171', cursor:'pointer' }}>
+                      Revocar
+                    </button>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+
+          {used.length > 0 && (
+            <div style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:16, overflow:'hidden' }}>
+              <div style={{ padding:'10px 16px', borderBottom:'1px solid var(--mist)' }}>
+                <p style={{ fontSize:11, fontWeight:700, color:'#60a5fa', textTransform:'uppercase', letterSpacing:'0.08em' }}>👤 Usados ({used.length})</p>
+              </div>
+              {used.map(t => (
+                <div key={t.id} style={{ padding:'10px 16px', borderBottom:'1px solid var(--mist)', display:'flex', alignItems:'center', gap:12 }}>
+                  <div style={{ flex:1 }}>
+                    {t.nota && <div style={{ fontSize:12, fontWeight:600, color:'var(--snow)', marginBottom:2 }}>{t.nota}</div>}
+                    <div style={{ fontSize:11, color:'var(--fog)' }}>
+                      Registrado: <span style={{ color:'#60a5fa' }}>{t.used_by_nombre || '—'}</span>
+                      {t.used_by_usuario && <span style={{ color:'var(--fog)' }}> · @{t.used_by_usuario}</span>}
+                    </div>
+                  </div>
+                  <div style={{ fontSize:10, color:'var(--fog)' }}>{new Date(t.used_at).toLocaleDateString('es-AR')}</div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {expired.length > 0 && (
+            <div style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:16, overflow:'hidden', opacity:.6 }}>
+              <div style={{ padding:'10px 16px', borderBottom:'1px solid var(--mist)' }}>
+                <p style={{ fontSize:11, fontWeight:700, color:'var(--fog)', textTransform:'uppercase', letterSpacing:'0.08em' }}>⏰ Expirados ({expired.length})</p>
+              </div>
+              {expired.map(t => (
+                <div key={t.id} style={{ padding:'10px 16px', borderBottom:'1px solid var(--mist)', display:'flex', alignItems:'center', gap:12 }}>
+                  <div style={{ flex:1 }}>
+                    {t.nota && <div style={{ fontSize:12, color:'var(--silver)' }}>{t.nota}</div>}
+                    <div style={{ fontSize:10, color:'var(--fog)' }}>Expiró {new Date(t.expires_at).toLocaleDateString('es-AR')}</div>
+                  </div>
+                  <button onClick={() => revokeToken(t.token)} style={{ fontSize:11, padding:'4px 10px', borderRadius:6, border:'1px solid var(--fog)', background:'transparent', color:'var(--fog)', cursor:'pointer' }}>Eliminar</button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {tokens.length === 0 && (
+            <div style={{ padding:48, textAlign:'center', color:'var(--silver)', fontSize:13 }}>
+              No hay invitaciones aún. Generá la primera arriba.
+            </div>
+          )}
+        </>
+      )}
     </div>
   )
 }
