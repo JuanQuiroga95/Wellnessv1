@@ -95,7 +95,7 @@ export default function MasterClient({ session, clubs: initialClubs, coaches: in
         <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12, marginBottom:24 }}>
           {[
             ['🏟️', activeClubs, 'Clubes activos', '#c8f135'],
-            ['👨‍🏫', totalCoaches, 'Profesores', '#60a5fa'],
+            ['👨‍🏫', totalCoaches, 'Preparadores Físicos', '#60a5fa'],
             ['⚽', totalJugadores, 'Jugadores totales', '#22c55e'],
           ].map(([ico,val,lbl,col])=>(
             <div key={lbl as string} style={{ background:'var(--ink2)', border:`1px solid ${col}33`, borderRadius:16, padding:20, textAlign:'center' }}>
@@ -110,7 +110,7 @@ export default function MasterClient({ session, clubs: initialClubs, coaches: in
         <div style={{ display:'flex', gap:4, background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:10, padding:3, marginBottom:20, alignSelf:'flex-start', width:'fit-content' }}>
           {(['clubs','coaches','invites','borrar'] as const).map(t=>(
             <button key={t} onClick={()=>setTab(t)} style={{ padding:'8px 24px', borderRadius:7, cursor:'pointer', fontSize:12, fontWeight:600, border:'none', background:tab===t?(t==='borrar'?'#ef4444':'var(--lime)'):'transparent', color:tab===t?(t==='borrar'?'#fff':'var(--ink)'):'var(--silver)', transition:'all .12s', textTransform:'uppercase', letterSpacing:'0.06em' }}>
-              {t === 'clubs' ? '🏟️ Clubes' : t === 'coaches' ? '👨‍🏫 Profesores' : t === 'invites' ? '🔗 Invitaciones' : '🗑 Borrar Datos'}
+              {t === 'clubs' ? '🏟️ Clubes' : t === 'coaches' ? '👨‍💪 Preparadores Físicos' : t === 'invites' ? '🔗 Invitaciones' : '🗑 Borrar Datos'}
             </button>
           ))}
         </div>
@@ -261,7 +261,7 @@ function BorrarClubPanel({ club, coach }) {
           <div style={{ textAlign:'left' }}>
             <p style={{ fontSize:14, fontWeight:700, color:'var(--snow)', marginBottom:1 }}>{club.nombre}</p>
             <p style={{ fontSize:11, color:'var(--silver)' }}>
-              {coach ? `👨‍🏫 ${coach.nombre}` : 'Sin profe asignado'} · {club.jugadores || 0} jugadores
+              {coach ? `👨‍🏫 ${coach.nombre}` : 'Sin preparador asignado'} · {club.jugadores || 0} jugadores
             </p>
           </div>
         </div>
@@ -352,22 +352,44 @@ function BorrarClubPanel({ club, coach }) {
 
 // ── Lista de países con código ISO para bandera ───────────────────────────────
 const PAISES = [
-  {code:'ar',name:'Argentina'},{code:'es',name:'España'},
-  {code:'br',name:'Brasil'},{code:'mx',name:'México'},
-  {code:'co',name:'Colombia'},{code:'cl',name:'Chile'},
-  {code:'uy',name:'Uruguay'},{code:'py',name:'Paraguay'},
-  {code:'pe',name:'Perú'},{code:'bo',name:'Bolivia'},
-  {code:'ve',name:'Venezuela'},{code:'ec',name:'Ecuador'},
-  {code:'us',name:'Estados Unidos'},{code:'pt',name:'Portugal'},
-  {code:'it',name:'Italia'},{code:'fr',name:'Francia'},
-  {code:'de',name:'Alemania'},{code:'gb',name:'Reino Unido'},
-  {code:'nl',name:'Países Bajos'},{code:'be',name:'Bélgica'},
-  {code:'cr',name:'Costa Rica'},{code:'pa',name:'Panamá'},
-  {code:'gt',name:'Guatemala'},{code:'sa',name:'Arabia Saudita'},
-  {code:'ae',name:'Emiratos Árabes'},{code:'jp',name:'Japón'},
-  {code:'cn',name:'China'},{code:'au',name:'Australia'},
-  {code:'za',name:'Sudáfrica'},{code:'tr',name:'Turquía'},
-  {code:'ma',name:'Marruecos'},{code:'eg',name:'Egipto'},
+  // América del Sur
+  {code:'ar',name:'Argentina'},{code:'br',name:'Brasil'},{code:'cl',name:'Chile'},
+  {code:'co',name:'Colombia'},{code:'uy',name:'Uruguay'},{code:'py',name:'Paraguay'},
+  {code:'pe',name:'Perú'},{code:'bo',name:'Bolivia'},{code:'ve',name:'Venezuela'},
+  {code:'ec',name:'Ecuador'},{code:'gy',name:'Guyana'},{code:'sr',name:'Surinam'},
+  // América Central y Caribe
+  {code:'mx',name:'México'},{code:'cr',name:'Costa Rica'},{code:'pa',name:'Panamá'},
+  {code:'gt',name:'Guatemala'},{code:'hn',name:'Honduras'},{code:'sv',name:'El Salvador'},
+  {code:'ni',name:'Nicaragua'},{code:'cu',name:'Cuba'},{code:'do',name:'República Dominicana'},
+  {code:'pr',name:'Puerto Rico'},{code:'jm',name:'Jamaica'},{code:'ht',name:'Haití'},
+  // América del Norte
+  {code:'us',name:'Estados Unidos'},{code:'ca',name:'Canadá'},
+  // Europa
+  {code:'es',name:'España'},{code:'pt',name:'Portugal'},{code:'it',name:'Italia'},
+  {code:'fr',name:'Francia'},{code:'de',name:'Alemania'},{code:'gb',name:'Reino Unido'},
+  {code:'nl',name:'Países Bajos'},{code:'be',name:'Bélgica'},{code:'ch',name:'Suiza'},
+  {code:'at',name:'Austria'},{code:'se',name:'Suecia'},{code:'no',name:'Noruega'},
+  {code:'dk',name:'Dinamarca'},{code:'fi',name:'Finlandia'},{code:'pl',name:'Polonia'},
+  {code:'cz',name:'República Checa'},{code:'sk',name:'Eslovaquia'},{code:'hu',name:'Hungría'},
+  {code:'ro',name:'Rumanía'},{code:'hr',name:'Croacia'},{code:'rs',name:'Serbia'},
+  {code:'gr',name:'Grecia'},{code:'tr',name:'Turquía'},{code:'ua',name:'Ucrania'},
+  {code:'ru',name:'Rusia'},{code:'ie',name:'Irlanda'},{code:'is',name:'Islandia'},
+  // Oriente Medio
+  {code:'sa',name:'Arabia Saudita'},{code:'ae',name:'Emiratos Árabes'},
+  {code:'qa',name:'Qatar'},{code:'kw',name:'Kuwait'},{code:'bh',name:'Bahrein'},
+  {code:'il',name:'Israel'},{code:'jo',name:'Jordania'},{code:'lb',name:'Líbano'},
+  // Asia
+  {code:'jp',name:'Japón'},{code:'cn',name:'China'},{code:'kr',name:'Corea del Sur'},
+  {code:'in',name:'India'},{code:'th',name:'Tailandia'},{code:'id',name:'Indonesia'},
+  {code:'my',name:'Malasia'},{code:'ph',name:'Filipinas'},{code:'vn',name:'Vietnam'},
+  {code:'sg',name:'Singapur'},{code:'pk',name:'Pakistán'},{code:'bd',name:'Bangladesh'},
+  // Oceanía
+  {code:'au',name:'Australia'},{code:'nz',name:'Nueva Zelanda'},
+  // África
+  {code:'za',name:'Sudáfrica'},{code:'eg',name:'Egipto'},{code:'ma',name:'Marruecos'},
+  {code:'ng',name:'Nigeria'},{code:'ke',name:'Kenia'},{code:'gh',name:'Ghana'},
+  {code:'sn',name:'Senegal'},{code:'cm',name:'Camerún'},{code:'ci',name:'Costa de Marfil'},
+  {code:'tn',name:'Túnez'},{code:'dz',name:'Argelia'},{code:'ao',name:'Angola'},
 ]
 
 function FlagImg({ code, size=20 }: { code: string, size?: number }) {
@@ -375,14 +397,21 @@ function FlagImg({ code, size=20 }: { code: string, size?: number }) {
     style={{ objectFit:'cover', borderRadius:2, flexShrink:0 }} alt={code} />
 }
 
-// ── Selector de país custom con banderas reales ────────────────────────────────
+// ── Selector de país custom con banderas y buscador ───────────────────────────
 function PaisSelector({ value, onChange }: { value: string, onChange: (v: string) => void }) {
   const [open, setOpen] = useState(false)
+  const [search, setSearch] = useState('')
   const selected = PAISES.find(p => p.name === value)
+  const filtered = search.trim()
+    ? PAISES.filter(p => p.name.toLowerCase().includes(search.toLowerCase()))
+    : PAISES
+
+  // Close on outside click
+  const ref = (typeof window !== 'undefined') ? { current: null as HTMLDivElement | null } : { current: null }
 
   return (
-    <div style={{ position:'relative' }}>
-      <button type="button" onClick={() => setOpen(o => !o)}
+    <div style={{ position:'relative' }} ref={ref as any}>
+      <button type="button" onClick={() => { setOpen(o => !o); setSearch('') }}
         style={{ width:'100%', padding:'8px 12px', borderRadius:8, background:'var(--ink3)', border:'1px solid var(--fog)',
           color: selected ? 'var(--snow)' : 'var(--fog)', fontSize:13, cursor:'pointer',
           display:'flex', alignItems:'center', gap:8, textAlign:'left' }}>
@@ -396,25 +425,46 @@ function PaisSelector({ value, onChange }: { value: string, onChange: (v: string
       {open && (
         <div style={{ position:'absolute', top:'calc(100% + 4px)', left:0, right:0, zIndex:200,
           background:'var(--ink2)', border:'1px solid var(--fog)', borderRadius:10,
-          maxHeight:240, overflowY:'auto', boxShadow:'0 8px 24px rgba(0,0,0,.6)' }}>
-          <div onClick={() => { onChange(''); setOpen(false) }}
-            style={{ padding:'8px 12px', cursor:'pointer', color:'var(--fog)', fontSize:12,
-              borderBottom:'1px solid var(--mist)' }}
-            onMouseEnter={e=>(e.currentTarget as HTMLElement).style.background='var(--ink3)'}
-            onMouseLeave={e=>(e.currentTarget as HTMLElement).style.background='transparent'}>
-            — Sin país —
+          boxShadow:'0 8px 24px rgba(0,0,0,.6)', overflow:'hidden' }}>
+          {/* Search box */}
+          <div style={{ padding:'8px 10px', borderBottom:'1px solid var(--mist)', display:'flex', alignItems:'center', gap:8, background:'var(--ink3)' }}>
+            <span style={{ color:'var(--fog)', fontSize:14 }}>🔍</span>
+            <input
+              autoFocus
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Buscar país..."
+              style={{ flex:1, background:'transparent', border:'none', outline:'none', color:'var(--snow)', fontSize:13, fontFamily:'DM Sans, sans-serif' }}
+            />
+            {search && (
+              <button onClick={() => setSearch('')} style={{ background:'transparent', border:'none', color:'var(--fog)', cursor:'pointer', fontSize:14, padding:0, lineHeight:1 }}>✕</button>
+            )}
           </div>
-          {PAISES.map(p => (
-            <div key={p.code} onClick={() => { onChange(p.name); setOpen(false) }}
-              style={{ padding:'7px 12px', cursor:'pointer', display:'flex', alignItems:'center', gap:10,
-                background: value === p.name ? 'rgba(200,241,53,.08)' : 'transparent',
-                color: value === p.name ? 'var(--lime)' : 'var(--snow)', fontSize:13 }}
-              onMouseEnter={e=>(e.currentTarget as HTMLElement).style.background='var(--ink3)'}
-              onMouseLeave={e=>(e.currentTarget as HTMLElement).style.background= value === p.name ? 'rgba(200,241,53,.08)' : 'transparent'}>
-              <FlagImg code={p.code} size={22} />
-              <span>{p.name}</span>
-            </div>
-          ))}
+          {/* List */}
+          <div style={{ maxHeight:220, overflowY:'auto' }}>
+            {!search && (
+              <div onClick={() => { onChange(''); setOpen(false) }}
+                style={{ padding:'8px 12px', cursor:'pointer', color:'var(--fog)', fontSize:12, borderBottom:'1px solid var(--mist)' }}
+                onMouseEnter={e=>(e.currentTarget as HTMLElement).style.background='var(--ink3)'}
+                onMouseLeave={e=>(e.currentTarget as HTMLElement).style.background='transparent'}>
+                — Sin país —
+              </div>
+            )}
+            {filtered.length === 0 && (
+              <div style={{ padding:'16px 12px', color:'var(--fog)', fontSize:12, textAlign:'center' }}>Sin resultados</div>
+            )}
+            {filtered.map(p => (
+              <div key={p.code} onClick={() => { onChange(p.name); setOpen(false); setSearch('') }}
+                style={{ padding:'7px 12px', cursor:'pointer', display:'flex', alignItems:'center', gap:10,
+                  background: value === p.name ? 'rgba(200,241,53,.08)' : 'transparent',
+                  color: value === p.name ? 'var(--lime)' : 'var(--snow)', fontSize:13 }}
+                onMouseEnter={e=>(e.currentTarget as HTMLElement).style.background='var(--ink3)'}
+                onMouseLeave={e=>(e.currentTarget as HTMLElement).style.background= value === p.name ? 'rgba(200,241,53,.08)' : 'transparent'}>
+                <FlagImg code={p.code} size={22} />
+                <span>{p.name}</span>
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </div>
@@ -454,7 +504,7 @@ function ClubCard({ club, coaches, onRefresh }) {
   }
 
   async function deleteClubData() {
-    if (!confirm(`⚠️ ¿Borrar TODOS los datos del plantel de "${club.nombre}"?\n\nEsto elimina jugadores, entrenamientos, wellness, evaluaciones, partidos y sesiones.\nNO borra el club ni al profesor.\n\nEsta acción no se puede deshacer.`)) return
+    if (!confirm(`⚠️ ¿Borrar TODOS los datos del plantel de "${club.nombre}"?\n\nEsto elimina jugadores, entrenamientos, wellness, evaluaciones, partidos y sesiones.\nNO borra el club ni al preparador físico.\n\nEsta acción no se puede deshacer.`)) return
     if (!confirm(`Confirmá de nuevo: ¿borrar todos los datos de "${club.nombre}"?`)) return
     const r = await fetch('/api/admin/repair-club-ids', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'delete_club_data', club_id: club.id }) })
     const d = await r.json()
@@ -526,7 +576,7 @@ function ClubCard({ club, coaches, onRefresh }) {
       <div style={{ display:'flex', gap:8, marginBottom:14 }}>
         <div style={{ flex:1, background:'var(--ink3)', borderRadius:10, padding:'10px 0', textAlign:'center' }}>
           <div className="mono" style={{ fontSize:20, fontWeight:600, color:'#60a5fa' }}>{coaches.length}</div>
-          <div style={{ fontSize:10, color:'var(--silver)', marginTop:3 }}>Profesores</div>
+          <div style={{ fontSize:10, color:'var(--silver)', marginTop:3 }}>Prep. Físicos</div>
         </div>
         <div style={{ flex:1, background:'var(--ink3)', borderRadius:10, padding:'10px 0', textAlign:'center' }}>
           <div className="mono" style={{ fontSize:20, fontWeight:600, color:'#22c55e' }}>{club.jugadores}</div>
@@ -536,7 +586,7 @@ function ClubCard({ club, coaches, onRefresh }) {
 
       {coaches.length > 0 && (
         <div>
-          <p style={{ fontSize:10, fontWeight:600, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:6 }}>Profesores asignados</p>
+          <p style={{ fontSize:10, fontWeight:600, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:6 }}>Preparadores Físicos asignados</p>
           {coaches.map(c=>(
             <div key={c.id} style={{ display:'flex', alignItems:'center', gap:8, padding:'5px 0', borderBottom:'1px solid var(--mist)' }}>
               <div style={{ width:8, height:8, borderRadius:'50%', background:c.activo?'#22c55e':'#555', flexShrink:0 }} />
@@ -562,10 +612,10 @@ function CoachesTab({ coaches, clubs, showNewCoach, setShowNewCoach, reload }) {
     <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
         <div>
-          <h2 className="display" style={{ fontSize:40, color:'var(--snow)' }}>PROFESORES</h2>
-          <p style={{ fontSize:12, color:'var(--silver)', marginTop:2 }}>Asigná cada profesor a su club</p>
+          <h2 className="display" style={{ fontSize:40, color:'var(--snow)' }}>PREPARADORES FÍSICOS</h2>
+          <p style={{ fontSize:12, color:'var(--silver)', marginTop:2 }}>Asigná cada preparador físico a su club</p>
         </div>
-        <button onClick={()=>setShowNewCoach(true)} className="btn-lime" style={{ fontSize:12, padding:'10px 18px' }}>+ Nuevo profesor</button>
+        <button onClick={()=>setShowNewCoach(true)} className="btn-lime" style={{ fontSize:12, padding:'10px 18px' }}>+ Nuevo preparador físico</button>
       </div>
 
       {showNewCoach && <NewCoachForm clubs={clubs} onSuccess={()=>{ setShowNewCoach(false); reload() }} onCancel={()=>setShowNewCoach(false)} />}
@@ -588,7 +638,7 @@ function CoachesTab({ coaches, clubs, showNewCoach, setShowNewCoach, reload }) {
 
       <div style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:16, overflow:'hidden' }}>
         {coaches.length === 0
-          ? <div style={{ padding:40, textAlign:'center', color:'var(--silver)' }}>Sin profesores aún.</div>
+          ? <div style={{ padding:40, textAlign:'center', color:'var(--silver)' }}>Sin preparadores físicos aún.</div>
           : filtered.length === 0
             ? <div style={{ padding:32, textAlign:'center', color:'var(--fog)', fontSize:13 }}>Sin resultados para "{search}"</div>
             : filtered.map((coach, i) => (
@@ -598,7 +648,7 @@ function CoachesTab({ coaches, clubs, showNewCoach, setShowNewCoach, reload }) {
       </div>
       {search && filtered.length > 0 && (
         <p style={{ fontSize:11, color:'var(--fog)', textAlign:'right', marginTop:-8 }}>
-          {filtered.length} de {coaches.length} profesores
+          {filtered.length} de {coaches.length} preparadores físicos
         </p>
       )}
     </div>
@@ -674,12 +724,12 @@ function CoachRow({ coach, clubs, last, onRefresh }) {
         {(() => {
           const clubObj = clubs.find((c: any) => c.id === coach.club_id)
           return coach.club_nombre
-            ? <span style={{ display:'flex', alignItems:'center', gap:6, fontSize:11, padding:'3px 10px 3px 6px', borderRadius:20, background:'rgba(96,165,250,.12)', color:'#93c5fd', border:'1px solid rgba(96,165,250,.25)', fontWeight:600 }}>
+            ? <span style={{ display:'flex', alignItems:'center', gap:6, fontSize:12, padding:'3px 10px 3px 6px', borderRadius:20, background:'rgba(96,165,250,.12)', color:'#93c5fd', border:'1px solid rgba(96,165,250,.25)', fontWeight:600, maxWidth:160, overflow:'hidden' }}>
                 {clubObj?.logo_url
                   ? <img src={clubObj.logo_url} style={{ width:20, height:20, objectFit:'contain', borderRadius:4, flexShrink:0 }} alt="" />
-                  : <span style={{ fontSize:13 }}>🏟️</span>
+                  : <span style={{ fontSize:13, flexShrink:0 }}>🏟️</span>
                 }
-                {coach.club_nombre}
+                <span style={{ fontSize:12, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{coach.club_nombre}</span>
               </span>
             : <span style={{ fontSize:11, padding:'3px 10px', borderRadius:20, background:'rgba(245,158,11,.1)', color:'#fbbf24', border:'1px solid rgba(245,158,11,.25)', fontWeight:600 }}>⚠ Sin club</span>
         })()}
@@ -817,7 +867,7 @@ function NewCoachForm({ clubs, onSuccess, onCancel }) {
 
   return (
     <div style={{ background:'var(--ink2)', border:'1px solid rgba(96,165,250,.2)', borderRadius:14, padding:20 }} className="anim-up">
-      <p style={{ fontSize:13, fontWeight:600, color:'#60a5fa', marginBottom:16, textTransform:'uppercase', letterSpacing:'0.06em' }}>👨‍🏫 Nuevo Profesor</p>
+      <p style={{ fontSize:13, fontWeight:600, color:'#60a5fa', marginBottom:16, textTransform:'uppercase', letterSpacing:'0.06em' }}>👨‍🏫 Nuevo Preparador Físico</p>
       <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:12 }}>
         {[['nombre','Nombre completo','Pedro Martínez'],['usuario','Usuario','pedro.martinez'],['password','Contraseña','Mín. 6 caracteres']].map(([k,lbl,ph])=>(
           <div key={k}>
@@ -836,7 +886,7 @@ function NewCoachForm({ clubs, onSuccess, onCancel }) {
       {error && <p style={{ fontSize:12, color:'#f87171', marginBottom:10 }}>{error}</p>}
       <div style={{ display:'flex', gap:10 }}>
         <button onClick={onCancel} className="btn-ghost" style={{ flex:1 }}>Cancelar</button>
-        <button onClick={submit} disabled={loading} className="btn-lime" style={{ flex:2 }}>{loading?'Creando...':'Crear profesor →'}</button>
+        <button onClick={submit} disabled={loading} className="btn-lime" style={{ flex:2 }}>{loading?'Creando...':'Crear preparador →'}</button>
       </div>
     </div>
   )
@@ -900,7 +950,7 @@ function InvitesTab() {
       <div>
         <h2 className="display" style={{ fontSize:40, color:'var(--snow)' }}>INVITACIONES DEMO</h2>
         <p style={{ fontSize:12, color:'var(--silver)', marginTop:2 }}>
-          Generá links de un solo uso para que profes se registren solos. 7 días de acceso completo.
+          Generá links de un solo uso para que preparadores físicos se registren solos. 7 días de acceso completo.
         </p>
       </div>
 
