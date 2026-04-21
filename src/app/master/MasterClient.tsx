@@ -701,39 +701,52 @@ function CoachRow({ coach, clubs, last, onRefresh }) {
     setCurrentPass(newPass); setNewPass(''); alert('Contraseña actualizada ✓')
   }
 
+  async function deleteCoach() {
+    if (!confirm(`¿Eliminar al preparador físico "${coach.nombre}"?\n\nEsta acción no se puede deshacer.`)) return
+    await fetch(`/api/master/coaches?id=${coach.id}`, { method: 'DELETE' })
+    onRefresh()
+  }
+
   return (
     <div style={{ borderBottom:last?'none':'1px solid var(--mist)' }}>
-      <button onClick={()=>setOpen(!open)} style={{ width:'100%', display:'flex', alignItems:'center', gap:12, padding:'14px 20px', background:'transparent', border:'none', cursor:'pointer', textAlign:'left' }}
+      <button onClick={()=>setOpen(!open)} style={{ width:'100%', display:'grid', gridTemplateColumns:'16px 1fr 90px 110px 160px 20px', alignItems:'center', gap:14, padding:'14px 20px', background:'transparent', border:'none', cursor:'pointer', textAlign:'left' }}
         onMouseEnter={e=>(e.currentTarget as HTMLElement).style.background='var(--ink3)'}
         onMouseLeave={e=>(e.currentTarget as HTMLElement).style.background='transparent'}
       >
-        <div style={{ width:10, height:10, borderRadius:'50%', background:coach.activo?'#22c55e':'#555', flexShrink:0 }} />
-        <div style={{ flex:1, minWidth:0 }}>
-          <div style={{ fontWeight:600, fontSize:14, color:'var(--snow)' }}>{coach.nombre}</div>
+        {/* Col 1: status dot */}
+        <div style={{ width:10, height:10, borderRadius:'50%', background:coach.activo?'#22c55e':'#555', justifySelf:'center' }} />
+        {/* Col 2: name + usuario */}
+        <div style={{ minWidth:0 }}>
+          <div style={{ fontWeight:600, fontSize:14, color:'var(--snow)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{coach.nombre}</div>
           <div style={{ fontSize:11, color:'var(--silver)', marginTop:1 }}>@{coach.usuario}</div>
         </div>
-        {/* Subscription duration */}
-        <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', gap:3, flexShrink:0 }}>
-          <span style={{ fontSize:10, padding:'2px 8px', borderRadius:10, background:subBadge.bg, color:subBadge.color, fontFamily:'DM Mono,monospace', fontWeight:600, border:`1px solid ${subBadge.color}33` }}>
+        {/* Col 3: antigüedad */}
+        <div style={{ textAlign:'right' }}>
+          <span style={{ fontSize:10, padding:'2px 8px', borderRadius:10, background:subBadge.bg, color:subBadge.color, fontFamily:'DM Mono,monospace', fontWeight:600, border:`1px solid ${subBadge.color}33`, whiteSpace:'nowrap' }}>
             📅 {subBadge.label}
           </span>
-          <span style={{ fontSize:10, color: diasDesdeLogin === null ? 'var(--fog)' : diasDesdeLogin <= 3 ? '#22c55e' : diasDesdeLogin <= 14 ? '#f59e0b' : '#ef4444', fontFamily:'DM Mono,monospace' }}>
+        </div>
+        {/* Col 4: último ingreso */}
+        <div style={{ textAlign:'right' }}>
+          <span style={{ fontSize:10, color: diasDesdeLogin === null ? 'var(--fog)' : diasDesdeLogin <= 3 ? '#22c55e' : diasDesdeLogin <= 14 ? '#f59e0b' : '#ef4444', fontFamily:'DM Mono,monospace', whiteSpace:'nowrap' }}>
             {diasDesdeLogin === null ? '⚪ Sin ingresos' : diasDesdeLogin === 0 ? '🟢 Hoy' : diasDesdeLogin === 1 ? '🟢 Ayer' : diasDesdeLogin <= 3 ? `🟢 Hace ${diasDesdeLogin}d` : diasDesdeLogin <= 14 ? `🟡 Hace ${diasDesdeLogin}d` : `🔴 Hace ${diasDesdeLogin}d`}
           </span>
         </div>
+        {/* Col 5: club */}
         {(() => {
           const clubObj = clubs.find((c: any) => c.id === coach.club_id)
           return coach.club_nombre
-            ? <span style={{ display:'flex', alignItems:'center', gap:6, fontSize:12, padding:'3px 10px 3px 6px', borderRadius:20, background:'rgba(96,165,250,.12)', color:'#93c5fd', border:'1px solid rgba(96,165,250,.25)', fontWeight:600, maxWidth:160, overflow:'hidden' }}>
+            ? <span style={{ display:'flex', alignItems:'center', gap:6, fontSize:12, padding:'3px 10px 3px 6px', borderRadius:20, background:'rgba(96,165,250,.12)', color:'#93c5fd', border:'1px solid rgba(96,165,250,.25)', fontWeight:600, overflow:'hidden', justifySelf:'end', maxWidth:'100%' }}>
                 {clubObj?.logo_url
                   ? <img src={clubObj.logo_url} style={{ width:20, height:20, objectFit:'contain', borderRadius:4, flexShrink:0 }} alt="" />
                   : <span style={{ fontSize:13, flexShrink:0 }}>🏟️</span>
                 }
                 <span style={{ fontSize:12, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{coach.club_nombre}</span>
               </span>
-            : <span style={{ fontSize:11, padding:'3px 10px', borderRadius:20, background:'rgba(245,158,11,.1)', color:'#fbbf24', border:'1px solid rgba(245,158,11,.25)', fontWeight:600 }}>⚠ Sin club</span>
+            : <span style={{ fontSize:11, padding:'3px 10px', borderRadius:20, background:'rgba(245,158,11,.1)', color:'#fbbf24', border:'1px solid rgba(245,158,11,.25)', fontWeight:600, justifySelf:'end', whiteSpace:'nowrap' }}>⚠ Sin club</span>
         })()}
-        <span style={{ color:'var(--fog)', fontSize:14, transition:'transform .2s', display:'inline-block', transform:open?'rotate(90deg)':'none' }}>›</span>
+        {/* Col 6: chevron */}
+        <span style={{ color:'var(--fog)', fontSize:14, transition:'transform .2s', display:'inline-block', transform:open?'rotate(90deg)':'none', justifySelf:'center' }}>›</span>
       </button>
 
       {open && (
@@ -806,9 +819,12 @@ function CoachRow({ coach, clubs, last, onRefresh }) {
             </div>
           </div>
 
-          <div style={{ marginTop:14 }}>
+          <div style={{ marginTop:14, display:'flex', gap:10 }}>
             <button onClick={toggleActive} className="btn-ghost" style={{ fontSize:12, padding:'7px 14px', color:coach.activo?'#f87171':'#4ade80', borderColor:coach.activo?'rgba(239,68,68,.3)':'rgba(34,197,94,.3)' }}>
               {coach.activo ? '✕ Desactivar acceso' : '✓ Activar acceso'}
+            </button>
+            <button onClick={deleteCoach} className="btn-ghost" style={{ fontSize:12, padding:'7px 14px', color:'#f87171', borderColor:'rgba(239,68,68,.3)' }}>
+              🗑 Eliminar preparador
             </button>
           </div>
         </div>

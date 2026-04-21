@@ -154,8 +154,8 @@ function RegistroForm() {
                   </div>
                   <div>
                     <label style={labelStyle}>Usuario *</label>
-                    <input style={inputStyle} value={form.usuario} onChange={e => set('usuario', e.target.value.toLowerCase().replace(/\s/g,''))} placeholder="juan.perez" />
-                    <p style={{ fontSize: 11, color: '#555', marginTop: 4 }}>Solo letras, números, puntos y guiones. Sin espacios.</p>
+                    <input style={inputStyle} value={form.usuario} onChange={e => set('usuario', e.target.value.toLowerCase().replace(/\s+/g, '.').replace(/[^a-z0-9._-]/g, ''))} placeholder="juan.perez" />
+                    <p style={{ fontSize: 11, color: '#555', marginTop: 4 }}>Solo letras, números, puntos y guiones. Los espacios se convierten en puntos.</p>
                   </div>
                   <div>
                     <label style={labelStyle}>Contraseña *</label>

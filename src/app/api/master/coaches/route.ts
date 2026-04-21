@@ -58,3 +58,13 @@ export async function PATCH(req: NextRequest) {
   }
   return NextResponse.json({ok:true})
 }
+
+export async function DELETE(req: NextRequest) {
+  const s = await getSessionFromRequest(req)
+  if (!s || !isMaster(s)) return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
+  const id = req.nextUrl.searchParams.get('id')
+  if (!id) return NextResponse.json({ error: 'id requerido' }, { status: 400 })
+  const sql = getDb()
+  await sql`DELETE FROM usuarios WHERE id = ${Number(id)} AND rol = 'admin'`
+  return NextResponse.json({ ok: true })
+}
