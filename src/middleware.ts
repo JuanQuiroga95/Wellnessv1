@@ -5,8 +5,10 @@ import { verifyToken } from '@/lib/auth'
 const PUBLIC_PATHS = [
   '/',
   '/login',
+  '/registro',
   '/api/auth/login',
   '/api/auth/logout',
+  '/api/invites/register',
   '/landing.html',
 ]
 
