@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 
 const PAISES = [
@@ -8,7 +8,8 @@ const PAISES = [
   'Estados Unidos','Otro'
 ]
 
-export default function RegistroPage() {
+// ── Inner component that uses useSearchParams ──
+function RegistroForm() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const token = searchParams.get('token') || ''
@@ -217,5 +218,22 @@ export default function RegistroPage() {
         </p>
       </div>
     </div>
+  )
+}
+
+// ── Page export wraps RegistroForm in Suspense ──
+export default function RegistroPage() {
+  return (
+    <Suspense fallback={
+      <div style={{
+        minHeight: '100vh', background: '#080808',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        fontFamily: 'DM Sans, sans-serif', color: '#888'
+      }}>
+        Cargando...
+      </div>
+    }>
+      <RegistroForm />
+    </Suspense>
   )
 }
