@@ -269,7 +269,7 @@ export async function POST(req: NextRequest) {
   ]
   for (const [sql_str, label] of extra_migrations) {
     try {
-      await sql.unsafe(sql_str as string)
+      await sql(sql_str as string)
       done.push(label as string)
     } catch(e: any) {
       const msg = e?.message || String(e)
