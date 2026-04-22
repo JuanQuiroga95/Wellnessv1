@@ -10,18 +10,32 @@ export async function GET(req: NextRequest) {
   if (!jugadorId) return NextResponse.json({ error: 'jugador_id requerido' }, { status: 400 })
   const sql = getDb()
   try {
-    const sesiones = await sql`
-      SELECT ps.* FROM pfv_sesiones ps
-      WHERE ps.jugador_id = ${jugadorId}
-        AND (${s.clubId ? Number(s.clubId) : null}::int IS NULL OR ps.club_id = ${s.clubId ? Number(s.clubId) : null})
-      ORDER BY ps.fecha DESC, ps.id DESC`
-    const result = await Promise.all(sesiones.map(async (ses: any) => {
+    const clubId = s.clubId ? Number(s.clubId) : null
+    let sesiones
+    if (clubId) {
+      sesiones = await sql`
+        SELECT * FROM pfv_sesiones
+        WHERE jugador_id = ${jugadorId} AND club_id = ${clubId}
+        ORDER BY fecha DESC, id DESC`
+    } else {
+      sesiones = await sql`
+        SELECT * FROM pfv_sesiones
+        WHERE jugador_id = ${jugadorId}
+        ORDER BY fecha DESC, id DESC`
+    }
+    const result = await Promise.all((sesiones as any[]).map(async (ses: any) => {
       const puntos = await sql`SELECT * FROM pfv_puntos WHERE sesion_id = ${ses.id} ORDER BY carga_kg ASC`
       return {
         sesion_id: ses.id,
         nombre: ses.nombre,
         fecha: ses.fecha,
-        puntos: puntos.map((p: any) => ({ id: p.id, carga: Number(p.carga_kg), vel: Number(p.velocidad_ms), altura_salto_m: p.altura_salto_m ? Number(p.altura_salto_m) : null, notas: p.notas })),
+        puntos: (puntos as any[]).map((p: any) => ({
+          id: p.id,
+          carga: Number(p.carga_kg),
+          vel: Number(p.velocidad_ms || 0),
+          altura_salto_m: p.altura_salto_m != null ? Number(p.altura_salto_m) : null,
+          notas: p.notas,
+        })),
       }
     }))
     return NextResponse.json(result)

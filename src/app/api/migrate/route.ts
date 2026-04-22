@@ -237,6 +237,7 @@ export async function POST(req: NextRequest) {
       created_at TIMESTAMPTZ DEFAULT NOW()
     )`, 'pfv_puntos table'],
     [`ALTER TABLE pfv_puntos ADD COLUMN IF NOT EXISTS altura_salto_m NUMERIC(5,4)`, 'pfv_puntos.altura_salto_m'],
+    [`ALTER TABLE pfv_puntos ALTER COLUMN velocidad_ms DROP NOT NULL`, 'pfv_puntos.velocidad_ms nullable'],
     [`ALTER TABLE pfv_sesiones ADD COLUMN IF NOT EXISTS h_po NUMERIC(5,4)`, 'pfv_sesiones.h_po'],
     [`ALTER TABLE pfv_sesiones ADD COLUMN IF NOT EXISTS masa_kg NUMERIC(5,1)`, 'pfv_sesiones.masa_kg'],
     // ── RSI (Reactive Strength Index) ────────────────────────────────────
