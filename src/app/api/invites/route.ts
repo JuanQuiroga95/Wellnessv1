@@ -75,6 +75,6 @@ export async function DELETE(req: NextRequest) {
   }
   const { token } = await req.json()
   const sql = getDb()
-  await sql`DELETE FROM invite_tokens WHERE token = ${token}`
+  await sql`DELETE FROM invite_tokens WHERE token = ${token} AND used_at IS NULL`
   return NextResponse.json({ ok: true })
 }

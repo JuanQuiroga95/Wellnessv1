@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
       sesion_id: ses.id,
       nombre: ses.nombre,
       fecha: ses.fecha,
-      puntos: puntos.map((p: any) => ({ id: p.id, carga: Number(p.carga_kg), vel: Number(p.velocidad_ms), notas: p.notas })),
+      puntos: puntos.map((p: any) => ({ id: p.id, carga: Number(p.carga_kg), vel: Number(p.velocidad_ms), altura_salto_m: p.altura_salto_m ? Number(p.altura_salto_m) : null, notas: p.notas })),
     }
   }))
   return NextResponse.json(result)
@@ -30,16 +30,17 @@ export async function POST(req: NextRequest) {
   const s = await getSessionFromRequest(req)
   if (!s) return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
   const b = await req.json()
-  const { jugador_id, sesion_id, fecha, carga_kg, velocidad_ms, notas } = b
-  if (!jugador_id || !sesion_id || !carga_kg || !velocidad_ms) return NextResponse.json({ error: 'Datos incompletos' }, { status: 400 })
+  const { jugador_id, sesion_id, fecha, carga_kg, velocidad_ms, altura_salto_m, notas } = b
+  if (!jugador_id || !sesion_id || carga_kg == null) return NextResponse.json({ error: 'Datos incompletos' }, { status: 400 })
+  if (!velocidad_ms && !altura_salto_m) return NextResponse.json({ error: 'Falta velocidad_ms o altura_salto_m' }, { status: 400 })
   const sql = getDb()
   // Verify the sesion belongs to this coach's club
   if (s.clubId) {
     const owns = await sql`SELECT 1 FROM pfv_sesiones WHERE id = ${sesion_id} AND club_id = ${s.clubId} LIMIT 1`
     if (!owns.length) return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
   }
-  await sql`INSERT INTO pfv_puntos (sesion_id, jugador_id, fecha, carga_kg, velocidad_ms, notas)
-    VALUES (${sesion_id}, ${jugador_id}, ${fecha}, ${carga_kg}, ${velocidad_ms}, ${notas ?? null})`
+  await sql`INSERT INTO pfv_puntos (sesion_id, jugador_id, fecha, carga_kg, velocidad_ms, altura_salto_m, notas)
+    VALUES (${sesion_id}, ${jugador_id}, ${fecha}, ${carga_kg}, ${velocidad_ms ?? null}, ${altura_salto_m ?? null}, ${notas ?? null})`
   return NextResponse.json({ ok: true })
 }
 

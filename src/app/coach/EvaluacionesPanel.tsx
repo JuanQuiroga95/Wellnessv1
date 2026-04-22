@@ -14,7 +14,7 @@ interface Jugador {
   peso_ideal_max?: number
 }
 
-type TestKey = 'variables' | 'pesajes' | 'cmj' | 'isometrico' | 'pfv' | 'rsi' | 'dsi'
+type TestKey = 'variables' | 'pesajes' | 'cmj' | 'isometrico' | 'pfv' | 'rsi' | 'dsi' | 'antropometria' | 'todos'
 
 // ─── Semáforo genérico ────────────────────────────────────────────────────────
 function Semaforo({ estado }: { estado: 'verde' | 'amarillo' | 'rojo' | 'gris' }) {
@@ -170,6 +170,192 @@ function VariablesPanel({ jugador, onRefresh }: { jugador: Jugador; onRefresh: (
         )}
       </div>
       <Btn onClick={handleSave} disabled={saving}>{ok ? '✓ Guardado' : saving ? 'Guardando...' : 'Guardar'}</Btn>
+    </Card>
+  )
+}
+
+// ─── 1b. Antropometría — Composición Corporal (Faulkner 4 pliegues) ──────────
+function AntropometriaPanel({ jugador }: { jugador: Jugador }) {
+  const [historial, setHistorial] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [form, setForm] = useState({
+    fecha: new Date().toISOString().split('T')[0],
+    peso_kg: jugador.peso_kg?.toString() || '',
+    altura_cm: jugador.estatura_cm?.toString() || '',
+    pliegue_triceps: '', pliegue_subescapular: '', pliegue_suprailiaco: '', pliegue_abdominal: '',
+    notas: '',
+  })
+
+  const load = async () => {
+    setLoading(true)
+    try {
+      const r = await fetch(`/api/evaluaciones/antropometria?jugador_id=${jugador.id}`)
+      if (r.ok) setHistorial(await r.json())
+    } catch {}
+    setLoading(false)
+  }
+  useEffect(() => { load() }, [jugador.id])
+
+  // Live preview calculation
+  const pliegues = [form.pliegue_triceps, form.pliegue_subescapular, form.pliegue_suprailiaco, form.pliegue_abdominal]
+  const allPliegues = pliegues.every(p => p !== '' && Number(p) > 0)
+  const sum4 = allPliegues ? pliegues.reduce((s, p) => s + Number(p), 0) : null
+  const pctGrasa = sum4 !== null ? (sum4 * 0.153) + 5.783 : null
+  const peso = Number(form.peso_kg) || 0
+  const masaGrasa = pctGrasa !== null && peso > 0 ? (peso * pctGrasa) / 100 : null
+  const masaMagra = masaGrasa !== null && peso > 0 ? peso - masaGrasa : null
+
+  const clasificacion = (pct: number) => {
+    if (pct <= 10.5) return { label: 'Élite / Competición', color: '#22c55e', icon: '🟢' }
+    if (pct <= 13) return { label: 'Nivel Aceptable', color: '#f59e0b', icon: '🟡' }
+    return { label: 'Exceso de Grasa', color: '#ef4444', icon: '🔴' }
+  }
+
+  const handleSave = async () => {
+    if (!allPliegues || !form.peso_kg) return
+    setSaving(true)
+    await fetch('/api/evaluaciones/antropometria', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        jugador_id: jugador.id, fecha: form.fecha, peso_kg: Number(form.peso_kg),
+        altura_cm: form.altura_cm ? Number(form.altura_cm) : null,
+        pliegue_triceps: Number(form.pliegue_triceps), pliegue_subescapular: Number(form.pliegue_subescapular),
+        pliegue_suprailiaco: Number(form.pliegue_suprailiaco), pliegue_abdominal: Number(form.pliegue_abdominal),
+        notas: form.notas || null,
+      }),
+    })
+    setSaving(false)
+    setForm(p => ({ ...p, pliegue_triceps: '', pliegue_subescapular: '', pliegue_suprailiaco: '', pliegue_abdominal: '', notas: '' }))
+    load()
+  }
+
+  const handleDelete = async (id: number) => {
+    await fetch(`/api/evaluaciones/antropometria?id=${id}`, { method: 'DELETE' })
+    load()
+  }
+
+  // Mini sparkline for % grasa evolution
+  const chartPts = [...historial].reverse().slice(-12)
+
+  return (
+    <Card title="Composición Corporal — Método Faulkner (4 Pliegues)" accent="#06b6d4">
+      <div style={{ background: '#1e293b', borderRadius: 10, padding: '10px 14px', marginBottom: 16, fontSize: 12, color: '#64748b', border: '1px solid #334155', lineHeight: 1.6 }}>
+        📋 <strong style={{ color: '#94a3b8' }}>Protocolo:</strong> Medir con plicómetro profesional (3 mediciones, usar promedio).
+        Pliegues: <strong style={{ color: '#06b6d4' }}>Tríceps</strong> (vertical), <strong style={{ color: '#06b6d4' }}>Subescapular</strong> (diagonal 45°),{' '}
+        <strong style={{ color: '#06b6d4' }}>Suprailiaco</strong> (diagonal sobre cresta) y <strong style={{ color: '#06b6d4' }}>Abdominal</strong> (vertical a 2cm del ombligo).
+      </div>
+
+      {/* Form */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 10, marginBottom: 16 }}>
+        <Field label="Fecha" value={form.fecha} onChange={v => setForm(p => ({ ...p, fecha: v }))} type="date" />
+        <Field label="Peso" value={form.peso_kg} onChange={v => setForm(p => ({ ...p, peso_kg: v }))} unit="kg" min="30" max="150" />
+        <Field label="Altura" value={form.altura_cm} onChange={v => setForm(p => ({ ...p, altura_cm: v }))} unit="cm" min="140" max="210" />
+        <Field label="Tríceps" value={form.pliegue_triceps} onChange={v => setForm(p => ({ ...p, pliegue_triceps: v }))} unit="mm" min="1" max="50" />
+        <Field label="Subescapular" value={form.pliegue_subescapular} onChange={v => setForm(p => ({ ...p, pliegue_subescapular: v }))} unit="mm" min="1" max="50" />
+        <Field label="Suprailiaco" value={form.pliegue_suprailiaco} onChange={v => setForm(p => ({ ...p, pliegue_suprailiaco: v }))} unit="mm" min="1" max="50" />
+        <Field label="Abdominal" value={form.pliegue_abdominal} onChange={v => setForm(p => ({ ...p, pliegue_abdominal: v }))} unit="mm" min="1" max="50" />
+      </div>
+
+      {/* Live preview */}
+      {pctGrasa !== null && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 10, marginBottom: 16 }}>
+          {[
+            { label: 'Σ 4 Pliegues', value: `${sum4} mm`, color: '#06b6d4' },
+            { label: '% Grasa Corporal', value: `${pctGrasa.toFixed(2)}%`, color: clasificacion(pctGrasa).color },
+            { label: 'Masa Grasa', value: masaGrasa !== null ? `${masaGrasa.toFixed(2)} kg` : '—', color: '#f97316' },
+            { label: 'Masa Magra', value: masaMagra !== null ? `${masaMagra.toFixed(2)} kg` : '—', color: '#22c55e' },
+          ].map(item => (
+            <div key={item.label} style={{ background: '#0f172a', borderRadius: 10, padding: '12px 16px', border: `1px solid ${item.color}33` }}>
+              <div style={{ fontSize: 10, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>{item.label}</div>
+              <div style={{ fontSize: 20, fontWeight: 800, color: item.color }}>{item.value}</div>
+            </div>
+          ))}
+          <div style={{ background: '#0f172a', borderRadius: 10, padding: '12px 16px', border: `1px solid ${clasificacion(pctGrasa).color}33`, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+            <div style={{ fontSize: 10, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>Clasificación</div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: clasificacion(pctGrasa).color }}>{clasificacion(pctGrasa).icon} {clasificacion(pctGrasa).label}</div>
+          </div>
+        </div>
+      )}
+
+      <div style={{ display: 'flex', gap: 10, marginBottom: 20, alignItems: 'end' }}>
+        <div style={{ flex: 1 }}>
+          <Field label="Notas" value={form.notas} onChange={v => setForm(p => ({ ...p, notas: v }))} type="text" placeholder="Observaciones..." />
+        </div>
+        <Btn onClick={handleSave} disabled={saving || !allPliegues || !form.peso_kg}>{saving ? 'Guardando...' : '+ Registrar'}</Btn>
+      </div>
+
+      {/* Referencia */}
+      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 16, fontSize: 11 }}>
+        <span style={{ color: '#22c55e' }}>● 8% – 10.5% Élite</span>
+        <span style={{ color: '#f59e0b' }}>● 10.6% – 13% Aceptable</span>
+        <span style={{ color: '#ef4444' }}>● {'>'} 14% Exceso</span>
+        <span style={{ color: '#64748b', fontStyle: 'italic' }}>Fórmula: (Σ4 × 0.153) + 5.783</span>
+      </div>
+
+      {/* Evolution chart */}
+      {chartPts.length >= 2 && (() => {
+        const W = 400, H = 80, pad = { l: 35, r: 10, t: 10, b: 20 }
+        const vals = chartPts.map(p => Number(p.pct_grasa))
+        const mn = Math.min(...vals) - 1, mx = Math.max(...vals) + 1
+        const tx = (i: number) => pad.l + (i / (chartPts.length - 1)) * (W - pad.l - pad.r)
+        const ty = (v: number) => H - pad.b - ((v - mn) / (mx - mn)) * (H - pad.t - pad.b)
+        const d = chartPts.map((p, i) => `${i === 0 ? 'M' : 'L'}${tx(i)},${ty(Number(p.pct_grasa))}`).join(' ')
+        return (
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: 6 }}>Evolución % Grasa</div>
+            <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', maxWidth: W, display: 'block' }}>
+              {/* Zone bands */}
+              <rect x={pad.l} y={ty(13)} width={W - pad.l - pad.r} height={ty(10.5) - ty(13)} fill="#f59e0b11" />
+              <rect x={pad.l} y={ty(10.5)} width={W - pad.l - pad.r} height={ty(mn) - ty(10.5)} fill="#22c55e11" />
+              <line x1={pad.l} y1={ty(10.5)} x2={W - pad.r} y2={ty(10.5)} stroke="#22c55e44" strokeDasharray="3 3" />
+              <line x1={pad.l} y1={ty(13)} x2={W - pad.r} y2={ty(13)} stroke="#f59e0b44" strokeDasharray="3 3" />
+              <text x={pad.l - 4} y={ty(10.5) + 3} textAnchor="end" fontSize={8} fill="#22c55e88">10.5</text>
+              <text x={pad.l - 4} y={ty(13) + 3} textAnchor="end" fontSize={8} fill="#f59e0b88">13</text>
+              <path d={d} fill="none" stroke="#06b6d4" strokeWidth={2} />
+              {chartPts.map((p, i) => (
+                <circle key={i} cx={tx(i)} cy={ty(Number(p.pct_grasa))} r={3} fill="#06b6d4" />
+              ))}
+            </svg>
+          </div>
+        )
+      })()}
+
+      {/* History table */}
+      {loading ? (
+        <div style={{ color: '#64748b', fontSize: 13, textAlign: 'center', padding: 20 }}>Cargando...</div>
+      ) : historial.length === 0 ? (
+        <div style={{ color: '#475569', fontSize: 13, textAlign: 'center', padding: 20 }}>Sin mediciones registradas.</div>
+      ) : (
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+          <thead>
+            <tr style={{ borderBottom: '1px solid #1e293b' }}>
+              {['Fecha', 'Peso', 'Σ4', '% Grasa', 'M. Grasa', 'M. Magra', 'Clasif.', 'Notas', ''].map(h => (
+                <th key={h} style={{ textAlign: 'left', padding: '6px 8px', color: '#64748b', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', whiteSpace: 'nowrap' }}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {historial.map((r: any) => {
+              const cl = clasificacion(Number(r.pct_grasa))
+              return (
+                <tr key={r.id} style={{ borderBottom: '1px solid #0f172a' }}>
+                  <td style={{ padding: '7px 8px', color: '#94a3b8' }}>{r.fecha?.split('T')[0] ?? r.fecha}</td>
+                  <td style={{ padding: '7px 8px', color: '#f1f5f9', fontWeight: 600 }}>{r.peso_kg} kg</td>
+                  <td style={{ padding: '7px 8px', color: '#06b6d4', fontWeight: 600 }}>{r.sum_4_pliegues} mm</td>
+                  <td style={{ padding: '7px 8px', color: cl.color, fontWeight: 800, fontSize: 14 }}>{Number(r.pct_grasa).toFixed(2)}%</td>
+                  <td style={{ padding: '7px 8px', color: '#f97316' }}>{Number(r.masa_grasa_kg).toFixed(1)} kg</td>
+                  <td style={{ padding: '7px 8px', color: '#22c55e' }}>{Number(r.masa_magra_kg).toFixed(1)} kg</td>
+                  <td style={{ padding: '7px 8px', color: cl.color, fontSize: 11 }}>{cl.icon} {cl.label}</td>
+                  <td style={{ padding: '7px 8px', color: '#64748b' }}>{r.notas ?? '—'}</td>
+                  <td style={{ padding: '7px 8px' }}><Btn onClick={() => handleDelete(r.id)} variant="ghost" small>✕</Btn></td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      )}
     </Card>
   )
 }
@@ -931,15 +1117,18 @@ function IsometricoChart({ historial, grupo }: { historial: any[]; grupo: string
   )
 }
 
-// ─── 5. Perfil Fuerza-Velocidad (PFV) ────────────────────────────────────────
+// ─── 5. Perfil Fuerza-Velocidad (PFV) — Protocolo de Saltos ─────────────────
 function PFVPanel({ jugador }: { jugador: Jugador }) {
   const [sesiones, setSesiones] = useState<any[]>([])
   const [activeSesion, setActiveSesion] = useState<number | null>(null)
-  const [form, setForm] = useState({ fecha: new Date().toISOString().split('T')[0], carga_kg: '', velocidad_ms: '', notas: '' })
+  const [form, setForm] = useState({ fecha: new Date().toISOString().split('T')[0], carga_kg: '', velocidad_ms: '', altura_salto_m: '', notas: '' })
   const [saving, setSaving] = useState(false)
   const [loading, setLoading] = useState(true)
   const [newSesNombre, setNewSesNombre] = useState('')
   const [creatingSes, setCreatingSes] = useState(false)
+  const [mode, setMode] = useState<'salto'|'velocidad'>('salto')
+  const [masaKg, setMasaKg] = useState(jugador.peso_kg?.toString() || '75')
+  const [hPo, setHPo] = useState('0.40')
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -957,37 +1146,89 @@ function PFVPanel({ jugador }: { jugador: Jugador }) {
   useEffect(() => { load() }, [load])
 
   const sesActual = sesiones.find(s => s.sesion_id === activeSesion)
-  const puntos: {carga: number, vel: number}[] = sesActual?.puntos ?? []
+  const puntos: { id: number; carga: number; vel: number; altura_salto_m?: number; notas?: string }[] = sesActual?.puntos ?? []
 
-  // Calcular regresión lineal F-V
-  const fvResult = (() => {
-    if (puntos.length < 2) return null
+  const masa = Number(masaKg) || 75
+  const h_po_val = Number(hPo) || 0.4
+  const g = 9.81
+
+  const jumpData = puntos.map(p => {
+    const masaTotal = masa + p.carga
+    const h_salto = Number(p.altura_salto_m) || 0
+    if (h_salto <= 0) return { ...p, masaTotal, v_despegue: 0, aceleracion: 0, f_media: 0 }
+    const v_despegue = Math.sqrt(2 * g * h_salto)
+    const aceleracion = (v_despegue * v_despegue) / (2 * h_po_val)
+    const f_media = masaTotal * (g + aceleracion) / 2
+    return { ...p, masaTotal, v_despegue, aceleracion, f_media }
+  }).filter(d => d.v_despegue > 0)
+
+  const fvRegression = (() => {
+    if (jumpData.length < 2) return null
+    const n = jumpData.length
+    const xVals = jumpData.map(d => d.v_despegue)
+    const yVals = jumpData.map(d => d.f_media)
+    const sumX = xVals.reduce((a, b) => a + b, 0)
+    const sumY = yVals.reduce((a, b) => a + b, 0)
+    const sumXY = xVals.reduce((a, x, i) => a + x * yVals[i], 0)
+    const sumXX = xVals.reduce((a, x) => a + x * x, 0)
+    const denom = n * sumXX - sumX * sumX
+    if (Math.abs(denom) < 1e-10) return null
+    const slope = (n * sumXY - sumX * sumY) / denom
+    const intercept = (sumY - slope * sumX) / n
+    const F0 = intercept
+    const V0 = slope < 0 ? -intercept / slope : intercept > 0 ? intercept / Math.abs(slope) : 0
+    const Sfv = slope
+    const meanY = sumY / n
+    const ssRes = yVals.reduce((a, y, i) => a + Math.pow(y - (intercept + slope * xVals[i]), 2), 0)
+    const ssTot = yVals.reduce((a, y) => a + Math.pow(y - meanY, 2), 0)
+    const R2 = ssTot > 0 ? 1 - ssRes / ssTot : 0
+    const Sfv_opt = V0 > 0 ? -(masa * g) / V0 : -999
+    const balance = Sfv_opt !== 0 ? Math.round((Sfv / Sfv_opt) * 100) : 0
+    const Pmax = F0 > 0 && V0 > 0 ? (F0 * V0) / 4 : 0
+
+    let diagnostico: string, diagColor: string
+    if (balance >= 90 && balance <= 110) { diagnostico = 'PERFIL ÓPTIMO'; diagColor = '#22c55e' }
+    else if (balance < 90) { diagnostico = 'DÉFICIT DE FUERZA'; diagColor = '#ef4444' }
+    else { diagnostico = 'DÉFICIT DE VELOCIDAD'; diagColor = '#f59e0b' }
+
+    return { slope, intercept, F0, V0, Sfv, Sfv_opt, balance, Pmax, R2, diagnostico, diagColor }
+  })()
+
+  const fvSimple = (() => {
+    if (mode !== 'velocidad' || puntos.length < 2) return null
     const n = puntos.length
-    const sumF = puntos.reduce((a,p) => a + p.carga, 0)
-    const sumV = puntos.reduce((a,p) => a + p.vel, 0)
-    const sumFV = puntos.reduce((a,p) => a + p.carga * p.vel, 0)
-    const sumFF = puntos.reduce((a,p) => a + p.carga * p.carga, 0)
-    const slope = (n * sumFV - sumF * sumV) / (n * sumFF - sumF * sumF)
+    const sumF = puntos.reduce((a, p) => a + p.carga, 0)
+    const sumV = puntos.reduce((a, p) => a + p.vel, 0)
+    const sumFV = puntos.reduce((a, p) => a + p.carga * p.vel, 0)
+    const sumFF = puntos.reduce((a, p) => a + p.carga * p.carga, 0)
+    const denom = n * sumFF - sumF * sumF
+    if (Math.abs(denom) < 1e-10) return null
+    const slope = (n * sumFV - sumF * sumV) / denom
     const intercept = (sumV - slope * sumF) / n
-    // F0 = velocidad 0 → F0 = -intercept/slope
     const F0 = slope < 0 ? -intercept / slope : null
-    // V0 = fuerza 0 → V0 = intercept
     const V0 = intercept > 0 ? intercept : null
-    // Pmax = F0 * V0 / 4
     const Pmax = F0 && V0 ? (F0 * V0 / 4) : null
     return { slope, intercept, F0, V0, Pmax }
   })()
 
   const handleAddPunto = async () => {
-    if (!form.carga_kg || !form.velocidad_ms || !activeSesion) return
+    const carga = Number(form.carga_kg)
+    if (isNaN(carga) || !activeSesion) return
+    if (mode === 'salto' && !form.altura_salto_m) return
+    if (mode === 'velocidad' && !form.velocidad_ms) return
     setSaving(true)
     await fetch('/api/evaluaciones/pfv', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ jugador_id: jugador.id, sesion_id: activeSesion, fecha: form.fecha, carga_kg: Number(form.carga_kg), velocidad_ms: Number(form.velocidad_ms), notas: form.notas || null }),
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        jugador_id: jugador.id, sesion_id: activeSesion, fecha: form.fecha,
+        carga_kg: carga,
+        velocidad_ms: mode === 'velocidad' ? Number(form.velocidad_ms) : null,
+        altura_salto_m: mode === 'salto' ? Number(form.altura_salto_m) : null,
+        notas: form.notas || null,
+      }),
     })
     setSaving(false)
-    setForm(p => ({ ...p, carga_kg: '', velocidad_ms: '' }))
+    setForm(p => ({ ...p, carga_kg: '', velocidad_ms: '', altura_salto_m: '' }))
     load()
   }
 
@@ -1000,136 +1241,193 @@ function PFVPanel({ jugador }: { jugador: Jugador }) {
     if (!newSesNombre.trim()) return
     setCreatingSes(true)
     const r = await fetch('/api/evaluaciones/pfv/sesion', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ jugador_id: jugador.id, nombre: newSesNombre.trim() }),
     })
     const d = await r.json()
-    setCreatingSes(false)
-    setNewSesNombre('')
+    setCreatingSes(false); setNewSesNombre('')
     await load()
     if (d.sesion_id) setActiveSesion(d.sesion_id)
   }
 
-  // SVG chart
-  const chartW = 420, chartH = 200, pad = { t:20, r:20, b:40, l:50 }
-  const maxF = puntos.length ? Math.max(...puntos.map(p=>p.carga)) * 1.1 : 100
-  const maxV = puntos.length ? Math.max(...puntos.map(p=>p.vel)) * 1.2 : 3
-  const toX = (f: number) => pad.l + (f / maxF) * (chartW - pad.l - pad.r)
-  const toY = (v: number) => chartH - pad.b - (v / maxV) * (chartH - pad.t - pad.b)
+  const chartW = 440, chartH = 220, pad = { t: 20, r: 20, b: 40, l: 55 }
 
   return (
-    <Card title="Perfil Fuerza-Velocidad (F-V)">
-      <div style={{ background:'#1e293b', borderRadius:10, padding:'10px 14px', marginBottom:16, fontSize:12, color:'#64748b', border:'1px solid #334155', lineHeight:1.6 }}>
-        📋 <strong style={{ color:'#94a3b8' }}>Protocolo:</strong> Registrá múltiples cargas (kg) con su velocidad media propulsiva (m/s) en una sesión.
-        Se calcula automáticamente <strong style={{ color:'#a3e635' }}>F₀</strong> (fuerza teórica máxima),{' '}
-        <strong style={{ color:'#60a5fa' }}>V₀</strong> (velocidad máxima) y{' '}
-        <strong style={{ color:'#f59e0b' }}>Pmax</strong> (potencia mecánica máxima).
+    <Card title="Perfil Fuerza-Velocidad (F-V)" accent="#a3e635">
+      <div style={{ display: 'flex', gap: 6, marginBottom: 16 }}>
+        {([['salto', '🦘 Protocolo Saltos (CMJ + carga)', 'Mide alturas de salto'], ['velocidad', '🏋️ Protocolo Velocidad (VBT)', 'Mide velocidad propulsiva']] as const).map(([key, label, desc]) => (
+          <button key={key} onClick={() => setMode(key)} style={{
+            flex: 1, padding: '10px 14px', borderRadius: 10, fontSize: 12, cursor: 'pointer', textAlign: 'left',
+            border: `1px solid ${mode === key ? '#a3e635' : '#334155'}`,
+            background: mode === key ? '#a3e63514' : '#0f172a',
+            color: mode === key ? '#a3e635' : '#64748b',
+          }}>
+            <div style={{ fontWeight: 700 }}>{label}</div>
+            <div style={{ fontSize: 10, opacity: 0.7, marginTop: 2 }}>{desc}</div>
+          </button>
+        ))}
       </div>
 
-      {/* Selector de sesiones */}
-      <div style={{ marginBottom:16 }}>
-        <div style={{ fontSize:10, fontWeight:700, color:'#64748b', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:8 }}>Sesiones</div>
-        <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginBottom:10 }}>
+      <div style={{ background: '#1e293b', borderRadius: 10, padding: '10px 14px', marginBottom: 16, fontSize: 12, color: '#64748b', border: '1px solid #334155', lineHeight: 1.6 }}>
+        {mode === 'salto' ? (<>
+          📋 <strong style={{ color: '#94a3b8' }}>Protocolo Saltos:</strong> CMJ sin carga + cargas progresivas.
+          Se mide <strong style={{ color: '#06b6d4' }}>altura del salto (m)</strong>. Se calculan V_despegue, aceleración, fuerza media.
+          Pendiente <strong style={{ color: '#60a5fa' }}>real</strong> vs <strong style={{ color: '#22c55e' }}>óptima</strong> → diagnóstico de déficit.
+        </>) : (<>
+          📋 <strong style={{ color: '#94a3b8' }}>Protocolo VBT:</strong> Múltiples cargas (kg) con velocidad media propulsiva (m/s).
+          Se calcula <strong style={{ color: '#a3e635' }}>F₀</strong>, <strong style={{ color: '#60a5fa' }}>V₀</strong> y <strong style={{ color: '#f59e0b' }}>Pmax</strong>.
+        </>)}
+      </div>
+
+      {mode === 'salto' && (
+        <div style={{ display: 'grid', gridTemplateColumns: '140px 140px', gap: 10, marginBottom: 16 }}>
+          <Field label="Masa corporal" value={masaKg} onChange={v => setMasaKg(v)} unit="kg" min="40" max="150" />
+          <Field label="h_po (altura empuje)" value={hPo} onChange={v => setHPo(v)} unit="m" min="0.2" max="0.6" step="0.01" />
+        </div>
+      )}
+
+      <div style={{ marginBottom: 16 }}>
+        <div style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>Sesiones</div>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
           {sesiones.map(s => (
-            <button key={s.sesion_id} onClick={()=>setActiveSesion(s.sesion_id)} style={{
-              padding:'6px 14px', borderRadius:8, fontSize:12, fontWeight:600, cursor:'pointer', transition:'all .15s',
-              border:`1px solid ${activeSesion===s.sesion_id?'#a3e635':'#334155'}`,
-              background: activeSesion===s.sesion_id ? '#a3e63518' : '#1e293b',
-              color: activeSesion===s.sesion_id ? '#a3e635' : '#64748b',
-            }}>{s.nombre}</button>
+            <button key={s.sesion_id} onClick={() => setActiveSesion(s.sesion_id)} style={{
+              padding: '6px 14px', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer',
+              border: `1px solid ${activeSesion === s.sesion_id ? '#a3e635' : '#334155'}`,
+              background: activeSesion === s.sesion_id ? '#a3e63518' : '#1e293b',
+              color: activeSesion === s.sesion_id ? '#a3e635' : '#64748b',
+            }}>{s.nombre} <span style={{ fontSize: 10, opacity: 0.6 }}>({s.fecha?.split('T')[0]})</span></button>
           ))}
-          <div style={{ display:'flex', gap:6, alignItems:'center' }}>
-            <input value={newSesNombre} onChange={e=>setNewSesNombre(e.target.value)} placeholder="Nueva sesión..." style={{ background:'#1e293b', border:'1px solid #334155', borderRadius:8, padding:'6px 10px', fontSize:12, color:'#f1f5f9', outline:'none', width:130 }} onKeyDown={e=>e.key==='Enter'&&handleCreateSesion()} />
-            <Btn onClick={handleCreateSesion} disabled={creatingSes||!newSesNombre.trim()} small>+ Sesión</Btn>
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+            <input value={newSesNombre} onChange={e => setNewSesNombre(e.target.value)} placeholder="Nueva sesión..." style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: 8, padding: '6px 10px', fontSize: 12, color: '#f1f5f9', outline: 'none', width: 130 }} onKeyDown={e => e.key === 'Enter' && handleCreateSesion()} />
+            <Btn onClick={handleCreateSesion} disabled={creatingSes || !newSesNombre.trim()} small>+ Sesión</Btn>
           </div>
         </div>
       </div>
 
-      {activeSesion && (
-        <>
-          {/* Formulario de punto */}
-          <div style={{ display:'grid', gridTemplateColumns:'140px 140px 1fr auto', gap:10, alignItems:'end', marginBottom:20 }}>
-            <Field label="Carga (kg)" value={form.carga_kg} onChange={v=>setForm(p=>({...p,carga_kg:v}))} unit="kg" min="0" max="500" />
-            <Field label="Velocidad (m/s)" value={form.velocidad_ms} onChange={v=>setForm(p=>({...p,velocidad_ms:v}))} unit="m/s" min="0" max="5" step="0.01" />
-            <Field label="Notas" value={form.notas} onChange={v=>setForm(p=>({...p,notas:v}))} type="text" placeholder="Observaciones..." />
-            <Btn onClick={handleAddPunto} disabled={saving||!form.carga_kg||!form.velocidad_ms}>+ Punto</Btn>
-          </div>
-
-          {/* Resultados F-V */}
-          {fvResult && (
-            <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:10, marginBottom:20 }}>
-              {[
-                { label:'F₀ — Fuerza teórica máx.', value: fvResult.F0 ? `${fvResult.F0.toFixed(1)} kg` : '—', color:'#a3e635' },
-                { label:'V₀ — Velocidad teórica máx.', value: fvResult.V0 ? `${fvResult.V0.toFixed(2)} m/s` : '—', color:'#60a5fa' },
-                { label:'Pmax — Potencia mecánica', value: fvResult.Pmax ? `${fvResult.Pmax.toFixed(1)} W·kg⁻¹` : '—', color:'#f59e0b' },
-              ].map(item => (
-                <div key={item.label} style={{ background:'#1e293b', borderRadius:10, padding:'12px 16px', border:`1px solid ${item.color}33` }}>
-                  <div style={{ fontSize:10, color:'#64748b', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:6 }}>{item.label}</div>
-                  <div style={{ fontSize:22, fontWeight:800, color:item.color }}>{item.value}</div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Gráfico F-V */}
-          {puntos.length >= 2 && fvResult && (
-            <div style={{ marginBottom:20, background:'#0f172a', borderRadius:12, padding:'16px', border:'1px solid #1e293b' }}>
-              <div style={{ fontSize:10, fontWeight:700, color:'#64748b', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:12 }}>Curva F-V</div>
-              <svg viewBox={`0 0 ${chartW} ${chartH}`} style={{ width:'100%', maxWidth:chartW, display:'block' }}>
-                {/* Ejes */}
-                <line x1={pad.l} y1={pad.t} x2={pad.l} y2={chartH-pad.b} stroke="#334155" strokeWidth={1} />
-                <line x1={pad.l} y1={chartH-pad.b} x2={chartW-pad.r} y2={chartH-pad.b} stroke="#334155" strokeWidth={1} />
-                {/* Labels ejes */}
-                <text x={pad.l-8} y={chartH-pad.b+4} textAnchor="end" fontSize={9} fill="#475569">0</text>
-                <text x={chartW/2} y={chartH-4} textAnchor="middle" fontSize={9} fill="#475569">Fuerza (kg)</text>
-                <text x={12} y={chartH/2} textAnchor="middle" fontSize={9} fill="#475569" transform={`rotate(-90,12,${chartH/2})`}>Vel (m/s)</text>
-                {/* Línea de regresión */}
-                {(() => {
-                  const x1 = 0, y1 = fvResult.intercept + fvResult.slope * x1
-                  const xMax = fvResult.F0 ? Math.min(fvResult.F0, maxF) : maxF
-                  const y2 = fvResult.intercept + fvResult.slope * xMax
-                  return <line x1={toX(x1)} y1={toY(Math.max(y1,0))} x2={toX(xMax)} y2={toY(Math.max(y2,0))} stroke="#a3e635" strokeWidth={1.5} strokeDasharray="4 3" opacity={0.7} />
-                })()}
-                {/* Puntos */}
-                {puntos.map((p,i) => (
-                  <circle key={i} cx={toX(p.carga)} cy={toY(p.vel)} r={5} fill="#60a5fa" stroke="#0f172a" strokeWidth={1.5} />
-                ))}
-              </svg>
-            </div>
-          )}
-
-          {/* Tabla de puntos */}
-          {loading ? (
-            <div style={{ color:'#64748b', fontSize:13, textAlign:'center', padding:20 }}>Cargando...</div>
-          ) : puntos.length === 0 ? (
-            <div style={{ color:'#475569', fontSize:13, textAlign:'center', padding:20 }}>Sin puntos. Agregá cargas y velocidades.</div>
+      {activeSesion && (<>
+        <div style={{ display: 'grid', gridTemplateColumns: '120px 140px 1fr auto', gap: 10, alignItems: 'end', marginBottom: 20 }}>
+          <Field label="Carga adicional" value={form.carga_kg} onChange={v => setForm(p => ({ ...p, carga_kg: v }))} unit="kg" min="0" max="200" />
+          {mode === 'salto' ? (
+            <Field label="Altura salto" value={form.altura_salto_m} onChange={v => setForm(p => ({ ...p, altura_salto_m: v }))} unit="m" min="0" max="1" step="0.01" />
           ) : (
-            <table style={{ width:'100%', borderCollapse:'collapse', fontSize:13 }}>
-              <thead>
-                <tr style={{ borderBottom:'1px solid #1e293b' }}>
-                  {['Carga (kg)', 'Velocidad (m/s)', 'Notas', ''].map(h=>(
-                    <th key={h} style={{ textAlign:'left', padding:'6px 10px', color:'#64748b', fontSize:10, fontWeight:700, textTransform:'uppercase' }}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {puntos.map((p:any) => (
-                  <tr key={p.id} style={{ borderBottom:'1px solid #0f172a' }}>
-                    <td style={{ padding:'8px 10px', fontWeight:700, color:'#a3e635' }}>{p.carga} kg</td>
-                    <td style={{ padding:'8px 10px', fontWeight:700, color:'#60a5fa' }}>{p.vel} m/s</td>
-                    <td style={{ padding:'8px 10px', color:'#64748b' }}>{p.notas ?? '—'}</td>
-                    <td style={{ padding:'8px 10px' }}><Btn onClick={()=>handleDeletePunto(p.id)} variant="ghost" small>✕</Btn></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <Field label="Velocidad" value={form.velocidad_ms} onChange={v => setForm(p => ({ ...p, velocidad_ms: v }))} unit="m/s" min="0" max="5" step="0.01" />
           )}
-        </>
-      )}
+          <Field label="Notas" value={form.notas} onChange={v => setForm(p => ({ ...p, notas: v }))} type="text" placeholder="Obs..." />
+          <Btn onClick={handleAddPunto} disabled={saving || !form.carga_kg || (mode === 'salto' ? !form.altura_salto_m : !form.velocidad_ms)}>+ Punto</Btn>
+        </div>
+
+        {mode === 'salto' && fvRegression && (<>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 10, marginBottom: 16 }}>
+            {[
+              { label: 'F₀ (Fuerza máx.)', value: `${fvRegression.F0.toFixed(0)} N`, color: '#a3e635' },
+              { label: 'V₀ (Vel. máx.)', value: `${fvRegression.V0.toFixed(2)} m/s`, color: '#60a5fa' },
+              { label: 'Pmax', value: `${fvRegression.Pmax.toFixed(0)} W`, color: '#f59e0b' },
+              { label: 'Balance FV', value: `${fvRegression.balance}%`, color: fvRegression.diagColor },
+              { label: 'R²', value: fvRegression.R2.toFixed(3), color: fvRegression.R2 > 0.9 ? '#22c55e' : '#f59e0b' },
+            ].map(item => (
+              <div key={item.label} style={{ background: '#0f172a', borderRadius: 10, padding: '10px 14px', border: `1px solid ${item.color}33` }}>
+                <div style={{ fontSize: 9, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 3 }}>{item.label}</div>
+                <div style={{ fontSize: 18, fontWeight: 800, color: item.color }}>{item.value}</div>
+              </div>
+            ))}
+          </div>
+          <div style={{ background: `${fvRegression.diagColor}11`, border: `1px solid ${fvRegression.diagColor}44`, borderRadius: 10, padding: '12px 18px', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 12 }}>
+            <span style={{ fontSize: 28 }}>{fvRegression.diagnostico === 'PERFIL ÓPTIMO' ? '✅' : fvRegression.diagnostico.includes('FUERZA') ? '🏋️' : '⚡'}</span>
+            <div>
+              <div style={{ fontSize: 16, fontWeight: 800, color: fvRegression.diagColor }}>{fvRegression.diagnostico}</div>
+              <div style={{ fontSize: 11, color: '#94a3b8' }}>
+                Pendiente real: {fvRegression.Sfv.toFixed(1)} · Óptima: {fvRegression.Sfv_opt.toFixed(1)} · Balance: {fvRegression.balance}%
+              </div>
+            </div>
+          </div>
+          {jumpData.length >= 2 && (() => {
+            const maxV = Math.max(fvRegression.V0 * 1.1, ...jumpData.map(d => d.v_despegue)) || 5
+            const maxF = Math.max(fvRegression.F0 * 1.1, ...jumpData.map(d => d.f_media)) || 3000
+            const toX = (v: number) => pad.l + (v / maxV) * (chartW - pad.l - pad.r)
+            const toY = (f: number) => chartH - pad.b - (f / maxF) * (chartH - pad.t - pad.b)
+            const F0_opt = Math.abs(fvRegression.Sfv_opt * fvRegression.V0)
+            const V0_opt = F0_opt > 0 ? F0_opt / Math.abs(fvRegression.Sfv_opt) : fvRegression.V0
+            return (
+              <div style={{ marginBottom: 20, background: '#0f172a', borderRadius: 12, padding: 16, border: '1px solid #1e293b' }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: 8 }}>Gráfico F-V · Pendiente Real vs Óptima</div>
+                <svg viewBox={`0 0 ${chartW} ${chartH}`} style={{ width: '100%', maxWidth: chartW, display: 'block' }}>
+                  <line x1={pad.l} y1={pad.t} x2={pad.l} y2={chartH - pad.b} stroke="#334155" strokeWidth={1} />
+                  <line x1={pad.l} y1={chartH - pad.b} x2={chartW - pad.r} y2={chartH - pad.b} stroke="#334155" strokeWidth={1} />
+                  <text x={chartW / 2} y={chartH - 4} textAnchor="middle" fontSize={10} fill="#475569">Velocidad despegue (m/s)</text>
+                  <text x={14} y={chartH / 2} textAnchor="middle" fontSize={10} fill="#475569" transform={`rotate(-90,14,${chartH / 2})`}>Fuerza (N)</text>
+                  <line x1={toX(0)} y1={toY(Math.min(F0_opt, maxF))} x2={toX(Math.min(V0_opt, maxV))} y2={toY(0)} stroke="#22c55e" strokeWidth={2} strokeDasharray="6 4" opacity={0.8} />
+                  <line x1={toX(0)} y1={toY(fvRegression.F0)} x2={toX(fvRegression.V0)} y2={toY(0)} stroke="#60a5fa" strokeWidth={2.5} opacity={0.9} />
+                  {jumpData.map((d, i) => (
+                    <g key={i}>
+                      <circle cx={toX(d.v_despegue)} cy={toY(d.f_media)} r={6} fill="#60a5fa" stroke="#0f172a" strokeWidth={2} />
+                      <text x={toX(d.v_despegue)} y={toY(d.f_media) - 10} textAnchor="middle" fontSize={8} fill="#94a3b8">{d.carga}kg</text>
+                    </g>
+                  ))}
+                  <line x1={chartW - 150} y1={12} x2={chartW - 130} y2={12} stroke="#60a5fa" strokeWidth={2.5} />
+                  <text x={chartW - 126} y={15} fontSize={9} fill="#60a5fa">Real</text>
+                  <line x1={chartW - 150} y1={26} x2={chartW - 130} y2={26} stroke="#22c55e" strokeWidth={2} strokeDasharray="4 3" />
+                  <text x={chartW - 126} y={29} fontSize={9} fill="#22c55e">Óptima</text>
+                </svg>
+              </div>
+            )
+          })()}
+        </>)}
+
+        {mode === 'velocidad' && fvSimple && (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10, marginBottom: 20 }}>
+            {[
+              { label: 'F₀', value: fvSimple.F0 ? `${fvSimple.F0.toFixed(1)} kg` : '—', color: '#a3e635' },
+              { label: 'V₀', value: fvSimple.V0 ? `${fvSimple.V0.toFixed(2)} m/s` : '—', color: '#60a5fa' },
+              { label: 'Pmax', value: fvSimple.Pmax ? `${fvSimple.Pmax.toFixed(1)} W·kg⁻¹` : '—', color: '#f59e0b' },
+            ].map(item => (
+              <div key={item.label} style={{ background: '#1e293b', borderRadius: 10, padding: '12px 16px', border: `1px solid ${item.color}33` }}>
+                <div style={{ fontSize: 10, color: '#64748b', textTransform: 'uppercase', marginBottom: 6 }}>{item.label}</div>
+                <div style={{ fontSize: 22, fontWeight: 800, color: item.color }}>{item.value}</div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {loading ? (
+          <div style={{ color: '#64748b', fontSize: 13, textAlign: 'center', padding: 20 }}>Cargando...</div>
+        ) : puntos.length === 0 ? (
+          <div style={{ color: '#475569', fontSize: 13, textAlign: 'center', padding: 20 }}>Sin puntos. Agregá saltos o cargas.</div>
+        ) : (
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+            <thead>
+              <tr style={{ borderBottom: '1px solid #1e293b' }}>
+                {(mode === 'salto' ? ['Carga', 'Masa Total', 'Altura', 'V desp.', 'Acel.', 'F media', 'Notas', ''] : ['Carga (kg)', 'Velocidad (m/s)', 'Notas', '']).map(h => (
+                  <th key={h} style={{ textAlign: 'left', padding: '6px 8px', color: '#64748b', fontSize: 9, fontWeight: 700, textTransform: 'uppercase', whiteSpace: 'nowrap' }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {mode === 'salto' ? jumpData.map((d: any, i: number) => (
+                <tr key={d.id || i} style={{ borderBottom: '1px solid #0f172a' }}>
+                  <td style={{ padding: '7px 8px', fontWeight: 700, color: '#a3e635' }}>{d.carga} kg</td>
+                  <td style={{ padding: '7px 8px', color: '#94a3b8' }}>{d.masaTotal} kg</td>
+                  <td style={{ padding: '7px 8px', fontWeight: 700, color: '#06b6d4' }}>{(Number(d.altura_salto_m) || 0).toFixed(2)} m</td>
+                  <td style={{ padding: '7px 8px', color: '#60a5fa' }}>{d.v_despegue.toFixed(3)} m/s</td>
+                  <td style={{ padding: '7px 8px', color: '#f59e0b' }}>{d.aceleracion.toFixed(2)} m/s²</td>
+                  <td style={{ padding: '7px 8px', color: '#f97316', fontWeight: 700 }}>{d.f_media.toFixed(0)} N</td>
+                  <td style={{ padding: '7px 8px', color: '#64748b' }}>{d.notas ?? '—'}</td>
+                  <td style={{ padding: '7px 8px' }}><Btn onClick={() => handleDeletePunto(d.id)} variant="ghost" small>✕</Btn></td>
+                </tr>
+              )) : puntos.map((p: any) => (
+                <tr key={p.id} style={{ borderBottom: '1px solid #0f172a' }}>
+                  <td style={{ padding: '8px 10px', fontWeight: 700, color: '#a3e635' }}>{p.carga} kg</td>
+                  <td style={{ padding: '8px 10px', fontWeight: 700, color: '#60a5fa' }}>{p.vel} m/s</td>
+                  <td style={{ padding: '8px 10px', color: '#64748b' }}>{p.notas ?? '—'}</td>
+                  <td style={{ padding: '8px 10px' }}><Btn onClick={() => handleDeletePunto(p.id)} variant="ghost" small>✕</Btn></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </>)}
 
       {!activeSesion && !loading && (
-        <div style={{ color:'#475569', fontSize:13, textAlign:'center', padding:30 }}>Creá una sesión para comenzar.</div>
+        <div style={{ color: '#475569', fontSize: 13, textAlign: 'center', padding: 30 }}>Creá una sesión para comenzar.</div>
       )}
     </Card>
   )
@@ -1413,33 +1711,45 @@ export default function EvaluacionesPanel({ teamData }: { teamData: TeamPlayer[]
   const [selectedJugadorId, setSelectedJugadorId] = useState<number | null>(
     teamData.length > 0 ? (teamData[0].jugador_id ?? teamData[0].id ?? null) : null
   )
-  const [activeTest, setActiveTest] = useState<TestKey>('variables')
+  const [activeTest, setActiveTest] = useState<TestKey>('todos')
   const [jugadorData, setJugadorData] = useState<Jugador | null>(null)
   const [loadingJugador, setLoadingJugador] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
+  const [posFilter, setPosFilter] = useState<string>('todas')
+  const [dashData, setDashData] = useState<any>(null)
+  const [dashLoading, setDashLoading] = useState(false)
 
   const loadJugador = useCallback(async (id: number) => {
     setLoadingJugador(true)
     try {
       const r = await fetch(`/api/evaluaciones/variables?jugador_id=${id}`)
       if (!r.ok) { setJugadorData(null); setLoadingJugador(false); return }
-      const data = await r.json()
-      setJugadorData(data)
-    } catch {
-      setJugadorData(null)
-    }
+      setJugadorData(await r.json())
+    } catch { setJugadorData(null) }
     setLoadingJugador(false)
   }, [])
 
   useEffect(() => {
-    if (selectedJugadorId) loadJugador(selectedJugadorId)
-  }, [selectedJugadorId, refreshKey, loadJugador])
+    if (selectedJugadorId && activeTest !== 'todos') loadJugador(selectedJugadorId)
+  }, [selectedJugadorId, refreshKey, loadJugador, activeTest])
+
+  useEffect(() => {
+    if (activeTest !== 'todos') return
+    setDashLoading(true)
+    fetch('/api/evaluaciones/antropometria?all=true')
+      .then(r => r.ok ? r.json() : [])
+      .then(antro => setDashData({ antro }))
+      .catch(() => {})
+      .finally(() => setDashLoading(false))
+  }, [activeTest, refreshKey])
 
   const MENU: { key: TestKey; label: string; icon: string; desc: string }[] = [
-    { key: 'variables',  label: 'Variables',   icon: '📊', desc: 'Datos antropométricos' },
-    { key: 'pesajes',    label: 'Pesajes',      icon: '⚖️', desc: 'Historial vs ideal' },
-    { key: 'cmj',        label: 'CMJ',          icon: '🦘', desc: 'Salto + índice fatiga' },
-    { key: 'isometrico', label: 'Isométrico',   icon: '💪', desc: 'Asimetría bilateral' },
+    { key: 'todos',         label: 'Todos',          icon: '👥', desc: 'Dashboard equipo' },
+    { key: 'variables',     label: 'Variables',      icon: '📊', desc: 'Datos antropométricos' },
+    { key: 'antropometria', label: 'Comp. Corporal', icon: '📐', desc: 'Faulkner 4 pliegues' },
+    { key: 'pesajes',       label: 'Pesajes',        icon: '⚖️', desc: 'Historial vs ideal' },
+    { key: 'cmj',           label: 'CMJ',            icon: '🦘', desc: 'Salto + índice fatiga' },
+    { key: 'isometrico',    label: 'Isométrico',     icon: '💪', desc: 'Asimetría bilateral' },
   ]
 
   const ADVANCED: { key: TestKey; label: string; icon: string; desc: string }[] = [
@@ -1448,57 +1758,47 @@ export default function EvaluacionesPanel({ teamData }: { teamData: TeamPlayer[]
     { key: 'dsi', label: 'DSI',        icon: '🎯', desc: 'Dynamic Strength' },
   ]
 
-  if (teamData.length === 0) {
-    return (
-      <div style={{ padding: 40, textAlign: 'center', color: '#475569' }}>
-        Sin jugadores. Creá uno en "Jugadores".
-      </div>
-    )
+  const POS_GROUPS: { label: string; match: (p: string) => boolean }[] = [
+    { label: 'Porteros',        match: p => /portero|arquero/i.test(p) },
+    { label: 'Defensas',        match: p => /central|lateral|defen/i.test(p) },
+    { label: 'Mediocampistas',  match: p => /medioc|volante/i.test(p) },
+    { label: 'Extremos',        match: p => /extremo/i.test(p) },
+    { label: 'Delanteros',      match: p => /delant|centro del/i.test(p) },
+  ]
+
+  const posColor = (pos: string) => {
+    const p = (pos || '').toLowerCase()
+    if (/portero|arquero/.test(p)) return '#22c55e'
+    if (/central|lateral|defen/.test(p)) return '#3b82f6'
+    if (/medioc|volante/.test(p)) return '#a78bfa'
+    if (/extremo/.test(p)) return '#ec4899'
+    if (/delant/.test(p)) return '#ef4444'
+    return '#64748b'
   }
 
+  if (teamData.length === 0) {
+    return <div style={{ padding: 40, textAlign: 'center', color: '#475569' }}>Sin jugadores.</div>
+  }
+
+  const filteredTeam = posFilter === 'todas'
+    ? teamData
+    : teamData.filter(j => POS_GROUPS.find(g => g.label === posFilter)?.match(j.posicion || '') ?? false)
+
+  const clasificacion = (pct: number) =>
+    pct <= 10.5 ? { label: 'Élite', color: '#22c55e', icon: '🟢' }
+    : pct <= 13 ? { label: 'Aceptable', color: '#f59e0b', icon: '🟡' }
+    : { label: 'Exceso', color: '#ef4444', icon: '🔴' }
+
   return (
-    <div style={{ padding: '20px 24px', maxWidth: 1100, margin: '0 auto' }}>
-
-      {/* Header */}
+    <div style={{ padding: '20px 24px', maxWidth: 1200, margin: '0 auto' }}>
       <div style={{ marginBottom: 24 }}>
-        <h2 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: '#f1f5f9', letterSpacing: '-0.02em' }}>
-          📋 Evaluaciones & Tests
-        </h2>
-        <p style={{ margin: '4px 0 0', fontSize: 13, color: '#64748b' }}>
-          Tests físicos · Variables, Pesajes, CMJ, Isométricos, Perfil F-V, RSI, DSI
-        </p>
-      </div>
-
-      {/* Selector de jugador */}
-      <div style={{ marginBottom: 20 }}>
-        <div style={{ fontSize: 10, fontWeight: 700, color: '#64748b', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 8 }}>
-          Jugador
-        </div>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-          {teamData.map(j => (
-            <button
-              key={j.jugador_id ?? j.id}
-              onClick={() => { setSelectedJugadorId(j.jugador_id ?? j.id); setJugadorData(null) }}
-              style={{
-                padding: '7px 16px', borderRadius: 99, fontSize: 13, fontWeight: 600,
-                border: `1px solid ${selectedJugadorId === (j.jugador_id ?? j.id) ? '#a3e635' : '#1e293b'}`,
-                background: selectedJugadorId === (j.jugador_id ?? j.id) ? '#a3e63518' : '#0f172a',
-                color: selectedJugadorId === (j.jugador_id ?? j.id) ? '#a3e635' : '#64748b',
-                cursor: 'pointer', transition: 'all 0.15s',
-              }}
-            >
-              {j.nombre}
-              {j.posicion && <span style={{ marginLeft: 6, opacity: 0.6, fontSize: 11 }}>{j.posicion}</span>}
-            </button>
-          ))}
-        </div>
+        <h2 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: '#f1f5f9', letterSpacing: '-0.02em' }}>📋 Evaluaciones & Tests</h2>
+        <p style={{ margin: '4px 0 0', fontSize: 13, color: '#64748b' }}>Tests físicos · Comp. Corporal, Pesajes, CMJ, Isométricos, F-V, RSI, DSI</p>
       </div>
 
       {/* Menú de tests */}
       <div style={{ marginBottom: 20 }}>
-        <div style={{ fontSize: 10, fontWeight: 700, color: '#64748b', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 8 }}>
-          Tests disponibles
-        </div>
+        <div style={{ fontSize: 10, fontWeight: 700, color: '#64748b', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 8 }}>Tests disponibles</div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
           {MENU.map(m => (
             <button key={m.key} onClick={() => setActiveTest(m.key)} style={{
@@ -1507,7 +1807,7 @@ export default function EvaluacionesPanel({ teamData }: { teamData: TeamPlayer[]
               border: `1px solid ${activeTest === m.key ? '#a3e635' : '#1e293b'}`,
               background: activeTest === m.key ? '#a3e63514' : '#0f172a',
               color: activeTest === m.key ? '#a3e635' : '#64748b',
-              cursor: 'pointer', transition: 'all 0.15s', minWidth: 120,
+              cursor: 'pointer', transition: 'all 0.15s', minWidth: 110,
             }}>
               <span style={{ fontSize: 18, marginBottom: 2 }}>{m.icon}</span>
               <span style={{ fontWeight: 700 }}>{m.label}</span>
@@ -1515,10 +1815,7 @@ export default function EvaluacionesPanel({ teamData }: { teamData: TeamPlayer[]
             </button>
           ))}
         </div>
-
-        <div style={{ fontSize: 10, fontWeight: 700, color: '#a3e635', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 8 }}>
-          Calculadoras avanzadas
-        </div>
+        <div style={{ fontSize: 10, fontWeight: 700, color: '#a3e635', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 8 }}>Calculadoras avanzadas</div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           {ADVANCED.map(m => (
             <button key={m.key} onClick={() => setActiveTest(m.key)} style={{
@@ -1527,7 +1824,7 @@ export default function EvaluacionesPanel({ teamData }: { teamData: TeamPlayer[]
               border: `1px solid ${activeTest === m.key ? '#a3e635' : '#334155'}`,
               background: activeTest === m.key ? '#a3e63514' : '#0f172a',
               color: activeTest === m.key ? '#a3e635' : '#94a3b8',
-              cursor: 'pointer', transition: 'all 0.15s', minWidth: 120,
+              cursor: 'pointer', transition: 'all 0.15s', minWidth: 110,
             }}>
               <span style={{ fontSize: 18, marginBottom: 2 }}>{m.icon}</span>
               <span style={{ fontWeight: 700 }}>{m.label}</span>
@@ -1537,22 +1834,107 @@ export default function EvaluacionesPanel({ teamData }: { teamData: TeamPlayer[]
         </div>
       </div>
 
-      {/* Contenido dinámico */}
-      {loadingJugador ? (
-        <div style={{ color: '#64748b', fontSize: 14, textAlign: 'center', padding: 40 }}>Cargando jugador...</div>
-      ) : !jugadorData ? (
-        <div style={{ color: '#475569', fontSize: 14, textAlign: 'center', padding: 40 }}>Seleccioná un jugador.</div>
-      ) : (
-        <>
-          {activeTest === 'variables'  && <VariablesPanel  jugador={jugadorData} onRefresh={() => setRefreshKey(k => k + 1)} />}
-          {activeTest === 'pesajes'    && <PesajesPanel    jugador={jugadorData} onRefresh={() => setRefreshKey(k => k + 1)} />}
-          {activeTest === 'cmj'        && <CMJPanel        jugador={jugadorData} />}
-          {activeTest === 'isometrico' && <IsometricoPanel jugador={jugadorData} />}
-          {activeTest === 'pfv'        && <PFVPanel        jugador={jugadorData} />}
-          {activeTest === 'rsi'        && <RSIPanel        jugador={jugadorData} />}
-          {activeTest === 'dsi'        && <DSIPanel        jugador={jugadorData} />}
-        </>
+      {/* ═══════ TODOS — Dashboard ═══════ */}
+      {activeTest === 'todos' && (
+        <div>
+          <div style={{ marginBottom: 20 }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: '#64748b', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 8 }}>Filtrar por posición</div>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              <button onClick={() => setPosFilter('todas')} style={{
+                padding: '6px 16px', borderRadius: 99, fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                border: `1px solid ${posFilter === 'todas' ? '#a3e635' : '#334155'}`,
+                background: posFilter === 'todas' ? '#a3e63518' : '#0f172a',
+                color: posFilter === 'todas' ? '#a3e635' : '#64748b',
+              }}>Todos ({teamData.length})</button>
+              {POS_GROUPS.map(g => {
+                const count = teamData.filter(j => g.match(j.posicion || '')).length
+                if (count === 0) return null
+                return (
+                  <button key={g.label} onClick={() => setPosFilter(g.label)} style={{
+                    padding: '6px 16px', borderRadius: 99, fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                    border: `1px solid ${posFilter === g.label ? '#a3e635' : '#334155'}`,
+                    background: posFilter === g.label ? '#a3e63518' : '#0f172a',
+                    color: posFilter === g.label ? '#a3e635' : '#94a3b8',
+                  }}>{g.label} ({count})</button>
+                )
+              })}
+            </div>
+          </div>
+
+          {dashLoading ? (
+            <div style={{ color: '#64748b', fontSize: 14, textAlign: 'center', padding: 40 }}>Cargando datos del equipo...</div>
+          ) : (
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                <thead>
+                  <tr style={{ borderBottom: '2px solid #334155' }}>
+                    {['Jugador', 'Posición', 'Peso', '% Grasa', 'Clasif.', 'M. Magra', 'Σ4 Pliegues', 'Última medición'].map(h => (
+                      <th key={h} style={{ padding: '8px 10px', textAlign: 'left', color: '#94a3b8', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', whiteSpace: 'nowrap', letterSpacing: '0.06em' }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredTeam.map(j => {
+                    const jid = j.jugador_id ?? j.id
+                    const antro = (dashData?.antro || []).find((a: any) => a.jugador_id === jid)
+                    const pctG = antro ? Number(antro.pct_grasa) : null
+                    const cl = pctG !== null ? clasificacion(pctG) : null
+                    return (
+                      <tr key={jid} style={{ borderBottom: '1px solid #1e293b', cursor: 'pointer' }}
+                        onClick={() => { setSelectedJugadorId(jid); setActiveTest('antropometria'); setJugadorData(null) }}>
+                        <td style={{ padding: '10px 10px', color: '#f1f5f9', fontWeight: 600 }}>{j.nombre}</td>
+                        <td style={{ padding: '10px 10px' }}><span style={{ fontSize: 11, color: posColor(j.posicion || ''), fontWeight: 600 }}>{j.posicion || '—'}</span></td>
+                        <td style={{ padding: '10px 10px', color: antro ? '#f1f5f9' : '#475569' }}>{antro ? `${antro.peso_kg} kg` : '—'}</td>
+                        <td style={{ padding: '10px 10px', fontWeight: 800, fontSize: 14, color: cl?.color || '#475569' }}>{pctG !== null ? `${pctG.toFixed(1)}%` : '—'}</td>
+                        <td style={{ padding: '10px 10px' }}>{cl ? <span style={{ fontSize: 11, color: cl.color, fontWeight: 600 }}>{cl.icon} {cl.label}</span> : <span style={{ color: '#475569' }}>—</span>}</td>
+                        <td style={{ padding: '10px 10px', color: antro ? '#22c55e' : '#475569' }}>{antro ? `${Number(antro.masa_magra_kg).toFixed(1)} kg` : '—'}</td>
+                        <td style={{ padding: '10px 10px', color: antro ? '#06b6d4' : '#475569' }}>{antro ? `${antro.sum_4_pliegues} mm` : '—'}</td>
+                        <td style={{ padding: '10px 10px', color: '#64748b', fontSize: 11 }}>{antro ? (antro.fecha?.split('T')[0] ?? antro.fecha) : '—'}</td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+              {filteredTeam.length === 0 && <div style={{ color: '#475569', fontSize: 13, textAlign: 'center', padding: 30 }}>No hay jugadores en esta posición.</div>}
+            </div>
+          )}
+        </div>
       )}
+
+      {/* ═══════ Individual player view ═══════ */}
+      {activeTest !== 'todos' && (<>
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ fontSize: 10, fontWeight: 700, color: '#64748b', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 8 }}>Jugador</div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            {teamData.map(j => (
+              <button key={j.jugador_id ?? j.id} onClick={() => { setSelectedJugadorId(j.jugador_id ?? j.id); setJugadorData(null) }} style={{
+                padding: '7px 16px', borderRadius: 99, fontSize: 13, fontWeight: 600,
+                border: `1px solid ${selectedJugadorId === (j.jugador_id ?? j.id) ? '#a3e635' : '#1e293b'}`,
+                background: selectedJugadorId === (j.jugador_id ?? j.id) ? '#a3e63518' : '#0f172a',
+                color: selectedJugadorId === (j.jugador_id ?? j.id) ? '#a3e635' : '#64748b',
+                cursor: 'pointer', transition: 'all 0.15s',
+              }}>{j.nombre}{j.posicion && <span style={{ marginLeft: 6, opacity: 0.6, fontSize: 11 }}>{j.posicion}</span>}</button>
+            ))}
+          </div>
+        </div>
+
+        {loadingJugador ? (
+          <div style={{ color: '#64748b', fontSize: 14, textAlign: 'center', padding: 40 }}>Cargando jugador...</div>
+        ) : !jugadorData ? (
+          <div style={{ color: '#475569', fontSize: 14, textAlign: 'center', padding: 40 }}>Seleccioná un jugador.</div>
+        ) : (
+          <>
+            {activeTest === 'variables'     && <VariablesPanel     jugador={jugadorData} onRefresh={() => setRefreshKey(k => k + 1)} />}
+            {activeTest === 'antropometria'  && <AntropometriaPanel jugador={jugadorData} />}
+            {activeTest === 'pesajes'        && <PesajesPanel       jugador={jugadorData} onRefresh={() => setRefreshKey(k => k + 1)} />}
+            {activeTest === 'cmj'            && <CMJPanel           jugador={jugadorData} />}
+            {activeTest === 'isometrico'     && <IsometricoPanel    jugador={jugadorData} />}
+            {activeTest === 'pfv'            && <PFVPanel           jugador={jugadorData} />}
+            {activeTest === 'rsi'            && <RSIPanel           jugador={jugadorData} />}
+            {activeTest === 'dsi'            && <DSIPanel           jugador={jugadorData} />}
+          </>
+        )}
+      </>)}
     </div>
   )
 }

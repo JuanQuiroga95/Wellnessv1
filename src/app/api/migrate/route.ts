@@ -195,6 +195,77 @@ export async function POST(req: NextRequest) {
     [`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS last_login TIMESTAMPTZ`, 'usuarios.last_login'],
     [`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS login_count INTEGER NOT NULL DEFAULT 0`, 'usuarios.login_count'],
     [`CREATE INDEX IF NOT EXISTS idx_sesiones_plan_club_fecha ON sesiones_plan(club_id, fecha)`, 'idx_sesiones_plan_club_fecha'],
+    // ── Antropometría (Composición Corporal - Faulkner) ───────────────────
+    [`CREATE TABLE IF NOT EXISTS antropometria (
+      id SERIAL PRIMARY KEY,
+      jugador_id INTEGER NOT NULL REFERENCES jugadores(id) ON DELETE CASCADE,
+      club_id INTEGER,
+      fecha DATE NOT NULL DEFAULT CURRENT_DATE,
+      peso_kg NUMERIC(5,1) NOT NULL,
+      altura_cm NUMERIC(5,1),
+      pliegue_triceps NUMERIC(5,1) NOT NULL,
+      pliegue_subescapular NUMERIC(5,1) NOT NULL,
+      pliegue_suprailiaco NUMERIC(5,1) NOT NULL,
+      pliegue_abdominal NUMERIC(5,1) NOT NULL,
+      sum_4_pliegues NUMERIC(6,1) GENERATED ALWAYS AS (pliegue_triceps + pliegue_subescapular + pliegue_suprailiaco + pliegue_abdominal) STORED,
+      pct_grasa NUMERIC(5,2),
+      masa_grasa_kg NUMERIC(5,2),
+      masa_magra_kg NUMERIC(5,2),
+      notas TEXT,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )`, 'antropometria table'],
+    [`CREATE INDEX IF NOT EXISTS idx_antropometria_jugador ON antropometria(jugador_id, fecha DESC)`, 'antropometria index'],
+    [`CREATE INDEX IF NOT EXISTS idx_antropometria_club ON antropometria(club_id, fecha DESC)`, 'antropometria index club'],
+    // ── PFV (Perfil Fuerza-Velocidad) ────────────────────────────────────
+    [`CREATE TABLE IF NOT EXISTS pfv_sesiones (
+      id SERIAL PRIMARY KEY,
+      jugador_id INTEGER NOT NULL REFERENCES jugadores(id) ON DELETE CASCADE,
+      club_id INTEGER,
+      nombre VARCHAR(100) NOT NULL,
+      fecha DATE NOT NULL DEFAULT CURRENT_DATE,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )`, 'pfv_sesiones table'],
+    [`CREATE TABLE IF NOT EXISTS pfv_puntos (
+      id SERIAL PRIMARY KEY,
+      sesion_id INTEGER NOT NULL REFERENCES pfv_sesiones(id) ON DELETE CASCADE,
+      jugador_id INTEGER NOT NULL REFERENCES jugadores(id) ON DELETE CASCADE,
+      fecha DATE,
+      carga_kg NUMERIC(6,2) NOT NULL,
+      velocidad_ms NUMERIC(6,4),
+      altura_salto_m NUMERIC(5,4),
+      notas TEXT,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )`, 'pfv_puntos table'],
+    [`ALTER TABLE pfv_puntos ADD COLUMN IF NOT EXISTS altura_salto_m NUMERIC(5,4)`, 'pfv_puntos.altura_salto_m'],
+    [`ALTER TABLE pfv_sesiones ADD COLUMN IF NOT EXISTS h_po NUMERIC(5,4)`, 'pfv_sesiones.h_po'],
+    [`ALTER TABLE pfv_sesiones ADD COLUMN IF NOT EXISTS masa_kg NUMERIC(5,1)`, 'pfv_sesiones.masa_kg'],
+    // ── RSI (Reactive Strength Index) ────────────────────────────────────
+    [`CREATE TABLE IF NOT EXISTS rsi_tests (
+      id SERIAL PRIMARY KEY,
+      jugador_id INTEGER NOT NULL REFERENCES jugadores(id) ON DELETE CASCADE,
+      club_id INTEGER,
+      fecha DATE NOT NULL DEFAULT CURRENT_DATE,
+      altura_cm NUMERIC(6,2) NOT NULL,
+      contacto_ms NUMERIC(6,2) NOT NULL,
+      rsi NUMERIC(5,3) GENERATED ALWAYS AS (ROUND(altura_cm / NULLIF(contacto_ms, 0), 3)) STORED,
+      es_baseline BOOLEAN DEFAULT FALSE,
+      notas TEXT,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )`, 'rsi_tests table'],
+    // ── DSI (Dynamic Strength Index) ─────────────────────────────────────
+    [`CREATE TABLE IF NOT EXISTS dsi_tests (
+      id SERIAL PRIMARY KEY,
+      jugador_id INTEGER NOT NULL REFERENCES jugadores(id) ON DELETE CASCADE,
+      club_id INTEGER,
+      fecha DATE NOT NULL DEFAULT CURRENT_DATE,
+      fuerza_balistico_n NUMERIC(8,2) NOT NULL,
+      fuerza_isometrico_n NUMERIC(8,2) NOT NULL,
+      dsi NUMERIC(5,3) GENERATED ALWAYS AS (ROUND(fuerza_balistico_n / NULLIF(fuerza_isometrico_n, 0), 3)) STORED,
+      notas TEXT,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )`, 'dsi_tests table'],
+    // ── Jugadores: h_po para PFV ─────────────────────────────────────────
+    [`ALTER TABLE jugadores ADD COLUMN IF NOT EXISTS h_po NUMERIC(5,4)`, 'jugadores.h_po'],
   ]
   for (const [sql_str, label] of extra_migrations) {
     try {
