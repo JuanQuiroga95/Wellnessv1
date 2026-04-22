@@ -1158,7 +1158,7 @@ function PFVPanel({ jugador }: { jugador: Jugador }) {
     if (h_salto <= 0) return { ...p, masaTotal, v_despegue: 0, aceleracion: 0, f_media: 0 }
     const v_despegue = Math.sqrt(2 * g * h_salto)
     const aceleracion = (v_despegue * v_despegue) / (2 * h_po_val)
-    const f_media = masaTotal * (g + aceleracion) / 2
+    const f_media = masaTotal * (g + aceleracion)
     return { ...p, masaTotal, v_despegue, aceleracion, f_media }
   }).filter(d => d.v_despegue > 0)
 
