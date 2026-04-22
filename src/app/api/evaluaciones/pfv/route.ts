@@ -9,21 +9,26 @@ export async function GET(req: NextRequest) {
   const jugadorId = Number(req.nextUrl.searchParams.get('jugador_id'))
   if (!jugadorId) return NextResponse.json({ error: 'jugador_id requerido' }, { status: 400 })
   const sql = getDb()
-  const sesiones = await sql`
-    SELECT ps.* FROM pfv_sesiones ps
-    WHERE ps.jugador_id = ${jugadorId}
-      AND (${s.clubId ? Number(s.clubId) : null}::int IS NULL OR ps.club_id = ${s.clubId ? Number(s.clubId) : null})
-    ORDER BY ps.fecha DESC, ps.id DESC`
-  const result = await Promise.all(sesiones.map(async (ses: any) => {
-    const puntos = await sql`SELECT * FROM pfv_puntos WHERE sesion_id = ${ses.id} ORDER BY carga_kg ASC`
-    return {
-      sesion_id: ses.id,
-      nombre: ses.nombre,
-      fecha: ses.fecha,
-      puntos: puntos.map((p: any) => ({ id: p.id, carga: Number(p.carga_kg), vel: Number(p.velocidad_ms), altura_salto_m: p.altura_salto_m ? Number(p.altura_salto_m) : null, notas: p.notas })),
-    }
-  }))
-  return NextResponse.json(result)
+  try {
+    const sesiones = await sql`
+      SELECT ps.* FROM pfv_sesiones ps
+      WHERE ps.jugador_id = ${jugadorId}
+        AND (${s.clubId ? Number(s.clubId) : null}::int IS NULL OR ps.club_id = ${s.clubId ? Number(s.clubId) : null})
+      ORDER BY ps.fecha DESC, ps.id DESC`
+    const result = await Promise.all(sesiones.map(async (ses: any) => {
+      const puntos = await sql`SELECT * FROM pfv_puntos WHERE sesion_id = ${ses.id} ORDER BY carga_kg ASC`
+      return {
+        sesion_id: ses.id,
+        nombre: ses.nombre,
+        fecha: ses.fecha,
+        puntos: puntos.map((p: any) => ({ id: p.id, carga: Number(p.carga_kg), vel: Number(p.velocidad_ms), altura_salto_m: p.altura_salto_m ? Number(p.altura_salto_m) : null, notas: p.notas })),
+      }
+    }))
+    return NextResponse.json(result)
+  } catch (e: any) {
+    if (String(e).includes('does not exist')) return NextResponse.json([])
+    return NextResponse.json({ error: String(e).slice(0, 200) }, { status: 500 })
+  }
 }
 
 export async function POST(req: NextRequest) {
@@ -39,8 +44,18 @@ export async function POST(req: NextRequest) {
     const owns = await sql`SELECT 1 FROM pfv_sesiones WHERE id = ${sesion_id} AND club_id = ${s.clubId} LIMIT 1`
     if (!owns.length) return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
   }
-  await sql`INSERT INTO pfv_puntos (sesion_id, jugador_id, fecha, carga_kg, velocidad_ms, altura_salto_m, notas)
-    VALUES (${sesion_id}, ${jugador_id}, ${fecha}, ${carga_kg}, ${velocidad_ms ?? null}, ${altura_salto_m ?? null}, ${notas ?? null})`
+  try {
+    await sql`INSERT INTO pfv_puntos (sesion_id, jugador_id, fecha, carga_kg, velocidad_ms, altura_salto_m, notas)
+      VALUES (${sesion_id}, ${jugador_id}, ${fecha}, ${carga_kg}, ${velocidad_ms ?? null}, ${altura_salto_m ?? null}, ${notas ?? null})`
+  } catch (e: any) {
+    // If altura_salto_m column doesn't exist yet, try without it
+    if (String(e).includes('altura_salto_m')) {
+      await sql`INSERT INTO pfv_puntos (sesion_id, jugador_id, fecha, carga_kg, velocidad_ms, notas)
+        VALUES (${sesion_id}, ${jugador_id}, ${fecha}, ${carga_kg}, ${velocidad_ms ?? null}, ${notas ?? null})`
+    } else {
+      return NextResponse.json({ error: String(e).slice(0, 200) }, { status: 500 })
+    }
+  }
   return NextResponse.json({ ok: true })
 }
 

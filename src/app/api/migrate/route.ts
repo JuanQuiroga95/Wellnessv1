@@ -207,7 +207,7 @@ export async function POST(req: NextRequest) {
       pliegue_subescapular NUMERIC(5,1) NOT NULL,
       pliegue_suprailiaco NUMERIC(5,1) NOT NULL,
       pliegue_abdominal NUMERIC(5,1) NOT NULL,
-      sum_4_pliegues NUMERIC(6,1) GENERATED ALWAYS AS (pliegue_triceps + pliegue_subescapular + pliegue_suprailiaco + pliegue_abdominal) STORED,
+      sum_4_pliegues NUMERIC(6,1),
       pct_grasa NUMERIC(5,2),
       masa_grasa_kg NUMERIC(5,2),
       masa_magra_kg NUMERIC(5,2),
@@ -247,7 +247,7 @@ export async function POST(req: NextRequest) {
       fecha DATE NOT NULL DEFAULT CURRENT_DATE,
       altura_cm NUMERIC(6,2) NOT NULL,
       contacto_ms NUMERIC(6,2) NOT NULL,
-      rsi NUMERIC(5,3) GENERATED ALWAYS AS (ROUND(altura_cm / NULLIF(contacto_ms, 0), 3)) STORED,
+      rsi NUMERIC(5,3),
       es_baseline BOOLEAN DEFAULT FALSE,
       notas TEXT,
       created_at TIMESTAMPTZ DEFAULT NOW()
@@ -260,7 +260,7 @@ export async function POST(req: NextRequest) {
       fecha DATE NOT NULL DEFAULT CURRENT_DATE,
       fuerza_balistico_n NUMERIC(8,2) NOT NULL,
       fuerza_isometrico_n NUMERIC(8,2) NOT NULL,
-      dsi NUMERIC(5,3) GENERATED ALWAYS AS (ROUND(fuerza_balistico_n / NULLIF(fuerza_isometrico_n, 0), 3)) STORED,
+      dsi NUMERIC(5,3),
       notas TEXT,
       created_at TIMESTAMPTZ DEFAULT NOW()
     )`, 'dsi_tests table'],
