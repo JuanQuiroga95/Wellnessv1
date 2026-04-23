@@ -1117,7 +1117,8 @@ function IsometricoChart({ historial, grupo }: { historial: any[]; grupo: string
   )
 }
 
-// ─── 5. Perfil Fuerza-Velocidad (PFV) — Protocolo de Saltos ─────────────────
+
+// ─── 5. Perfil Fuerza-Velocidad (PFV) — Samozino ────────────────────────────
 function PFVPanel({ jugador }: { jugador: Jugador }) {
   const [sesiones, setSesiones] = useState<any[]>([])
   const [activeSesion, setActiveSesion] = useState<number | null>(null)
@@ -1128,7 +1129,12 @@ function PFVPanel({ jugador }: { jugador: Jugador }) {
   const [creatingSes, setCreatingSes] = useState(false)
   const [mode, setMode] = useState<'salto'|'velocidad'>('salto')
   const [masaKg, setMasaKg] = useState(jugador.peso_kg?.toString() || '75')
-  const [hPo, setHPo] = useState('0.40')
+  const [lowerLimb, setLowerLimb] = useState('0.80')
+  const [initialHi, setInitialHi] = useState('0.40')
+  const [deletingSes, setDeletingSes] = useState(false)
+
+  // h_po auto-calculated from lower limb length - initial height
+  const hPoCalc = Math.max(0.1, (Number(lowerLimb) || 0.8) - (Number(initialHi) || 0.4))
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -1149,23 +1155,21 @@ function PFVPanel({ jugador }: { jugador: Jugador }) {
   const puntos: { id: number; carga: number; vel: number; altura_salto_m?: number; notas?: string }[] = sesActual?.puntos ?? []
 
   const masa = Number(masaKg) || 75
-  const h_po_val = Number(hPo) || 0.4
+  const h_po_val = hPoCalc
   const g = 9.81
+
+  const cbrt = (x: number) => x >= 0 ? Math.pow(x, 1/3) : -Math.pow(-x, 1/3)
 
   const jumpData = puntos.map(p => {
     const masaTotal = masa + p.carga
     const h_salto = Number(p.altura_salto_m) || 0
-    if (h_salto <= 0) return { ...p, masaTotal, v_mean: 0, f_media: 0 }
-    // Samozino formulas:
-    // F = masaTotal * g * (h_salto/h_po + 1)
-    // V = sqrt(g * h_salto / 2)  (mean velocity during push-off)
+    if (h_salto <= 0) return { ...p, masaTotal, v_mean: 0, f_media: 0, f_rel: 0, p_watt: 0 }
     const f_media = masaTotal * g * (h_salto / h_po_val + 1)
     const v_mean = Math.sqrt(g * h_salto / 2)
-    return { ...p, masaTotal, v_mean, f_media }
+    const f_rel = f_media / masa
+    const p_watt = f_media * v_mean
+    return { ...p, masaTotal, v_mean, f_media, f_rel, p_watt }
   }).filter(d => d.v_mean > 0)
-
-  // Samozino cubic formula for Sfv_opt (optimal F-V slope)
-  const cbrt = (x: number) => x >= 0 ? Math.pow(x, 1/3) : -Math.pow(-x, 1/3)
 
   const fvRegression = (() => {
     if (jumpData.length < 2) return null
@@ -1181,7 +1185,7 @@ function PFVPanel({ jugador }: { jugador: Jugador }) {
     const slope = (n * sumXY - sumX * sumY) / denom
     const intercept = (sumY - slope * sumX) / n
     const F0 = intercept
-    const V0 = slope < 0 ? -intercept / slope : intercept > 0 ? intercept / Math.abs(slope) : 0
+    const V0 = slope < 0 ? -intercept / slope : 0
     const Sfv = slope
     const Pmax = F0 > 0 && V0 > 0 ? (F0 * V0) / 4 : 0
     const meanY = sumY / n
@@ -1189,10 +1193,12 @@ function PFVPanel({ jugador }: { jugador: Jugador }) {
     const ssTot = yVals.reduce((a, y) => a + Math.pow(y - meanY, 2), 0)
     const R2 = ssTot > 0 ? 1 - ssRes / ssTot : 0
 
-    // Sfv_opt: Samozino et al. 2012 cubic solution for vertical jump (alpha=90°)
+    const F0_rel = F0 / masa
     const Sfv_rel = Sfv / masa
     const Pmax_rel = Pmax / masa
-    const g_eff = g // g * sin(90°)
+
+    // Sfv_opt: Samozino cubic (alpha=90° vertical jump)
+    const g_eff = g
     const hp = h_po_val
     let Sfv_opt_rel = -999
     let balance = 0
@@ -1214,13 +1220,24 @@ function PFVPanel({ jugador }: { jugador: Jugador }) {
       balance = Sfv_opt_rel !== 0 ? Math.round((Sfv_rel / Sfv_opt_rel) * 100) : 0
     }
 
-    let diagnostico: string, diagColor: string
-    if (balance >= 90 && balance <= 110) { diagnostico = 'PERFIL ÓPTIMO'; diagColor = '#22c55e' }
-    else if (balance < 100) { diagnostico = 'DÉFICIT DE FUERZA'; diagColor = '#ef4444' }
-    else { diagnostico = 'DÉFICIT DE VELOCIDAD'; diagColor = '#f59e0b' }
+    // Optimal line endpoints (in F/kg vs V space)
+    // F0_opt and V0_opt for the optimal slope line that passes through same Pmax
+    const F0_opt_rel = Sfv_opt_rel !== -999 ? 2 * Math.sqrt(-Pmax_rel * Sfv_opt_rel) : F0_rel
+    const V0_opt = Sfv_opt_rel !== -999 && Sfv_opt_rel !== 0 ? 4 * Pmax_rel / F0_opt_rel : V0
 
-    const Sfv_opt = Sfv_opt_rel * masa
-    return { slope, intercept, F0, V0, Sfv, Sfv_opt, Sfv_opt_rel, balance, Pmax, R2, diagnostico, diagColor }
+    let diagnostico: string, diagColor: string, category: string
+    if (balance < 60) { diagnostico = 'ALTO DÉFICIT DE FUERZA'; diagColor = '#f59e0b'; category = 'Fuerza máxima' }
+    else if (balance < 90) { diagnostico = 'DÉFICIT DE FUERZA'; diagColor = '#f59e0b'; category = 'Trabajo mixto fuerza' }
+    else if (balance <= 110) { diagnostico = 'PERFIL ÓPTIMO'; diagColor = '#22c55e'; category = 'Mantener programa' }
+    else if (balance <= 140) { diagnostico = 'DÉFICIT DE VELOCIDAD'; diagColor = '#ef4444'; category = 'Fuerza-velocidad, potencia' }
+    else { diagnostico = 'ALTO DÉFICIT DE VELOCIDAD'; diagColor = '#ef4444'; category = 'Trabajo balístico y VBT' }
+
+    return {
+      F0, V0, Sfv, Pmax, R2,
+      F0_rel, Sfv_rel, Pmax_rel,
+      Sfv_opt_rel, F0_opt_rel, V0_opt,
+      balance, diagnostico, diagColor, category,
+    }
   })()
 
   const fvSimple = (() => {
@@ -1279,7 +1296,17 @@ function PFVPanel({ jugador }: { jugador: Jugador }) {
     if (d.sesion_id) setActiveSesion(d.sesion_id)
   }
 
-  const chartW = 440, chartH = 220, pad = { t: 20, r: 20, b: 40, l: 55 }
+  const handleDeleteSesion = async (sesId: number) => {
+    if (!confirm('¿Eliminar esta sesión y todos sus puntos?')) return
+    setDeletingSes(true)
+    await fetch(`/api/evaluaciones/pfv/sesion?id=${sesId}`, { method: 'DELETE' })
+    if (activeSesion === sesId) setActiveSesion(null)
+    await load()
+    setDeletingSes(false)
+  }
+
+  // Chart dimensions
+  const chartW = 460, chartH = 260, pad = { t: 25, r: 25, b: 45, l: 55 }
 
   return (
     <Card title="Perfil Fuerza-Velocidad (F-V)" accent="#a3e635">
@@ -1297,21 +1324,15 @@ function PFVPanel({ jugador }: { jugador: Jugador }) {
         ))}
       </div>
 
-      <div style={{ background: '#1e293b', borderRadius: 10, padding: '10px 14px', marginBottom: 16, fontSize: 12, color: '#64748b', border: '1px solid #334155', lineHeight: 1.6 }}>
-        {mode === 'salto' ? (<>
-          📋 <strong style={{ color: '#94a3b8' }}>Protocolo Saltos:</strong> CMJ sin carga + cargas progresivas.
-          Se mide <strong style={{ color: '#06b6d4' }}>altura del salto (m)</strong>. Se calculan V_despegue, aceleración, fuerza media.
-          Pendiente <strong style={{ color: '#60a5fa' }}>real</strong> vs <strong style={{ color: '#22c55e' }}>óptima</strong> → diagnóstico de déficit.
-        </>) : (<>
-          📋 <strong style={{ color: '#94a3b8' }}>Protocolo VBT:</strong> Múltiples cargas (kg) con velocidad media propulsiva (m/s).
-          Se calcula <strong style={{ color: '#a3e635' }}>F₀</strong>, <strong style={{ color: '#60a5fa' }}>V₀</strong> y <strong style={{ color: '#f59e0b' }}>Pmax</strong>.
-        </>)}
-      </div>
-
       {mode === 'salto' && (
-        <div style={{ display: 'grid', gridTemplateColumns: '140px 140px', gap: 10, marginBottom: 16 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 10, marginBottom: 16 }}>
           <Field label="Masa corporal" value={masaKg} onChange={v => setMasaKg(v)} unit="kg" min="40" max="150" />
-          <Field label="h_po (altura empuje)" value={hPo} onChange={v => setHPo(v)} unit="m" min="0.2" max="0.6" step="0.01" />
+          <Field label="Lower limb length" value={lowerLimb} onChange={v => setLowerLimb(v)} unit="m" min="0.5" max="1.2" step="0.01" />
+          <Field label="Initial height (Hi)" value={initialHi} onChange={v => setInitialHi(v)} unit="m" min="0.2" max="0.8" step="0.01" />
+          <div>
+            <div style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>h_po (auto)</div>
+            <div style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: 8, padding: '8px 12px', fontSize: 14, color: '#06b6d4', fontWeight: 800 }}>{hPoCalc.toFixed(2)} m</div>
+          </div>
         </div>
       )}
 
@@ -1319,12 +1340,19 @@ function PFVPanel({ jugador }: { jugador: Jugador }) {
         <div style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>Sesiones</div>
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
           {sesiones.map(s => (
-            <button key={s.sesion_id} onClick={() => setActiveSesion(s.sesion_id)} style={{
-              padding: '6px 14px', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer',
-              border: `1px solid ${activeSesion === s.sesion_id ? '#a3e635' : '#334155'}`,
-              background: activeSesion === s.sesion_id ? '#a3e63518' : '#1e293b',
-              color: activeSesion === s.sesion_id ? '#a3e635' : '#64748b',
-            }}>{s.nombre} <span style={{ fontSize: 10, opacity: 0.6 }}>({s.fecha?.split('T')[0]})</span></button>
+            <div key={s.sesion_id} style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <button onClick={() => setActiveSesion(s.sesion_id)} style={{
+                padding: '6px 14px', borderRadius: '8px 0 0 8px', fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                border: `1px solid ${activeSesion === s.sesion_id ? '#a3e635' : '#334155'}`,
+                background: activeSesion === s.sesion_id ? '#a3e63518' : '#1e293b',
+                color: activeSesion === s.sesion_id ? '#a3e635' : '#64748b',
+              }}>{s.nombre} <span style={{ fontSize: 10, opacity: 0.6 }}>({s.fecha?.split('T')[0]})</span></button>
+              <button onClick={() => handleDeleteSesion(s.sesion_id)} disabled={deletingSes} style={{
+                padding: '6px 8px', borderRadius: '0 8px 8px 0', fontSize: 11, cursor: 'pointer',
+                border: `1px solid ${activeSesion === s.sesion_id ? '#a3e635' : '#334155'}`,
+                borderLeft: 'none', background: '#1e293b', color: '#ef4444',
+              }} title="Eliminar sesión">✕</button>
+            </div>
           ))}
           <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
             <input value={newSesNombre} onChange={e => setNewSesNombre(e.target.value)} placeholder="Nueva sesión..." style={{ background: '#1e293b', border: '1px solid #334155', borderRadius: 8, padding: '6px 10px', fontSize: 12, color: '#f1f5f9', outline: 'none', width: 130 }} onKeyDown={e => e.key === 'Enter' && handleCreateSesion()} />
@@ -1337,7 +1365,7 @@ function PFVPanel({ jugador }: { jugador: Jugador }) {
         <div style={{ display: 'grid', gridTemplateColumns: '120px 140px 1fr auto', gap: 10, alignItems: 'end', marginBottom: 20 }}>
           <Field label="Carga adicional" value={form.carga_kg} onChange={v => setForm(p => ({ ...p, carga_kg: v }))} unit="kg" min="0" max="200" />
           {mode === 'salto' ? (
-            <Field label="Altura salto" value={form.altura_salto_m} onChange={v => setForm(p => ({ ...p, altura_salto_m: v }))} unit="m" min="0" max="1" step="0.01" />
+            <Field label="Altura salto" value={form.altura_salto_m} onChange={v => setForm(p => ({ ...p, altura_salto_m: v }))} unit="m" min="0" max="1" step="0.001" />
           ) : (
             <Field label="Velocidad" value={form.velocidad_ms} onChange={v => setForm(p => ({ ...p, velocidad_ms: v }))} unit="m/s" min="0" max="5" step="0.01" />
           )}
@@ -1345,14 +1373,15 @@ function PFVPanel({ jugador }: { jugador: Jugador }) {
           <Btn onClick={handleAddPunto} disabled={saving || !form.carga_kg || (mode === 'salto' ? !form.altura_salto_m : !form.velocidad_ms)}>+ Punto</Btn>
         </div>
 
+        {/* ── Results cards (jump mode) ── */}
         {mode === 'salto' && fvRegression && (<>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 10, marginBottom: 16 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: 10, marginBottom: 16 }}>
             {[
-              { label: 'F₀ (Fuerza máx.)', value: `${fvRegression.F0.toFixed(0)} N`, color: '#a3e635' },
-              { label: 'V₀ (Vel. máx.)', value: `${fvRegression.V0.toFixed(2)} m/s`, color: '#60a5fa' },
-              { label: 'Pmax', value: `${fvRegression.Pmax.toFixed(0)} W`, color: '#f59e0b' },
+              { label: 'F₀ (N/kg)', value: `${fvRegression.F0_rel.toFixed(1)}`, color: '#22c55e' },
+              { label: 'V₀ (m/s)', value: `${fvRegression.V0.toFixed(2)}`, color: '#ef4444' },
+              { label: 'Pmax (W/kg)', value: `${fvRegression.Pmax_rel.toFixed(1)}`, color: '#3b82f6' },
               { label: 'Balance FV', value: `${fvRegression.balance}%`, color: fvRegression.diagColor },
-              { label: 'R²', value: fvRegression.R2.toFixed(3), color: fvRegression.R2 > 0.9 ? '#22c55e' : '#f59e0b' },
+              { label: 'R²', value: fvRegression.R2.toFixed(3), color: '#f1f5f9' },
             ].map(item => (
               <div key={item.label} style={{ background: '#0f172a', borderRadius: 10, padding: '10px 14px', border: `1px solid ${item.color}33` }}>
                 <div style={{ fontSize: 9, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 3 }}>{item.label}</div>
@@ -1360,54 +1389,122 @@ function PFVPanel({ jugador }: { jugador: Jugador }) {
               </div>
             ))}
           </div>
-          <div style={{ background: `${fvRegression.diagColor}11`, border: `1px solid ${fvRegression.diagColor}44`, borderRadius: 10, padding: '12px 18px', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 12 }}>
-            <span style={{ fontSize: 28 }}>{fvRegression.diagnostico === 'PERFIL ÓPTIMO' ? '✅' : fvRegression.diagnostico.includes('FUERZA') ? '🏋️' : '⚡'}</span>
+
+          {/* Diagnostic banner */}
+          <div style={{
+            background: `${fvRegression.diagColor}11`, border: `1px solid ${fvRegression.diagColor}44`,
+            borderRadius: 10, padding: '12px 18px', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 12,
+          }}>
+            <span style={{ fontSize: 28 }}>{fvRegression.balance >= 90 && fvRegression.balance <= 110 ? '✅' : fvRegression.balance < 90 ? '🏋️' : '⚡'}</span>
             <div>
               <div style={{ fontSize: 16, fontWeight: 800, color: fvRegression.diagColor }}>{fvRegression.diagnostico}</div>
               <div style={{ fontSize: 11, color: '#94a3b8' }}>
-                Sfv: {(fvRegression.Sfv / masa).toFixed(2)} N·s/m/kg · Sfv_opt: {(fvRegression.Sfv_opt_rel ?? 0).toFixed(2)} N·s/m/kg · Balance: {fvRegression.balance}%
+                Sfv: {fvRegression.Sfv_rel.toFixed(2)} N·s/m/kg · Sfv_opt: {fvRegression.Sfv_opt_rel.toFixed(2)} N·s/m/kg · Foco: {fvRegression.category}
               </div>
             </div>
           </div>
+
+          {/* Interpretation table */}
+          <div style={{ marginBottom: 16, background: '#0f172a', borderRadius: 10, border: '1px solid #1e293b', overflow: 'hidden' }}>
+            <div style={{ padding: '8px 14px', fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', borderBottom: '1px solid #1e293b' }}>Guía de interpretación</div>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
+              <tbody>
+                {[
+                  { range: '< 60%', cat: 'Alto déficit fuerza', focus: 'Fuerza máxima', color: '#f59e0b' },
+                  { range: '60 – 89%', cat: 'Déficit de fuerza', focus: 'Trabajo mixto fuerza', color: '#f59e0b' },
+                  { range: '90 – 110%', cat: 'Bien balanceado', focus: 'Mantener programa', color: '#22c55e' },
+                  { range: '111 – 140%', cat: 'Déficit de velocidad', focus: 'Fuerza-velocidad, potencia', color: '#ef4444' },
+                  { range: '> 140%', cat: 'Alto déficit velocidad', focus: 'Trabajo balístico y VBT', color: '#ef4444' },
+                ].map(r => (
+                  <tr key={r.range} style={{ borderBottom: '1px solid #1e293b', background: fvRegression.balance >= (r.range === '< 60%' ? 0 : r.range === '60 – 89%' ? 60 : r.range === '90 – 110%' ? 90 : r.range === '111 – 140%' ? 111 : 141) && fvRegression.balance <= (r.range === '< 60%' ? 59 : r.range === '60 – 89%' ? 89 : r.range === '90 – 110%' ? 110 : r.range === '111 – 140%' ? 140 : 999) ? `${r.color}18` : 'transparent' }}>
+                    <td style={{ padding: '6px 14px', color: r.color, fontWeight: 700, width: 80 }}>{r.range}</td>
+                    <td style={{ padding: '6px 14px', color: '#94a3b8' }}>{r.cat}</td>
+                    <td style={{ padding: '6px 14px', color: '#64748b', fontStyle: 'italic' }}>{r.focus}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* F-V Chart with axes in N/kg and m/s */}
           {jumpData.length >= 2 && (() => {
-            const maxV = Math.max(fvRegression.V0 * 1.1, ...jumpData.map(d => d.v_mean)) || 5
-            const maxF = Math.max(fvRegression.F0 * 1.1, ...jumpData.map(d => d.f_media)) || 3000
-            const toX = (v: number) => pad.l + (v / maxV) * (chartW - pad.l - pad.r)
-            const toY = (f: number) => chartH - pad.b - (f / maxF) * (chartH - pad.t - pad.b)
-            const F0_opt = Math.abs(fvRegression.Sfv_opt * fvRegression.V0)
-            const V0_opt = F0_opt > 0 ? F0_opt / Math.abs(fvRegression.Sfv_opt) : fvRegression.V0
+            const fRel = jumpData.map(d => d.f_rel)
+            const vMean = jumpData.map(d => d.v_mean)
+            const F0_rel = fvRegression.F0_rel
+            const V0 = fvRegression.V0
+            const F0_opt_rel = fvRegression.F0_opt_rel
+            const V0_opt = fvRegression.V0_opt
+
+            const maxV = Math.max(V0, V0_opt, ...vMean) * 1.15
+            const maxF = Math.max(F0_rel, F0_opt_rel, ...fRel) * 1.15
+            const plotW = chartW - pad.l - pad.r
+            const plotH = chartH - pad.t - pad.b
+            const toX = (v: number) => pad.l + (v / maxV) * plotW
+            const toY = (f: number) => chartH - pad.b - (f / maxF) * plotH
+
+            // Axis tick values
+            const vTicks: number[] = []
+            const vStep = maxV > 6 ? 2 : maxV > 3 ? 1 : 0.5
+            for (let v = 0; v <= maxV; v += vStep) vTicks.push(Math.round(v * 10) / 10)
+
+            const fTicks: number[] = []
+            const fStep = maxF > 40 ? 10 : maxF > 20 ? 5 : 2
+            for (let f = 0; f <= maxF; f += fStep) fTicks.push(Math.round(f))
+
             return (
               <div style={{ marginBottom: 20, background: '#0f172a', borderRadius: 12, padding: 16, border: '1px solid #1e293b' }}>
-                <div style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: 8 }}>Gráfico F-V · Pendiente Real vs Óptima</div>
+                <div style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: 8 }}>Perfil F-V Vertical</div>
                 <svg viewBox={`0 0 ${chartW} ${chartH}`} style={{ width: '100%', maxWidth: chartW, display: 'block' }}>
-                  <line x1={pad.l} y1={pad.t} x2={pad.l} y2={chartH - pad.b} stroke="#334155" strokeWidth={1} />
-                  <line x1={pad.l} y1={chartH - pad.b} x2={chartW - pad.r} y2={chartH - pad.b} stroke="#334155" strokeWidth={1} />
-                  <text x={chartW / 2} y={chartH - 4} textAnchor="middle" fontSize={10} fill="#475569">Velocidad media (m/s)</text>
-                  <text x={14} y={chartH / 2} textAnchor="middle" fontSize={10} fill="#475569" transform={`rotate(-90,14,${chartH / 2})`}>Fuerza (N)</text>
-                  <line x1={toX(0)} y1={toY(Math.min(F0_opt, maxF))} x2={toX(Math.min(V0_opt, maxV))} y2={toY(0)} stroke="#22c55e" strokeWidth={2} strokeDasharray="6 4" opacity={0.8} />
-                  <line x1={toX(0)} y1={toY(fvRegression.F0)} x2={toX(fvRegression.V0)} y2={toY(0)} stroke="#60a5fa" strokeWidth={2.5} opacity={0.9} />
-                  {jumpData.map((d, i) => (
-                    <g key={i}>
-                      <circle cx={toX(d.v_mean)} cy={toY(d.f_media)} r={6} fill="#60a5fa" stroke="#0f172a" strokeWidth={2} />
-                      <text x={toX(d.v_mean)} y={toY(d.f_media) - 10} textAnchor="middle" fontSize={8} fill="#94a3b8">{d.carga}kg</text>
+                  {/* Grid lines */}
+                  {vTicks.map(v => (
+                    <g key={`gv${v}`}>
+                      <line x1={toX(v)} y1={pad.t} x2={toX(v)} y2={chartH - pad.b} stroke="#1e293b" strokeWidth={0.5} />
+                      <text x={toX(v)} y={chartH - pad.b + 14} textAnchor="middle" fontSize={9} fill="#475569">{v.toFixed(1)}</text>
                     </g>
                   ))}
-                  <line x1={chartW - 150} y1={12} x2={chartW - 130} y2={12} stroke="#60a5fa" strokeWidth={2.5} />
-                  <text x={chartW - 126} y={15} fontSize={9} fill="#60a5fa">Real</text>
-                  <line x1={chartW - 150} y1={26} x2={chartW - 130} y2={26} stroke="#22c55e" strokeWidth={2} strokeDasharray="4 3" />
-                  <text x={chartW - 126} y={29} fontSize={9} fill="#22c55e">Óptima</text>
+                  {fTicks.map(f => (
+                    <g key={`gf${f}`}>
+                      <line x1={pad.l} y1={toY(f)} x2={chartW - pad.r} y2={toY(f)} stroke="#1e293b" strokeWidth={0.5} />
+                      <text x={pad.l - 6} y={toY(f) + 3} textAnchor="end" fontSize={9} fill="#475569">{f}</text>
+                    </g>
+                  ))}
+                  {/* Axes */}
+                  <line x1={pad.l} y1={pad.t} x2={pad.l} y2={chartH - pad.b} stroke="#334155" strokeWidth={1} />
+                  <line x1={pad.l} y1={chartH - pad.b} x2={chartW - pad.r} y2={chartH - pad.b} stroke="#334155" strokeWidth={1} />
+                  <text x={chartW / 2} y={chartH - 4} textAnchor="middle" fontSize={10} fill="#64748b">Velocidad (m/s)</text>
+                  <text x={14} y={chartH / 2} textAnchor="middle" fontSize={10} fill="#64748b" transform={`rotate(-90,14,${chartH / 2})`}>Fuerza (N/kg)</text>
+
+                  {/* Optimal slope (green dashed) — from (0, F0_opt_rel) to (V0_opt, 0) */}
+                  <line x1={toX(0)} y1={toY(Math.min(F0_opt_rel, maxF))} x2={toX(Math.min(V0_opt, maxV))} y2={toY(0)} stroke="#22c55e" strokeWidth={2} strokeDasharray="6 4" opacity={0.8} />
+                  {/* Real slope (blue solid) — from (0, F0_rel) to (V0, 0) */}
+                  <line x1={toX(0)} y1={toY(Math.min(F0_rel, maxF))} x2={toX(Math.min(V0, maxV))} y2={toY(0)} stroke="#3b82f6" strokeWidth={2.5} opacity={0.9} />
+
+                  {/* Data points */}
+                  {jumpData.map((d, i) => (
+                    <g key={i}>
+                      <circle cx={toX(d.v_mean)} cy={toY(d.f_rel)} r={5} fill="#3b82f6" stroke="#0f172a" strokeWidth={2} />
+                      <text x={toX(d.v_mean)} y={toY(d.f_rel) - 10} textAnchor="middle" fontSize={8} fill="#94a3b8">{d.carga}kg</text>
+                    </g>
+                  ))}
+
+                  {/* Legend */}
+                  <line x1={chartW - 160} y1={pad.t + 4} x2={chartW - 140} y2={pad.t + 4} stroke="#3b82f6" strokeWidth={2.5} />
+                  <text x={chartW - 136} y={pad.t + 7} fontSize={9} fill="#3b82f6">Pendiente Actual</text>
+                  <line x1={chartW - 160} y1={pad.t + 18} x2={chartW - 140} y2={pad.t + 18} stroke="#22c55e" strokeWidth={2} strokeDasharray="4 3" />
+                  <text x={chartW - 136} y={pad.t + 21} fontSize={9} fill="#22c55e">Pendiente Óptima</text>
                 </svg>
               </div>
             )
           })()}
         </>)}
 
+        {/* VBT mode results */}
         {mode === 'velocidad' && fvSimple && (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10, marginBottom: 20 }}>
             {[
-              { label: 'F₀', value: fvSimple.F0 ? `${fvSimple.F0.toFixed(1)} kg` : '—', color: '#a3e635' },
-              { label: 'V₀', value: fvSimple.V0 ? `${fvSimple.V0.toFixed(2)} m/s` : '—', color: '#60a5fa' },
-              { label: 'Pmax', value: fvSimple.Pmax ? `${fvSimple.Pmax.toFixed(1)} W·kg⁻¹` : '—', color: '#f59e0b' },
+              { label: 'F₀', value: fvSimple.F0 ? `${fvSimple.F0.toFixed(1)} kg` : '—', color: '#22c55e' },
+              { label: 'V₀', value: fvSimple.V0 ? `${fvSimple.V0.toFixed(2)} m/s` : '—', color: '#ef4444' },
+              { label: 'Pmax', value: fvSimple.Pmax ? `${fvSimple.Pmax.toFixed(1)} W·kg⁻¹` : '—', color: '#3b82f6' },
             ].map(item => (
               <div key={item.label} style={{ background: '#1e293b', borderRadius: 10, padding: '12px 16px', border: `1px solid ${item.color}33` }}>
                 <div style={{ fontSize: 10, color: '#64748b', textTransform: 'uppercase', marginBottom: 6 }}>{item.label}</div>
@@ -1417,6 +1514,7 @@ function PFVPanel({ jugador }: { jugador: Jugador }) {
           </div>
         )}
 
+        {/* Data table */}
         {loading ? (
           <div style={{ color: '#64748b', fontSize: 13, textAlign: 'center', padding: 20 }}>Cargando...</div>
         ) : puntos.length === 0 ? (
@@ -1425,7 +1523,7 @@ function PFVPanel({ jugador }: { jugador: Jugador }) {
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
             <thead>
               <tr style={{ borderBottom: '1px solid #1e293b' }}>
-                {(mode === 'salto' ? ['Carga', 'Masa Total', 'Altura', 'V media', 'F media', 'Notas', ''] : ['Carga (kg)', 'Velocidad (m/s)', 'Notas', '']).map(h => (
+                {(mode === 'salto' ? ['Carga', 'Masa Total', 'Altura', 'V media', 'F media', 'F/kg', 'P (W)', 'Notas', ''] : ['Carga (kg)', 'Velocidad (m/s)', 'Notas', '']).map(h => (
                   <th key={h} style={{ textAlign: 'left', padding: '6px 8px', color: '#64748b', fontSize: 9, fontWeight: 700, textTransform: 'uppercase', whiteSpace: 'nowrap' }}>{h}</th>
                 ))}
               </tr>
@@ -1435,16 +1533,18 @@ function PFVPanel({ jugador }: { jugador: Jugador }) {
                 <tr key={d.id || i} style={{ borderBottom: '1px solid #0f172a' }}>
                   <td style={{ padding: '7px 8px', fontWeight: 700, color: '#a3e635' }}>{d.carga} kg</td>
                   <td style={{ padding: '7px 8px', color: '#94a3b8' }}>{d.masaTotal} kg</td>
-                  <td style={{ padding: '7px 8px', fontWeight: 700, color: '#06b6d4' }}>{(Number(d.altura_salto_m) || 0).toFixed(2)} m</td>
-                  <td style={{ padding: '7px 8px', color: '#60a5fa' }}>{d.v_mean.toFixed(4)} m/s</td>
+                  <td style={{ padding: '7px 8px', fontWeight: 700, color: '#06b6d4' }}>{(Number(d.altura_salto_m) || 0).toFixed(3)} m</td>
+                  <td style={{ padding: '7px 8px', color: '#ef4444' }}>{d.v_mean.toFixed(4)} m/s</td>
                   <td style={{ padding: '7px 8px', color: '#f97316', fontWeight: 700 }}>{d.f_media.toFixed(0)} N</td>
+                  <td style={{ padding: '7px 8px', color: '#22c55e' }}>{d.f_rel.toFixed(2)}</td>
+                  <td style={{ padding: '7px 8px', color: '#3b82f6' }}>{d.p_watt.toFixed(0)}</td>
                   <td style={{ padding: '7px 8px', color: '#64748b' }}>{d.notas ?? '—'}</td>
                   <td style={{ padding: '7px 8px' }}><Btn onClick={() => handleDeletePunto(d.id)} variant="ghost" small>✕</Btn></td>
                 </tr>
               )) : puntos.map((p: any) => (
                 <tr key={p.id} style={{ borderBottom: '1px solid #0f172a' }}>
                   <td style={{ padding: '8px 10px', fontWeight: 700, color: '#a3e635' }}>{p.carga} kg</td>
-                  <td style={{ padding: '8px 10px', fontWeight: 700, color: '#60a5fa' }}>{p.vel} m/s</td>
+                  <td style={{ padding: '8px 10px', fontWeight: 700, color: '#ef4444' }}>{p.vel} m/s</td>
                   <td style={{ padding: '8px 10px', color: '#64748b' }}>{p.notas ?? '—'}</td>
                   <td style={{ padding: '8px 10px' }}><Btn onClick={() => handleDeletePunto(p.id)} variant="ghost" small>✕</Btn></td>
                 </tr>
