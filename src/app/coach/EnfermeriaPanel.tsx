@@ -592,6 +592,14 @@ function ReadaptacionCard({ lesion: l, checks, onUpdateFase, onSaveChecks, onDar
 }
 
 // ─── Enhanced New Lesion Form ─────────────────────────────────────────────────
+// Helper component (defined outside to prevent re-render focus loss)
+const LabelField = ({ label, children }: { label: string; children: React.ReactNode }) => (
+  <div>
+    <label style={{ display: 'block', fontSize: 10, fontWeight: 600, color: 'var(--silver)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>{label}</label>
+    {children}
+  </div>
+)
+
 function NewLesionFormEnf({ teamData, onSuccess }: { teamData: any[]; onSuccess: () => void }) {
   const [f, setF] = useState({
     jugador_id: '', fecha_inicio: new Date().toISOString().split('T')[0],
@@ -619,12 +627,6 @@ function NewLesionFormEnf({ teamData, onSuccess }: { teamData: any[]; onSuccess:
     } finally { setLoading(false) }
   }
 
-  const LabelField = ({ label, children }: { label: string; children: React.ReactNode }) => (
-    <div>
-      <label style={{ display: 'block', fontSize: 10, fontWeight: 600, color: 'var(--silver)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>{label}</label>
-      {children}
-    </div>
-  )
 
   return (
     <div style={{ background: 'var(--ink2)', border: '1px solid rgba(239,68,68,.25)', borderRadius: 14, padding: 24 }}>
