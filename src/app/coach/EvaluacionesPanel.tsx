@@ -1533,8 +1533,8 @@ function PFVPanel({ jugador }: { jugador: Jugador }) {
                 <tr key={d.id || i} style={{ borderBottom: '1px solid #0f172a' }}>
                   <td style={{ padding: '7px 8px', fontWeight: 700, color: '#a3e635' }}>{d.carga} kg</td>
                   <td style={{ padding: '7px 8px', color: '#94a3b8' }}>{d.masaTotal} kg</td>
-                  <td style={{ padding: '7px 8px', fontWeight: 700, color: '#06b6d4' }}>{(Number(d.altura_salto_m) || 0).toFixed(3)} m</td>
-                  <td style={{ padding: '7px 8px', color: '#ef4444' }}>{d.v_mean.toFixed(4)} m/s</td>
+                  <td style={{ padding: '7px 8px', fontWeight: 700, color: '#06b6d4' }}>{(Number(d.altura_salto_m) || 0).toFixed(2)} m</td>
+                  <td style={{ padding: '7px 8px', color: '#ef4444' }}>{d.v_mean.toFixed(2)} m/s</td>
                   <td style={{ padding: '7px 8px', color: '#f97316', fontWeight: 700 }}>{d.f_media.toFixed(0)} N</td>
                   <td style={{ padding: '7px 8px', color: '#22c55e' }}>{d.f_rel.toFixed(2)}</td>
                   <td style={{ padding: '7px 8px', color: '#3b82f6' }}>{d.p_watt.toFixed(0)}</td>
