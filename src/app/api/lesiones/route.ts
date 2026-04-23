@@ -42,7 +42,7 @@ export async function GET(req: NextRequest) {
   // Historial de un jugador específico (todos sus registros, activos o no)
   if (jugadorId) {
     const r = await sql`SELECT l.id,l.jugador_id::int,l.fecha_inicio::text,l.fecha_alta::text,l.tipo_lesion,l.zona,
-                               l.descripcion,l.eta_dias::int,l.estado,l.activa,u.nombre AS jugador_nombre,j.posicion
+                               l.descripcion,l.eta_dias::int,l.estado,l.activa,l.mecanismo,l.lateralidad,l.recurrente,l.fase,l.region_corporal,l.causa,u.nombre AS jugador_nombre,j.posicion
                         FROM lesiones l JOIN jugadores j ON j.id=l.jugador_id JOIN usuarios u ON u.id=j.usuario_id
                         WHERE l.jugador_id=${jugadorId} AND (${isMaster}::boolean OR u.club_id=${clubId})
                         ORDER BY l.fecha_inicio DESC`
@@ -51,28 +51,28 @@ export async function GET(req: NextRequest) {
 
   const r = activas
     ? await sql`SELECT l.id,l.jugador_id::int,l.fecha_inicio::text,l.fecha_alta::text,l.tipo_lesion,l.zona,
-                       l.descripcion,l.eta_dias::int,l.estado,l.activa,u.nombre AS jugador_nombre,j.posicion
+                       l.descripcion,l.eta_dias::int,l.estado,l.activa,l.mecanismo,l.lateralidad,l.recurrente,l.fase,l.region_corporal,l.causa,u.nombre AS jugador_nombre,j.posicion
                 FROM lesiones l JOIN jugadores j ON j.id=l.jugador_id JOIN usuarios u ON u.id=j.usuario_id
                 WHERE l.activa=true AND u.activo=true AND (${isMaster}::boolean OR u.club_id=${clubId}) ORDER BY l.fecha_inicio DESC`
     : await sql`SELECT l.id,l.jugador_id::int,l.fecha_inicio::text,l.fecha_alta::text,l.tipo_lesion,l.zona,
-                       l.descripcion,l.eta_dias::int,l.estado,l.activa,u.nombre AS jugador_nombre,j.posicion
+                       l.descripcion,l.eta_dias::int,l.estado,l.activa,l.mecanismo,l.lateralidad,l.recurrente,l.fase,l.region_corporal,l.causa,u.nombre AS jugador_nombre,j.posicion
                 FROM lesiones l JOIN jugadores j ON j.id=l.jugador_id JOIN usuarios u ON u.id=j.usuario_id
                 WHERE u.activo=true AND u.club_id=${clubId} ORDER BY l.fecha_inicio DESC`
   return NextResponse.json(r)
 }
 export async function POST(req: NextRequest) {
   const s = await getSessionFromRequest(req); if(!s||!isAdmin(s)) return NextResponse.json({error:'No autorizado'},{status:403})
-  const {jugador_id,fecha_inicio,tipo_lesion,zona,descripcion,eta_dias,estado} = await req.json()
+  const {jugador_id,fecha_inicio,tipo_lesion,zona,descripcion,eta_dias,estado,mecanismo,lateralidad,recurrente,fase,region_corporal,causa} = await req.json()
   const sql = getDb(); const d = fecha_inicio||new Date().toISOString().split('T')[0]
-  const [r] = await sql`INSERT INTO lesiones(jugador_id,fecha_inicio,tipo_lesion,zona,descripcion,eta_dias,estado,activa,club_id)
-    VALUES(${jugador_id},${d},${tipo_lesion||null},${zona||null},${descripcion||null},${eta_dias||null},${estado||'Tratamiento'},true,${s.clubId??null})
+  const [r] = await sql`INSERT INTO lesiones(jugador_id,fecha_inicio,tipo_lesion,zona,descripcion,eta_dias,estado,activa,club_id,mecanismo,lateralidad,recurrente,fase,region_corporal,causa)
+    VALUES(${jugador_id},${d},${tipo_lesion||null},${zona||null},${descripcion||null},${eta_dias||null},${estado||'Tratamiento'},true,${s.clubId??null},${mecanismo||null},${lateralidad||'Bilateral'},${recurrente||false},${fase||'F0 - Solo kinesio'},${region_corporal||null},${causa||null})
     RETURNING id`
   return NextResponse.json(r)
 }
 export async function PATCH(req: NextRequest) {
   const s = await getSessionFromRequest(req)
   if (!s || !isAdmin(s)) return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
-  const { id, estado, activa, fecha_alta, eta_dias } = await req.json()
+  const { id, estado, activa, fecha_alta, eta_dias, fase, mecanismo, lateralidad, recurrente, region_corporal, causa, descripcion } = await req.json()
   const sql = getDb()
 
   try {
@@ -89,9 +89,14 @@ export async function PATCH(req: NextRequest) {
       }
     }
 
-    if (eta_dias !== undefined) {
-      await sql`UPDATE lesiones SET eta_dias = ${eta_dias} WHERE id = ${id}`
-    }
+    if (eta_dias !== undefined) await sql`UPDATE lesiones SET eta_dias = ${eta_dias} WHERE id = ${id}`
+    if (fase !== undefined) await sql`UPDATE lesiones SET fase = ${fase} WHERE id = ${id}`
+    if (mecanismo !== undefined) await sql`UPDATE lesiones SET mecanismo = ${mecanismo} WHERE id = ${id}`
+    if (lateralidad !== undefined) await sql`UPDATE lesiones SET lateralidad = ${lateralidad} WHERE id = ${id}`
+    if (recurrente !== undefined) await sql`UPDATE lesiones SET recurrente = ${recurrente} WHERE id = ${id}`
+    if (region_corporal !== undefined) await sql`UPDATE lesiones SET region_corporal = ${region_corporal} WHERE id = ${id}`
+    if (causa !== undefined) await sql`UPDATE lesiones SET causa = ${causa} WHERE id = ${id}`
+    if (descripcion !== undefined) await sql`UPDATE lesiones SET descripcion = ${descripcion} WHERE id = ${id}`
 
     return NextResponse.json({ ok: true })
   } catch (e: any) {

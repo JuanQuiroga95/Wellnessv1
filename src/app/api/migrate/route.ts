@@ -267,6 +267,28 @@ export async function POST(req: NextRequest) {
     )`, 'dsi_tests table'],
     // ── Jugadores: h_po para PFV ─────────────────────────────────────────
     [`ALTER TABLE jugadores ADD COLUMN IF NOT EXISTS h_po NUMERIC(5,4)`, 'jugadores.h_po'],
+    // ── Enfermería: campos adicionales en lesiones ───────────────────────
+    [`ALTER TABLE lesiones ADD COLUMN IF NOT EXISTS mecanismo VARCHAR(100)`, 'lesiones.mecanismo'],
+    [`ALTER TABLE lesiones ADD COLUMN IF NOT EXISTS lateralidad VARCHAR(20) DEFAULT 'Bilateral'`, 'lesiones.lateralidad'],
+    [`ALTER TABLE lesiones ADD COLUMN IF NOT EXISTS recurrente BOOLEAN DEFAULT FALSE`, 'lesiones.recurrente'],
+    [`ALTER TABLE lesiones ADD COLUMN IF NOT EXISTS fase VARCHAR(50) DEFAULT 'F0 - Solo kinesio'`, 'lesiones.fase'],
+    [`ALTER TABLE lesiones ADD COLUMN IF NOT EXISTS region_corporal VARCHAR(100)`, 'lesiones.region_corporal'],
+    // ── Readaptación: checklist de actividades por lesión ────────────────
+    [`CREATE TABLE IF NOT EXISTS readaptacion_checks (
+      id SERIAL PRIMARY KEY,
+      lesion_id INTEGER NOT NULL REFERENCES lesiones(id) ON DELETE CASCADE,
+      gimnasio VARCHAR(20) DEFAULT 'pendiente',
+      campo_ind VARCHAR(20) DEFAULT 'pendiente',
+      tecnica VARCHAR(20) DEFAULT 'pendiente',
+      reducido VARCHAR(20) DEFAULT 'pendiente',
+      intermitente VARCHAR(20) DEFAULT 'pendiente',
+      sprint VARCHAR(20) DEFAULT 'pendiente',
+      contacto VARCHAR(20) DEFAULT 'pendiente',
+      con_categ VARCHAR(20) DEFAULT 'pendiente',
+      nota_kinesio TEXT,
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    )`, 'readaptacion_checks table'],
+    [`CREATE INDEX IF NOT EXISTS idx_readaptacion_lesion ON readaptacion_checks(lesion_id)`, 'readaptacion_checks index'],
   ]
   for (const [sql_str, label] of extra_migrations) {
     try {

@@ -9,6 +9,7 @@ import WellnessTrend from '@/components/charts/WellnessTrend'
 import { buildACWRHistory, buildDailyDetail } from '@/lib/acwr'
 import EvaluacionesPanelFull from './EvaluacionesPanel'
 import AnalyticsPanel from './AnalyticsPanel'
+import EnfermeriaPanel from './EnfermeriaPanel'
 
 // ─── GPS METRIC METADATA (shared between GpsPanel and CargaExternaPanel) ──────
 // Maps metric key → { label, unit, group } for display purposes
@@ -82,7 +83,7 @@ function compressImage(dataUrl: string, maxSize = 400, quality = 0.7): Promise<s
   })
 }
 
-const TABS = [{id:'team',label:'Equipo'},{id:'calendario',label:'📅 Calendario'},{id:'analytics',label:'Analytics'},{id:'minutos',label:'Minutaje'},{id:'control-carga-calc',label:'🏋️ Ctrl. Carga Calc'},{id:'control-carga-gps',label:'📡 Ctrl. Carga GPS'},{id:'acumulado',label:'📈 Acumulado Ind.'},{id:'cambio-carga',label:'Cambio de Carga'},{id:'expo-ai',label:'⚡ Expo. AI'},{id:'evaluaciones',label:'📋 Evaluaciones'},{id:'comparativa',label:'⚖️ Comparativa'},{id:'lesiones',label:'Lesiones'},{id:'gps',label:'📡 GPS'},{id:'players',label:'Jugadores'},{id:'biblioteca',label:'📚 Biblioteca'},{id:'manual',label:'📖 Manual'}]
+const TABS = [{id:'team',label:'Equipo'},{id:'calendario',label:'📅 Calendario'},{id:'analytics',label:'Analytics'},{id:'minutos',label:'Minutaje'},{id:'control-carga-calc',label:'🏋️ Ctrl. Carga Calc'},{id:'control-carga-gps',label:'📡 Ctrl. Carga GPS'},{id:'acumulado',label:'📈 Acumulado Ind.'},{id:'cambio-carga',label:'Cambio de Carga'},{id:'expo-ai',label:'⚡ Expo. AI'},{id:'evaluaciones',label:'📋 Evaluaciones'},{id:'comparativa',label:'⚖️ Comparativa'},{id:'lesiones',label:'🏥 Enfermería'},{id:'gps',label:'📡 GPS'},{id:'players',label:'Jugadores'},{id:'biblioteca',label:'📚 Biblioteca'},{id:'manual',label:'📖 Manual'}]
 const SC = {optimo:'#22c55e',precaucion:'#f59e0b',peligro:'#ef4444',sin_datos:'#555'}
 const SL = {optimo:'ÓPTIMO',precaucion:'PRECAUCIÓN',peligro:'RIESGO',sin_datos:'—'}
 const WK = ['fatiga','calidad_sueno','dolor_muscular','nivel_estres','estado_animo']
@@ -361,7 +362,7 @@ export default function CoachClient({ session, teamData, today }) {
         {tab==='biblioteca' && <BibliotecaPanel />}
         {tab==='cambio-carga' && <CambioCargaPanel />}
         {tab==='comparativa' && <ComparativaPanel teamData={teamData} />}
-        {tab==='lesiones' && <LesionesPanel teamData={teamData} onRefresh={()=>router.refresh()} />}
+        {tab==='lesiones' && <EnfermeriaPanel teamData={teamData} onRefresh={()=>router.refresh()} />}
         {tab==='gps' && <GpsPanel teamData={teamData} />}
 
         {tab==='manual' && <ManualPanel />}
