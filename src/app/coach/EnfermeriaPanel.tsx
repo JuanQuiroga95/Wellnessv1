@@ -254,12 +254,14 @@ export default function EnfermeriaPanel({ teamData, onRefresh }: { teamData: any
                         cumAngle += angle
                         const r = size / 2 - 5
                         const cx = size / 2, cy = size / 2
+                        const color = TIPO_COLORS[name] || ['#22c55e', '#4ade80', '#86efac', '#a78bfa', '#f59e0b', '#78716c'][i % 6]
+                        // Full circle when only one type
+                        if (angle >= 359.9) return <circle key={name} cx={cx} cy={cy} r={r} fill={color} stroke="var(--ink)" strokeWidth={1.5} />
                         const rad1 = (start - 90) * Math.PI / 180
                         const rad2 = (start + angle - 90) * Math.PI / 180
                         const x1 = cx + r * Math.cos(rad1), y1 = cy + r * Math.sin(rad1)
                         const x2 = cx + r * Math.cos(rad2), y2 = cy + r * Math.sin(rad2)
                         const large = angle > 180 ? 1 : 0
-                        const color = TIPO_COLORS[name] || ['#22c55e', '#4ade80', '#86efac', '#a78bfa', '#f59e0b', '#78716c'][i % 6]
                         return <path key={name} d={`M${cx},${cy} L${x1},${y1} A${r},${r} 0 ${large},1 ${x2},${y2} Z`} fill={color} stroke="var(--ink)" strokeWidth={1.5} />
                       })}
                       <circle cx={size / 2} cy={size / 2} r={size / 4} fill="var(--ink2)" />
