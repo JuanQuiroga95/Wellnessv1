@@ -184,82 +184,31 @@ export default function EnfermeriaPanel({ teamData, onRefresh }: { teamData: any
         const saludables = totalPlantilla - enRecuperacion
 
         // Proyección de recuperación: group active injuries by ETA ranges
-        const etaRanges = [
-          { label: '0-7', min: 0, max: 7 },
-          { label: '8-14', min: 8, max: 14 },
-          { label: '15-21', min: 15, max: 21 },
-          { label: '22-30', min: 22, max: 30 },
-          { label: '30+', min: 31, max: 999 },
-        ]
-        const etaCounts = etaRanges.map(r => {
-          const count = activas.filter(l => {
-            const d = l.eta_dias ? Number(l.eta_dias) - diasBaja(l) : diasBaja(l)
-            const remaining = l.eta_dias ? Math.max(0, Number(l.eta_dias) - diasBaja(l)) : 0
-            return remaining >= r.min && remaining <= r.max
-          }).length
-          return { ...r, count }
-        })
-        const maxEta = Math.max(...etaCounts.map(e => e.count), 1)
 
         // Top 3 injured zones for the runner SVG
-        const topZones = regionSorted.slice(0, 3)
 
         return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
 
           {/* Hero Banner */}
-          <div style={{ background: 'linear-gradient(135deg, #0a1a0f 0%, #0f2518 40%, #0a1a10 100%)', border: '1px solid rgba(34,197,94,.15)', borderRadius: 16, padding: '28px 32px', position: 'relative', overflow: 'hidden' }}>
+          <div style={{ background: 'linear-gradient(135deg, #0a1a0f 0%, #0f2518 40%, #0a1a10 100%)', border: '1px solid rgba(34,197,94,.15)', borderRadius: 16, padding: '32px 36px', position: 'relative', overflow: 'hidden', minHeight: 260 }}>
             {/* Background grid effect */}
             <div style={{ position: 'absolute', inset: 0, opacity: 0.04, backgroundImage: 'radial-gradient(circle at 1px 1px, #22c55e 1px, transparent 0)', backgroundSize: '24px 24px' }} />
-            <div style={{ position: 'relative', display: 'flex', gap: 24, alignItems: 'center', flexWrap: 'wrap' }}>
-              <div style={{ flex: 1, minWidth: 280 }}>
-                <h3 style={{ fontSize: 22, fontWeight: 800, color: 'var(--snow)', margin: '0 0 6px', letterSpacing: '-0.02em' }}>
+            <div style={{ position: 'relative', display: 'flex', gap: 24, alignItems: 'center' }}>
+              <div style={{ flex: 1, minWidth: 260 }}>
+                <h3 style={{ fontSize: 26, fontWeight: 800, color: 'var(--snow)', margin: '0 0 8px', letterSpacing: '-0.02em' }}>
                   ¡PORTAL DE GESTIÓN DE LESIONES!
                 </h3>
-                <p style={{ fontSize: 13, color: 'var(--silver)', margin: '0 0 16px', lineHeight: 1.5 }}>
+                <p style={{ fontSize: 14, color: 'var(--silver)', margin: '0 0 20px', lineHeight: 1.6 }}>
                   Tu visión integral para un retorno a la competición seguro y eficiente
                 </p>
-                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 18px', borderRadius: 8, background: 'rgba(163,230,53,.12)', border: '1px solid rgba(163,230,53,.25)', fontSize: 11, fontWeight: 700, color: '#a3e635', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 22px', borderRadius: 8, background: 'rgba(163,230,53,.12)', border: '1px solid rgba(163,230,53,.25)', fontSize: 12, fontWeight: 700, color: '#a3e635', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
                   ⚡ Monitorización Integral de Atletas
                 </div>
               </div>
-              {/* Runner SVG with injury zones */}
-              <div style={{ position: 'relative', width: 180, height: 160, flexShrink: 0 }}>
-                <svg viewBox="0 0 180 160" style={{ width: '100%', height: '100%' }}>
-                  {/* Runner silhouette */}
-                  <g opacity={0.6}>
-                    {/* Head */}
-                    <circle cx="95" cy="18" r="10" fill="none" stroke="#22c55e" strokeWidth="1.5"/>
-                    {/* Torso */}
-                    <line x1="95" y1="28" x2="90" y2="65" stroke="#22c55e" strokeWidth="1.5"/>
-                    {/* Arms */}
-                    <line x1="92" y1="38" x2="70" y2="50" stroke="#22c55e" strokeWidth="1.5"/>
-                    <line x1="92" y1="38" x2="115" y2="30" stroke="#22c55e" strokeWidth="1.5"/>
-                    {/* Legs running pose */}
-                    <line x1="90" y1="65" x2="110" y2="95" stroke="#22c55e" strokeWidth="1.5"/>
-                    <line x1="110" y1="95" x2="125" y2="130" stroke="#22c55e" strokeWidth="1.5"/>
-                    <line x1="90" y1="65" x2="65" y2="90" stroke="#22c55e" strokeWidth="1.5"/>
-                    <line x1="65" y1="90" x2="55" y2="125" stroke="#22c55e" strokeWidth="1.5"/>
-                    {/* Feet */}
-                    <line x1="125" y1="130" x2="135" y2="132" stroke="#22c55e" strokeWidth="1.5"/>
-                    <line x1="55" y1="125" x2="48" y2="128" stroke="#22c55e" strokeWidth="1.5"/>
-                  </g>
-                  {/* Injury zone markers */}
-                  {topZones[0] && <>
-                    <circle cx="100" cy="80" r="6" fill="#ef4444" opacity={0.5}/><circle cx="100" cy="80" r="3" fill="#ef4444"/>
-                    <text x="100" y="74" textAnchor="middle" fontSize="7" fill="#fca5a5" fontWeight="700">{topZones[0][0]}</text>
-                  </>}
-                  {topZones[1] && <>
-                    <circle cx="60" cy="115" r="5" fill="#f59e0b" opacity={0.5}/><circle cx="60" cy="115" r="2.5" fill="#f59e0b"/>
-                    <text x="60" y="109" textAnchor="middle" fontSize="7" fill="#fcd34d" fontWeight="700">{topZones[1][0]}</text>
-                  </>}
-                  {topZones[2] && <>
-                    <circle cx="115" cy="100" r="5" fill="#f59e0b" opacity={0.5}/><circle cx="115" cy="100" r="2.5" fill="#f59e0b"/>
-                    <text x="115" y="94" textAnchor="middle" fontSize="7" fill="#fcd34d" fontWeight="700">{topZones[2][0]}</text>
-                  </>}
-                  {/* Pulse rings */}
-                  {topZones[0] && <circle cx="100" cy="80" r="12" fill="none" stroke="#ef4444" strokeWidth="0.5" opacity={0.3}/>}
-                </svg>
+              {/* Runner image */}
+              <div style={{ flexShrink: 0, width: 220, height: 220, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <img src="/images/runner-medical.png" alt="Runner" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', filter: 'drop-shadow(0 0 20px rgba(168,85,247,.3))' }} />
               </div>
             </div>
           </div>
@@ -314,52 +263,80 @@ export default function EnfermeriaPanel({ teamData, onRefresh }: { teamData: any
               })()}
             </SectionBox>
 
-            {/* Proyección de Recuperación */}
+            {/* Proyección de Recuperación — Line chart */}
             <SectionBox title="Proyección de Recuperación" extra={
-              <span style={{ fontSize: 10, color: 'var(--silver)' }}>Días restantes estimados para retorno</span>
+              <span style={{ fontSize: 10, color: 'var(--silver)' }}>Proyección de retorno en las próximas semanas</span>
             }>
               {activas.length === 0 ? (
                 <p style={{ color: 'var(--fog)', fontSize: 12, textAlign: 'center', padding: 20 }}>✓ Sin jugadores en recuperación</p>
               ) : (() => {
-                const chartW = 320, chartH = 150, pad = { l: 30, r: 10, t: 10, b: 30 }
-                const plotW = chartW - pad.l - pad.r
-                const plotH = chartH - pad.t - pad.b
-                // Sort active injuries by remaining days
-                const proyData = activas
-                  .map(l => ({
-                    nombre: l.jugador_nombre?.split(' ')[0] || '?',
-                    remaining: l.eta_dias ? Math.max(0, Number(l.eta_dias) - diasBaja(l)) : 0,
-                    total: Number(l.eta_dias) || 0,
-                  }))
-                  .filter(d => d.total > 0)
+                // Build cumulative recovery data: at day X, how many players will be back
+                const withEta = activas
+                  .map(l => ({ remaining: l.eta_dias ? Math.max(0, Number(l.eta_dias) - diasBaja(l)) : -1 }))
+                  .filter(d => d.remaining >= 0)
                   .sort((a, b) => a.remaining - b.remaining)
 
-                if (proyData.length === 0) return <p style={{ color: 'var(--fog)', fontSize: 12, textAlign: 'center', padding: 20 }}>Sin datos de ETA</p>
+                if (withEta.length === 0) return <p style={{ color: 'var(--fog)', fontSize: 12, textAlign: 'center', padding: 20 }}>Sin datos de ETA</p>
 
-                const maxDays = Math.max(...proyData.map(d => d.remaining), 7)
-                const barH2 = Math.max(14, plotH / proyData.length - 4)
+                // Create time points for x-axis
+                const maxDay = Math.max(...withEta.map(d => d.remaining), 7)
+                const dayTicks = [0]
+                const step = maxDay > 60 ? 14 : maxDay > 30 ? 7 : maxDay > 14 ? 5 : 3
+                for (let d = step; d <= maxDay; d += step) dayTicks.push(d)
+                if (!dayTicks.includes(maxDay) && maxDay > 0) dayTicks.push(maxDay)
+
+                // Cumulative: at each tick, how many players recovered
+                const points = dayTicks.map(day => ({
+                  day,
+                  count: withEta.filter(d => d.remaining <= day).length,
+                }))
+                const maxCount = withEta.length
+
+                const cW = 340, cH = 170, p = { l: 35, r: 15, t: 15, b: 35 }
+                const pW = cW - p.l - p.r, pH = cH - p.t - p.b
+                const toX = (d: number) => p.l + (d / maxDay) * pW
+                const toY = (c: number) => p.t + pH - (c / Math.max(maxCount, 1)) * pH
+
+                // Area path
+                const linePts = points.map(pt => `${toX(pt.day)},${toY(pt.count)}`).join(' L')
+                const areaD = `M${toX(0)},${toY(0)} L${linePts} L${toX(points[points.length - 1].day)},${toY(0)} Z`
+                const lineD = `M${linePts}`
+
+                // Y ticks
+                const yTicks: number[] = []
+                for (let i = 0; i <= maxCount; i++) yTicks.push(i)
 
                 return (
                   <div>
-                    <svg viewBox={`0 0 ${chartW} ${Math.max(chartH, proyData.length * (barH2 + 4) + pad.t + pad.b)}`} style={{ width: '100%', maxWidth: chartW }}>
-                      {proyData.map((d, i) => {
-                        const y = pad.t + i * (barH2 + 4)
-                        const w = (d.remaining / maxDays) * plotW
-                        const col = d.remaining <= 7 ? '#22c55e' : d.remaining <= 21 ? '#f59e0b' : '#ef4444'
-                        return (
-                          <g key={i}>
-                            <rect x={pad.l} y={y} width={Math.max(w, 2)} height={barH2} fill={col} rx={3} opacity={0.8}/>
-                            <text x={pad.l - 4} y={y + barH2 / 2 + 3} textAnchor="end" fontSize="8" fill="var(--silver)">{d.nombre}</text>
-                            <text x={pad.l + w + 5} y={y + barH2 / 2 + 3} fontSize="9" fill={col} fontWeight="700">{d.remaining}d</text>
-                          </g>
-                        )
-                      })}
+                    <svg viewBox={`0 0 ${cW} ${cH}`} style={{ width: '100%', maxWidth: cW }}>
+                      <defs>
+                        <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#22c55e" stopOpacity="0.35" />
+                          <stop offset="100%" stopColor="#22c55e" stopOpacity="0.02" />
+                        </linearGradient>
+                      </defs>
+                      {/* Grid */}
+                      {yTicks.map(v => (
+                        <g key={`y${v}`}>
+                          <line x1={p.l} y1={toY(v)} x2={cW - p.r} y2={toY(v)} stroke="var(--mist)" strokeWidth={0.5} />
+                          <text x={p.l - 6} y={toY(v) + 3} textAnchor="end" fontSize="9" fill="var(--fog)">{v}</text>
+                        </g>
+                      ))}
+                      {dayTicks.map(d => (
+                        <text key={`x${d}`} x={toX(d)} y={cH - p.b + 16} textAnchor="middle" fontSize="9" fill="var(--fog)">{d}</text>
+                      ))}
+                      <line x1={p.l} y1={p.t + pH} x2={cW - p.r} y2={p.t + pH} stroke="var(--mist)" strokeWidth={0.5} />
+                      {/* Area fill */}
+                      <path d={areaD} fill="url(#areaGrad)" />
+                      {/* Line */}
+                      <path d={lineD} fill="none" stroke="#22c55e" strokeWidth={2.5} strokeLinejoin="round" />
+                      {/* Dots */}
+                      {points.map((pt, i) => (
+                        <circle key={i} cx={toX(pt.day)} cy={toY(pt.count)} r={4} fill="#22c55e" stroke="#0f172a" strokeWidth={2} />
+                      ))}
+                      {/* X label */}
+                      <text x={cW / 2} y={cH - 2} textAnchor="middle" fontSize="9" fill="var(--fog)">Días</text>
                     </svg>
-                    <div style={{ display: 'flex', gap: 8, marginTop: 8, fontSize: 10 }}>
-                      <span style={{ color: '#22c55e' }}>● {'≤'}7d próxima alta</span>
-                      <span style={{ color: '#f59e0b' }}>● 8-21d</span>
-                      <span style={{ color: '#ef4444' }}>● +21d</span>
-                    </div>
                   </div>
                 )
               })()}
