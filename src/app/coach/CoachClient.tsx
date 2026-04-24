@@ -84,6 +84,37 @@ function compressImage(dataUrl: string, maxSize = 400, quality = 0.7): Promise<s
 }
 
 const TABS = [{id:'team',label:'Equipo'},{id:'calendario',label:'📅 Calendario'},{id:'analytics',label:'Analytics'},{id:'minutos',label:'Minutaje'},{id:'control-carga-calc',label:'🏋️ Ctrl. Carga Calc'},{id:'control-carga-gps',label:'📡 Ctrl. Carga GPS'},{id:'acumulado',label:'📈 Acumulado Ind.'},{id:'cambio-carga',label:'Cambio de Carga'},{id:'expo-ai',label:'⚡ Expo. AI'},{id:'evaluaciones',label:'📋 Evaluaciones'},{id:'comparativa',label:'⚖️ Comparativa'},{id:'lesiones',label:'🏥 Enfermería'},{id:'gps',label:'📡 GPS'},{id:'players',label:'Jugadores'},{id:'biblioteca',label:'📚 Biblioteca'},{id:'manual',label:'📖 Manual'}]
+
+const SIDEBAR_GROUPS = [
+  { label:'General', icon:'🏠', items:[
+    {id:'team',label:'Equipo',icon:'👥'},
+    {id:'calendario',label:'Calendario',icon:'📅'},
+    {id:'players',label:'Jugadores',icon:'⚽'},
+  ]},
+  { label:'Control de Carga', icon:'📊', items:[
+    {id:'control-carga-calc',label:'Ctrl. Carga Calc',icon:'🏋️'},
+    {id:'control-carga-gps',label:'Ctrl. Carga GPS',icon:'📡'},
+    {id:'cambio-carga',label:'Cambio de Carga',icon:'🔄'},
+    {id:'acumulado',label:'Acumulado Ind.',icon:'📈'},
+  ]},
+  { label:'Análisis', icon:'🔍', items:[
+    {id:'analytics',label:'Analytics',icon:'📊'},
+    {id:'minutos',label:'Minutaje',icon:'⏱️'},
+    {id:'expo-ai',label:'Expo. AI',icon:'⚡'},
+    {id:'comparativa',label:'Comparativa',icon:'⚖️'},
+    {id:'gps',label:'GPS',icon:'🛰️'},
+  ]},
+  { label:'Evaluaciones', icon:'📋', items:[
+    {id:'evaluaciones',label:'Tests & Eval.',icon:'📋'},
+  ]},
+  { label:'Médico', icon:'🏥', items:[
+    {id:'lesiones',label:'Enfermería',icon:'🏥'},
+  ]},
+  { label:'Recursos', icon:'📚', items:[
+    {id:'biblioteca',label:'Biblioteca',icon:'📚'},
+    {id:'manual',label:'Manual',icon:'📖'},
+  ]},
+]
 const SC = {optimo:'#22c55e',precaucion:'#f59e0b',peligro:'#ef4444',sin_datos:'#555'}
 const SL = {optimo:'ÓPTIMO',precaucion:'PRECAUCIÓN',peligro:'RIESGO',sin_datos:'—'}
 const WK = ['fatiga','calidad_sueno','dolor_muscular','nivel_estres','estado_animo']
@@ -128,6 +159,7 @@ function todayLocal(): string { return localDateStr(new Date()) }
 export default function CoachClient({ session, teamData, today }) {
   const [tab, setTab] = useState('team')
   const [selected, setSelected] = useState(null)
+  const [sidebarOpen, setSidebarOpen] = useState(true)
   const [playerLogs, setPlayerLogs] = useState([])
   const [playerWellness, setPlayerWellness] = useState([])
   const [loadingDetail, setLoadingDetail] = useState(false)
@@ -210,8 +242,64 @@ export default function CoachClient({ session, teamData, today }) {
 
   return (
     <div style={{ minHeight:'100vh', background:'var(--ink)' }}>
-      <Topbar nombre={session.nombre} rol={session.rol} tabs={TABS} activeTab={tab} onTabChange={t=>{ setTab(t); setSelected(null) }} clubNombre={session.clubNombre||null} />
-      <main style={{ maxWidth:980, margin:'0 auto', padding:'24px 16px' }}>
+      <Topbar nombre={session.nombre} rol={session.rol} clubNombre={session.clubNombre||null} />
+      <div style={{ display:'flex', minHeight:'calc(100vh - 52px)' }}>
+        {/* ── Sidebar ── */}
+        <nav className="no-print" style={{
+          width: sidebarOpen ? 220 : 56, transition:'width .2s ease',
+          background:'rgba(8,8,8,.95)', borderRight:'1px solid var(--mist)',
+          position:'sticky', top:52, height:'calc(100vh - 52px)', overflowY:'auto', overflowX:'hidden',
+          flexShrink:0, zIndex:40, display:'flex', flexDirection:'column',
+        }}>
+          {/* Toggle */}
+          <button onClick={()=>setSidebarOpen(o=>!o)} style={{
+            padding:'12px 16px', background:'transparent', border:'none', borderBottom:'1px solid var(--mist)',
+            cursor:'pointer', display:'flex', alignItems:'center', gap:10, color:'var(--fog)', fontSize:14, width:'100%',
+          }}>
+            <span style={{ fontSize:16, transition:'transform .2s', transform:sidebarOpen?'rotate(0)':'rotate(180deg)' }}>◀</span>
+            {sidebarOpen && <span style={{ fontSize:11, fontWeight:600, color:'var(--silver)', whiteSpace:'nowrap' }}>Menú</span>}
+          </button>
+          {/* Groups */}
+          <div style={{ flex:1, padding:'8px 0' }}>
+            {SIDEBAR_GROUPS.map(g => {
+              const groupActive = g.items.some(i => i.id === tab)
+              return (
+                <div key={g.label} style={{ marginBottom:4 }}>
+                  {sidebarOpen && (
+                    <div style={{ padding:'8px 16px 4px', fontSize:9, fontWeight:700, color: groupActive ? 'var(--lime)' : 'var(--fog)',
+                      textTransform:'uppercase', letterSpacing:'0.1em', whiteSpace:'nowrap' }}>{g.label}</div>
+                  )}
+                  {g.items.map(item => {
+                    const active = tab === item.id
+                    return (
+                      <button key={item.id} onClick={()=>{setTab(item.id);setSelected(null)}}
+                        title={sidebarOpen ? undefined : item.label}
+                        style={{
+                          display:'flex', alignItems:'center', gap:10, width:'100%',
+                          padding: sidebarOpen ? '8px 16px' : '10px 0',
+                          justifyContent: sidebarOpen ? 'flex-start' : 'center',
+                          background: active ? 'rgba(163,230,53,.1)' : 'transparent',
+                          borderLeft: active ? '3px solid var(--lime)' : '3px solid transparent',
+                          border:'none', borderRight:'none', borderTop:'none', borderBottom:'none',
+                          borderLeftWidth:3, borderLeftStyle:'solid', borderLeftColor: active ? 'var(--lime)' : 'transparent',
+                          cursor:'pointer', transition:'all .12s', fontSize:13,
+                          color: active ? 'var(--lime)' : 'var(--silver)',
+                        }}
+                        onMouseEnter={e=>{if(!active)(e.currentTarget.style.background='rgba(255,255,255,.04)')}}
+                        onMouseLeave={e=>{if(!active)(e.currentTarget.style.background='transparent')}}
+                      >
+                        <span style={{ fontSize:15, flexShrink:0 }}>{item.icon}</span>
+                        {sidebarOpen && <span style={{ whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', fontWeight: active?600:400 }}>{item.label}</span>}
+                      </button>
+                    )
+                  })}
+                </div>
+              )
+            })}
+          </div>
+        </nav>
+        {/* ── Main content ── */}
+        <main style={{ flex:1, maxWidth:1200, margin:'0 auto', padding:'24px 16px', minWidth:0 }}>
 
         {tab==='team' && !selected && (
           <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
@@ -394,6 +482,7 @@ export default function CoachClient({ session, teamData, today }) {
           </div>
         )}
       </main>
+      </div>{/* flex wrapper */}
     </div>
   )
 }
