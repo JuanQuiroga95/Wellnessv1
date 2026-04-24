@@ -177,8 +177,213 @@ export default function EnfermeriaPanel({ teamData, onRefresh }: { teamData: any
       {loading && <div style={{ padding: 40, textAlign: 'center', color: 'var(--silver)' }}>Cargando...</div>}
 
       {/* ═══════ DASHBOARD ═══════ */}
-      {!loading && subTab === 'dashboard' && (
+      {!loading && subTab === 'dashboard' && (() => {
+        // Estado de la plantilla
+        const totalPlantilla = teamData.length
+        const enRecuperacion = activas.length
+        const saludables = totalPlantilla - enRecuperacion
+
+        // Proyección de recuperación: group active injuries by ETA ranges
+        const etaRanges = [
+          { label: '0-7', min: 0, max: 7 },
+          { label: '8-14', min: 8, max: 14 },
+          { label: '15-21', min: 15, max: 21 },
+          { label: '22-30', min: 22, max: 30 },
+          { label: '30+', min: 31, max: 999 },
+        ]
+        const etaCounts = etaRanges.map(r => {
+          const count = activas.filter(l => {
+            const d = l.eta_dias ? Number(l.eta_dias) - diasBaja(l) : diasBaja(l)
+            const remaining = l.eta_dias ? Math.max(0, Number(l.eta_dias) - diasBaja(l)) : 0
+            return remaining >= r.min && remaining <= r.max
+          }).length
+          return { ...r, count }
+        })
+        const maxEta = Math.max(...etaCounts.map(e => e.count), 1)
+
+        // Top 3 injured zones for the runner SVG
+        const topZones = regionSorted.slice(0, 3)
+
+        return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+
+          {/* Hero Banner */}
+          <div style={{ background: 'linear-gradient(135deg, #0a1a0f 0%, #0f2518 40%, #0a1a10 100%)', border: '1px solid rgba(34,197,94,.15)', borderRadius: 16, padding: '28px 32px', position: 'relative', overflow: 'hidden' }}>
+            {/* Background grid effect */}
+            <div style={{ position: 'absolute', inset: 0, opacity: 0.04, backgroundImage: 'radial-gradient(circle at 1px 1px, #22c55e 1px, transparent 0)', backgroundSize: '24px 24px' }} />
+            <div style={{ position: 'relative', display: 'flex', gap: 24, alignItems: 'center', flexWrap: 'wrap' }}>
+              <div style={{ flex: 1, minWidth: 280 }}>
+                <h3 style={{ fontSize: 22, fontWeight: 800, color: 'var(--snow)', margin: '0 0 6px', letterSpacing: '-0.02em' }}>
+                  ¡PORTAL DE GESTIÓN DE LESIONES!
+                </h3>
+                <p style={{ fontSize: 13, color: 'var(--silver)', margin: '0 0 16px', lineHeight: 1.5 }}>
+                  Tu visión integral para un retorno a la competición seguro y eficiente
+                </p>
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 18px', borderRadius: 8, background: 'rgba(163,230,53,.12)', border: '1px solid rgba(163,230,53,.25)', fontSize: 11, fontWeight: 700, color: '#a3e635', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                  ⚡ Monitorización Integral de Atletas
+                </div>
+              </div>
+              {/* Runner SVG with injury zones */}
+              <div style={{ position: 'relative', width: 180, height: 160, flexShrink: 0 }}>
+                <svg viewBox="0 0 180 160" style={{ width: '100%', height: '100%' }}>
+                  {/* Runner silhouette */}
+                  <g opacity={0.6}>
+                    {/* Head */}
+                    <circle cx="95" cy="18" r="10" fill="none" stroke="#22c55e" strokeWidth="1.5"/>
+                    {/* Torso */}
+                    <line x1="95" y1="28" x2="90" y2="65" stroke="#22c55e" strokeWidth="1.5"/>
+                    {/* Arms */}
+                    <line x1="92" y1="38" x2="70" y2="50" stroke="#22c55e" strokeWidth="1.5"/>
+                    <line x1="92" y1="38" x2="115" y2="30" stroke="#22c55e" strokeWidth="1.5"/>
+                    {/* Legs running pose */}
+                    <line x1="90" y1="65" x2="110" y2="95" stroke="#22c55e" strokeWidth="1.5"/>
+                    <line x1="110" y1="95" x2="125" y2="130" stroke="#22c55e" strokeWidth="1.5"/>
+                    <line x1="90" y1="65" x2="65" y2="90" stroke="#22c55e" strokeWidth="1.5"/>
+                    <line x1="65" y1="90" x2="55" y2="125" stroke="#22c55e" strokeWidth="1.5"/>
+                    {/* Feet */}
+                    <line x1="125" y1="130" x2="135" y2="132" stroke="#22c55e" strokeWidth="1.5"/>
+                    <line x1="55" y1="125" x2="48" y2="128" stroke="#22c55e" strokeWidth="1.5"/>
+                  </g>
+                  {/* Injury zone markers */}
+                  {topZones[0] && <>
+                    <circle cx="100" cy="80" r="6" fill="#ef4444" opacity={0.5}/><circle cx="100" cy="80" r="3" fill="#ef4444"/>
+                    <text x="100" y="74" textAnchor="middle" fontSize="7" fill="#fca5a5" fontWeight="700">{topZones[0][0]}</text>
+                  </>}
+                  {topZones[1] && <>
+                    <circle cx="60" cy="115" r="5" fill="#f59e0b" opacity={0.5}/><circle cx="60" cy="115" r="2.5" fill="#f59e0b"/>
+                    <text x="60" y="109" textAnchor="middle" fontSize="7" fill="#fcd34d" fontWeight="700">{topZones[1][0]}</text>
+                  </>}
+                  {topZones[2] && <>
+                    <circle cx="115" cy="100" r="5" fill="#f59e0b" opacity={0.5}/><circle cx="115" cy="100" r="2.5" fill="#f59e0b"/>
+                    <text x="115" y="94" textAnchor="middle" fontSize="7" fill="#fcd34d" fontWeight="700">{topZones[2][0]}</text>
+                  </>}
+                  {/* Pulse rings */}
+                  {topZones[0] && <circle cx="100" cy="80" r="12" fill="none" stroke="#ef4444" strokeWidth="0.5" opacity={0.3}/>}
+                </svg>
+              </div>
+            </div>
+          </div>
+
+          {/* Estado Plantilla + Proyección Recuperación */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            {/* Estado de la Plantilla */}
+            <SectionBox title="Estado de la Plantilla">
+              <div style={{ display: 'flex', gap: 6, marginBottom: 14, flexWrap: 'wrap', fontSize: 11 }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><span style={{ width: 10, height: 10, borderRadius: 2, background: '#22c55e' }}/> Saludable ({saludables})</span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><span style={{ width: 10, height: 10, borderRadius: 2, background: '#f59e0b' }}/> En Recuperación ({enRecuperacion})</span>
+              </div>
+              {(() => {
+                const barH = 160, barW = 280, pad = { l: 30, r: 20, t: 10, b: 30 }
+                const cats = [
+                  { label: 'Saludable', value: saludables, color: '#22c55e' },
+                  { label: 'En Recuperación', value: enRecuperacion, color: '#f59e0b' },
+                ]
+                const maxVal = Math.max(...cats.map(c => c.value), 1)
+                const plotW = barW - pad.l - pad.r
+                const plotH = barH - pad.t - pad.b
+                const bw = plotW / cats.length * 0.5
+                const gap = plotW / cats.length
+                // Y axis ticks
+                const yTicks: number[] = []
+                const step = maxVal > 20 ? 5 : maxVal > 10 ? 2 : 1
+                for (let v = 0; v <= maxVal; v += step) yTicks.push(v)
+                if (!yTicks.includes(maxVal)) yTicks.push(maxVal)
+
+                return (
+                  <svg viewBox={`0 0 ${barW} ${barH}`} style={{ width: '100%', maxWidth: barW }}>
+                    {yTicks.map(v => (
+                      <g key={v}>
+                        <line x1={pad.l} y1={pad.t + plotH - (v / maxVal) * plotH} x2={barW - pad.r} y2={pad.t + plotH - (v / maxVal) * plotH} stroke="var(--mist)" strokeWidth={0.5}/>
+                        <text x={pad.l - 5} y={pad.t + plotH - (v / maxVal) * plotH + 3} textAnchor="end" fontSize="9" fill="var(--fog)">{v}</text>
+                      </g>
+                    ))}
+                    <line x1={pad.l} y1={pad.t + plotH} x2={barW - pad.r} y2={pad.t + plotH} stroke="var(--mist)" strokeWidth={0.5}/>
+                    {cats.map((c, i) => {
+                      const x = pad.l + gap * i + gap / 2 - bw / 2
+                      const h = (c.value / maxVal) * plotH
+                      return (
+                        <g key={c.label}>
+                          <rect x={x} y={pad.t + plotH - h} width={bw} height={h} fill={c.color} rx={4}/>
+                          <text x={x + bw / 2} y={pad.t + plotH + 14} textAnchor="middle" fontSize="9" fill="var(--silver)">{c.label}</text>
+                          <text x={x + bw / 2} y={pad.t + plotH - h - 4} textAnchor="middle" fontSize="10" fill={c.color} fontWeight="700">{c.value}</text>
+                        </g>
+                      )
+                    })}
+                  </svg>
+                )
+              })()}
+            </SectionBox>
+
+            {/* Proyección de Recuperación */}
+            <SectionBox title="Proyección de Recuperación" extra={
+              <span style={{ fontSize: 10, color: 'var(--silver)' }}>Días restantes estimados para retorno</span>
+            }>
+              {activas.length === 0 ? (
+                <p style={{ color: 'var(--fog)', fontSize: 12, textAlign: 'center', padding: 20 }}>✓ Sin jugadores en recuperación</p>
+              ) : (() => {
+                const chartW = 320, chartH = 150, pad = { l: 30, r: 10, t: 10, b: 30 }
+                const plotW = chartW - pad.l - pad.r
+                const plotH = chartH - pad.t - pad.b
+                // Sort active injuries by remaining days
+                const proyData = activas
+                  .map(l => ({
+                    nombre: l.jugador_nombre?.split(' ')[0] || '?',
+                    remaining: l.eta_dias ? Math.max(0, Number(l.eta_dias) - diasBaja(l)) : 0,
+                    total: Number(l.eta_dias) || 0,
+                  }))
+                  .filter(d => d.total > 0)
+                  .sort((a, b) => a.remaining - b.remaining)
+
+                if (proyData.length === 0) return <p style={{ color: 'var(--fog)', fontSize: 12, textAlign: 'center', padding: 20 }}>Sin datos de ETA</p>
+
+                const maxDays = Math.max(...proyData.map(d => d.remaining), 7)
+                const barH2 = Math.max(14, plotH / proyData.length - 4)
+
+                return (
+                  <div>
+                    <svg viewBox={`0 0 ${chartW} ${Math.max(chartH, proyData.length * (barH2 + 4) + pad.t + pad.b)}`} style={{ width: '100%', maxWidth: chartW }}>
+                      {proyData.map((d, i) => {
+                        const y = pad.t + i * (barH2 + 4)
+                        const w = (d.remaining / maxDays) * plotW
+                        const col = d.remaining <= 7 ? '#22c55e' : d.remaining <= 21 ? '#f59e0b' : '#ef4444'
+                        return (
+                          <g key={i}>
+                            <rect x={pad.l} y={y} width={Math.max(w, 2)} height={barH2} fill={col} rx={3} opacity={0.8}/>
+                            <text x={pad.l - 4} y={y + barH2 / 2 + 3} textAnchor="end" fontSize="8" fill="var(--silver)">{d.nombre}</text>
+                            <text x={pad.l + w + 5} y={y + barH2 / 2 + 3} fontSize="9" fill={col} fontWeight="700">{d.remaining}d</text>
+                          </g>
+                        )
+                      })}
+                    </svg>
+                    <div style={{ display: 'flex', gap: 8, marginTop: 8, fontSize: 10 }}>
+                      <span style={{ color: '#22c55e' }}>● {'≤'}7d próxima alta</span>
+                      <span style={{ color: '#f59e0b' }}>● 8-21d</span>
+                      <span style={{ color: '#ef4444' }}>● +21d</span>
+                    </div>
+                  </div>
+                )
+              })()}
+            </SectionBox>
+          </div>
+
+          {/* Quick Actions */}
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            <button onClick={() => setSubTab('nueva')} style={{
+              display: 'flex', alignItems: 'center', gap: 8, padding: '12px 20px', borderRadius: 10,
+              background: 'rgba(163,230,53,.08)', border: '1px solid rgba(163,230,53,.25)', cursor: 'pointer',
+              color: '#a3e635', fontSize: 13, fontWeight: 700,
+            }}>+ Nuevo Registro de Lesión</button>
+            <button onClick={() => setSubTab('readaptacion')} style={{
+              display: 'flex', alignItems: 'center', gap: 8, padding: '12px 20px', borderRadius: 10,
+              background: 'rgba(96,165,250,.06)', border: '1px solid rgba(96,165,250,.2)', cursor: 'pointer',
+              color: '#60a5fa', fontSize: 13, fontWeight: 700,
+            }}>🔄 Ver Readaptación</button>
+            <button onClick={() => setSubTab('profes')} style={{
+              display: 'flex', alignItems: 'center', gap: 8, padding: '12px 20px', borderRadius: 10,
+              background: 'rgba(249,115,22,.06)', border: '1px solid rgba(249,115,22,.2)', cursor: 'pointer',
+              color: '#f97316', fontSize: 13, fontWeight: 700,
+            }}>👥 Vista Profes</button>
+          </div>
           {/* KPIs */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
             {[
@@ -376,7 +581,7 @@ export default function EnfermeriaPanel({ teamData, onRefresh }: { teamData: any
             )}
           </SectionBox>
         </div>
-      )}
+      )})()}
 
       {/* ═══════ READAPTACIÓN ═══════ */}
       {!loading && subTab === 'readaptacion' && (
