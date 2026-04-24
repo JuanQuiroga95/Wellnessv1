@@ -191,11 +191,10 @@ export default function EnfermeriaPanel({ teamData, onRefresh }: { teamData: any
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
 
           {/* Hero Banner */}
-          <div style={{ background: 'linear-gradient(135deg, #0a1a0f 0%, #0f2518 40%, #0a1a10 100%)', border: '1px solid rgba(34,197,94,.15)', borderRadius: 16, padding: '32px 36px', position: 'relative', overflow: 'hidden', minHeight: 260 }}>
-            {/* Background grid effect */}
+          <div style={{ background: 'linear-gradient(135deg, #0a1a0f 0%, #0f2518 40%, #0a1a10 100%)', border: '1px solid rgba(34,197,94,.15)', borderRadius: 16, padding: '32px 36px', position: 'relative', overflow: 'hidden' }}>
             <div style={{ position: 'absolute', inset: 0, opacity: 0.04, backgroundImage: 'radial-gradient(circle at 1px 1px, #22c55e 1px, transparent 0)', backgroundSize: '24px 24px' }} />
             <div style={{ position: 'relative', display: 'flex', gap: 24, alignItems: 'center' }}>
-              <div style={{ flex: 1, minWidth: 260 }}>
+              <div style={{ flex: 1 }}>
                 <h3 style={{ fontSize: 26, fontWeight: 800, color: 'var(--snow)', margin: '0 0 8px', letterSpacing: '-0.02em' }}>
                   ¡PORTAL DE GESTIÓN DE LESIONES!
                 </h3>
@@ -206,9 +205,9 @@ export default function EnfermeriaPanel({ teamData, onRefresh }: { teamData: any
                   ⚡ Monitorización Integral de Atletas
                 </div>
               </div>
-              {/* Runner image */}
-              <div style={{ flexShrink: 0, width: 220, height: 220, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <img src="/images/runner-medical.png" alt="Runner" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', filter: 'drop-shadow(0 0 20px rgba(168,85,247,.3))' }} />
+              {/* W&P Logo */}
+              <div style={{ flexShrink: 0, width: 80, height: 80, borderRadius: 16, background: 'rgba(163,230,53,.08)', border: '1px solid rgba(163,230,53,.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <span style={{ fontSize: 32, fontWeight: 900, color: '#a3e635', fontFamily: 'DM Mono,monospace' }}>W&P</span>
               </div>
             </div>
           </div>
@@ -336,6 +335,8 @@ export default function EnfermeriaPanel({ teamData, onRefresh }: { teamData: any
                       ))}
                       {/* X label */}
                       <text x={cW / 2} y={cH - 2} textAnchor="middle" fontSize="9" fill="var(--fog)">Días</text>
+                      {/* Y label */}
+                      <text x={10} y={p.t + pH / 2} textAnchor="middle" fontSize="8" fill="var(--fog)" transform={`rotate(-90,10,${p.t + pH / 2})`}>Vuelta de jugadores</text>
                     </svg>
                   </div>
                 )
