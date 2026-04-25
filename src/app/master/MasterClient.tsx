@@ -1063,17 +1063,21 @@ function InvitesTab() {
           )}
 
           {expired.length > 0 && (
-            <div style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:16, overflow:'hidden', opacity:.6 }}>
+            <div style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:16, overflow:'hidden' }}>
               <div style={{ padding:'10px 16px', borderBottom:'1px solid var(--mist)' }}>
                 <p style={{ fontSize:11, fontWeight:700, color:'var(--fog)', textTransform:'uppercase', letterSpacing:'0.08em' }}>⏰ Expirados ({expired.length})</p>
               </div>
               {expired.map(t => (
                 <div key={t.id} style={{ padding:'10px 16px', borderBottom:'1px solid var(--mist)', display:'flex', alignItems:'center', gap:12 }}>
                   <div style={{ flex:1 }}>
-                    {t.nota && <div style={{ fontSize:12, color:'var(--silver)' }}>{t.nota}</div>}
-                    <div style={{ fontSize:10, color:'var(--fog)' }}>Expiró {new Date(t.expires_at).toLocaleDateString('es-AR')}</div>
+                    {t.nota && <div style={{ fontSize:12, color:'var(--silver)', fontWeight:600, marginBottom:2 }}>{t.nota}</div>}
+                    <div style={{ fontSize:11, color:'var(--fog)', fontFamily:'DM Mono,monospace' }}>#{t.id} · {t.token?.slice(0,12)}...</div>
+                    <div style={{ fontSize:10, color:'var(--fog)', marginTop:2 }}>
+                      Creado: {new Date(t.created_at).toLocaleDateString('es-AR')} · Expiró: {new Date(t.expires_at).toLocaleDateString('es-AR')}
+                      {t.created_by_nombre && <span> · Por: {t.created_by_nombre}</span>}
+                    </div>
                   </div>
-                  <button onClick={() => revokeToken(t.token)} style={{ fontSize:11, padding:'4px 10px', borderRadius:6, border:'1px solid var(--fog)', background:'transparent', color:'var(--fog)', cursor:'pointer' }}>Eliminar</button>
+                  <button onClick={() => revokeToken(t.token)} style={{ fontSize:11, padding:'4px 10px', borderRadius:6, border:'1px solid rgba(239,68,68,.3)', background:'rgba(239,68,68,.08)', color:'#f87171', cursor:'pointer' }}>Eliminar</button>
                 </div>
               ))}
             </div>
