@@ -297,7 +297,7 @@ export default function TacticalBoard({ initialData, onSave, onClose, readOnly, 
       setDraw(null);setPrev(null)
     }
   }
-  const elDown = (e:any,el:El)=>{e.stopPropagation();if(readOnly||tool!=='select')return;setSelId(el.id);const p=pt(e);setDrag({id:el.id,ox:p.x-el.x,oy:p.y-el.y})}
+  const elDown = (e:any,el:El)=>{if(readOnly)return;if(tool!=='select'){/* let click pass through to place new element */return};e.stopPropagation();setSelId(el.id);const p=pt(e);setDrag({id:el.id,ox:p.x-el.x,oy:p.y-el.y})}
   const addTxt = ()=>{if(!txtP||!txtV.trim()){setTxtP(null);return};push([...elements,{id:uid(),type:'text',x:txtP.x,y:txtP.y,text:txtV.trim()}]);setTxtV('');setTxtP(null)}
   const del = ()=>{if(selId){push(elements.filter(e=>e.id!==selId));setSelId(null)}}
   const dup = ()=>{const el=elements.find(e=>e.id===selId);if(!el)return;const ne={...el,id:uid(),x:el.x+20,y:el.y+20};if(ne.x2)ne.x2+=20;if(ne.y2)ne.y2+=20;push([...elements,ne]);setSelId(ne.id)}
