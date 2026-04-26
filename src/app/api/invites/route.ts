@@ -67,6 +67,19 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({ ok: true, token: (row as any).token, expiresAt })
 }
 
+// PATCH — update nota on a token
+export async function PATCH(req: NextRequest) {
+  const session = await getSession(cookies())
+  if (!session || session.rol !== 'master_admin') {
+    return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
+  }
+  const { token, nota } = await req.json()
+  if (!token) return NextResponse.json({ error: 'Falta token' }, { status: 400 })
+  const sql = getDb()
+  await sql`UPDATE invite_tokens SET nota = ${(nota || '').slice(0, 100)} WHERE token = ${token}`
+  return NextResponse.json({ ok: true })
+}
+
 // DELETE — revoke a token
 export async function DELETE(req: NextRequest) {
   const session = await getSession(cookies())

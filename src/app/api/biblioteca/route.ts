@@ -8,6 +8,8 @@ async function ensureCols(sql: any) {
   try { await sql`ALTER TABLE biblioteca_tareas ADD COLUMN IF NOT EXISTS intensidad INTEGER` } catch {}
   try { await sql`ALTER TABLE biblioteca_tareas ADD COLUMN IF NOT EXISTS objetivo VARCHAR(50)` } catch {}
   try { await sql`ALTER TABLE biblioteca_tareas ADD COLUMN IF NOT EXISTS imagen TEXT` } catch {}
+  try { await sql`ALTER TABLE biblioteca_tareas ADD COLUMN IF NOT EXISTS tactical_diagram TEXT` } catch {}
+  try { await sql`ALTER TABLE biblioteca_tareas ADD COLUMN IF NOT EXISTS diagram_preview TEXT` } catch {}
 }
 
 export async function GET(req: NextRequest) {
@@ -96,10 +98,10 @@ export async function POST(req: NextRequest) {
   }
 
   // Manual save
-  const { nombre, ventana, subtarea, jugadores, series, minutos, pausa, largo, ancho, descripcion, intensidad, objetivo, imagen } = body
+  const { nombre, ventana, subtarea, jugadores, series, minutos, pausa, largo, ancho, descripcion, intensidad, objetivo, imagen, tactical_diagram, diagram_preview } = body
   await sql`
-    INSERT INTO biblioteca_tareas (admin_id,nombre,ventana,subtarea,jugadores,series,minutos,pausa,largo,ancho,descripcion,intensidad,objetivo,imagen)
-    VALUES (${s.userId},${nombre},${ventana||null},${subtarea||null},${jugadores||null},${series||null},${minutos||null},${pausa||null},${largo||null},${ancho||null},${descripcion||null},${intensidad||null},${objetivo||null},${imagen||null})
+    INSERT INTO biblioteca_tareas (admin_id,nombre,ventana,subtarea,jugadores,series,minutos,pausa,largo,ancho,descripcion,intensidad,objetivo,imagen,tactical_diagram,diagram_preview)
+    VALUES (${s.userId},${nombre},${ventana||null},${subtarea||null},${jugadores||null},${series||null},${minutos||null},${pausa||null},${largo||null},${ancho||null},${descripcion||null},${intensidad||null},${objetivo||null},${imagen||null},${tactical_diagram||null},${diagram_preview||null})
   `
   return NextResponse.json({ ok: true })
 }
@@ -112,5 +114,22 @@ export async function DELETE(req: NextRequest) {
   if (!id) return NextResponse.json({error:'Falta id'},{status:400})
   const sql = getDb()
   await sql`DELETE FROM biblioteca_tareas WHERE id=${Number(id)} AND admin_id=${s.userId}`
+  return NextResponse.json({ ok: true })
+}
+
+export async function PATCH(req: NextRequest) {
+  const s = await getSessionFromRequest(req)
+  if (!s||!isAdmin(s)) return NextResponse.json({error:'No autorizado'},{status:403})
+  const body = await req.json()
+  const { id, tactical_diagram, diagram_preview, nombre } = body
+  if (!id) return NextResponse.json({error:'Falta id'},{status:400})
+  const sql = getDb()
+  await ensureCols(sql)
+  if (tactical_diagram !== undefined) {
+    await sql`UPDATE biblioteca_tareas SET tactical_diagram=${tactical_diagram||null}, diagram_preview=${diagram_preview||null} WHERE id=${Number(id)} AND admin_id=${s.userId}`
+  }
+  if (nombre !== undefined) {
+    await sql`UPDATE biblioteca_tareas SET nombre=${nombre} WHERE id=${Number(id)} AND admin_id=${s.userId}`
+  }
   return NextResponse.json({ ok: true })
 }

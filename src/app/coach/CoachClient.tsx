@@ -10,6 +10,7 @@ import { buildACWRHistory, buildDailyDetail } from '@/lib/acwr'
 import EvaluacionesPanelFull from './EvaluacionesPanel'
 import AnalyticsPanel from './AnalyticsPanel'
 import EnfermeriaPanel from './EnfermeriaPanel'
+import TacticalBoard, { TacticalPreview } from './TacticalBoard'
 
 // ─── GPS METRIC METADATA (shared between GpsPanel and CargaExternaPanel) ──────
 // Maps metric key → { label, unit, group } for display purposes
@@ -111,7 +112,7 @@ const SIDEBAR_GROUPS = [
     {id:'lesiones',label:'Enfermería',icon:'🏥'},
   ]},
   { label:'Recursos', icon:'📚', items:[
-    {id:'biblioteca',label:'Biblioteca',icon:'📚'},
+    {id:'biblioteca',label:'Diseñador Tareas',icon:'🎨'},
     {id:'manual',label:'Manual',icon:'📖'},
   ]},
 ]
@@ -10395,6 +10396,10 @@ function BibliotecaPanel() {
   const [saving, setSaving] = useState(false)
   const [ventanaFilter, setVentanaFilter] = useState('')
   const [sortBy, setSortBy] = useState<'uso'|'reciente'|'tipo'>('tipo')
+  const [showBoard, setShowBoard] = useState(false)
+  const [editBoardId, setEditBoardId] = useState<number|null>(null)
+  const [editBoardData, setEditBoardData] = useState<any>(null)
+  const [boardName, setBoardName] = useState('')
 
   useEffect(() => { cargar() }, [])
 
@@ -10501,6 +10506,16 @@ function BibliotecaPanel() {
             <button onClick={()=>eliminar(t.id)} style={{ fontSize:10, padding:'7px 10px', borderRadius:8, background:'rgba(239,68,68,.06)', color:'#f87171', border:'1px solid rgba(239,68,68,.2)', cursor:'pointer' }} title="Eliminar">✕</button>
           </div>
         </div>
+        {/* Tactical diagram preview */}
+        {t.diagram_preview && (
+          <div style={{ marginTop:8 }}>
+            <img src={t.diagram_preview} alt="Diagrama" style={{ width:'100%', maxWidth:360, borderRadius:8, border:'1px solid var(--mist)' }} />
+            <button onClick={(e) => { e.stopPropagation(); setEditBoardId(t.id); setEditBoardData(t.tactical_diagram ? JSON.parse(t.tactical_diagram) : null); setBoardName(t.nombre); setShowBoard(true) }}
+              style={{ marginTop:6, fontSize:10, padding:'4px 12px', borderRadius:6, border:'1px solid rgba(163,230,53,.3)', background:'rgba(163,230,53,.06)', color:'var(--lime)', cursor:'pointer', fontWeight:600 }}>
+              ✏️ Editar diagrama
+            </button>
+          </div>
+        )}
         {/* Imagen + descripción en la parte inferior */}
         {(t.imagen || t.descripcion) && (
           <div style={{ display:'flex', gap:12, alignItems:'flex-start', marginTop:8 }}>
@@ -10533,15 +10548,47 @@ function BibliotecaPanel() {
   }
 
   return (
-    <div style={{ padding:'24px 20px', maxWidth:900, margin:'0 auto' }}>
+    <div style={{ padding:'24px 20px', maxWidth:1100, margin:'0 auto' }}>
+      {/* Tactical Board */}
+      {showBoard && (
+        <div style={{ marginBottom:20 }}>
+          <div style={{ display:'flex', gap:10, alignItems:'center', marginBottom:12 }}>
+            <span style={{ fontSize:11, color:'var(--silver)', fontWeight:600 }}>Nombre de la tarea:</span>
+            <input className="wp-input" value={boardName} onChange={e=>setBoardName(e.target.value)} placeholder="Ej: Rondo 4v2 + comodín" style={{ fontSize:13, padding:'6px 12px', flex:1, maxWidth:400 }} />
+          </div>
+          <TacticalBoard
+            initialData={editBoardData}
+            onSave={async (data) => {
+              if (!boardName.trim()) { alert('Ponele un nombre a la tarea'); return }
+              setSaving(true)
+              try {
+                if (editBoardId) {
+                  await fetch('/api/biblioteca', { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ id: editBoardId, tactical_diagram: JSON.stringify(data), diagram_preview: data.preview, nombre: boardName }) })
+                } else {
+                  await fetch('/api/biblioteca', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ nombre: boardName, tactical_diagram: JSON.stringify(data), diagram_preview: data.preview }) })
+                }
+                setShowBoard(false); setEditBoardId(null); setEditBoardData(null); setBoardName(''); await cargar()
+              } finally { setSaving(false) }
+            }}
+            onClose={() => { setShowBoard(false); setEditBoardId(null); setEditBoardData(null); setBoardName('') }}
+          />
+        </div>
+      )}
+
+      {!showBoard && (<>
       <div style={{ marginBottom:24, display:'flex', justifyContent:'space-between', alignItems:'flex-end', flexWrap:'wrap', gap:12 }}>
         <div>
-          <h2 style={{ fontFamily:'Bebas Neue,sans-serif', fontSize:36, color:'var(--snow)', letterSpacing:'0.04em', marginBottom:4 }}>📚 BIBLIOTECA DE TAREAS</h2>
-          <p style={{ fontSize:12, color:'var(--silver)' }}>Se guarda automáticamente al crear sesiones · Agrupada por objetivo e intensidad</p>
+          <h2 style={{ fontFamily:'Bebas Neue,sans-serif', fontSize:36, color:'var(--snow)', letterSpacing:'0.04em', marginBottom:4 }}>🎨 DISEÑADOR DE TAREAS</h2>
+          <p style={{ fontSize:12, color:'var(--silver)' }}>Pizarra táctica + biblioteca · Se guarda automáticamente al crear sesiones</p>
         </div>
-        <button onClick={()=>setShowForm(!showForm)} className="btn-lime" style={{ padding:'10px 20px', fontSize:13 }}>
-          {showForm ? '✕ Cancelar' : '+ Guardar Tarea'}
-        </button>
+        <div style={{ display:'flex', gap:8 }}>
+          <button onClick={()=>{ setShowBoard(true); setEditBoardId(null); setEditBoardData(null); setBoardName('') }} className="btn-lime" style={{ padding:'10px 20px', fontSize:13 }}>
+            🎨 Diseñar Tarea
+          </button>
+          <button onClick={()=>setShowForm(!showForm)} style={{ padding:'10px 20px', fontSize:13, borderRadius:10, border:'1px solid var(--mist)', background:'transparent', color:'var(--silver)', cursor:'pointer', fontWeight:600 }}>
+            {showForm ? '✕ Cancelar' : '+ Tarea Manual'}
+          </button>
+        </div>
       </div>
 
       {showForm && (
@@ -10645,6 +10692,7 @@ function BibliotecaPanel() {
           )}
         </div>
       )}
+      </>)}
     </div>
   )
 }

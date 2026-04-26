@@ -289,6 +289,9 @@ export async function POST(req: NextRequest) {
       updated_at TIMESTAMPTZ DEFAULT NOW()
     )`, 'readaptacion_checks table'],
     [`CREATE INDEX IF NOT EXISTS idx_readaptacion_lesion ON readaptacion_checks(lesion_id)`, 'readaptacion_checks index'],
+    // ── Biblioteca: tactical_diagram for whiteboard data ─────────────────
+    [`ALTER TABLE biblioteca_tareas ADD COLUMN IF NOT EXISTS tactical_diagram TEXT`, 'biblioteca_tareas.tactical_diagram'],
+    [`ALTER TABLE biblioteca_tareas ADD COLUMN IF NOT EXISTS diagram_preview TEXT`, 'biblioteca_tareas.diagram_preview'],
   ]
   for (const [sql_str, label] of extra_migrations) {
     try {

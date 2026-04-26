@@ -1068,17 +1068,7 @@ function InvitesTab() {
                 <p style={{ fontSize:11, fontWeight:700, color:'var(--fog)', textTransform:'uppercase', letterSpacing:'0.08em' }}>⏰ Expirados ({expired.length})</p>
               </div>
               {expired.map(t => (
-                <div key={t.id} style={{ padding:'10px 16px', borderBottom:'1px solid var(--mist)', display:'flex', alignItems:'center', gap:12 }}>
-                  <div style={{ flex:1 }}>
-                    {t.nota && <div style={{ fontSize:12, color:'var(--silver)', fontWeight:600, marginBottom:2 }}>{t.nota}</div>}
-                    <div style={{ fontSize:11, color:'var(--fog)', fontFamily:'DM Mono,monospace' }}>#{t.id} · {t.token?.slice(0,12)}...</div>
-                    <div style={{ fontSize:10, color:'var(--fog)', marginTop:2 }}>
-                      Creado: {new Date(t.created_at).toLocaleDateString('es-AR')} · Expiró: {new Date(t.expires_at).toLocaleDateString('es-AR')}
-                      {t.created_by_nombre && <span> · Por: {t.created_by_nombre}</span>}
-                    </div>
-                  </div>
-                  <button onClick={() => revokeToken(t.token)} style={{ fontSize:11, padding:'4px 10px', borderRadius:6, border:'1px solid rgba(239,68,68,.3)', background:'rgba(239,68,68,.08)', color:'#f87171', cursor:'pointer' }}>Eliminar</button>
-                </div>
+                <ExpiredTokenRow key={t.id} token={t} onRevoke={() => revokeToken(t.token)} onRefresh={load} />
               ))}
             </div>
           )}
@@ -1090,6 +1080,53 @@ function InvitesTab() {
           )}
         </>
       )}
+    </div>
+  )
+}
+
+function ExpiredTokenRow({ token: t, onRevoke, onRefresh }: { token: any; onRevoke: () => void; onRefresh: () => void }) {
+  const [editing, setEditing] = useState(false)
+  const [nota, setNota] = useState(t.nota || '')
+  const [saving, setSaving] = useState(false)
+
+  async function saveNota() {
+    setSaving(true)
+    await fetch('/api/invites', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: t.token, nota })
+    })
+    setSaving(false)
+    setEditing(false)
+    onRefresh()
+  }
+
+  return (
+    <div style={{ padding:'10px 16px', borderBottom:'1px solid var(--mist)', display:'flex', alignItems:'center', gap:12 }}>
+      <div style={{ flex:1 }}>
+        {editing ? (
+          <div style={{ display:'flex', gap:6, alignItems:'center', marginBottom:4 }}>
+            <input className="wp-input" value={nota} onChange={e => setNota(e.target.value)} placeholder="Nombre del profe..." style={{ fontSize:12, padding:'5px 10px', flex:1 }} autoFocus onKeyDown={e => e.key === 'Enter' && saveNota()} />
+            <button onClick={saveNota} disabled={saving} style={{ fontSize:11, padding:'4px 10px', borderRadius:6, border:'1px solid rgba(34,197,94,.4)', background:'rgba(34,197,94,.1)', color:'#22c55e', cursor:'pointer' }}>{saving ? '...' : '✓'}</button>
+            <button onClick={() => { setEditing(false); setNota(t.nota || '') }} style={{ fontSize:11, padding:'4px 8px', borderRadius:6, border:'1px solid var(--mist)', background:'transparent', color:'var(--fog)', cursor:'pointer' }}>✕</button>
+          </div>
+        ) : (
+          <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:2 }}>
+            {t.nota ? (
+              <div style={{ fontSize:12, color:'var(--silver)', fontWeight:600 }}>{t.nota}</div>
+            ) : (
+              <div style={{ fontSize:12, color:'var(--fog)', fontStyle:'italic' }}>Sin identificar</div>
+            )}
+            <button onClick={() => setEditing(true)} style={{ fontSize:10, padding:'2px 6px', borderRadius:4, border:'1px solid var(--mist)', background:'transparent', color:'var(--fog)', cursor:'pointer' }}>✏️</button>
+          </div>
+        )}
+        <div style={{ fontSize:11, color:'var(--fog)', fontFamily:'DM Mono,monospace' }}>#{t.id} · {t.token?.slice(0,12)}...</div>
+        <div style={{ fontSize:10, color:'var(--fog)', marginTop:2 }}>
+          Creado: {new Date(t.created_at).toLocaleDateString('es-AR')} · Expiró: {new Date(t.expires_at).toLocaleDateString('es-AR')}
+          {t.created_by_nombre && <span> · Por: {t.created_by_nombre}</span>}
+        </div>
+      </div>
+      <button onClick={onRevoke} style={{ fontSize:11, padding:'4px 10px', borderRadius:6, border:'1px solid rgba(239,68,68,.3)', background:'rgba(239,68,68,.08)', color:'#f87171', cursor:'pointer' }}>Eliminar</button>
     </div>
   )
 }
