@@ -9812,7 +9812,7 @@ function ManualPanel() {
     { id:'lesiones',       label:'Lesiones',             icon:'🏥' },
     { id:'gps',            label:'Importar GPS',         icon:'🛰️' },
     { id:'jugadores',      label:'Jugadores',            icon:'🗂️' },
-    { id:'biblioteca',     label:'Biblioteca de Tareas', icon:'📚' },
+    { id:'biblioteca',     label:'Diseñador de Tareas', icon:'🎨' },
   ]
 
   function generarPDF() {
@@ -9947,10 +9947,15 @@ function ManualPanel() {
         ['Configuración de email del coach', 'Desde esta sección configurás el correo para notificaciones y recordatorios a los jugadores.'],
         ['Editar / dar de baja', 'Al eliminar un jugador, sus datos históricos se conservan pero ya no aparece activo.'],
       ]},
-      { titulo: 'Biblioteca de Tareas', icono: '📚', intro: 'Catálogo de ejercicios reutilizables. Guardá tareas para agregarlas rápidamente a futuras sesiones.', rows: [
-        ['Guardar tarea', 'Clic en + Guardar Tarea: nombre, tipo, jugadores, series, minutos/serie, pausa, dimensiones del espacio y descripción. Solo el nombre es obligatorio.'],
-        ['Buscar y filtrar', 'Por texto, por tipo de tarea, o por más usadas / más recientes.'],
-        ['Usar en sesión', 'Desde el Calendario, al crear o editar una sesión, hacé clic en 📚 Biblioteca para elegir una tarea guardada con todos sus datos pre-completados.'],
+      { titulo: 'Diseñador de Tareas', icono: '🎨', intro: 'Herramienta para crear, guardar y reutilizar ejercicios y tareas de entrenamiento. Incluye pizarra táctica, calculadora de densidad y biblioteca personal de ejercicios.', rows: [
+        ['Crear tarea', 'Usá el botón + Nueva Tarea para guardar manualmente un ejercicio: nombre, tipo, jugadores, series, minutos/serie, pausa, dimensiones del espacio y descripción.'],
+        ['Pizarra táctica', 'Cada tarea puede tener un diagrama táctico dibujado con la pizarra interactiva. Elegí campo (F11, F9, F7, F5), colocá jugadores, conos, arcos, zonas y flechas.'],
+        ['Tipos de tarea', 'Activación en campo/gimnasio, Gimnasio, Rondo, Trabajo analítico, Juego de posesión, Juego de posición, Transiciones, Partido reducido/modificado/entrenamiento, Partido amistoso/oficial.'],
+        ['Calculadora de densidad', 'Al dibujar una zona en la pizarra y colocar jugadores dentro, se calcula automáticamente la densidad (m²/jug) y la clasificación según Castellano & Casamichana: Fuerza, Activación/Recuperación, Resistencia o Velocidad.'],
+        ['Editar metros manualmente', 'En la barra inferior de la pizarra podés editar el ancho y alto de la zona directamente. El rectángulo en el campo se acomoda automáticamente al tamaño que ingresás.'],
+        ['Buscar y filtrar', 'Filtrá por texto, por tipo de tarea, o por más usadas / más recientes.'],
+        ['Usar en sesión', 'Desde el Calendario, al crear o editar una sesión, hacé clic en 📚 Biblioteca para elegir una tarea guardada con imagen, dimensiones y jugadores pre-completados.'],
+        ['Auto-guardado', 'Las tareas de las sesiones del Calendario se guardan automáticamente en la biblioteca al crear una sesión.'],
       ]},
     ]
 
@@ -10306,18 +10311,34 @@ ${secciones_data.map(sec => `
 
     biblioteca: (
       <div>
-        <h2 style={{ fontFamily:'Bebas Neue,sans-serif', fontSize:34, color:'var(--snow)', marginBottom:4, letterSpacing:'0.04em' }}>📚 Biblioteca de Tareas</h2>
-        <p style={{ fontSize:12, color:'var(--silver)', marginBottom:20, lineHeight:1.65 }}>Catálogo de ejercicios reutilizables. Guardá tareas para agregarlas rápidamente a futuras sesiones.</p>
-        <ManualSection title="Guardar una tarea">
-          <p style={{ fontSize:12, color:'var(--silver)', lineHeight:1.65, marginBottom:8 }}>Hacé clic en <strong style={{ color:'var(--lime)' }}>+ Guardar Tarea</strong> y completá el nombre, tipo, jugadores, series, minutos/serie, pausa, dimensiones del espacio y descripción. Solo el nombre es obligatorio.</p>
+        <h2 style={{ fontFamily:'Bebas Neue,sans-serif', fontSize:34, color:'var(--snow)', marginBottom:4, letterSpacing:'0.04em' }}>🎨 Diseñador de Tareas</h2>
+        <p style={{ fontSize:12, color:'var(--silver)', marginBottom:20, lineHeight:1.65 }}>Herramienta para crear, guardar y reutilizar ejercicios y tareas de entrenamiento. Incluye pizarra táctica interactiva, calculadora de densidad y biblioteca personal de ejercicios.</p>
+        <ManualSection title="Crear una tarea">
+          <p style={{ fontSize:12, color:'var(--silver)', lineHeight:1.65, marginBottom:8 }}>Hacé clic en <strong style={{ color:'var(--lime)' }}>+ Nueva Tarea</strong> para guardar manualmente un ejercicio. Campos disponibles: nombre, tipo de tarea, jugadores, series, minutos/serie, pausa, dimensiones del espacio y descripción.</p>
+          <ManualRow label="Tipos de tarea" desc="Activación en campo/gimnasio, Gimnasio, Rondo, Trabajo analítico, Juego de posesión, Juego de posición, Transiciones, Partido reducido, modificado, de entrenamiento, amistoso u oficial." />
+          <ManualRow label="Auto-guardado" desc="Las tareas que usás en el Calendario se guardan automáticamente en la biblioteca al crear una sesión. No hace falta guardarlas manualmente." />
+        </ManualSection>
+        <ManualSection title="Pizarra táctica">
+          <p style={{ fontSize:12, color:'var(--silver)', lineHeight:1.65, marginBottom:8 }}>Cada tarea puede tener un diagrama dibujado con la pizarra interactiva.</p>
+          <ManualRow label="Tipo de campo" desc="F11 completa, F11 mitad, F9, F7 o F5 (Futsal). Orientación horizontal o vertical." />
+          <ManualRow label="Herramientas" desc="Jugadores (numerados por equipo), conos, discos, arcos, mini-arcos, barreras, escaleras, postes, maniquíes, flechas (sólida, punteada, ondulada), zonas y texto libre." />
+          <ManualRow label="Formaciones" desc="Aplicá formaciones predefinidas (4-3-3, 4-4-2, 3-5-2, 4-2-3-1, etc.) con un clic. Solo aparecen las compatibles con el tipo de campo seleccionado." />
+          <ManualRow label="Series" desc="Podés guardar hasta varias series dentro de una misma pizarra para mostrar la evolución de la tarea." />
+        </ManualSection>
+        <ManualSection title="Calculadora de densidad">
+          <p style={{ fontSize:12, color:'var(--silver)', lineHeight:1.65, marginBottom:8 }}>Al dibujar una zona y colocar jugadores dentro, la barra inferior calcula automáticamente:</p>
+          <ManualRow label="Espacio (m²)" desc="Ancho × alto de la zona en metros reales, según las proporciones del campo seleccionado. Podés editar los metros manualmente — el rectángulo en el campo se ajusta solo." />
+          <ManualRow label="Jugadores en zona" desc="Detecta automáticamente cuántos jugadores están dentro del rectángulo dibujado." />
+          <ManualRow label="Densidad (m²/jug)" desc="Espacio disponible por jugador. A menor densidad, mayor intensidad de contactos y acciones neuromusculares." />
+          <ManualRow label="Clasificación" desc="Según Castellano & Casamichana: Fuerza/Velocidad (muy reducido), Activación/Recuperación (reducido con muchos jugadores), Resistencia (espacio medio) o Velocidad (espacio amplio)." />
         </ManualSection>
         <ManualSection title="Buscar y filtrar">
-          <ManualRow label="Búsqueda por texto" desc="Filtra por nombre de tarea o tipo." />
-          <ManualRow label="Filtro por tipo" desc="Filtra por tipo de tarea (Rondo, Juego de posesión, Partido reducido, etc.)." />
-          <ManualRow label="Ordenar" desc="Por más usadas o por más recientes." />
+          <ManualRow label="Búsqueda por texto" desc="Filtrá por nombre de tarea o tipo." />
+          <ManualRow label="Filtro por tipo" desc="Filtrá por tipo de tarea (Rondo, Juego de posesión, Partido reducido, etc.)." />
+          <ManualRow label="Ordenar" desc="Por más usadas, más recientes o por tipo de tarea." />
         </ManualSection>
         <ManualSection title="Usar una tarea en sesión">
-          <p style={{ fontSize:12, color:'var(--silver)', lineHeight:1.65 }}>Desde el Calendario, al crear o editar una sesión, hacé clic en <strong style={{ color:'var(--lime)' }}>📚 Biblioteca</strong> para elegir una tarea guardada con todos sus datos pre-completados. El contador de "veces usada" se incrementa automáticamente.</p>
+          <p style={{ fontSize:12, color:'var(--silver)', lineHeight:1.65 }}>Desde el Calendario, al crear o editar una sesión, hacé clic en <strong style={{ color:'var(--lime)' }}>📚 Biblioteca</strong> para elegir una tarea guardada. Se cargan automáticamente la imagen, jugadores, dimensiones y descripción. El contador de veces usada se incrementa.</p>
         </ManualSection>
       </div>
     ),
