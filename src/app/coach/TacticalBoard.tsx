@@ -233,6 +233,9 @@ export default function TacticalBoard({ initialData, onSave, onClose, readOnly, 
   const [prev, setPrev] = useState<{x:number;y:number}|null>(null)
   const [txtP, setTxtP] = useState<{x:number;y:number}|null>(null)
   const [txtV, setTxtV] = useState('')
+  // Manual dimension overrides — set by the user via editable inputs in the density bar
+  const [manualW, setManualW] = useState<string>('')
+  const [manualH, setManualH] = useState<string>('')
   const ref = useRef<SVGSVGElement>(null)
 
   // ViewBox based on field + orientation
@@ -243,6 +246,11 @@ export default function TacticalBoard({ initialData, onSave, onClose, readOnly, 
   const vbH = orient==='horizontal' ? Math.round(baseW / ratio) : baseW
 
   useEffect(() => { setSeries(p => { const c=[...p]; c[actSerie]=elements; return c }) }, [elements])
+  // Reset manual dimension overrides when a new zone is drawn
+  useEffect(() => {
+    const zones = elements.filter(e=>e.type==='zone')
+    if (zones.length === 0) { setManualW(''); setManualH('') }
+  }, [elements.filter(e=>e.type==='zone').length])
   useEffect(() => {
     if (!onZoneInfo) return
     const zones = elements.filter(e => e.type === 'zone' && e._rw && e._rh).map(e => ({ rw: e._rw!, rh: e._rh!, area: e._rw! * e._rh! }))
@@ -510,8 +518,18 @@ export default function TacticalBoard({ initialData, onSave, onClose, readOnly, 
         const scaleX=cfg.mW/(vbW-60), scaleY=cfg.mH/(vbH-60)
         // Use largest zone
         const z = zones.reduce((a,b)=>((a.w||60)*(a.h||40)>(b.w||60)*(b.h||40)?a:b))
-        const mW2=Math.round((z.w||60)*scaleX), mH2=Math.round((z.h||40)*scaleY)
+        const rawW=Math.round((z.w||60)*scaleX), rawH=Math.round((z.h||40)*scaleY)
+        // Use manual overrides if set, else auto-calculated
+        const mW2 = manualW !== '' ? Number(manualW) : rawW
+        const mH2 = manualH !== '' ? Number(manualH) : rawH
         const area = mW2*mH2
+        // When manual dims are set, resize the zone element to match
+        const applyManualDims = (w: number, h: number) => {
+          const fieldPxW = vbW - 60, fieldPxH = vbH - 60
+          const newPxW = (w / cfg.mW) * fieldPxW
+          const newPxH = (h / cfg.mH) * fieldPxH
+          setElements(prev => prev.map(el => el.id === z.id ? { ...el, w: newPxW, h: newPxH } : el))
+        }
         // Count players inside the zone
         const inside = players.filter(p=>p.x>=z.x&&p.x<=(z.x+(z.w||60))&&p.y>=z.y&&p.y<=(z.y+(z.h||40))).length
         const totalP = players.length
@@ -521,16 +539,32 @@ export default function TacticalBoard({ initialData, onSave, onClose, readOnly, 
         const getCuad = (d:number,j:number) => {
           if(j<=4) { if(d<50) return {cat:'Fuerza/Velocidad',col:'#ef4444',icon:'🔴'}; if(d<100) return {cat:'Activación/Recuperación',col:'#22c55e',icon:'🟢'}; if(d<200) return {cat:'Activación/Recuperación',col:'#22c55e',icon:'🟢'}; return {cat:'Activación/Recuperación',col:'#22c55e',icon:'🟢'} }
           if(j<=8) { if(d<50) return {cat:'Fuerza',col:'#ef4444',icon:'🔴'}; if(d<100) return {cat:'Resistencia',col:'#f59e0b',icon:'🟡'}; if(d<200) return {cat:'Resistencia/Velocidad',col:'#f59e0b',icon:'🟡'}; return {cat:'Velocidad',col:'#3b82f6',icon:'🔵'} }
-          if(j<=14) { if(d<50) return {cat:'Fuerza',col:'#ef4444',icon:'🔴'}; if(d<100) return {cat:'Fuerza/Resistencia',col:'#ef4444',icon:'🟠'}; if(d<200) return {cat:'Resistencia',col:'#f59e0b',icon:'🟡'}; return {cat:'Velocidad/Resistencia',col:'#3b82f6',icon:'🔵'} }
-          if(d<50) return {cat:'Fuerza',col:'#ef4444',icon:'🔴'}; if(d<100) return {cat:'Fuerza/Resistencia',col:'#ef4444',icon:'🟠'}; if(d<200) return {cat:'Resistencia',col:'#f59e0b',icon:'🟡'}; return {cat:'Velocidad',col:'#3b82f6',icon:'🔵'}
+          if(j<=14) { if(d<50) return {cat:'Activación/Recuperación',col:'#22c55e',icon:'🟢'}; if(d<100) return {cat:'Resistencia',col:'#f59e0b',icon:'🟡'}; if(d<200) return {cat:'Resistencia',col:'#f59e0b',icon:'🟡'}; return {cat:'Velocidad/Resistencia',col:'#3b82f6',icon:'🔵'} }
+          if(d<50) return {cat:'Activación/Recuperación',col:'#22c55e',icon:'🟢'}; if(d<100) return {cat:'Resistencia',col:'#f59e0b',icon:'🟡'}; if(d<200) return {cat:'Resistencia',col:'#f59e0b',icon:'🟡'}; return {cat:'Velocidad',col:'#3b82f6',icon:'🔵'}
         }
         const cuad = nJug > 0 ? getCuad(densidad,nJug) : null
         return (
           <div style={{background:'rgba(10,15,25,.97)',border:'1px solid rgba(255,255,255,.05)',borderRadius:10,padding:'10px 14px',display:'flex',gap:16,alignItems:'center',flexWrap:'wrap',fontSize:11}}>
             <div style={{display:'flex',alignItems:'center',gap:6}}>
               <span style={{fontSize:8,fontWeight:800,color:'#3e4c5e',textTransform:'uppercase',letterSpacing:'.1em'}}>Espacio:</span>
-              <span style={{color:'#a3e635',fontWeight:700}}>{mW2}m × {mH2}m</span>
+              <input
+                type="number" min="1" max="200"
+                value={manualW !== '' ? manualW : mW2}
+                onChange={e=>setManualW(e.target.value)}
+                onBlur={e=>{ const v=Number(e.target.value); if(v>0 && manualH!=='') applyManualDims(v, Number(manualH)||mH2); else if(v>0) applyManualDims(v, mH2) }}
+                style={{width:42,background:'transparent',border:'none',borderBottom:'1px solid #a3e635',color:'#a3e635',fontWeight:700,fontSize:12,textAlign:'center',outline:'none',padding:'0 2px'}}
+              />
+              <span style={{color:'#64748b',fontSize:11}}>×</span>
+              <input
+                type="number" min="1" max="200"
+                value={manualH !== '' ? manualH : mH2}
+                onChange={e=>setManualH(e.target.value)}
+                onBlur={e=>{ const v=Number(e.target.value); if(v>0 && manualW!=='') applyManualDims(Number(manualW)||mW2, v); else if(v>0) applyManualDims(mW2, v) }}
+                style={{width:42,background:'transparent',border:'none',borderBottom:'1px solid #a3e635',color:'#a3e635',fontWeight:700,fontSize:12,textAlign:'center',outline:'none',padding:'0 2px'}}
+              />
+              <span style={{color:'#64748b',fontSize:11}}>m</span>
               <span style={{color:'#64748b'}}>= {area} m²</span>
+              {(manualW!==''||manualH!=='') && <button onClick={()=>{setManualW('');setManualH('')}} style={{fontSize:9,color:'#64748b',background:'none',border:'none',cursor:'pointer',padding:'0 2px'}} title="Resetear a auto">↺</button>}
             </div>
             <div style={{display:'flex',alignItems:'center',gap:6}}>
               <span style={{fontSize:8,fontWeight:800,color:'#3e4c5e',textTransform:'uppercase',letterSpacing:'.1em'}}>Jugadores:</span>

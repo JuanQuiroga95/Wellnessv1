@@ -2076,6 +2076,11 @@ function BloqueMetodologia({ bloque, index, onChange, onRemove, teamPlayers = []
   const [manualMetrics, setManualMetrics] = useState<Record<string,string>>(bloque.manualMetrics || {})
   const [editingMetrics, setEditingMetrics] = useState(false)
 
+  // Sync imgPreview when bloque.imagen changes (e.g. loaded from biblioteca)
+  useEffect(() => {
+    setImgPreview(bloque.imagen || null)
+  }, [bloque.imagen])
+
   const esConEspacio = TAREAS_CON_ESPACIO.includes(bloque.ventana)
   const esConEquipo = TAREAS_CON_EQUIPO.includes(bloque.ventana)
   const mostrarForm = bloque.ventana && (TAREAS_MOSTRAR_FORM.includes(bloque.ventana) || esConEspacio)
@@ -10565,7 +10570,7 @@ function BibliotecaPanel() {
               <label style={{ display:'block', fontSize:9, fontWeight:700, color:'var(--fog)', textTransform:'uppercase', letterSpacing:'.08em', marginBottom:4 }}>Tipo de tarea</label>
               <select className="wp-input" style={{ padding:'6px 12px', fontSize:12 }} value={boardVentana} onChange={e=>{setBoardVentana(e.target.value);setBoardSubtarea('')}}>
                 <option value="">— Seleccionar —</option>
-                {Object.keys(SUBTAREAS).map(v=><option key={v} value={v}>{v}</option>)}
+                {TAREAS_PRINCIPALES.map(v=><option key={v} value={v}>{v}</option>)}
               </select>
             </div>
             {boardVentana && SUBTAREAS[boardVentana] && (
