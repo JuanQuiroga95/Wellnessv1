@@ -2076,11 +2076,6 @@ function BloqueMetodologia({ bloque, index, onChange, onRemove, teamPlayers = []
   const [manualMetrics, setManualMetrics] = useState<Record<string,string>>(bloque.manualMetrics || {})
   const [editingMetrics, setEditingMetrics] = useState(false)
 
-  // Sync imgPreview when bloque.imagen changes (e.g. loaded from biblioteca)
-  useEffect(() => {
-    setImgPreview(bloque.imagen || null)
-  }, [bloque.imagen])
-
   const esConEspacio = TAREAS_CON_ESPACIO.includes(bloque.ventana)
   const esConEquipo = TAREAS_CON_EQUIPO.includes(bloque.ventana)
   const mostrarForm = bloque.ventana && (TAREAS_MOSTRAR_FORM.includes(bloque.ventana) || esConEspacio)
@@ -2536,7 +2531,8 @@ function SesionEditor({ sesion, defaultFecha, rpeReal = 0, onSave, onDelete, onC
       largo: t.largo ? String(t.largo) : '',
       ancho: t.ancho ? String(t.ancho) : '',
       descripcion: t.descripcion || '',
-      imagen: t.imagen || '',
+      imagen: t.diagram_preview || t.imagen || '',
+      tactical_diagram: t.tactical_diagram || '',
       atacantes: '', defensores: '', comodines: '',
     }])
     // Increment usage counter in background
@@ -2685,7 +2681,7 @@ function SesionEditor({ sesion, defaultFecha, rpeReal = 0, onSave, onDelete, onC
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10 }}>
           <label style={{ fontSize:10, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em' }}>📋 Descripción / Metodología · Tareas ({bloques.length})</label>
           <div style={{ display:'flex', gap:8 }}>
-            <button type="button" onClick={abrirBiblioteca} style={{ fontSize:11, padding:'4px 12px', borderRadius:8, background:'rgba(200,241,53,.06)', color:'var(--lime)', border:'1px solid rgba(200,241,53,.2)', cursor:'pointer' }}>📚 Biblioteca</button>
+            <button type="button" onClick={abrirBiblioteca} style={{ fontSize:11, padding:'4px 12px', borderRadius:8, background:'rgba(200,241,53,.06)', color:'var(--lime)', border:'1px solid rgba(200,241,53,.2)', cursor:'pointer' }}>🎨 Mis Tareas</button>
             <button type="button" onClick={addBloque} style={{ fontSize:11, padding:'4px 12px', borderRadius:8, background:'rgba(200,241,53,.1)', color:'var(--lime)', border:'1px solid rgba(200,241,53,.3)', cursor:'pointer' }}>+ Tarea</button>
           </div>
         </div>
@@ -2694,7 +2690,7 @@ function SesionEditor({ sesion, defaultFecha, rpeReal = 0, onSave, onDelete, onC
         {showBiblioteca && (
           <div style={{ background:'var(--ink3)', border:'1px solid rgba(200,241,53,.25)', borderRadius:12, padding:16, marginBottom:14 }}>
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12 }}>
-              <span style={{ fontSize:11, fontWeight:700, color:'var(--lime)', textTransform:'uppercase', letterSpacing:'0.06em' }}>📚 Elegir tarea de biblioteca</span>
+              <span style={{ fontSize:11, fontWeight:700, color:'var(--lime)', textTransform:'uppercase', letterSpacing:'0.06em' }}>🎨 Elegir tarea guardada</span>
               <button type="button" onClick={()=>setShowBiblioteca(false)} style={{ background:'transparent', border:'none', cursor:'pointer', color:'var(--silver)', fontSize:16 }}>✕</button>
             </div>
             <input
@@ -2716,8 +2712,8 @@ function SesionEditor({ sesion, defaultFecha, rpeReal = 0, onSave, onDelete, onC
                       onMouseEnter={e=>e.currentTarget.style.borderColor='var(--lime)'}
                       onMouseLeave={e=>e.currentTarget.style.borderColor='var(--mist)'}
                     >
-                      {t.imagen && (
-                        <img src={t.imagen} alt="" style={{ width:44, height:44, objectFit:'contain', borderRadius:6, background:'var(--ink3)', flexShrink:0 }} />
+                      {(t.diagram_preview || t.imagen) && (
+                        <img src={t.diagram_preview || t.imagen} alt="" style={{ width:44, height:44, objectFit:'contain', borderRadius:6, background:'var(--ink3)', flexShrink:0 }} />
                       )}
                       <div style={{ flex:1, minWidth:0 }}>
                         <div style={{ display:'flex', alignItems:'center', gap:6, flexWrap:'wrap' }}>
@@ -2748,7 +2744,7 @@ function SesionEditor({ sesion, defaultFecha, rpeReal = 0, onSave, onDelete, onC
           </div>
         )}
 
-        {bloques.length === 0 && !showBiblioteca && <p style={{ fontSize:12, color:'var(--fog)', padding:'8px 0' }}>Sin tareas. Usá "+ Tarea" para crear desde cero o "📚 Biblioteca" para elegir una guardada.</p>}
+        {bloques.length === 0 && !showBiblioteca && <p style={{ fontSize:12, color:'var(--fog)', padding:'8px 0' }}>Sin tareas. Usá "+ Tarea" para crear desde cero o "🎨 Mis Tareas" para elegir una guardada.</p>}
         {bloques.map((bl,i)=>(
           <BloqueMetodologia key={i} bloque={bl} index={i} onChange={(k,v)=>updateBloque(i,k,v)} onRemove={()=>removeBloque(i)} teamPlayers={teamPlayers} />
         ))}
@@ -2756,7 +2752,7 @@ function SesionEditor({ sesion, defaultFecha, rpeReal = 0, onSave, onDelete, onC
         {bloques.length > 0 && (
           <div style={{ display:'flex', gap:8, marginTop:8 }}>
             <button type="button" onClick={addBloque} style={{ flex:1, fontSize:12, padding:'8px', borderRadius:8, background:'rgba(200,241,53,.08)', color:'var(--lime)', border:'1px dashed rgba(200,241,53,.3)', cursor:'pointer', fontWeight:600 }}>+ Agregar tarea</button>
-            <button type="button" onClick={abrirBiblioteca} style={{ fontSize:12, padding:'8px 14px', borderRadius:8, background:'transparent', color:'var(--silver)', border:'1px dashed var(--mist)', cursor:'pointer' }}>📚 Biblioteca</button>
+            <button type="button" onClick={abrirBiblioteca} style={{ fontSize:12, padding:'8px 14px', borderRadius:8, background:'transparent', color:'var(--silver)', border:'1px dashed var(--mist)', cursor:'pointer' }}>🎨 Mis Tareas</button>
           </div>
         )}
       </div>
@@ -9947,15 +9943,10 @@ function ManualPanel() {
         ['Configuración de email del coach', 'Desde esta sección configurás el correo para notificaciones y recordatorios a los jugadores.'],
         ['Editar / dar de baja', 'Al eliminar un jugador, sus datos históricos se conservan pero ya no aparece activo.'],
       ]},
-      { titulo: 'Diseñador de Tareas', icono: '🎨', intro: 'Herramienta para crear, guardar y reutilizar ejercicios y tareas de entrenamiento. Incluye pizarra táctica, calculadora de densidad y biblioteca personal de ejercicios.', rows: [
-        ['Crear tarea', 'Usá el botón + Nueva Tarea para guardar manualmente un ejercicio: nombre, tipo, jugadores, series, minutos/serie, pausa, dimensiones del espacio y descripción.'],
-        ['Pizarra táctica', 'Cada tarea puede tener un diagrama táctico dibujado con la pizarra interactiva. Elegí campo (F11, F9, F7, F5), colocá jugadores, conos, arcos, zonas y flechas.'],
-        ['Tipos de tarea', 'Activación en campo/gimnasio, Gimnasio, Rondo, Trabajo analítico, Juego de posesión, Juego de posición, Transiciones, Partido reducido/modificado/entrenamiento, Partido amistoso/oficial.'],
-        ['Calculadora de densidad', 'Al dibujar una zona en la pizarra y colocar jugadores dentro, se calcula automáticamente la densidad (m²/jug) y la clasificación según Castellano & Casamichana: Fuerza, Activación/Recuperación, Resistencia o Velocidad.'],
-        ['Editar metros manualmente', 'En la barra inferior de la pizarra podés editar el ancho y alto de la zona directamente. El rectángulo en el campo se acomoda automáticamente al tamaño que ingresás.'],
-        ['Buscar y filtrar', 'Filtrá por texto, por tipo de tarea, o por más usadas / más recientes.'],
-        ['Usar en sesión', 'Desde el Calendario, al crear o editar una sesión, hacé clic en 📚 Biblioteca para elegir una tarea guardada con imagen, dimensiones y jugadores pre-completados.'],
-        ['Auto-guardado', 'Las tareas de las sesiones del Calendario se guardan automáticamente en la biblioteca al crear una sesión.'],
+      { titulo: 'Diseñador de Tareas', icono: '🎨', intro: 'Pizarra táctica para diseñar ejercicios con diagrama de campo, jugadores, conos, flechas y calculadora de densidad.', rows: [
+        ['Guardar tarea', 'Clic en 🎨 Diseñar Tarea: elegí cancha, colocá jugadores, conos, flechas, zonas con dimensiones reales. La calculadora de densidad aparece automáticamente al poner jugadores y zona.'],
+        ['Buscar y filtrar', 'Por texto, por tipo de tarea, o por más usadas / más recientes.'],
+        ['Usar en sesión', 'Desde el Calendario, al crear o editar una sesión, hacé clic en 🎨 Mis Tareas para elegir una tarea diseñada con todos sus datos pre-completados.'],
       ]},
     ]
 
@@ -10311,34 +10302,18 @@ ${secciones_data.map(sec => `
 
     biblioteca: (
       <div>
-        <h2 style={{ fontFamily:'Bebas Neue,sans-serif', fontSize:34, color:'var(--snow)', marginBottom:4, letterSpacing:'0.04em' }}>🎨 Diseñador de Tareas</h2>
-        <p style={{ fontSize:12, color:'var(--silver)', marginBottom:20, lineHeight:1.65 }}>Herramienta para crear, guardar y reutilizar ejercicios y tareas de entrenamiento. Incluye pizarra táctica interactiva, calculadora de densidad y biblioteca personal de ejercicios.</p>
-        <ManualSection title="Crear una tarea">
-          <p style={{ fontSize:12, color:'var(--silver)', lineHeight:1.65, marginBottom:8 }}>Hacé clic en <strong style={{ color:'var(--lime)' }}>+ Nueva Tarea</strong> para guardar manualmente un ejercicio. Campos disponibles: nombre, tipo de tarea, jugadores, series, minutos/serie, pausa, dimensiones del espacio y descripción.</p>
-          <ManualRow label="Tipos de tarea" desc="Activación en campo/gimnasio, Gimnasio, Rondo, Trabajo analítico, Juego de posesión, Juego de posición, Transiciones, Partido reducido, modificado, de entrenamiento, amistoso u oficial." />
-          <ManualRow label="Auto-guardado" desc="Las tareas que usás en el Calendario se guardan automáticamente en la biblioteca al crear una sesión. No hace falta guardarlas manualmente." />
-        </ManualSection>
-        <ManualSection title="Pizarra táctica">
-          <p style={{ fontSize:12, color:'var(--silver)', lineHeight:1.65, marginBottom:8 }}>Cada tarea puede tener un diagrama dibujado con la pizarra interactiva.</p>
-          <ManualRow label="Tipo de campo" desc="F11 completa, F11 mitad, F9, F7 o F5 (Futsal). Orientación horizontal o vertical." />
-          <ManualRow label="Herramientas" desc="Jugadores (numerados por equipo), conos, discos, arcos, mini-arcos, barreras, escaleras, postes, maniquíes, flechas (sólida, punteada, ondulada), zonas y texto libre." />
-          <ManualRow label="Formaciones" desc="Aplicá formaciones predefinidas (4-3-3, 4-4-2, 3-5-2, 4-2-3-1, etc.) con un clic. Solo aparecen las compatibles con el tipo de campo seleccionado." />
-          <ManualRow label="Series" desc="Podés guardar hasta varias series dentro de una misma pizarra para mostrar la evolución de la tarea." />
-        </ManualSection>
-        <ManualSection title="Calculadora de densidad">
-          <p style={{ fontSize:12, color:'var(--silver)', lineHeight:1.65, marginBottom:8 }}>Al dibujar una zona y colocar jugadores dentro, la barra inferior calcula automáticamente:</p>
-          <ManualRow label="Espacio (m²)" desc="Ancho × alto de la zona en metros reales, según las proporciones del campo seleccionado. Podés editar los metros manualmente — el rectángulo en el campo se ajusta solo." />
-          <ManualRow label="Jugadores en zona" desc="Detecta automáticamente cuántos jugadores están dentro del rectángulo dibujado." />
-          <ManualRow label="Densidad (m²/jug)" desc="Espacio disponible por jugador. A menor densidad, mayor intensidad de contactos y acciones neuromusculares." />
-          <ManualRow label="Clasificación" desc="Según Castellano & Casamichana: Fuerza/Velocidad (muy reducido), Activación/Recuperación (reducido con muchos jugadores), Resistencia (espacio medio) o Velocidad (espacio amplio)." />
+        <h2 style={{ fontFamily:'Bebas Neue,sans-serif', fontSize:34, color:'var(--snow)', marginBottom:4, letterSpacing:'0.04em' }}>📚 Biblioteca de Tareas</h2>
+        <p style={{ fontSize:12, color:'var(--silver)', marginBottom:20, lineHeight:1.65 }}>Pizarra táctica para diseñar ejercicios con diagrama de campo, jugadores, conos, flechas y calculadora de densidad.</p>
+        <ManualSection title="Guardar una tarea">
+          <p style={{ fontSize:12, color:'var(--silver)', lineHeight:1.65, marginBottom:8 }}>Hacé clic en <strong style={{ color:'var(--lime)' }}>+ Guardar Tarea</strong> y completá el nombre, tipo, jugadores, series, minutos/serie, pausa, dimensiones del espacio y descripción. Solo el nombre es obligatorio.</p>
         </ManualSection>
         <ManualSection title="Buscar y filtrar">
-          <ManualRow label="Búsqueda por texto" desc="Filtrá por nombre de tarea o tipo." />
-          <ManualRow label="Filtro por tipo" desc="Filtrá por tipo de tarea (Rondo, Juego de posesión, Partido reducido, etc.)." />
-          <ManualRow label="Ordenar" desc="Por más usadas, más recientes o por tipo de tarea." />
+          <ManualRow label="Búsqueda por texto" desc="Filtra por nombre de tarea o tipo." />
+          <ManualRow label="Filtro por tipo" desc="Filtra por tipo de tarea (Rondo, Juego de posesión, Partido reducido, etc.)." />
+          <ManualRow label="Ordenar" desc="Por más usadas o por más recientes." />
         </ManualSection>
         <ManualSection title="Usar una tarea en sesión">
-          <p style={{ fontSize:12, color:'var(--silver)', lineHeight:1.65 }}>Desde el Calendario, al crear o editar una sesión, hacé clic en <strong style={{ color:'var(--lime)' }}>📚 Biblioteca</strong> para elegir una tarea guardada. Se cargan automáticamente la imagen, jugadores, dimensiones y descripción. El contador de veces usada se incrementa.</p>
+          <p style={{ fontSize:12, color:'var(--silver)', lineHeight:1.65 }}>Desde el Calendario, al crear o editar una sesión, hacé clic en <strong style={{ color:'var(--lime)' }}>🎨 Mis Tareas</strong> para elegir una tarea diseñada con el diagrama y datos pre-completados. El contador de "veces usada" se incrementa automáticamente.</p>
         </ManualSection>
       </div>
     ),

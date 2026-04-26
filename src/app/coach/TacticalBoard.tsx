@@ -233,9 +233,6 @@ export default function TacticalBoard({ initialData, onSave, onClose, readOnly, 
   const [prev, setPrev] = useState<{x:number;y:number}|null>(null)
   const [txtP, setTxtP] = useState<{x:number;y:number}|null>(null)
   const [txtV, setTxtV] = useState('')
-  // Manual dimension overrides — set by the user via editable inputs in the density bar
-  const [manualW, setManualW] = useState<string>('')
-  const [manualH, setManualH] = useState<string>('')
   const ref = useRef<SVGSVGElement>(null)
 
   // ViewBox based on field + orientation
@@ -246,23 +243,11 @@ export default function TacticalBoard({ initialData, onSave, onClose, readOnly, 
   const vbH = orient==='horizontal' ? Math.round(baseW / ratio) : baseW
 
   useEffect(() => { setSeries(p => { const c=[...p]; c[actSerie]=elements; return c }) }, [elements])
-  // Reset manual dimension overrides when a new zone is drawn
-  useEffect(() => {
-    const zones = elements.filter(e=>e.type==='zone')
-    if (zones.length === 0) { setManualW(''); setManualH('') }
-  }, [elements.filter(e=>e.type==='zone').length])
   useEffect(() => {
     if (!onZoneInfo) return
-    const allZones = elements.filter(e => e.type === 'zone' && e._rw && e._rh)
-    const zones = allZones.map((e, i, arr) => {
-      // For the largest zone, apply manual overrides if set
-      const isMain = arr.length === 1 || ((e.w||60)*(e.h||40) === Math.max(...arr.map(z=>(z.w||60)*(z.h||40))))
-      const rw = (isMain && manualW !== '') ? Number(manualW) : e._rw!
-      const rh = (isMain && manualH !== '') ? Number(manualH) : e._rh!
-      return { rw, rh, area: rw * rh }
-    })
+    const zones = elements.filter(e => e.type === 'zone' && e._rw && e._rh).map(e => ({ rw: e._rw!, rh: e._rh!, area: e._rw! * e._rh! }))
     onZoneInfo(zones)
-  }, [elements, onZoneInfo, manualW, manualH])
+  }, [elements, onZoneInfo])
 
   // Recalculate zone real dimensions when field type changes
   useEffect(() => {
@@ -505,17 +490,13 @@ export default function TacticalBoard({ initialData, onSave, onClose, readOnly, 
           {draw&&prev&&tool==='zone'&&<rect x={Math.min(draw.sx,prev.x)} y={Math.min(draw.sy,prev.y)} width={Math.abs(prev.x-draw.sx)} height={Math.abs(prev.y-draw.sy)} fill="rgba(163,230,53,.06)" stroke="rgba(163,230,53,.3)" strokeWidth={1.5} strokeDasharray="4 3"/>}
           {elements.map(el=><Elem key={el.id} el={el} sel={el.id===selId} onDown={(e:any)=>elDown(e,el)}/>)}
           {/* Zone dimension labels (real meters) */}
-          {elements.filter(e=>e.type==='zone').map((z,zi,arr)=>{
+          {elements.filter(e=>e.type==='zone').map(z=>{
             const zw=z.w||60, zh=z.h||40
             const scaleX=cfg.mW/(vbW-60), scaleY=cfg.mH/(vbH-60)
-            const autoW=Math.round(zw*scaleX), autoH=Math.round(zh*scaleY)
-            // Apply manual override only to the largest (primary) zone
-            const isMain = arr.length===1 || (zw*zh===Math.max(...arr.map(e=>(e.w||60)*(e.h||40))))
-            const dispW = (isMain && manualW!=='') ? Number(manualW) : autoW
-            const dispH = (isMain && manualH!=='') ? Number(manualH) : autoH
+            const mW2=Math.round(zw*scaleX), mH2=Math.round(zh*scaleY)
             return <g key={`zl_${z.id}`} style={{pointerEvents:'none'}}>
-              <text x={z.x+zw/2} y={z.y-5} textAnchor="middle" fontSize={10} fontWeight={700} fill="rgba(255,255,255,.8)" fontFamily="system-ui">{dispW}m × {dispH}m</text>
-              <text x={z.x+zw/2} y={z.y+zh/2+4} textAnchor="middle" fontSize={9} fill="rgba(255,255,255,.5)" fontFamily="system-ui">{dispW*dispH} m²</text>
+              <text x={z.x+zw/2} y={z.y-5} textAnchor="middle" fontSize={10} fontWeight={700} fill="rgba(255,255,255,.8)" fontFamily="system-ui">{mW2}m × {mH2}m</text>
+              <text x={z.x+zw/2} y={z.y+zh/2+4} textAnchor="middle" fontSize={9} fill="rgba(255,255,255,.5)" fontFamily="system-ui">{mW2*mH2} m²</text>
             </g>
           })}
         </svg>
@@ -529,53 +510,45 @@ export default function TacticalBoard({ initialData, onSave, onClose, readOnly, 
         const scaleX=cfg.mW/(vbW-60), scaleY=cfg.mH/(vbH-60)
         // Use largest zone
         const z = zones.reduce((a,b)=>((a.w||60)*(a.h||40)>(b.w||60)*(b.h||40)?a:b))
-        const rawW=Math.round((z.w||60)*scaleX), rawH=Math.round((z.h||40)*scaleY)
-        // Use manual overrides if set, else auto-calculated
-        const mW2 = manualW !== '' ? Number(manualW) : rawW
-        const mH2 = manualH !== '' ? Number(manualH) : rawH
+        const mW2=Math.round((z.w||60)*scaleX), mH2=Math.round((z.h||40)*scaleY)
         const area = mW2*mH2
-        // When manual dims are set, resize the zone element to match
-        const applyManualDims = (w: number, h: number) => {
-          const fieldPxW = vbW - 60, fieldPxH = vbH - 60
-          const newPxW = (w / cfg.mW) * fieldPxW
-          const newPxH = (h / cfg.mH) * fieldPxH
-          setElements(prev => prev.map(el => el.id === z.id ? { ...el, w: newPxW, h: newPxH } : el))
-        }
         // Count players inside the zone
         const inside = players.filter(p=>p.x>=z.x&&p.x<=(z.x+(z.w||60))&&p.y>=z.y&&p.y<=(z.y+(z.h||40))).length
         const totalP = players.length
         const nJug = inside > 0 ? inside : totalP
         const densidad = nJug > 0 ? area / nJug : 0
-        // Castellano classification
+        // Sangnier et al / Castellano & Casamichana classification
         const getCuad = (d:number,j:number) => {
-          if(j<=4) { if(d<50) return {cat:'Fuerza/Velocidad',col:'#ef4444',icon:'🔴'}; if(d<100) return {cat:'Activación/Recuperación',col:'#22c55e',icon:'🟢'}; if(d<200) return {cat:'Activación/Recuperación',col:'#22c55e',icon:'🟢'}; return {cat:'Activación/Recuperación',col:'#22c55e',icon:'🟢'} }
-          if(j<=8) { if(d<50) return {cat:'Fuerza',col:'#ef4444',icon:'🔴'}; if(d<100) return {cat:'Resistencia',col:'#f59e0b',icon:'🟡'}; if(d<200) return {cat:'Resistencia/Velocidad',col:'#f59e0b',icon:'🟡'}; return {cat:'Velocidad',col:'#3b82f6',icon:'🔵'} }
-          if(j<=14) { if(d<50) return {cat:'Activación/Recuperación',col:'#22c55e',icon:'🟢'}; if(d<100) return {cat:'Resistencia',col:'#f59e0b',icon:'🟡'}; if(d<200) return {cat:'Resistencia',col:'#f59e0b',icon:'🟡'}; return {cat:'Velocidad/Resistencia',col:'#3b82f6',icon:'🔵'} }
-          if(d<50) return {cat:'Activación/Recuperación',col:'#22c55e',icon:'🟢'}; if(d<100) return {cat:'Resistencia',col:'#f59e0b',icon:'🟡'}; if(d<200) return {cat:'Resistencia',col:'#f59e0b',icon:'🟡'}; return {cat:'Velocidad',col:'#3b82f6',icon:'🔵'}
+          if(d<50) {
+            if(j<=4) return {cat:'Fuerza',col:'#a855f7',icon:'🟣',int:1}
+            if(j<=8) return {cat:'Fuerza',col:'#a855f7',icon:'🟣',int:2}
+            if(j<=14) return {cat:'Activación/Recuperación',col:'#22c55e',icon:'🟢',int:2}
+            return {cat:'Activación/Recuperación',col:'#22c55e',icon:'🟢',int:4}
+          }
+          if(d<100) {
+            if(j<=4) return {cat:'Fuerza',col:'#a855f7',icon:'🟣',int:3}
+            if(j<=8) return {cat:'Fuerza',col:'#a855f7',icon:'🟣',int:4}
+            if(j<=14) return {cat:'Activación/Recuperación',col:'#22c55e',icon:'🟢',int:1}
+            return {cat:'Activación/Recuperación',col:'#22c55e',icon:'🟢',int:3}
+          }
+          if(d<200) {
+            if(j<=4) return {cat:'Resistencia',col:'#f59e0b',icon:'🟡',int:2}
+            if(j<=8) return {cat:'Resistencia',col:'#f59e0b',icon:'🟡',int:4}
+            if(j<=14) return {cat:'Velocidad',col:'#3b82f6',icon:'🔵',int:4}
+            return {cat:'Velocidad',col:'#3b82f6',icon:'🔵',int:2}
+          }
+          if(j<=4) return {cat:'Resistencia',col:'#f59e0b',icon:'🟡',int:1}
+          if(j<=8) return {cat:'Resistencia',col:'#f59e0b',icon:'🟡',int:3}
+          if(j<=14) return {cat:'Velocidad',col:'#3b82f6',icon:'🔵',int:3}
+          return {cat:'Velocidad',col:'#3b82f6',icon:'🔵',int:1}
         }
         const cuad = nJug > 0 ? getCuad(densidad,nJug) : null
         return (
           <div style={{background:'rgba(10,15,25,.97)',border:'1px solid rgba(255,255,255,.05)',borderRadius:10,padding:'10px 14px',display:'flex',gap:16,alignItems:'center',flexWrap:'wrap',fontSize:11}}>
             <div style={{display:'flex',alignItems:'center',gap:6}}>
               <span style={{fontSize:8,fontWeight:800,color:'#3e4c5e',textTransform:'uppercase',letterSpacing:'.1em'}}>Espacio:</span>
-              <input
-                type="number" min="1" max="200"
-                value={manualW !== '' ? manualW : mW2}
-                onChange={e=>setManualW(e.target.value)}
-                onBlur={e=>{ const v=Number(e.target.value); if(v>0 && manualH!=='') applyManualDims(v, Number(manualH)||mH2); else if(v>0) applyManualDims(v, mH2) }}
-                style={{width:42,background:'transparent',border:'none',borderBottom:'1px solid #a3e635',color:'#a3e635',fontWeight:700,fontSize:12,textAlign:'center',outline:'none',padding:'0 2px'}}
-              />
-              <span style={{color:'#64748b',fontSize:11}}>×</span>
-              <input
-                type="number" min="1" max="200"
-                value={manualH !== '' ? manualH : mH2}
-                onChange={e=>setManualH(e.target.value)}
-                onBlur={e=>{ const v=Number(e.target.value); if(v>0 && manualW!=='') applyManualDims(Number(manualW)||mW2, v); else if(v>0) applyManualDims(mW2, v) }}
-                style={{width:42,background:'transparent',border:'none',borderBottom:'1px solid #a3e635',color:'#a3e635',fontWeight:700,fontSize:12,textAlign:'center',outline:'none',padding:'0 2px'}}
-              />
-              <span style={{color:'#64748b',fontSize:11}}>m</span>
+              <span style={{color:'#a3e635',fontWeight:700}}>{mW2}m × {mH2}m</span>
               <span style={{color:'#64748b'}}>= {area} m²</span>
-              {(manualW!==''||manualH!=='') && <button onClick={()=>{setManualW('');setManualH('')}} style={{fontSize:9,color:'#64748b',background:'none',border:'none',cursor:'pointer',padding:'0 2px'}} title="Resetear a auto">↺</button>}
             </div>
             <div style={{display:'flex',alignItems:'center',gap:6}}>
               <span style={{fontSize:8,fontWeight:800,color:'#3e4c5e',textTransform:'uppercase',letterSpacing:'.1em'}}>Jugadores:</span>
@@ -588,6 +561,7 @@ export default function TacticalBoard({ initialData, onSave, onClose, readOnly, 
             {cuad&&<div style={{display:'flex',alignItems:'center',gap:6}}>
               <span style={{fontSize:8,fontWeight:800,color:'#3e4c5e',textTransform:'uppercase',letterSpacing:'.1em'}}>Clasificación:</span>
               <span style={{fontWeight:800,color:cuad.col}}>{cuad.icon} {cuad.cat}</span>
+              <span style={{fontSize:9,color:'#64748b'}}>(Castellano & Casamichana) Int. {cuad.int}</span>
               <span style={{fontSize:8,color:'#475569'}}>(Castellano & Casamichana)</span>
             </div>}
           </div>
