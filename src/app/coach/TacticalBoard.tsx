@@ -253,9 +253,16 @@ export default function TacticalBoard({ initialData, onSave, onClose, readOnly, 
   }, [elements.filter(e=>e.type==='zone').length])
   useEffect(() => {
     if (!onZoneInfo) return
-    const zones = elements.filter(e => e.type === 'zone' && e._rw && e._rh).map(e => ({ rw: e._rw!, rh: e._rh!, area: e._rw! * e._rh! }))
+    const allZones = elements.filter(e => e.type === 'zone' && e._rw && e._rh)
+    const zones = allZones.map((e, i, arr) => {
+      // For the largest zone, apply manual overrides if set
+      const isMain = arr.length === 1 || ((e.w||60)*(e.h||40) === Math.max(...arr.map(z=>(z.w||60)*(z.h||40))))
+      const rw = (isMain && manualW !== '') ? Number(manualW) : e._rw!
+      const rh = (isMain && manualH !== '') ? Number(manualH) : e._rh!
+      return { rw, rh, area: rw * rh }
+    })
     onZoneInfo(zones)
-  }, [elements, onZoneInfo])
+  }, [elements, onZoneInfo, manualW, manualH])
 
   // Recalculate zone real dimensions when field type changes
   useEffect(() => {
@@ -498,13 +505,17 @@ export default function TacticalBoard({ initialData, onSave, onClose, readOnly, 
           {draw&&prev&&tool==='zone'&&<rect x={Math.min(draw.sx,prev.x)} y={Math.min(draw.sy,prev.y)} width={Math.abs(prev.x-draw.sx)} height={Math.abs(prev.y-draw.sy)} fill="rgba(163,230,53,.06)" stroke="rgba(163,230,53,.3)" strokeWidth={1.5} strokeDasharray="4 3"/>}
           {elements.map(el=><Elem key={el.id} el={el} sel={el.id===selId} onDown={(e:any)=>elDown(e,el)}/>)}
           {/* Zone dimension labels (real meters) */}
-          {elements.filter(e=>e.type==='zone').map(z=>{
+          {elements.filter(e=>e.type==='zone').map((z,zi,arr)=>{
             const zw=z.w||60, zh=z.h||40
             const scaleX=cfg.mW/(vbW-60), scaleY=cfg.mH/(vbH-60)
-            const mW2=Math.round(zw*scaleX), mH2=Math.round(zh*scaleY)
+            const autoW=Math.round(zw*scaleX), autoH=Math.round(zh*scaleY)
+            // Apply manual override only to the largest (primary) zone
+            const isMain = arr.length===1 || (zw*zh===Math.max(...arr.map(e=>(e.w||60)*(e.h||40))))
+            const dispW = (isMain && manualW!=='') ? Number(manualW) : autoW
+            const dispH = (isMain && manualH!=='') ? Number(manualH) : autoH
             return <g key={`zl_${z.id}`} style={{pointerEvents:'none'}}>
-              <text x={z.x+zw/2} y={z.y-5} textAnchor="middle" fontSize={10} fontWeight={700} fill="rgba(255,255,255,.8)" fontFamily="system-ui">{mW2}m × {mH2}m</text>
-              <text x={z.x+zw/2} y={z.y+zh/2+4} textAnchor="middle" fontSize={9} fill="rgba(255,255,255,.5)" fontFamily="system-ui">{mW2*mH2} m²</text>
+              <text x={z.x+zw/2} y={z.y-5} textAnchor="middle" fontSize={10} fontWeight={700} fill="rgba(255,255,255,.8)" fontFamily="system-ui">{dispW}m × {dispH}m</text>
+              <text x={z.x+zw/2} y={z.y+zh/2+4} textAnchor="middle" fontSize={9} fill="rgba(255,255,255,.5)" fontFamily="system-ui">{dispW*dispH} m²</text>
             </g>
           })}
         </svg>
