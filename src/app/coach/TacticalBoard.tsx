@@ -8,13 +8,14 @@ type Tool = 'select'|'player'|'cone'|'disc'|'ring'|'ball'|'goal'|'minigoal'|'bar
 type FieldType = 'F11'|'F11_half'|'F9'|'F7'|'F5'
 type Orientation = 'horizontal'|'vertical'
 
-interface El { id:string; type:string; x:number; y:number; x2?:number; y2?:number; w?:number; h?:number; color?:string; number?:number|string; label?:string; text?:string; dashed?:boolean; wave?:boolean; fontSize?:number; rotation?:number }
+interface El { id:string; type:string; x:number; y:number; x2?:number; y2?:number; w?:number; h?:number; color?:string; number?:number|string; label?:string; text?:string; dashed?:boolean; wave?:boolean; fontSize?:number; rotation?:number; _rw?:number; _rh?:number }
 
 interface BoardProps {
   initialData?: { field:FieldType; elements:El[]; series?:El[][]; orientation?:Orientation }
   onSave?: (d:{ field:FieldType; elements:El[]; series:El[][]; preview:string }) => void
   onClose?: () => void
   readOnly?: boolean
+  onZoneInfo?: (zones: { rw:number; rh:number; area:number }[]) => void
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -178,7 +179,19 @@ function Elem({ el, sel, onDown }: { el:El; sel:boolean; onDown:(e:any)=>void })
       }
       return <g onMouseDown={onDown} onTouchStart={onDown} style={S}><line x1={el.x} y1={el.y} x2={x2} y2={y2} stroke={dc} strokeWidth={2.2} strokeDasharray={el.dashed?'8 4':'none'} strokeLinecap="round"/><line x1={el.x} y1={el.y} x2={x2} y2={y2} stroke="transparent" strokeWidth={14}/><polygon points="0,-4.5 10,0 0,4.5" fill={dc} transform={`translate(${x2},${y2}) rotate(${ang})`}/></g>
     }
-    case 'zone': return <g onMouseDown={onDown} onTouchStart={onDown} style={S}>{sel&&<rect x={el.x-2} y={el.y-2} width={(el.w||60)+4} height={(el.h||40)+4} fill="none" stroke={hi} strokeWidth={1.5} strokeDasharray="3 2" rx={4}/>}<rect x={el.x} y={el.y} width={el.w||60} height={el.h||40} fill={`${el.color||'#3b82f6'}20`} stroke={`${el.color||'#3b82f6'}77`} strokeWidth={1.5} strokeDasharray="5 3" rx={3}/></g>
+    case 'zone': {
+      const zw=el.w||60, zh=el.h||40
+      const rw = el._rw, rh = el._rh
+      const area = rw && rh ? rw * rh : 0
+      return <g onMouseDown={onDown} onTouchStart={onDown} style={S}>
+        {sel&&<rect x={el.x-2} y={el.y-2} width={zw+4} height={zh+4} fill="none" stroke={hi} strokeWidth={1.5} strokeDasharray="3 2" rx={4}/>}
+        <rect x={el.x} y={el.y} width={zw} height={zh} fill={`${el.color||'#3b82f6'}20`} stroke={`${el.color||'#3b82f6'}77`} strokeWidth={1.5} strokeDasharray="5 3" rx={3}/>
+        {rw && rh && <>
+          <text x={el.x+zw/2} y={el.y-5} textAnchor="middle" fontSize={10} fill="rgba(255,255,255,.85)" fontWeight={800} fontFamily="system-ui" style={{pointerEvents:'none'} as any}>{rw}m × {rh}m</text>
+          <text x={el.x+zw/2} y={el.y+zh/2+4} textAnchor="middle" fontSize={12} fill="rgba(255,255,255,.7)" fontWeight={700} fontFamily="system-ui" style={{pointerEvents:'none'} as any}>{area}m²</text>
+        </>}
+      </g>
+    }
     case 'text': return <g onMouseDown={onDown} onTouchStart={onDown} style={S} transform={`translate(${el.x},${el.y})`}>{sel&&<rect x={-3} y={-(el.fontSize||13)} width={Math.max(30,(el.text?.length||3)*(el.fontSize||13)*.55+6)} height={(el.fontSize||13)+4} fill="rgba(163,230,53,.1)" stroke={hi} strokeWidth={1} rx={2}/>}<text fontSize={el.fontSize||13} fill="#fff" fontWeight={700} fontFamily="system-ui" style={{pointerEvents:'none',userSelect:'none'} as any}>{el.text||''}</text></g>
     default: return null
   }
@@ -200,7 +213,7 @@ const lbl:React.CSSProperties = {fontSize:7,fontWeight:800,color:'#3e4c5e',textT
 // ═══════════════════════════════════════════════════════════════════
 // MAIN COMPONENT
 // ═══════════════════════════════════════════════════════════════════
-export default function TacticalBoard({ initialData, onSave, onClose, readOnly }:BoardProps) {
+export default function TacticalBoard({ initialData, onSave, onClose, readOnly, onZoneInfo }:BoardProps) {
   const [field, setField] = useState<FieldType>(initialData?.field||'F11')
   const [orient, setOrient] = useState<Orientation>(initialData?.orientation||'horizontal')
   const [elements, setElements] = useState<El[]>(initialData?.elements||[])
@@ -230,6 +243,20 @@ export default function TacticalBoard({ initialData, onSave, onClose, readOnly }
   const vbH = orient==='horizontal' ? Math.round(baseW / ratio) : baseW
 
   useEffect(() => { setSeries(p => { const c=[...p]; c[actSerie]=elements; return c }) }, [elements])
+  useEffect(() => {
+    if (!onZoneInfo) return
+    const zones = elements.filter(e => e.type === 'zone' && e._rw && e._rh).map(e => ({ rw: e._rw!, rh: e._rh!, area: e._rw! * e._rh! }))
+    onZoneInfo(zones)
+  }, [elements, onZoneInfo])
+
+  // Recalculate zone real dimensions when field type changes
+  useEffect(() => {
+    const fieldPxW = vbW - 60, fieldPxH = vbH - 60
+    setElements(prev => prev.map(el => {
+      if (el.type !== 'zone' || !el.w || !el.h) return el
+      return { ...el, _rw: Math.round((el.w / fieldPxW) * cfg.mW), _rh: Math.round((el.h / fieldPxH) * cfg.mH) }
+    }))
+  }, [field])
 
   const push = useCallback((els:El[])=>{setHist(p=>[...p.slice(0,hI+1),els].slice(-50));setHI(p=>p+1);setElements(els)},[hI])
   const undo = ()=>{ if(hI>0){setHI(hI-1);setElements(hist[hI-1])} }
@@ -258,7 +285,13 @@ export default function TacticalBoard({ initialData, onSave, onClose, readOnly }
     if(draw&&prev){
       const{sx,sy}=draw,{x,y}=prev
       if(Math.abs(x-sx)>8||Math.abs(y-sy)>8){
-        if(tool==='zone') push([...elements,{id:uid(),type:'zone',x:Math.min(sx,x),y:Math.min(sy,y),w:Math.abs(x-sx),h:Math.abs(y-sy),color:zCol}])
+        if(tool==='zone') {
+          const zoneW = Math.abs(x-sx), zoneH = Math.abs(y-sy)
+          const fieldPxW = vbW - 60, fieldPxH = vbH - 60 // minus margins
+          const realW = Math.round((zoneW / fieldPxW) * cfg.mW)
+          const realH = Math.round((zoneH / fieldPxH) * cfg.mH)
+          push([...elements,{id:uid(),type:'zone',x:Math.min(sx,x),y:Math.min(sy,y),w:zoneW,h:zoneH,color:zCol,_rw:realW,_rh:realH} as any])
+        }
         else push([...elements,{id:uid(),type:'arrow',x:sx,y:sy,x2:x,y2:y,dashed:tool==='arrow_dashed',wave:tool==='arrow_wave',color:arrCol}])
       }
       setDraw(null);setPrev(null)
@@ -456,8 +489,65 @@ export default function TacticalBoard({ initialData, onSave, onClose, readOnly }
           {draw&&prev&&tool.startsWith('arrow')&&<line x1={draw.sx} y1={draw.sy} x2={prev.x} y2={prev.y} stroke="rgba(163,230,53,.35)" strokeWidth={2} strokeDasharray={tool==='arrow_dashed'?'6 4':'none'}/>}
           {draw&&prev&&tool==='zone'&&<rect x={Math.min(draw.sx,prev.x)} y={Math.min(draw.sy,prev.y)} width={Math.abs(prev.x-draw.sx)} height={Math.abs(prev.y-draw.sy)} fill="rgba(163,230,53,.06)" stroke="rgba(163,230,53,.3)" strokeWidth={1.5} strokeDasharray="4 3"/>}
           {elements.map(el=><Elem key={el.id} el={el} sel={el.id===selId} onDown={(e:any)=>elDown(e,el)}/>)}
+          {/* Zone dimension labels (real meters) */}
+          {elements.filter(e=>e.type==='zone').map(z=>{
+            const zw=z.w||60, zh=z.h||40
+            const scaleX=cfg.mW/(vbW-60), scaleY=cfg.mH/(vbH-60)
+            const mW2=Math.round(zw*scaleX), mH2=Math.round(zh*scaleY)
+            return <g key={`zl_${z.id}`} style={{pointerEvents:'none'}}>
+              <text x={z.x+zw/2} y={z.y-5} textAnchor="middle" fontSize={10} fontWeight={700} fill="rgba(255,255,255,.8)" fontFamily="system-ui">{mW2}m × {mH2}m</text>
+              <text x={z.x+zw/2} y={z.y+zh/2+4} textAnchor="middle" fontSize={9} fill="rgba(255,255,255,.5)" fontFamily="system-ui">{mW2*mH2} m²</text>
+            </g>
+          })}
         </svg>
       </div>
+
+      {/* Density calculator */}
+      {(()=>{
+        const zones = elements.filter(e=>e.type==='zone')
+        const players = elements.filter(e=>e.type==='player')
+        if(zones.length===0) return null
+        const scaleX=cfg.mW/(vbW-60), scaleY=cfg.mH/(vbH-60)
+        // Use largest zone
+        const z = zones.reduce((a,b)=>((a.w||60)*(a.h||40)>(b.w||60)*(b.h||40)?a:b))
+        const mW2=Math.round((z.w||60)*scaleX), mH2=Math.round((z.h||40)*scaleY)
+        const area = mW2*mH2
+        // Count players inside the zone
+        const inside = players.filter(p=>p.x>=z.x&&p.x<=(z.x+(z.w||60))&&p.y>=z.y&&p.y<=(z.y+(z.h||40))).length
+        const totalP = players.length
+        const nJug = inside > 0 ? inside : totalP
+        const densidad = nJug > 0 ? area / nJug : 0
+        // Castellano classification
+        const getCuad = (d:number,j:number) => {
+          if(j<=4) { if(d<50) return {cat:'Fuerza/Velocidad',col:'#ef4444',icon:'🔴'}; if(d<100) return {cat:'Activación/Recuperación',col:'#22c55e',icon:'🟢'}; if(d<200) return {cat:'Activación/Recuperación',col:'#22c55e',icon:'🟢'}; return {cat:'Activación/Recuperación',col:'#22c55e',icon:'🟢'} }
+          if(j<=8) { if(d<50) return {cat:'Fuerza',col:'#ef4444',icon:'🔴'}; if(d<100) return {cat:'Resistencia',col:'#f59e0b',icon:'🟡'}; if(d<200) return {cat:'Resistencia/Velocidad',col:'#f59e0b',icon:'🟡'}; return {cat:'Velocidad',col:'#3b82f6',icon:'🔵'} }
+          if(j<=14) { if(d<50) return {cat:'Fuerza',col:'#ef4444',icon:'🔴'}; if(d<100) return {cat:'Fuerza/Resistencia',col:'#ef4444',icon:'🟠'}; if(d<200) return {cat:'Resistencia',col:'#f59e0b',icon:'🟡'}; return {cat:'Velocidad/Resistencia',col:'#3b82f6',icon:'🔵'} }
+          if(d<50) return {cat:'Fuerza',col:'#ef4444',icon:'🔴'}; if(d<100) return {cat:'Fuerza/Resistencia',col:'#ef4444',icon:'🟠'}; if(d<200) return {cat:'Resistencia',col:'#f59e0b',icon:'🟡'}; return {cat:'Velocidad',col:'#3b82f6',icon:'🔵'}
+        }
+        const cuad = nJug > 0 ? getCuad(densidad,nJug) : null
+        return (
+          <div style={{background:'rgba(10,15,25,.97)',border:'1px solid rgba(255,255,255,.05)',borderRadius:10,padding:'10px 14px',display:'flex',gap:16,alignItems:'center',flexWrap:'wrap',fontSize:11}}>
+            <div style={{display:'flex',alignItems:'center',gap:6}}>
+              <span style={{fontSize:8,fontWeight:800,color:'#3e4c5e',textTransform:'uppercase',letterSpacing:'.1em'}}>Espacio:</span>
+              <span style={{color:'#a3e635',fontWeight:700}}>{mW2}m × {mH2}m</span>
+              <span style={{color:'#64748b'}}>= {area} m²</span>
+            </div>
+            <div style={{display:'flex',alignItems:'center',gap:6}}>
+              <span style={{fontSize:8,fontWeight:800,color:'#3e4c5e',textTransform:'uppercase',letterSpacing:'.1em'}}>Jugadores:</span>
+              <span style={{color:'#eab308',fontWeight:700}}>{nJug} {inside>0?'(en zona)':'(total)'}</span>
+            </div>
+            {nJug>0&&<div style={{display:'flex',alignItems:'center',gap:6}}>
+              <span style={{fontSize:8,fontWeight:800,color:'#3e4c5e',textTransform:'uppercase',letterSpacing:'.1em'}}>Densidad:</span>
+              <span style={{color:'#06b6d4',fontWeight:700}}>{densidad.toFixed(0)} m²/jug</span>
+            </div>}
+            {cuad&&<div style={{display:'flex',alignItems:'center',gap:6}}>
+              <span style={{fontSize:8,fontWeight:800,color:'#3e4c5e',textTransform:'uppercase',letterSpacing:'.1em'}}>Clasificación:</span>
+              <span style={{fontWeight:800,color:cuad.col}}>{cuad.icon} {cuad.cat}</span>
+              <span style={{fontSize:8,color:'#475569'}}>(Castellano & Casamichana)</span>
+            </div>}
+          </div>
+        )
+      })()}
 
       {/* Status */}
       <div style={{display:'flex',justifyContent:'space-between',fontSize:9,color:'#3e4c5e',padding:'0 2px'}}>

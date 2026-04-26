@@ -10400,6 +10400,10 @@ function BibliotecaPanel() {
   const [editBoardId, setEditBoardId] = useState<number|null>(null)
   const [editBoardData, setEditBoardData] = useState<any>(null)
   const [boardName, setBoardName] = useState('')
+  const [boardVentana, setBoardVentana] = useState('')
+  const [boardSubtarea, setBoardSubtarea] = useState('')
+  const [boardJugadores, setBoardJugadores] = useState('')
+  const [zoneInfo, setZoneInfo] = useState<{rw:number;rh:number;area:number}[]>([])
 
   useEffect(() => { cargar() }, [])
 
@@ -10552,25 +10556,81 @@ function BibliotecaPanel() {
       {/* Tactical Board */}
       {showBoard && (
         <div style={{ marginBottom:20 }}>
-          <div style={{ display:'flex', gap:10, alignItems:'center', marginBottom:12 }}>
-            <span style={{ fontSize:11, color:'var(--silver)', fontWeight:600 }}>Nombre de la tarea:</span>
-            <input className="wp-input" value={boardName} onChange={e=>setBoardName(e.target.value)} placeholder="Ej: Rondo 4v2 + comodín" style={{ fontSize:13, padding:'6px 12px', flex:1, maxWidth:400 }} />
+          <div style={{ display:'flex', gap:10, alignItems:'end', marginBottom:12, flexWrap:'wrap' }}>
+            <div style={{ flex:1, minWidth:200 }}>
+              <label style={{ display:'block', fontSize:9, fontWeight:700, color:'var(--fog)', textTransform:'uppercase', letterSpacing:'.08em', marginBottom:4 }}>Nombre</label>
+              <input className="wp-input" value={boardName} onChange={e=>setBoardName(e.target.value)} placeholder="Ej: Rondo 4v2 + comodín" style={{ fontSize:13, padding:'6px 12px', width:'100%' }} />
+            </div>
+            <div style={{ minWidth:160 }}>
+              <label style={{ display:'block', fontSize:9, fontWeight:700, color:'var(--fog)', textTransform:'uppercase', letterSpacing:'.08em', marginBottom:4 }}>Tipo de tarea</label>
+              <select className="wp-input" style={{ padding:'6px 12px', fontSize:12 }} value={boardVentana} onChange={e=>{setBoardVentana(e.target.value);setBoardSubtarea('')}}>
+                <option value="">— Seleccionar —</option>
+                {Object.keys(SUBTAREAS).map(v=><option key={v} value={v}>{v}</option>)}
+              </select>
+            </div>
+            {boardVentana && SUBTAREAS[boardVentana] && (
+              <div style={{ minWidth:140 }}>
+                <label style={{ display:'block', fontSize:9, fontWeight:700, color:'var(--fog)', textTransform:'uppercase', letterSpacing:'.08em', marginBottom:4 }}>Subtarea</label>
+                <select className="wp-input" style={{ padding:'6px 12px', fontSize:12 }} value={boardSubtarea} onChange={e=>setBoardSubtarea(e.target.value)}>
+                  <option value="">—</option>
+                  {SUBTAREAS[boardVentana].map(s=><option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
+            )}
+            <div style={{ minWidth:80 }}>
+              <label style={{ display:'block', fontSize:9, fontWeight:700, color:'var(--fog)', textTransform:'uppercase', letterSpacing:'.08em', marginBottom:4 }}>Jugadores</label>
+              <input type="number" className="wp-input" value={boardJugadores} onChange={e=>setBoardJugadores(e.target.value)} placeholder="0" style={{ fontSize:13, padding:'6px 12px', width:70 }} min="0" max="30" />
+            </div>
           </div>
+
+          {zoneInfo.length > 0 && Number(boardJugadores) > 0 && (() => {
+            const totalArea = zoneInfo.reduce((s,z) => s + z.area, 0)
+            const jug = Number(boardJugadores)
+            const densidad = totalArea / jug
+            const cuad = getCuadrante(densidad, jug)
+            return (
+              <div style={{ display:'flex', gap:12, marginBottom:12, flexWrap:'wrap' }}>
+                {zoneInfo.map((z,i) => (
+                  <div key={i} style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:10, padding:'8px 14px', fontSize:11 }}>
+                    <div style={{ color:'var(--fog)', fontSize:9, fontWeight:700, textTransform:'uppercase', marginBottom:2 }}>Zona {i+1}</div>
+                    <div style={{ color:'var(--snow)', fontWeight:700 }}>{z.rw}m x {z.rh}m = {z.area}m2</div>
+                  </div>
+                ))}
+                <div style={{ background:cuad.bg, border:`1px solid ${cuad.border}`, borderRadius:10, padding:'8px 14px', fontSize:11 }}>
+                  <div style={{ color:'var(--fog)', fontSize:9, fontWeight:700, textTransform:'uppercase', marginBottom:2 }}>Densidad</div>
+                  <div style={{ color:cuad.color, fontWeight:800, fontSize:16 }}>{densidad.toFixed(0)} m2/jug</div>
+                  <div style={{ color:cuad.color, fontWeight:700, fontSize:12, marginTop:2 }}>{cuad.objetivo} - Int. {cuad.intensidad}</div>
+                </div>
+              </div>
+            )
+          })()}
+
           <TacticalBoard
             initialData={editBoardData}
+            onZoneInfo={setZoneInfo}
             onSave={async (data) => {
               if (!boardName.trim()) { alert('Ponele un nombre a la tarea'); return }
               setSaving(true)
               try {
-                if (editBoardId) {
-                  await fetch('/api/biblioteca', { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ id: editBoardId, tactical_diagram: JSON.stringify(data), diagram_preview: data.preview, nombre: boardName }) })
-                } else {
-                  await fetch('/api/biblioteca', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ nombre: boardName, tactical_diagram: JSON.stringify(data), diagram_preview: data.preview }) })
+                const payload = {
+                  nombre: boardName + (boardSubtarea ? ' > ' + boardSubtarea : ''),
+                  ventana: boardVentana || null,
+                  subtarea: boardSubtarea || null,
+                  jugadores: Number(boardJugadores) || null,
+                  tactical_diagram: JSON.stringify(data),
+                  diagram_preview: data.preview,
+                  largo: zoneInfo.length > 0 ? zoneInfo[0].rw : null,
+                  ancho: zoneInfo.length > 0 ? zoneInfo[0].rh : null,
                 }
-                setShowBoard(false); setEditBoardId(null); setEditBoardData(null); setBoardName(''); await cargar()
+                if (editBoardId) {
+                  await fetch('/api/biblioteca', { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ id: editBoardId, ...payload }) })
+                } else {
+                  await fetch('/api/biblioteca', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) })
+                }
+                setShowBoard(false); setEditBoardId(null); setEditBoardData(null); setBoardName(''); setBoardVentana(''); setBoardSubtarea(''); setBoardJugadores(''); setZoneInfo([]); await cargar()
               } finally { setSaving(false) }
             }}
-            onClose={() => { setShowBoard(false); setEditBoardId(null); setEditBoardData(null); setBoardName('') }}
+            onClose={() => { setShowBoard(false); setEditBoardId(null); setEditBoardData(null); setBoardName(''); setBoardVentana(''); setBoardSubtarea(''); setBoardJugadores(''); setZoneInfo([]) }}
           />
         </div>
       )}
@@ -10582,11 +10642,8 @@ function BibliotecaPanel() {
           <p style={{ fontSize:12, color:'var(--silver)' }}>Pizarra táctica + biblioteca · Se guarda automáticamente al crear sesiones</p>
         </div>
         <div style={{ display:'flex', gap:8 }}>
-          <button onClick={()=>{ setShowBoard(true); setEditBoardId(null); setEditBoardData(null); setBoardName('') }} className="btn-lime" style={{ padding:'10px 20px', fontSize:13 }}>
+          <button onClick={()=>{ setShowBoard(true); setEditBoardId(null); setEditBoardData(null); setBoardName(''); setBoardVentana(''); setBoardSubtarea(''); setBoardJugadores(''); setZoneInfo([]) }} className="btn-lime" style={{ padding:'10px 20px', fontSize:13 }}>
             🎨 Diseñar Tarea
-          </button>
-          <button onClick={()=>setShowForm(!showForm)} style={{ padding:'10px 20px', fontSize:13, borderRadius:10, border:'1px solid var(--mist)', background:'transparent', color:'var(--silver)', cursor:'pointer', fontWeight:600 }}>
-            {showForm ? '✕ Cancelar' : '+ Tarea Manual'}
           </button>
         </div>
       </div>
