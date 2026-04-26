@@ -502,68 +502,67 @@ export default function TacticalBoard({ initialData, onSave, onClose, readOnly, 
         </svg>
       </div>
 
-      {/* Density calculator */}
+      {/* Density calculator with editable dimensions */}
       {(()=>{
         const zones = elements.filter(e=>e.type==='zone')
         const players = elements.filter(e=>e.type==='player')
         if(zones.length===0) return null
         const scaleX=cfg.mW/(vbW-60), scaleY=cfg.mH/(vbH-60)
-        // Use largest zone
-        const z = zones.reduce((a,b)=>((a.w||60)*(a.h||40)>(b.w||60)*(b.h||40)?a:b))
-        const mW2=Math.round((z.w||60)*scaleX), mH2=Math.round((z.h||40)*scaleY)
-        const area = mW2*mH2
-        // Count players inside the zone
-        const inside = players.filter(p=>p.x>=z.x&&p.x<=(z.x+(z.w||60))&&p.y>=z.y&&p.y<=(z.y+(z.h||40))).length
-        const totalP = players.length
-        const nJug = inside > 0 ? inside : totalP
-        const densidad = nJug > 0 ? area / nJug : 0
-        // Sangnier et al / Castellano & Casamichana classification
-        const getCuad = (d:number,j:number) => {
-          if(d<50) {
-            if(j<=4) return {cat:'Fuerza',col:'#a855f7',icon:'🟣',int:1}
-            if(j<=8) return {cat:'Fuerza',col:'#a855f7',icon:'🟣',int:2}
-            if(j<=14) return {cat:'Activación/Recuperación',col:'#22c55e',icon:'🟢',int:2}
-            return {cat:'Activación/Recuperación',col:'#22c55e',icon:'🟢',int:4}
-          }
-          if(d<100) {
-            if(j<=4) return {cat:'Fuerza',col:'#a855f7',icon:'🟣',int:3}
-            if(j<=8) return {cat:'Fuerza',col:'#a855f7',icon:'🟣',int:4}
-            if(j<=14) return {cat:'Activación/Recuperación',col:'#22c55e',icon:'🟢',int:1}
-            return {cat:'Activación/Recuperación',col:'#22c55e',icon:'🟢',int:3}
-          }
-          if(d<200) {
-            if(j<=4) return {cat:'Resistencia',col:'#f59e0b',icon:'🟡',int:2}
-            if(j<=8) return {cat:'Resistencia',col:'#f59e0b',icon:'🟡',int:4}
-            if(j<=14) return {cat:'Velocidad',col:'#3b82f6',icon:'🔵',int:4}
-            return {cat:'Velocidad',col:'#3b82f6',icon:'🔵',int:2}
-          }
-          if(j<=4) return {cat:'Resistencia',col:'#f59e0b',icon:'🟡',int:1}
-          if(j<=8) return {cat:'Resistencia',col:'#f59e0b',icon:'🟡',int:3}
-          if(j<=14) return {cat:'Velocidad',col:'#3b82f6',icon:'🔵',int:3}
-          return {cat:'Velocidad',col:'#3b82f6',icon:'🔵',int:1}
-        }
-        const cuad = nJug > 0 ? getCuad(densidad,nJug) : null
+
         return (
-          <div style={{background:'rgba(10,15,25,.97)',border:'1px solid rgba(255,255,255,.05)',borderRadius:10,padding:'10px 14px',display:'flex',gap:16,alignItems:'center',flexWrap:'wrap',fontSize:11}}>
-            <div style={{display:'flex',alignItems:'center',gap:6}}>
-              <span style={{fontSize:8,fontWeight:800,color:'#3e4c5e',textTransform:'uppercase',letterSpacing:'.1em'}}>Espacio:</span>
-              <span style={{color:'#a3e635',fontWeight:700}}>{mW2}m × {mH2}m</span>
-              <span style={{color:'#64748b'}}>= {area} m²</span>
-            </div>
-            <div style={{display:'flex',alignItems:'center',gap:6}}>
-              <span style={{fontSize:8,fontWeight:800,color:'#3e4c5e',textTransform:'uppercase',letterSpacing:'.1em'}}>Jugadores:</span>
-              <span style={{color:'#eab308',fontWeight:700}}>{nJug} {inside>0?'(en zona)':'(total)'}</span>
-            </div>
-            {nJug>0&&<div style={{display:'flex',alignItems:'center',gap:6}}>
-              <span style={{fontSize:8,fontWeight:800,color:'#3e4c5e',textTransform:'uppercase',letterSpacing:'.1em'}}>Densidad:</span>
-              <span style={{color:'#06b6d4',fontWeight:700}}>{densidad.toFixed(0)} m²/jug</span>
-            </div>}
-            {cuad&&<div style={{display:'flex',alignItems:'center',gap:6}}>
-              <span style={{fontSize:8,fontWeight:800,color:'#3e4c5e',textTransform:'uppercase',letterSpacing:'.1em'}}>Clasificación:</span>
-              <span style={{fontWeight:800,color:cuad.col}}>{cuad.icon} {cuad.cat}</span>
-              <span style={{fontSize:9,color:'#64748b'}}>(Castellano & Casamichana) Int. {cuad.int}</span>
-              <span style={{fontSize:8,color:'#475569'}}>(Castellano & Casamichana)</span>
-            </div>}
+          <div style={{background:'rgba(10,15,25,.97)',border:'1px solid rgba(255,255,255,.05)',borderRadius:10,padding:'12px 14px',display:'flex',gap:14,alignItems:'center',flexWrap:'wrap',fontSize:11}}>
+            {zones.map((z,i)=>{
+              const mW2 = z._rw || Math.round((z.w||60)*scaleX)
+              const mH2 = z._rh || Math.round((z.h||40)*scaleY)
+              const area = mW2*mH2
+              // Count players inside this zone
+              const inside = players.filter(p=>p.x>=z.x&&p.x<=(z.x+(z.w||60))&&p.y>=z.y&&p.y<=(z.y+(z.h||40))).length
+              const nJug = inside > 0 ? inside : players.length
+              const densidad = nJug > 0 ? area / nJug : 0
+
+              const updateZoneDim = (newRw:number, newRh:number) => {
+                const newPxW = newRw / scaleX
+                const newPxH = newRh / scaleY
+                setElements(prev=>prev.map(el=>el.id===z.id ? {...el, w:newPxW, h:newPxH, _rw:newRw, _rh:newRh} : el))
+              }
+
+              // Classification
+              const getCuad = (d:number,j:number) => {
+                if(d<50){if(j<=4)return{cat:'Fuerza',col:'#a855f7',int:1};if(j<=8)return{cat:'Fuerza',col:'#a855f7',int:2};if(j<=14)return{cat:'Act./Rec.',col:'#22c55e',int:2};return{cat:'Act./Rec.',col:'#22c55e',int:4}}
+                if(d<100){if(j<=4)return{cat:'Fuerza',col:'#a855f7',int:3};if(j<=8)return{cat:'Fuerza',col:'#a855f7',int:4};if(j<=14)return{cat:'Act./Rec.',col:'#22c55e',int:1};return{cat:'Act./Rec.',col:'#22c55e',int:3}}
+                if(d<200){if(j<=4)return{cat:'Resistencia',col:'#f59e0b',int:2};if(j<=8)return{cat:'Resistencia',col:'#f59e0b',int:4};if(j<=14)return{cat:'Velocidad',col:'#3b82f6',int:4};return{cat:'Velocidad',col:'#3b82f6',int:2}}
+                if(j<=4)return{cat:'Resistencia',col:'#f59e0b',int:1};if(j<=8)return{cat:'Resistencia',col:'#f59e0b',int:3};if(j<=14)return{cat:'Velocidad',col:'#3b82f6',int:3};return{cat:'Velocidad',col:'#3b82f6',int:1}
+              }
+              const cuad = nJug > 0 ? getCuad(densidad, nJug) : null
+
+              return (
+                <div key={z.id} style={{display:'flex',gap:10,alignItems:'center',flexWrap:'wrap'}}>
+                  {zones.length > 1 && <span style={{fontSize:8,fontWeight:800,color:'#3e4c5e',textTransform:'uppercase'}}>Z{i+1}</span>}
+                  <div style={{display:'flex',alignItems:'center',gap:4}}>
+                    <span style={{fontSize:8,fontWeight:800,color:'#3e4c5e',textTransform:'uppercase',letterSpacing:'.1em'}}>Espacio:</span>
+                    <input type="number" value={mW2} onChange={e=>{const v=Number(e.target.value);if(v>0)updateZoneDim(v,mH2)}}
+                      style={{width:42,background:'rgba(163,230,53,.08)',border:'1px solid rgba(163,230,53,.25)',borderRadius:4,padding:'2px 5px',fontSize:12,fontWeight:800,color:'#a3e635',textAlign:'center',outline:'none'}} />
+                    <span style={{color:'#64748b'}}>×</span>
+                    <input type="number" value={mH2} onChange={e=>{const v=Number(e.target.value);if(v>0)updateZoneDim(mW2,v)}}
+                      style={{width:42,background:'rgba(163,230,53,.08)',border:'1px solid rgba(163,230,53,.25)',borderRadius:4,padding:'2px 5px',fontSize:12,fontWeight:800,color:'#a3e635',textAlign:'center',outline:'none'}} />
+                    <span style={{color:'#64748b',fontSize:10}}>m = {area}m²</span>
+                  </div>
+                  <div style={{display:'flex',alignItems:'center',gap:4}}>
+                    <span style={{fontSize:8,fontWeight:800,color:'#3e4c5e',textTransform:'uppercase'}}>Jug:</span>
+                    <span style={{color:'#eab308',fontWeight:700}}>{nJug} {inside>0?'(zona)':'(total)'}</span>
+                  </div>
+                  {nJug>0&&<div style={{display:'flex',alignItems:'center',gap:4}}>
+                    <span style={{fontSize:8,fontWeight:800,color:'#3e4c5e',textTransform:'uppercase'}}>Densidad:</span>
+                    <span style={{color:'#06b6d4',fontWeight:700}}>{densidad.toFixed(0)} m²/jug</span>
+                  </div>}
+                  {cuad&&<div style={{display:'flex',alignItems:'center',gap:4}}>
+                    <span style={{fontWeight:800,fontSize:12,color:cuad.col}}>● {cuad.cat}</span>
+                    <span style={{fontSize:9,color:'#64748b'}}>Int. {cuad.int} (Castellano & Casamichana)</span>
+                  </div>}
+                  {i<zones.length-1&&<span style={{color:'#1e293b'}}>│</span>}
+                </div>
+              )
+            })}
           </div>
         )
       })()}
