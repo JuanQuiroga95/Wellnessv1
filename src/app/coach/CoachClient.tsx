@@ -90,6 +90,7 @@ const SIDEBAR_GROUPS = [
   { label:'General', icon:'🏠', items:[
     {id:'team',label:'Equipo',icon:'👥'},
     {id:'calendario',label:'Calendario',icon:'📅'},
+    {id:'biblioteca',label:'Diseñador Tareas',icon:'🎨'},
     {id:'players',label:'Jugadores',icon:'⚽'},
   ]},
   { label:'Control de Carga', icon:'📊', items:[
@@ -112,7 +113,6 @@ const SIDEBAR_GROUPS = [
     {id:'lesiones',label:'Enfermería',icon:'🏥'},
   ]},
   { label:'Recursos', icon:'📚', items:[
-    {id:'biblioteca',label:'Diseñador Tareas',icon:'🎨'},
     {id:'manual',label:'Manual',icon:'📖'},
   ]},
 ]
