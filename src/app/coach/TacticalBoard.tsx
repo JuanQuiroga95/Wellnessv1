@@ -303,16 +303,26 @@ export default function TacticalBoard({ initialData, onSave, onClose, readOnly, 
   const dup = ()=>{const el=elements.find(e=>e.id===selId);if(!el)return;const ne={...el,id:uid(),x:el.x+20,y:el.y+20};if(ne.x2)ne.x2+=20;if(ne.y2)ne.y2+=20;push([...elements,ne]);setSelId(ne.id)}
   const rotate = ()=>{if(!selId)return;setElements(p=>p.map(el=>el.id===selId?{...el,rotation:((el.rotation||0)+90)%360}:el))}
   const clear = ()=>{if(confirm('¿Borrar todo?')){push([]);setSelId(null)}}
+  const [formTeam, setFormTeam] = useState<'mi'|'rival'>('mi')
 
   // Formation
   const placeFormation = (key:string)=>{
     const f = FORMATIONS[key]; if(!f) return
     const m2=30, fw=vbW-m2*2, fh=vbH-m2*2
-    const newEls:El[] = f.positions.map((pos,i)=>({
-      id:uid(), type:'player', x:m2+pos[0]*fw, y:m2+pos[1]*fh,
-      color: i===0 ? '#16a34a' : COLORS[0], number:i===0?1:i+1,
-    }))
-    push([...elements,...newEls]); setPNum(f.positions.length+1)
+    const isRival = formTeam === 'rival'
+    const teamColor = isRival ? COLORS[1] : COLORS[0] // red for rival, blue for mine
+    const gkColor = isRival ? '#dc2626' : '#16a34a'
+    const startNum = isRival ? 1 : pNum
+    const newEls:El[] = f.positions.map((pos,i)=>{
+      // Mirror X position for rival team
+      const px = isRival ? 1 - pos[0] : pos[0]
+      return {
+        id:uid(), type:'player', x:m2+px*fw, y:m2+pos[1]*fh,
+        color: i===0 ? gkColor : teamColor, number:startNum+i,
+      }
+    })
+    push([...elements,...newEls])
+    if (!isRival) setPNum(pNum + f.positions.length)
   }
 
   // Series
@@ -436,7 +446,11 @@ export default function TacticalBoard({ initialData, onSave, onClose, readOnly, 
         {/* Formations */}
         {availableFormations.length > 0 && <div>
           <div style={lbl}>Formación</div>
-          <div style={{display:'flex',gap:2,flexWrap:'wrap'}}>
+          <div style={{display:'flex',gap:4,alignItems:'center',flexWrap:'wrap'}}>
+            <div style={{display:'flex',gap:1,marginRight:4}}>
+              <button onClick={()=>setFormTeam('mi')} style={{...tb(formTeam==='mi'),padding:'3px 8px',borderRadius:'5px 0 0 5px',borderRight:'none'}}><span style={{fontSize:8,color:formTeam==='mi'?'#3b82f6':'#64748b'}}>● Mi Equipo</span></button>
+              <button onClick={()=>setFormTeam('rival')} style={{...tb(formTeam==='rival'),padding:'3px 8px',borderRadius:'0 5px 5px 0'}}><span style={{fontSize:8,color:formTeam==='rival'?'#ef4444':'#64748b'}}>● Rival</span></button>
+            </div>
             {availableFormations.map(([k,f])=>(
               <button key={k} onClick={()=>placeFormation(k)} style={tb(false)}><span style={{fontSize:9}}>{f.label}</span></button>
             ))}

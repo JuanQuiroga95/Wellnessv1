@@ -2521,7 +2521,7 @@ function SesionEditor({ sesion, defaultFecha, rpeReal = 0, onSave, onDelete, onC
 
   function addBloque() { setBloques(b=>[...b, { ventana:'', subtarea:'', jugadores:'', series:'', minutos:'', pausa:'', largo:'', ancho:'', descripcion:'', imagen:'', atacantes:'', defensores:'', comodines:'' }]) }
   function addBloqueFromBiblioteca(t: any) {
-    setBloques(b=>[...b, {
+    const newBloque = {
       ventana: t.ventana || '',
       subtarea: t.subtarea || '',
       jugadores: t.jugadores ? String(t.jugadores) : '',
@@ -2530,11 +2530,12 @@ function SesionEditor({ sesion, defaultFecha, rpeReal = 0, onSave, onDelete, onC
       pausa: t.pausa ? String(t.pausa) : '',
       largo: t.largo ? String(t.largo) : '',
       ancho: t.ancho ? String(t.ancho) : '',
-      descripcion: t.descripcion || '',
+      descripcion: t.descripcion || t.nombre || '',
       imagen: t.diagram_preview || t.imagen || '',
       tactical_diagram: t.tactical_diagram || '',
       atacantes: '', defensores: '', comodines: '',
-    }])
+    }
+    setBloques(prev => [...prev, newBloque])
     // Increment usage counter in background
     fetch('/api/biblioteca', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ action:'usar', id: t.id }) }).catch(()=>{})
     setShowBiblioteca(false)
@@ -2549,7 +2550,6 @@ function SesionEditor({ sesion, defaultFecha, rpeReal = 0, onSave, onDelete, onC
 
   async function abrirBiblioteca() {
     setShowBiblioteca(true)
-    if (biblioTareas.length > 0) return // already loaded
     setBiblioLoading(true)
     try {
       const r = await fetch('/api/biblioteca')
