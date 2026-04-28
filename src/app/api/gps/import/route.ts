@@ -71,7 +71,9 @@ const METRIC_COL_MAP: Array<[string, string]> = [
   ['velocidad maxima','max_velocity'],['vitesse maximale','max_velocity'],['vel max','max_velocity'],
   // DURACION
   ['total duration','duracion_min'],['total dur','duracion_min'],['tot dur','duracion_min'],
-  ['duration','duracion_min'],['duracion','duracion_min'],['time','duracion_min'],['tiempo','duracion_min']
+  ['duration','duracion_min'],['duracion','duracion_min'],['time','duracion_min'],['tiempo','duracion_min'],
+  ['tiempo min','duracion_min'],['tiempo (min)','duracion_min'],['minutos','duracion_min'],
+  ['numero sprint','n_sprints'],['número sprint','n_sprints'],['numero de sprint','n_sprints'],
 ]
 
 function matchMetricCol(h: string): string | null {
@@ -107,7 +109,7 @@ function parseRawRows(raw: any[][]): Record<string, any>[] {
   const colMap: (string | null)[] = headers.map(h => {
     const ln = normStr(h)
     const isNameCol = ln === 'name' || ln === 'nombre' || ln === 'athlete' || ln === 'player' ||
-      ln === 'jugador' || ln.includes('first name') || ln.includes('player name') || ln.includes('athlete name') || ln === 'jugadores'
+      ln === 'jugador' || ln.includes('first name') || ln.includes('player name') || ln.includes('athlete name') || ln === 'jugadores' || ln === 'nombre y apellido' || ln === 'nombre apellido'
     if (isNameCol) return '__name__'
     if (['interval','time','date','fecha','session','period','device','jersey','shirt','position','pos', 'split'].some(k => ln === k || ln.startsWith(k + ' '))) return null
     return matchExcelCol(h)
@@ -267,7 +269,7 @@ function parsePdfRowFormat(lines: string[]): Record<string, any>[] | null {
       }
       const nums = (restNoDur.match(/\d+(?:\.\d+)?/g) || []).map(n => parseFloat(n)); if (nums.length < 6) continue
       const maxVelCandidate = nums[nums.length - 1]; if (!isNaN(maxVelCandidate) && maxVelCandidate >= 15 && maxVelCandidate <= 45) metricas['max_velocity'] = maxVelCandidate
-      const MERGED_MAP = ['dist_total', 'dist_per_min', 'dist_v4', 'dist_v5', null, 'n_sprints', 'dist_hir', 'acc2', 'dec2', 'player_load']
+      const MERGED_MAP = ['dist_total', 'dist_per_min', 'dist_v4', 'dist_v5', null, 'n_sprints', 'dist_hir', 'acc3', 'dec3', 'player_load']
       const dataNums = nums.slice(0, nums.length - 1)
       for (let i = 0; i < dataNums.length && i < MERGED_MAP.length; i++) {
         const field = MERGED_MAP[i]; if (field && !isNaN(dataNums[i])) metricas[field] = dataNums[i]
@@ -278,7 +280,7 @@ function parsePdfRowFormat(lines: string[]): Record<string, any>[] | null {
   return results.length > 0 ? results : null
 }
 
-const CUADRO_RESUMEN_COL_MAP = ['dist_total', 'dist_per_min', 'dist_v4', 'dist_hir', 'dist_v5', 'n_sprints', 'acc2', 'dec2', 'max_velocity']
+const CUADRO_RESUMEN_COL_MAP = ['dist_total', 'dist_per_min', 'dist_v4', 'dist_hir', 'dist_v5', 'n_sprints', 'acc3', 'dec3', 'max_velocity']
 function parsePdfCuadroResumen(lines: string[]): Record<string, any>[] | null {
   const SUMMARY_WORDS = new Set(['total','moyenne','average','promedio','media','totale','totaux','totals','max','maximo','máximo','min','minimo'])
   const results: Record<string, any>[] = []

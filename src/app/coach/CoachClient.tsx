@@ -907,8 +907,8 @@ function CambioCargaPanel() {
     { key:'distV5',      label:'Vel B6 m',       color:'#e879f9', src:'gps' },
     { key:'maxVelocity', label:'Vel Max',        color:'#ef4444', src:'gps' },
     { key:'nSprintsGps', label:'N° Sprint',      color:'#22d3ee', src:'gps' },
-    { key:'acc2',        label:'ACE 2-3 n',      color:'#ec4899', src:'gps' },
-    { key:'dec2',        label:'DEC 2-3 n',      color:'#14b8a6', src:'gps' },
+    { key:'acc3',        label:'ACE >3 n',       color:'#ec4899', src:'gps' },
+    { key:'dec3',        label:'DEC >3 n',       color:'#14b8a6', src:'gps' },
     { key:'playerLoad',  label:'Player Load',    color:'#fbbf24', src:'gps' },
   ]
   const CHART_VARS = [...CHART_VARS_CALC, ...CHART_VARS_GPS]
@@ -1060,14 +1060,14 @@ function CambioCargaPanel() {
     }
   })
 
-  const GPS_KEYS = ['distTotal','distHir','distV4','distV5','nSprintsGps','acc2','dec2','maxVelocity','distPerMin','playerLoad']
+  const GPS_KEYS = ['distTotal','distHir','distV4','distV5','nSprintsGps','acc3','dec3','maxVelocity','distPerMin','playerLoad']
   // Keys as they appear in gpsDailyMap:
   // - camelCase calc keys: distTotal, distSprint, nSprints, nAcel, nDecel
   // - real GPS keys merged above: dist_hir, dist_v4, dist_v5, max_velocity, dist_per_min, acc2_real, dec2_real
   const GPS_FIELD_MAP: Record<string,string> = {
     distTotal:'dist_total',      distHir:'dist_hir',      distV4:'dist_v4',
-    distV5:'dist_v5',            nSprintsGps:'n_sprints', acc2:'acc2_real',
-    dec2:'dec2_real',            maxVelocity:'max_velocity',  distPerMin:'dist_per_min',
+    distV5:'dist_v5',            nSprintsGps:'n_sprints', acc3:'acc3_real',
+    dec3:'dec3_real',            maxVelocity:'max_velocity',  distPerMin:'dist_per_min',
     playerLoad:'player_load',
   }
   const getRowVal = (row: any) => {
@@ -6313,8 +6313,29 @@ function GpsPanel({ teamData }: { teamData: any }) {
           📡 DATOS GPS
         </h2>
         <p style={{ fontSize: 13, color: 'var(--silver)' }}>
-          Importá el Excel de Catapult para cargar los datos GPS del equipo. Si tu club no usa GPS, podés ignorar esta sección — todo lo demás sigue funcionando igual.
+          Importá el Excel o PDF de Catapult para cargar los datos GPS del equipo. Si tu club no usa GPS, podés ignorar esta sección — todo lo demás sigue funcionando igual.
         </p>
+
+        {/* ── PLANTILLA EXCEL ── */}
+        <div style={{ background:'rgba(200,241,53,.07)', border:'1.5px solid rgba(200,241,53,.25)', borderRadius:12, padding:'14px 18px', marginTop:14, display:'flex', alignItems:'center', gap:16, flexWrap:'wrap' }}>
+          <div style={{ fontSize: 28 }}>📥</div>
+          <div style={{ flex: 1, minWidth: 200 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--lime)', marginBottom: 3 }}>
+              Descargá la Planilla de Ejemplo
+            </div>
+            <div style={{ fontSize: 11, color: 'var(--silver)', lineHeight: 1.6 }}>
+              Completá con los datos de tu GPS, guardala como <strong style={{color:'var(--snow)'}}>Excel (.xlsx)</strong> y subila acá. Las columnas deben mantener el mismo nombre.
+            </div>
+          </div>
+          <a
+            href="/GPS_PLANTILLA.xlsx"
+            download="GPS_PLANTILLA.xlsx"
+            style={{ display:'inline-flex', alignItems:'center', gap:8, padding:'10px 20px', background:'var(--lime)', color:'#0a0a0f', borderRadius:8, fontWeight:700, fontSize:13, textDecoration:'none', whiteSpace:'nowrap', flexShrink:0 }}
+          >
+            ⬇️ Descargar Planilla
+          </a>
+        </div>
+
         <div style={{ background:'rgba(200,241,53,.06)', border:'1px solid rgba(200,241,53,.15)', borderRadius:10, padding:'10px 14px', marginTop:10, fontSize:12, color:'var(--silver)', lineHeight:1.6 }}>
           <strong style={{ color:'var(--lime)' }}>ℹ️ ¿Dónde aparecen los datos?</strong><br/>
           Los datos que importás acá (distancia, player load, sprints) se guardan en la base de datos por jugador y fecha. Para verlos en <strong style={{ color:'var(--snow)' }}>Analytics → Carga Individual</strong>, los datos GPS se combinan con las sesiones planificadas en el <strong style={{ color:'var(--snow)' }}>Calendario</strong>. Si no ves datos en Analytics, asegurate de tener sesiones cargadas en el Calendario para las mismas fechas del Excel.
@@ -6787,7 +6808,7 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
   // Mapping from camelCase calc keys → snake_case real GPS keys
   const GPS_REAL_KEY: Record<string,string> = {
     distTotal:'dist_total', distSprint:'dist_hir', nSprints:'n_sprints',
-    nAcel:'acc2', nDecel:'dec2', distMP:'dist_v4', nAcel3:'acc3', nDecel3:'dec3',
+    nAcel:'acc3', nDecel:'dec3', distMP:'dist_v4', nAcel3:'acc3', nDecel3:'dec3',
   }
   // Always show all 8 MD slots (skeleton view) — existingMdLabels controls opacity/hasData
   const MD_ORDER_LOCAL = ['MD+1','MD+2','MD+3','MD-4','MD-3','MD-2','MD-1','MD']
