@@ -6327,13 +6327,29 @@ function GpsPanel({ teamData }: { teamData: any }) {
               Completá con los datos de tu GPS, guardala como <strong style={{color:'var(--snow)'}}>Excel (.xlsx)</strong> y subila acá. Las columnas deben mantener el mismo nombre.
             </div>
           </div>
-          <a
-            href="/GPS_PLANTILLA.xlsx"
-            download="GPS_PLANTILLA.xlsx"
-            style={{ display:'inline-flex', alignItems:'center', gap:8, padding:'10px 20px', background:'var(--lime)', color:'#0a0a0f', borderRadius:8, fontWeight:700, fontSize:13, textDecoration:'none', whiteSpace:'nowrap', flexShrink:0 }}
+          <button
+            onClick={() => {
+              const headers = [
+                'Nombre y Apellido','Tiempo (min)','Tot Dist (m)','Meterage Per Minute',
+                'Vel B4 Tot Dist (m)','High Speed Dist (m)','Vel B6 Tot Dist (m)',
+                'Número Sprint','Acc B2-3 Tot Effs','Decel B2-3 Tot Effs','Velocidad Máxima'
+              ]
+              const rows = [
+                headers,
+                ['Juan Pérez',    90, 10500, 88, 2100, 520, 130, 12, 38, 32, 31],
+                ['Carlos López',  85,  9800, 82, 1950, 480, 115, 10, 34, 29, 29],
+                ['Miguel Torres', 90, 10200, 85, 2050, 495, 120, 11, 36, 31, 30],
+              ]
+              const ws = XLSX.utils.aoa_to_sheet(rows)
+              ws['!cols'] = [22,13,13,20,18,18,18,14,18,18,16].map(w => ({ wch: w }))
+              const wb = XLSX.utils.book_new()
+              XLSX.utils.book_append_sheet(wb, ws, 'GPS_DATOS')
+              XLSX.writeFile(wb, 'GPS_PLANTILLA.xlsx')
+            }}
+            style={{ display:'inline-flex', alignItems:'center', gap:8, padding:'10px 20px', background:'var(--lime)', color:'#0a0a0f', borderRadius:8, fontWeight:700, fontSize:13, border:'none', cursor:'pointer', whiteSpace:'nowrap', flexShrink:0 }}
           >
             ⬇️ Descargar Planilla
-          </a>
+          </button>
         </div>
 
         <div style={{ background:'rgba(200,241,53,.06)', border:'1px solid rgba(200,241,53,.15)', borderRadius:10, padding:'10px 14px', marginTop:10, fontSize:12, color:'var(--silver)', lineHeight:1.6 }}>
