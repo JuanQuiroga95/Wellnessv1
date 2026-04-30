@@ -163,6 +163,7 @@ export default function CoachClient({ session, teamData, today }) {
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [playerLogs, setPlayerLogs] = useState([])
   const [playerWellness, setPlayerWellness] = useState([])
+  const [playerAusencias, setPlayerAusencias] = useState<any[]>([])
   const [loadingDetail, setLoadingDetail] = useState(false)
   const [showNew, setShowNew] = useState(false)
   const [showImport, setShowImport] = useState(false)
@@ -214,7 +215,11 @@ export default function CoachClient({ session, teamData, today }) {
       fetch(`/api/logs?jugadorId=${p.jugador_id}&days=${days}`).then(r=>r.json()),
       fetch(`/api/wellness?jugadorId=${p.jugador_id}&days=${wdays}`).then(r=>r.json()),
     ])
-    setPlayerLogs(logs); setPlayerWellness(well); setLoadingDetail(false)
+    // Fetch ausencias for the same window
+    const ausDesde = new Date(); ausDesde.setDate(ausDesde.getDate() - days)
+    const ausDesdeStr = ausDesde.toISOString().split('T')[0]
+    const ausencias = await fetch(`/api/ausencias?jugadorId=${p.jugador_id}&desde=${ausDesdeStr}`).then(r=>r.json()).catch(()=>[])
+    setPlayerLogs(logs); setPlayerWellness(well); setPlayerAusencias(Array.isArray(ausencias) ? ausencias : []); setLoadingDetail(false)
   }
 
   const available = teamData.filter(p=>!p.lesion && p.entrena_grupo!==false)
@@ -436,7 +441,7 @@ export default function CoachClient({ session, teamData, today }) {
         )}
 
         {tab==='team' && selected && (
-          <PlayerDetail player={selected} logs={playerLogs} wellness={playerWellness} loading={loadingDetail} ciclo={ciclo} onCicloChange={(c)=>{ setCiclo(c); openPlayer(selected, c) }} onBack={()=>setSelected(null)} />
+          <PlayerDetail player={selected} logs={playerLogs} wellness={playerWellness} ausencias={playerAusencias} loading={loadingDetail} ciclo={ciclo} onCicloChange={(c)=>{ setCiclo(c); openPlayer(selected, c) }} onBack={()=>setSelected(null)} onAusenciaChange={()=>openPlayer(selected)} />
         )}
 
         {tab==='analytics' && <AnalyticsPanel />}
@@ -536,9 +541,36 @@ function PlayerRow({ player:p, last, onOpen, isInjured }) {
   )
 }
 
-function PlayerDetail({ player:p, logs, wellness, loading, onBack, ciclo, onCicloChange }) {
+function PlayerDetail({ player:p, logs, wellness, ausencias=[], loading, onBack, ciclo, onCicloChange, onAusenciaChange }) {
   const col = p.lesion?'#ef4444':(SC[p.acwr?.status]||'#555')
   const [acwrMetric, setAcwrMetric] = useState<'ua'|'uce'>('ua')
+  const [ausenciaFecha, setAusenciaFecha] = useState('')
+  const [ausenciaMotivo, setAusenciaMotivo] = useState('ausente')
+  const [savingAus, setSavingAus] = useState(false)
+  const [showAusForm, setShowAusForm] = useState(false)
+  const ausenciaSet = new Set((ausencias||[]).map((a:any) => a.fecha))
+  const todayStr = new Date().toISOString().split('T')[0]
+
+  async function marcarAusencia() {
+    if (!ausenciaFecha) return
+    setSavingAus(true)
+    try {
+      await fetch('/api/ausencias', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({ jugador_id: p.jugador_id || p.id, fecha: ausenciaFecha, motivo: ausenciaMotivo })
+      })
+      setShowAusForm(false)
+      setAusenciaFecha('')
+      onAusenciaChange?.()
+    } finally { setSavingAus(false) }
+  }
+
+  async function quitarAusencia(fecha:string) {
+    await fetch(`/api/ausencias?jugadorId=${p.jugador_id||p.id}&fecha=${fecha}`, { method:'DELETE' })
+    onAusenciaChange?.()
+  }
+
   const lastW = wellness[0]
   const CICLOS = [
     { id:'microciclo', label:'Microciclo', sub:'Semana' },
@@ -630,7 +662,7 @@ function PlayerDetail({ player:p, logs, wellness, loading, onBack, ciclo, onCicl
           </div>
           {loading
             ? <div style={{ height:160, display:'flex', alignItems:'center', justifyContent:'center', color:'var(--silver)' }}>Cargando...</div>
-            : <ACWRChart data={buildACWRHistory(logs, 28, acwrMetric)} />}
+            : <ACWRChart data={buildACWRHistory(logs, 28, acwrMetric, ausencias)} />}
         </div>
       )}
 
@@ -647,7 +679,7 @@ function PlayerDetail({ player:p, logs, wellness, loading, onBack, ciclo, onCicl
                 </tr>
               </thead>
               <tbody>
-                {buildDailyDetail(logs.map(l=>({fecha:String(l.fecha),carga_ua:Number(l.carga_ua)||0,carga_uce:(l as any).carga_uce??null})), acwrMetric).map((row,i)=>{
+                {buildDailyDetail(logs.map(l=>({fecha:String(l.fecha),carga_ua:Number(l.carga_ua)||0,carga_uce:(l as any).carga_uce??null})), acwrMetric, ausencias).map((row,i)=>{
                   const SC2={optimo:'#22c55e',precaucion:'#f59e0b',peligro:'#ef4444',peligro_bajo:'#3b82f6',sin_datos:'#444'}
                   const SL2={optimo:'Óptimo',precaucion:'Precaución',peligro:'Riesgo alto',peligro_bajo:'Carga baja',sin_datos:'—'}
                   const col = SC2[row.status]||'#444'
@@ -656,14 +688,15 @@ function PlayerDetail({ player:p, logs, wellness, loading, onBack, ciclo, onCicl
                   const mdLabel = (dayLog as any)?.md_label || null
                   const cargaUce = (dayLog as any)?.carga_uce ?? null
                   const cargaShow = cargaUce !== null ? cargaUce : row.carga
+                  const isAusente = row.esAusente
                   return (
-                    <tr key={i} style={{ borderTop:'1px solid var(--mist)', background: row.hasSesion?'transparent':'rgba(0,0,0,.2)' }}>
-                      <td style={{ padding:'8px 12px', textAlign:'center', fontWeight:700, color: mdLabel?'var(--lime)':'var(--silver)', fontFamily:'DM Mono,monospace', fontSize:11 }}>
-                        {mdLabel || row.dia}
+                    <tr key={i} style={{ borderTop:'1px solid var(--mist)', background: isAusente?'rgba(239,68,68,.06)': row.hasSesion?'transparent':'rgba(0,0,0,.2)' }}>
+                      <td style={{ padding:'8px 12px', textAlign:'center', fontWeight:700, color: isAusente?'#f87171': mdLabel?'var(--lime)':'var(--silver)', fontFamily:'DM Mono,monospace', fontSize:11 }}>
+                        {isAusente ? '✗ AUS' : (mdLabel || row.dia)}
                       </td>
                       <td style={{ padding:'8px 12px', textAlign:'center', fontFamily:'DM Mono,monospace', fontSize:11, color:'var(--fog)' }}>{row.date.slice(5)}</td>
-                      <td style={{ padding:'8px 12px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, color: row.hasSesion?'var(--lime)':'var(--fog)' }}>
-                        {row.hasSesion ? cargaShow : '—'}
+                      <td style={{ padding:'8px 12px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, color: isAusente?'#f87171': row.hasSesion?'var(--lime)':'var(--fog)' }}>
+                        {isAusente ? '0' : row.hasSesion ? cargaShow : '—'}
                       </td>
                       <td style={{ padding:'8px 12px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, color: col }}>
                         {row.ratio > 0 ? row.ratio.toFixed(2) : '—'}
@@ -685,6 +718,54 @@ function PlayerDetail({ player:p, logs, wellness, loading, onBack, ciclo, onCicl
                 <div style={{ width:8, height:8, borderRadius:2, background:c }} />{l}
               </div>
             ))}
+          </div>
+
+          {/* ── Gestión de ausencias ── */}
+          <div style={{ marginTop:16, borderTop:'1px solid var(--mist)', paddingTop:14 }}>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10 }}>
+              <p style={{ fontSize:11, fontWeight:600, color:'#f87171', textTransform:'uppercase', letterSpacing:'0.08em' }}>✗ Ausencias registradas</p>
+              <button onClick={()=>setShowAusForm(v=>!v)} style={{ fontSize:11, padding:'4px 12px', borderRadius:7, background: showAusForm?'rgba(239,68,68,.15)':'transparent', color:'#f87171', border:'1px solid rgba(239,68,68,.3)', cursor:'pointer', fontWeight:600 }}>
+                {showAusForm ? 'Cancelar' : '+ Registrar ausencia'}
+              </button>
+            </div>
+            {showAusForm && (
+              <div style={{ display:'flex', gap:8, flexWrap:'wrap', alignItems:'flex-end', marginBottom:12, background:'rgba(239,68,68,.05)', border:'1px solid rgba(239,68,68,.15)', borderRadius:10, padding:'12px 14px' }}>
+                <div>
+                  <p style={{ fontSize:10, color:'var(--silver)', marginBottom:4 }}>Fecha</p>
+                  <input type="date" value={ausenciaFecha} onChange={e=>setAusenciaFecha(e.target.value)}
+                    style={{ fontSize:12, padding:'6px 10px', borderRadius:7, background:'var(--ink3)', border:'1px solid var(--mist)', color:'var(--snow)', outline:'none' }} />
+                </div>
+                <div>
+                  <p style={{ fontSize:10, color:'var(--silver)', marginBottom:4 }}>Motivo</p>
+                  <select value={ausenciaMotivo} onChange={e=>setAusenciaMotivo(e.target.value)}
+                    style={{ fontSize:12, padding:'6px 10px', borderRadius:7, background:'var(--ink3)', border:'1px solid var(--mist)', color:'var(--snow)', outline:'none' }}>
+                    <option value="ausente">Ausente</option>
+                    <option value="personal">Personal</option>
+                    <option value="enfermedad">Enfermedad</option>
+                    <option value="lesion">Lesión</option>
+                    <option value="suspension">Suspensión</option>
+                  </select>
+                </div>
+                <button onClick={marcarAusencia} disabled={!ausenciaFecha||savingAus}
+                  style={{ fontSize:12, padding:'7px 16px', borderRadius:7, background: ausenciaFecha&&!savingAus?'#ef4444':'var(--ink3)', color:'white', border:'none', cursor: ausenciaFecha?'pointer':'default', fontWeight:600, opacity: ausenciaFecha?1:.5 }}>
+                  {savingAus ? '...' : 'Guardar'}
+                </button>
+              </div>
+            )}
+            {ausencias && ausencias.length > 0 ? (
+              <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
+                {ausencias.slice().sort((a:any,b:any)=>b.fecha.localeCompare(a.fecha)).map((a:any) => (
+                  <div key={a.id} style={{ display:'flex', alignItems:'center', gap:6, fontSize:11, background:'rgba(239,68,68,.08)', border:'1px solid rgba(239,68,68,.2)', borderRadius:7, padding:'4px 10px' }}>
+                    <span style={{ fontFamily:'DM Mono,monospace', color:'#f87171' }}>{a.fecha.slice(5)}</span>
+                    <span style={{ color:'var(--silver)' }}>·</span>
+                    <span style={{ color:'var(--silver)', textTransform:'capitalize' }}>{a.motivo}</span>
+                    <button onClick={()=>quitarAusencia(a.fecha)} style={{ fontSize:10, background:'transparent', border:'none', cursor:'pointer', color:'var(--fog)', marginLeft:2, padding:0 }} title="Quitar ausencia">✕</button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p style={{ fontSize:11, color:'var(--fog)', fontStyle:'italic' }}>Sin ausencias en el período</p>
+            )}
           </div>
         </div>
       )}
