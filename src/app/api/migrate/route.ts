@@ -292,19 +292,6 @@ export async function POST(req: NextRequest) {
     // ── Biblioteca: tactical_diagram for whiteboard data ─────────────────
     [`ALTER TABLE biblioteca_tareas ADD COLUMN IF NOT EXISTS tactical_diagram TEXT`, 'biblioteca_tareas.tactical_diagram'],
     [`ALTER TABLE biblioteca_tareas ADD COLUMN IF NOT EXISTS diagram_preview TEXT`, 'biblioteca_tareas.diagram_preview'],
-    // ── Ausencias: registro explícito de faltas a entrenamiento ──────────
-    [`CREATE TABLE IF NOT EXISTS ausencias (
-      id SERIAL PRIMARY KEY,
-      jugador_id INTEGER NOT NULL REFERENCES jugadores(id) ON DELETE CASCADE,
-      club_id INTEGER,
-      fecha DATE NOT NULL,
-      motivo TEXT DEFAULT 'ausente',
-      registrado_por INTEGER,
-      created_at TIMESTAMPTZ DEFAULT NOW(),
-      UNIQUE(jugador_id, fecha)
-    )`, 'ausencias table'],
-    [`CREATE INDEX IF NOT EXISTS idx_ausencias_jugador_fecha ON ausencias(jugador_id, fecha)`, 'ausencias index jugador_fecha'],
-    [`CREATE INDEX IF NOT EXISTS idx_ausencias_club_fecha ON ausencias(club_id, fecha)`, 'ausencias index club_fecha'],
   ]
   for (const [sql_str, label] of extra_migrations) {
     try {

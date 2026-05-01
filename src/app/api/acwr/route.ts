@@ -14,17 +14,11 @@ export async function GET(req: NextRequest) {
   if (!jid) return NextResponse.json({ error: 'jugadorId inválido' }, { status: 400 })
 
   const sql = getDb()
-  const [rows, ausRows] = await Promise.all([
-    sql`
-      SELECT fecha::text, carga_ua::int, carga_uce::int
-      FROM entrenamiento_logs
-      WHERE jugador_id = ${jid} AND fecha >= CURRENT_DATE - 28
-      ORDER BY fecha ASC`,
-    sql`
-      SELECT fecha::text
-      FROM ausencias
-      WHERE jugador_id = ${jid} AND fecha >= CURRENT_DATE - 28`,
-  ])
+  const rows = await sql`
+    SELECT fecha::text, carga_ua::int, carga_uce::int
+    FROM entrenamiento_logs
+    WHERE jugador_id = ${jid} AND fecha >= CURRENT_DATE - 28
+    ORDER BY fecha ASC`
 
   const logs = (rows as any[]).map(r => ({
     fecha: r.fecha,
@@ -32,10 +26,8 @@ export async function GET(req: NextRequest) {
     carga_uce: r.carga_uce != null ? Number(r.carga_uce) : null,
   }))
 
-  const ausencias = (ausRows as any[]).map(r => ({ fecha: r.fecha }))
-
   return NextResponse.json({
-    ua:  calcACWR(logs, new Date(), 'ua', ausencias),
-    uce: calcACWR(logs, new Date(), 'uce', ausencias),
+    ua:  calcACWR(logs, new Date(), 'ua'),
+    uce: calcACWR(logs, new Date(), 'uce'),
   })
 }

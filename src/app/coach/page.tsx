@@ -49,28 +49,33 @@ export default async function CoachPage() {
   // instead of 3 queries × N players (N+1 problem)
   const jugadorIds = players.map(p => p.jugador_id)
 
-  const [allLogs, allLastSessions, allLastWellness] = jugadorIds.length === 0
-    ? [[], [], []]
-    : await Promise.all([
-        sql`SELECT id, jugador_id::int, fecha::text, carga_ua::int, rpe::int, duracion_min::int
-            FROM entrenamiento_logs
-            WHERE jugador_id IN (SELECT unnest(${jugadorIds}::int[]))
-              AND fecha >= CURRENT_DATE - 28
-            ORDER BY jugador_id, fecha ASC`,
-        sql`SELECT DISTINCT ON (jugador_id) jugador_id::int, fecha::text
-            FROM entrenamiento_logs
-            WHERE jugador_id IN (SELECT unnest(${jugadorIds}::int[]))
-            ORDER BY jugador_id, fecha DESC`,
-        sql`SELECT DISTINCT ON (jugador_id)
-              jugador_id::int, fecha::text, fatiga::int, calidad_sueno::int,
-              dolor_muscular::int, nivel_estres::int, estado_animo::int, dolor_zona,
-              COALESCE(tqr::int,0) AS tqr, COALESCE(recovery::int,0) AS recovery,
-              COALESCE(entrena_grupo::text,'true') AS entrena_grupo,
-              COALESCE(fue_gimnasio::text,'false') AS fue_gimnasio,
-              COALESCE(grupos_musculares,'') AS grupos_musculares
-            FROM wellness_logs
-            WHERE jugador_id IN (SELECT unnest(${jugadorIds}::int[]))
-            ORDER BY jugador_id, fecha DESC`,
+  const [allLogs, allLastSessions, allLastWellness, allAusencias] = jugadorIds.length === 0
+    ? [[], [], [], []]
+    : await Promise.all([\
+        sql`SELECT id, jugador_id::int, fecha::text, carga_ua::int, rpe::int, duracion_min::int\
+            FROM entrenamiento_logs\
+            WHERE jugador_id IN (SELECT unnest(${jugadorIds}::int[]))\
+              AND fecha >= CURRENT_DATE - 28\
+            ORDER BY jugador_id, fecha ASC`,\
+        sql`SELECT DISTINCT ON (jugador_id) jugador_id::int, fecha::text\
+            FROM entrenamiento_logs\
+            WHERE jugador_id IN (SELECT unnest(${jugadorIds}::int[]))\
+            ORDER BY jugador_id, fecha DESC`,\
+        sql`SELECT DISTINCT ON (jugador_id)\
+              jugador_id::int, fecha::text, fatiga::int, calidad_sueno::int,\
+              dolor_muscular::int, nivel_estres::int, estado_animo::int, dolor_zona,\
+              COALESCE(tqr::int,0) AS tqr, COALESCE(recovery::int,0) AS recovery,\
+              COALESCE(entrena_grupo::text,'true') AS entrena_grupo,\
+              COALESCE(fue_gimnasio::text,'false') AS fue_gimnasio,\
+              COALESCE(grupos_musculares,'') AS grupos_musculares\
+            FROM wellness_logs\
+            WHERE jugador_id IN (SELECT unnest(${jugadorIds}::int[]))\
+            ORDER BY jugador_id, fecha DESC`,\
+        sql`SELECT jugador_id::int, fecha::text\
+            FROM ausencias\
+            WHERE jugador_id IN (SELECT unnest(${jugadorIds}::int[]))\
+              AND fecha >= CURRENT_DATE - 28\
+            ORDER BY jugador_id, fecha ASC`.catch(() => []),\
       ])
 
   // Index by jugador_id for O(1) lookup
@@ -98,13 +103,16 @@ export default async function CoachPage() {
       grupos_musculares: String(rw.grupos_musculares||''),
     } : null
     const respondedToday = lastW?.fecha === today
+    const jugadorAusencias = new Set(
+      (allAusencias as any[]).filter((a:any) => Number(a.jugador_id) === p.jugador_id).map((a:any) => String(a.fecha))
+    )
     return {
       id: p.id, nombre: String(p.nombre), usuario: String(p.usuario), activo: Boolean(p.activo),
       password_plain: p.password_plain ? String(p.password_plain) : null,
       jugador_id: p.jugador_id, posicion: String(p.posicion||''), edad: Number(p.edad)||null,
       peso_kg: String(p.peso_kg||''), estatura_cm: Number(p.estatura_cm)||null, pie_habil: String(p.pie_habil||''),
       foto_url: p.foto_url ? String(p.foto_url) : null,
-      posicion_orden: posOrder(p.posicion), acwr: calcACWR(sl),
+      posicion_orden: posOrder(p.posicion), acwr: calcACWR(sl, new Date(), 'ua', jugadorAusencias),
       recentLogs: logs.map(l => ({ id: Number(l.id), fecha: String(l.fecha), carga_ua: Number(l.carga_ua)||0, rpe: Number(l.rpe)||0, duracion_min: Number(l.duracion_min)||0 })),
       lastWellness: lastW, respondedToday, entrena_grupo: respondedToday ? (lastW?.entrena_grupo ?? null) : null,
       lesion: lesionMap[p.jugador_id] || null,

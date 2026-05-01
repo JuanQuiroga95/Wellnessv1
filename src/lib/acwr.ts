@@ -1,5 +1,4 @@
 export interface TrainingLog { fecha: string; carga_ua: number; carga_uce?: number | null }
-export interface Ausencia { fecha: string }
 export type ACWRMetric = 'ua' | 'uce'
 export interface ACWRResult {
   ratio: number
@@ -10,6 +9,9 @@ export interface ACWRResult {
   label: string
   color: string
 }
+
+// Fechas donde el jugador faltó explícitamente (carga = 0, no es día libre)
+export type AusenciaSet = Set<string>
 
 function localDateStr(d: Date): string {
   const y = d.getFullYear()
@@ -25,31 +27,41 @@ function resolveLoad(log: TrainingLog, metric: ACWRMetric): number {
   return Number(log.carga_ua)
 }
 
-// Ausencias are dates where the player was explicitly absent (carga = 0).
-// Days with no log AND no ausencia are treated as rest days (not counted).
-export function calcACWR(
-  logs: TrainingLog[],
-  ref = new Date(),
-  metric: ACWRMetric = 'ua',
-  ausencias: Ausencia[] = []
-): ACWRResult {
+export function calcACWR(logs: TrainingLog[], ref = new Date(), metric: ACWRMetric = 'ua', ausencias: AusenciaSet = new Set()): ACWRResult {
   const refMs = ref.getTime()
   const DAY = 86400000
-  const ausenciaSet = new Set(ausencias.map(a => a.fecha))
 
+  // Suma los logs en una ventana de días
+  // Si un día está en ausencias y no tiene log, cuenta como 0 (no se ignora)
   const sumWeek = (startDay: number, endDay: number) => {
-    // Sum training loads for the window
-    const trainLoad = logs
-      .filter(l => {
-        const d = (refMs - new Date(l.fecha + 'T12:00:00').getTime()) / DAY
-        return d >= startDay && d < endDay
-      })
-      .reduce((s, l) => s + resolveLoad(l, metric), 0)
-    // Absences contribute 0 (they don't add anything, but they are already
-    // counted as 0 by their absence from the logs — the key effect is that
-    // the denominator in ACWR reflects them implicitly via the 4-week average).
-    // No explicit addition needed; 0 + trainLoad = trainLoad.
-    return trainLoad
+    let total = 0
+    // Sumar carga de los logs existentes en la ventana
+    for (const l of logs) {
+      const d = (refMs - new Date(l.fecha + 'T12:00:00').getTime()) / DAY
+      if (d >= startDay && d < endDay) total += resolveLoad(l, metric)
+    }
+    // Las ausencias ya están representadas implícitamente como 0
+    // (no hay log → no suma nada, pero sí "existió" el día)
+    // Para el promedio semanal, necesitamos saber cuántos días contar
+    return total
+  }
+
+  // Conta los días "activos" en una ventana: con log O con ausencia marcada
+  const countDays = (startDay: number, endDay: number) => {
+    const daysWithLog = new Set(
+      logs
+        .filter(l => {
+          const d = (refMs - new Date(l.fecha + 'T12:00:00').getTime()) / DAY
+          return d >= startDay && d < endDay
+        })
+        .map(l => l.fecha)
+    )
+    const daysWithAbsence = Array.from(ausencias).filter(f => {
+      const d = (refMs - new Date(f + 'T12:00:00').getTime()) / DAY
+      return d >= startDay && d < endDay
+    })
+    const allDays = new Set([...daysWithLog, ...daysWithAbsence])
+    return allDays.size
   }
 
   const w1 = sumWeek(0, 7)
@@ -73,18 +85,17 @@ export function calcACWR(
   return { ratio, acuteLoad: Math.round(acuteLoad), chronicLoad: Math.round(chronicLoad), week1:Math.round(w1), week2:Math.round(w2), week3:Math.round(w3), week4:Math.round(w4), status, label, color }
 }
 
-export function buildACWRHistory(logs: TrainingLog[], days = 28, metric: ACWRMetric = 'ua', ausencias: Ausencia[] = []) {
+export function buildACWRHistory(logs: TrainingLog[], days = 28, metric: ACWRMetric = 'ua', ausencias: AusenciaSet = new Set()) {
   return Array.from({ length: days }, (_, i) => {
     const d = new Date()
     d.setDate(d.getDate() - (days - 1 - i))
     const { ratio, status, acuteLoad, chronicLoad } = calcACWR(logs, d, metric, ausencias)
     const dateStr = localDateStr(d)
-    return { date: dateStr, label: dateStr.slice(5), ratio, status, acuteLoad, chronicLoad }
+    return { date: dateStr, label: dateStr.slice(5), ratio, status, acuteLoad, chronicLoad, ausente: ausencias.has(dateStr) }
   })
 }
 
-export function buildDailyDetail(logs: TrainingLog[], metric: ACWRMetric = 'ua', ausencias: Ausencia[] = []) {
-  const ausenciaSet = new Set(ausencias.map(a => a.fecha))
+export function buildDailyDetail(logs: TrainingLog[], metric: ACWRMetric = 'ua', ausencias: AusenciaSet = new Set()) {
   return Array.from({ length: 7 }, (_, i) => {
     const d = new Date()
     d.setDate(d.getDate() - (6 - i))
@@ -93,7 +104,7 @@ export function buildDailyDetail(logs: TrainingLog[], metric: ACWRMetric = 'ua',
     const carga = dayLog.reduce((s, l) => s + resolveLoad(l, metric), 0)
     const { ratio, status } = calcACWR(logs, d, metric, ausencias)
     const dias = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb']
-    const esAusente = ausenciaSet.has(dateStr)
-    return { date: dateStr, dia: dias[d.getDay()], carga, ratio, status, hasSesion: dayLog.length > 0, esAusente }
+    const ausente = ausencias.has(dateStr)
+    return { date: dateStr, dia: dias[d.getDay()], carga, ratio, status, hasSesion: dayLog.length > 0, ausente }
   })
 }
