@@ -51,31 +51,31 @@ export default async function CoachPage() {
 
   const [allLogs, allLastSessions, allLastWellness, allAusencias] = jugadorIds.length === 0
     ? [[], [], [], []]
-    : await Promise.all([\
-        sql`SELECT id, jugador_id::int, fecha::text, carga_ua::int, rpe::int, duracion_min::int\
-            FROM entrenamiento_logs\
-            WHERE jugador_id IN (SELECT unnest(${jugadorIds}::int[]))\
-              AND fecha >= CURRENT_DATE - 28\
-            ORDER BY jugador_id, fecha ASC`,\
-        sql`SELECT DISTINCT ON (jugador_id) jugador_id::int, fecha::text\
-            FROM entrenamiento_logs\
-            WHERE jugador_id IN (SELECT unnest(${jugadorIds}::int[]))\
-            ORDER BY jugador_id, fecha DESC`,\
-        sql`SELECT DISTINCT ON (jugador_id)\
-              jugador_id::int, fecha::text, fatiga::int, calidad_sueno::int,\
-              dolor_muscular::int, nivel_estres::int, estado_animo::int, dolor_zona,\
-              COALESCE(tqr::int,0) AS tqr, COALESCE(recovery::int,0) AS recovery,\
-              COALESCE(entrena_grupo::text,'true') AS entrena_grupo,\
-              COALESCE(fue_gimnasio::text,'false') AS fue_gimnasio,\
-              COALESCE(grupos_musculares,'') AS grupos_musculares\
-            FROM wellness_logs\
-            WHERE jugador_id IN (SELECT unnest(${jugadorIds}::int[]))\
-            ORDER BY jugador_id, fecha DESC`,\
-        sql`SELECT jugador_id::int, fecha::text\
-            FROM ausencias\
-            WHERE jugador_id IN (SELECT unnest(${jugadorIds}::int[]))\
-              AND fecha >= CURRENT_DATE - 28\
-            ORDER BY jugador_id, fecha ASC`.catch(() => []),\
+    : await Promise.all([
+        sql`SELECT id, jugador_id::int, fecha::text, carga_ua::int, rpe::int, duracion_min::int
+            FROM entrenamiento_logs
+            WHERE jugador_id IN (SELECT unnest(${jugadorIds}::int[]))
+              AND fecha >= CURRENT_DATE - 28
+            ORDER BY jugador_id, fecha ASC`,
+        sql`SELECT DISTINCT ON (jugador_id) jugador_id::int, fecha::text
+            FROM entrenamiento_logs
+            WHERE jugador_id IN (SELECT unnest(${jugadorIds}::int[]))
+            ORDER BY jugador_id, fecha DESC`,
+        sql`SELECT DISTINCT ON (jugador_id)
+              jugador_id::int, fecha::text, fatiga::int, calidad_sueno::int,
+              dolor_muscular::int, nivel_estres::int, estado_animo::int, dolor_zona,
+              COALESCE(tqr::int,0) AS tqr, COALESCE(recovery::int,0) AS recovery,
+              COALESCE(entrena_grupo::text,'true') AS entrena_grupo,
+              COALESCE(fue_gimnasio::text,'false') AS fue_gimnasio,
+              COALESCE(grupos_musculares,'') AS grupos_musculares
+            FROM wellness_logs
+            WHERE jugador_id IN (SELECT unnest(${jugadorIds}::int[]))
+            ORDER BY jugador_id, fecha DESC`,
+        sql`SELECT jugador_id::int, fecha::text
+            FROM ausencias
+            WHERE jugador_id IN (SELECT unnest(${jugadorIds}::int[]))
+              AND fecha >= CURRENT_DATE - 28
+            ORDER BY jugador_id, fecha ASC`.catch(() => []),
       ])
 
   // Index by jugador_id for O(1) lookup
