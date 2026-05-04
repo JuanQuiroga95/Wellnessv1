@@ -148,4 +148,24 @@ export const SCHEMA_STATEMENTS = [
     nota TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW()
   )`,
+  // ── Módulo Canchas ──────────────────────────────────────────────────────────
+  `CREATE TABLE IF NOT EXISTS canchas (
+    id SERIAL PRIMARY KEY,
+    club_id INTEGER,
+    admin_id INTEGER REFERENCES usuarios(id),
+    nombre VARCHAR(200) NOT NULL,
+    direccion TEXT,
+    lat NUMERIC(10,7),
+    lng NUMERIC(10,7),
+    largo_m NUMERIC(6,1),
+    ancho_m NUMERIC(6,1),
+    area_m2 NUMERIC(8,1),
+    tipo_cancha VARCHAR(20),
+    superficie VARCHAR(50),
+    notas TEXT,
+    osm_id BIGINT,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_canchas_club ON canchas(club_id)`,
+  `CREATE INDEX IF NOT EXISTS idx_canchas_admin ON canchas(admin_id)`,
 ]
