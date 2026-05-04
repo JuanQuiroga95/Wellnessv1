@@ -42,7 +42,7 @@ export async function GET(req: NextRequest) {
   // Historial de un jugador específico (todos sus registros, activos o no)
   if (jugadorId) {
     const r = await sql`SELECT l.id,l.jugador_id::int,l.fecha_inicio::text,l.fecha_alta::text,l.tipo_lesion,l.zona,
-                               l.descripcion,l.eta_dias::int,l.estado,l.activa,l.mecanismo,l.lateralidad,l.recurrente,l.fase,l.region_corporal,l.causa,u.nombre AS jugador_nombre,j.posicion
+                               l.descripcion,l.eta_dias::int,l.estado,l.activa,l.mecanismo,l.lateralidad,l.recurrente,l.fase,l.fase_historial,l.region_corporal,l.causa,u.nombre AS jugador_nombre,j.posicion
                         FROM lesiones l JOIN jugadores j ON j.id=l.jugador_id JOIN usuarios u ON u.id=j.usuario_id
                         WHERE l.jugador_id=${jugadorId} AND (${isMaster}::boolean OR u.club_id=${clubId})
                         ORDER BY l.fecha_inicio DESC`
@@ -51,11 +51,11 @@ export async function GET(req: NextRequest) {
 
   const r = activas
     ? await sql`SELECT l.id,l.jugador_id::int,l.fecha_inicio::text,l.fecha_alta::text,l.tipo_lesion,l.zona,
-                       l.descripcion,l.eta_dias::int,l.estado,l.activa,l.mecanismo,l.lateralidad,l.recurrente,l.fase,l.region_corporal,l.causa,u.nombre AS jugador_nombre,j.posicion
+                       l.descripcion,l.eta_dias::int,l.estado,l.activa,l.mecanismo,l.lateralidad,l.recurrente,l.fase,l.fase_historial,l.region_corporal,l.causa,u.nombre AS jugador_nombre,j.posicion
                 FROM lesiones l JOIN jugadores j ON j.id=l.jugador_id JOIN usuarios u ON u.id=j.usuario_id
                 WHERE l.activa=true AND u.activo=true AND (${isMaster}::boolean OR u.club_id=${clubId}) ORDER BY l.fecha_inicio DESC`
     : await sql`SELECT l.id,l.jugador_id::int,l.fecha_inicio::text,l.fecha_alta::text,l.tipo_lesion,l.zona,
-                       l.descripcion,l.eta_dias::int,l.estado,l.activa,l.mecanismo,l.lateralidad,l.recurrente,l.fase,l.region_corporal,l.causa,u.nombre AS jugador_nombre,j.posicion
+                       l.descripcion,l.eta_dias::int,l.estado,l.activa,l.mecanismo,l.lateralidad,l.recurrente,l.fase,l.fase_historial,l.region_corporal,l.causa,u.nombre AS jugador_nombre,j.posicion
                 FROM lesiones l JOIN jugadores j ON j.id=l.jugador_id JOIN usuarios u ON u.id=j.usuario_id
                 WHERE u.activo=true AND u.club_id=${clubId} ORDER BY l.fecha_inicio DESC`
   return NextResponse.json(r)
@@ -90,7 +90,16 @@ export async function PATCH(req: NextRequest) {
     }
 
     if (eta_dias !== undefined) await sql`UPDATE lesiones SET eta_dias = ${eta_dias} WHERE id = ${id}`
-    if (fase !== undefined) await sql`UPDATE lesiones SET fase = ${fase} WHERE id = ${id}`
+    if (fase !== undefined) {
+      await sql`ALTER TABLE lesiones ADD COLUMN IF NOT EXISTS fase_historial JSONB DEFAULT '{}'::jsonb`
+      const todayStr = new Date().toISOString().split('T')[0]
+      await sql`
+        UPDATE lesiones 
+        SET fase = ${fase},
+            fase_historial = jsonb_set(COALESCE(fase_historial, '{}'::jsonb), array[${fase}], to_jsonb(${todayStr}::text))
+        WHERE id = ${id}
+      `
+    }
     if (mecanismo !== undefined) await sql`UPDATE lesiones SET mecanismo = ${mecanismo} WHERE id = ${id}`
     if (lateralidad !== undefined) await sql`UPDATE lesiones SET lateralidad = ${lateralidad} WHERE id = ${id}`
     if (recurrente !== undefined) await sql`UPDATE lesiones SET recurrente = ${recurrente} WHERE id = ${id}`

@@ -33,16 +33,22 @@ export default async function CoachPage() {
             FROM usuarios u JOIN jugadores j ON j.usuario_id=u.id
             WHERE u.rol='jugador' AND u.activo=true ORDER BY u.nombre`,
     filterByClub
-      ? sql`SELECT l.jugador_id::int, l.tipo_lesion, l.zona, l.estado, l.eta_dias::int, l.fecha_inicio::text
+      ? sql`SELECT l.jugador_id::int, l.tipo_lesion, l.zona, l.estado, l.eta_dias::int, l.fecha_inicio::text, l.fecha_alta::text, l.activa
             FROM lesiones l JOIN jugadores j ON j.id=l.jugador_id
-            WHERE l.activa=true AND j.club_id=${clubId}`
-      : sql`SELECT l.jugador_id::int, l.tipo_lesion, l.zona, l.estado, l.eta_dias::int, l.fecha_inicio::text
-            FROM lesiones l JOIN jugadores j ON j.id=l.jugador_id WHERE l.activa=true`,
+            WHERE (l.activa=true OR l.fecha_alta >= CURRENT_DATE - 14) AND j.club_id=${clubId}`
+      : sql`SELECT l.jugador_id::int, l.tipo_lesion, l.zona, l.estado, l.eta_dias::int, l.fecha_inicio::text, l.fecha_alta::text, l.activa
+            FROM lesiones l JOIN jugadores j ON j.id=l.jugador_id 
+            WHERE l.activa=true OR l.fecha_alta >= CURRENT_DATE - 14`,
   ])
 
   const lesionMap = {}
+  const recientesMap = {}
   for (const l of lesionesRows) {
-    lesionMap[l.jugador_id] = { tipo_lesion:String(l.tipo_lesion||''), zona:String(l.zona||''), estado:String(l.estado||''), eta_dias:Number(l.eta_dias)||null, fecha_inicio:String(l.fecha_inicio||'') }
+    if (l.activa) {
+      lesionMap[l.jugador_id] = { tipo_lesion:String(l.tipo_lesion||''), zona:String(l.zona||''), estado:String(l.estado||''), eta_dias:Number(l.eta_dias)||null, fecha_inicio:String(l.fecha_inicio||'') }
+    } else {
+      recientesMap[l.jugador_id] = { fecha_alta: String(l.fecha_alta||'') }
+    }
   }
 
   // Bulk-load all training logs, last sessions, and last wellness in 3 queries
@@ -116,6 +122,7 @@ export default async function CoachPage() {
       recentLogs: logs.map(l => ({ id: Number(l.id), fecha: String(l.fecha), carga_ua: Number(l.carga_ua)||0, rpe: Number(l.rpe)||0, duracion_min: Number(l.duracion_min)||0 })),
       lastWellness: lastW, respondedToday, entrena_grupo: respondedToday ? (lastW?.entrena_grupo ?? null) : null,
       lesion: lesionMap[p.jugador_id] || null,
+      alta_reciente: recientesMap[p.jugador_id] || null,
       last_session_fecha: lastSessionByPlayer[p.jugador_id] ? String(lastSessionByPlayer[p.jugador_id].fecha) : null,
     }
   })

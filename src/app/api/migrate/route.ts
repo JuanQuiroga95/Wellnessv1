@@ -194,6 +194,7 @@ export async function POST(req: NextRequest) {
     )`, 'canchas table'],
     [`CREATE INDEX IF NOT EXISTS idx_canchas_club ON canchas(club_id)`, 'canchas index club'],
     [`CREATE INDEX IF NOT EXISTS idx_canchas_admin ON canchas(admin_id)`, 'canchas index admin'],
+    [`ALTER TABLE lesiones ADD COLUMN IF NOT EXISTS fase_historial JSONB DEFAULT '{}'::jsonb`, 'lesiones.fase_historial'],
   ]
 
   for (const [sql_stmt, label] of migrations) {

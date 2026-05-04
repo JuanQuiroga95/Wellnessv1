@@ -512,6 +512,7 @@ function PlayerRow({ player:p, last, onOpen, isInjured }) {
         <div style={{ fontSize:11, color:'var(--silver)', marginTop:1 }}>
           {p.posicion||'—'}
           {isInjured && p.lesion && <span style={{ marginLeft:8, color:LCOL[p.lesion.estado]||'#888' }}>· {p.lesion.tipo_lesion} ({p.lesion.estado})</span>}
+          {p.alta_reciente && !isInjured && <span style={{ marginLeft:8, color:'#a3e635', fontWeight:700, padding:'2px 6px', background:'rgba(163,230,53,.15)', borderRadius:4 }}>🛡️ En Adaptación RTP</span>}
         </div>
       </div>
       {p.lastWellness?.fue_gimnasio && <span style={{ fontSize:10, background:'rgba(200,241,53,.1)', color:'var(--lime)', border:'1px solid rgba(200,241,53,.2)', borderRadius:5, padding:'2px 6px' }}>GYM</span>}
@@ -640,7 +641,12 @@ function PlayerDetail({ player:p, logs, wellness, loading, onBack, ciclo, onCicl
               </div>
             )}
             {!p.lesion && (
-              <div style={{ marginTop:10 }}>
+              <div style={{ marginTop:10, display:'flex', flexWrap:'wrap', gap:6 }}>
+                {p.alta_reciente && (
+                  <span style={{ fontSize:12, background:'rgba(163,230,53,.1)', color:'#a3e635', border:'1px solid rgba(163,230,53,.3)', borderRadius:8, padding:'4px 10px', fontWeight:600 }}>
+                    🛡️ Periodo de Adaptación RTP (Alta reciente: {p.alta_reciente.fecha_alta.split('-').slice(1).join('/')})
+                  </span>
+                )}
                 {p.entrena_grupo===false
                   ? <span style={{ fontSize:12, background:'rgba(239,68,68,.1)', color:'#f87171', border:'1px solid rgba(239,68,68,.25)', borderRadius:8, padding:'4px 10px' }}>✗ No entrena con el grupo</span>
                   : p.respondedToday

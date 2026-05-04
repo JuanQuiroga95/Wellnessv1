@@ -556,9 +556,21 @@ export default function EnfermeriaPanel({ teamData, onRefresh }: { teamData: any
                             <span style={{ fontFamily: 'DM Mono,monospace', fontWeight: 800, fontSize: 14, color: d > 30 ? '#ef4444' : d > 14 ? '#f59e0b' : '#22c55e' }}>{d}</span>
                           </td>
                           <td style={{ padding: '10px 10px' }}>
-                            <span style={{ fontSize: 11, padding: '3px 10px', borderRadius: 20, background: `${estCol}18`, color: estCol, fontWeight: 700, border: `1px solid ${estCol}44` }}>
-                              {l.activa ? 'ACTIVO' : 'ALTA'}
-                            </span>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                              <span style={{ fontSize: 11, padding: '3px 10px', borderRadius: 20, background: `${estCol}18`, color: estCol, fontWeight: 700, border: `1px solid ${estCol}44`, display: 'inline-block', textAlign: 'center', width: 'fit-content' }}>
+                                {l.activa ? 'ACTIVO' : 'ALTA'}
+                              </span>
+                              {l.activa && (
+                                <div style={{ display: 'flex', gap: 2, width: 70 }}>
+                                  {FASES.map((f, i) => {
+                                    const fIdx = FASES.findIndex(x => x.key === l.fase)
+                                    const currentIdx = fIdx >= 0 ? fIdx : 0
+                                    const isPast = i <= currentIdx
+                                    return <div key={i} title={f.short} style={{ flex: 1, height: 4, borderRadius: 1, background: isPast ? f.color : 'var(--mist)', opacity: i === currentIdx ? 1 : isPast ? 0.6 : 0.2 }} />
+                                  })}
+                                </div>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       )
@@ -779,6 +791,11 @@ function ReadaptacionCard({ lesion: l, checks, onUpdateFase, onSaveChecks, onDar
                     </div>
                     <span style={{ fontSize: 8, fontWeight: isCurrent ? 700 : 400, color: textColor, textAlign: 'center', lineHeight: 1.2, maxWidth: 46 }}>
                       {f.label}
+                      {l.fase_historial?.[f.key] && (
+                        <div style={{ color: 'var(--silver)', fontSize: 7, marginTop: 3, fontFamily: 'DM Mono,monospace' }}>
+                          {l.fase_historial[f.key].split('-').slice(1).join('/')}
+                        </div>
+                      )}
                     </span>
                   </div>
                 )
