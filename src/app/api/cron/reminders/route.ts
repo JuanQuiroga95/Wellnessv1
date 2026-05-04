@@ -8,7 +8,7 @@ const resend = new Resend(process.env.RESEND_API_KEY)
 export async function GET(req: NextRequest) {
   // Validación de seguridad básica (se puede usar un header Authorization o un query param)
   const authHeader = req.headers.get('authorization')
-  const secret = process.env.CRON_SECRET || 'mi_secreto_cron_123'
+  const secret = process.env.API_SECRET_TOKEN || 'mi_secreto_cron_123'
   
   if (authHeader !== `Bearer ${secret}` && req.nextUrl.searchParams.get('token') !== secret) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 401 })

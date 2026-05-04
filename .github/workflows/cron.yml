@@ -12,6 +12,6 @@ jobs:
     steps:
       - name: Llamar al endpoint de recordatorios
         run: |
-          curl -X GET "https://wellness-app-production.up.railway.app/api/cron/reminders?token=${{ secrets.CRON_SECRET }}" \
-          -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"
+          curl -X GET "https://wellness-app-production.up.railway.app/api/cron/reminders?token=${{ secrets.API_SECRET_TOKEN }}" \
+          -H "Authorization: Bearer ${{ secrets.API_SECRET_TOKEN }}"
           # Nota: Cambiar la URL de arriba por el dominio real en producción
