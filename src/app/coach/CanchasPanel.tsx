@@ -116,7 +116,7 @@ export default function CanchasPanel(){
     setLoading(true)
     const b=mapInst.current.getBounds()
     const bbox=`${b.getSouth()},${b.getWest()},${b.getNorth()},${b.getEast()}`
-    const q=`[out:json][timeout:15];(nwr["leisure"="pitch"]["sport"~"soccer|football|futbol"](${bbox});nwr["leisure"="pitch"](${bbox}););out geom;`
+    const q=`[out:json][timeout:15];(nwr["leisure"="stadium"](${bbox});nwr["leisure"="pitch"]["sport"~"soccer|football|futbol"](${bbox}););out geom;`
     try{
       const r=await fetch('/api/overpass',{method:'POST',body:'data='+encodeURIComponent(q)})
       const d=await r.json()
@@ -133,10 +133,21 @@ export default function CanchasPanel(){
         }
         if(!lat||!lon)continue
         const dim=nodes.length>=4?calcDimensions(nodes):null
-        // Filtrar estricto: solo mostrar canchas que tengan dimensiones y sean de Fútbol 11 (>=90x45)
-        if(!dim || dim.largo < 90 || dim.ancho < 45) continue;
+        const isStadium = el.tags?.leisure === 'stadium'
+        const hasFootball = el.tags?.sport?.match(/soccer|football|futbol/i)
         
-        results.push({id:`${el.type}_${el.id}`,name:el.tags?.name||'Cancha sin nombre',lat,lon,nodes,largo:dim.largo,ancho:dim.ancho,area:dim.area,tipo:'F11'})
+        // Filtro: Si es estadio, lo mostramos. Si es pitch, exigimos que tenga medidas de cancha de 11 (>= 80x40 para ser flexibles con canchas amateur)
+        if (!isStadium) {
+           if (!dim || dim.largo < 80 || dim.ancho < 40) continue;
+        }
+        
+        results.push({
+          id:`${el.type}_${el.id}`,
+          name:el.tags?.name || (isStadium ? 'Estadio sin nombre' : 'Cancha sin nombre'),
+          lat,lon,nodes,
+          largo:dim?.largo,ancho:dim?.ancho,area:dim?.area,
+          tipo: isStadium ? 'Estadio' : 'Fútbol 11'
+        })
       }
       setPitches(results)
       // Add markers
