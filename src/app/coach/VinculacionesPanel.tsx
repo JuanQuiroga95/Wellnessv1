@@ -154,7 +154,7 @@ export default function VinculacionesPanel({ teamData }: { teamData: any[] }) {
           <div style={{display:'flex',gap:8,flexWrap:'wrap',alignItems:'center'}}>
             <select value={jugadorId||''} onChange={e=>setJugadorId(Number(e.target.value)||null)} style={{background:'var(--ink3)',border:'1px solid var(--fog)',borderRadius:10,padding:'10px 14px',fontSize:14,color:'var(--snow)',outline:'none',flex:1,minWidth:200}}>
               <option value="">— Seleccionar jugador —</option>
-              {teamData.map((p:any)=><option key={p.id} value={p.id}>{p.nombre}</option>)}
+              {teamData.map((p:any)=><option key={p.jugador_id} value={p.jugador_id}>{p.nombre}</option>)}
             </select>
             {(['30','60','90','180'] as const).map(d=>(
               <button key={d} onClick={()=>setDias(Number(d))} style={{...C.btnGhost, background:dias===Number(d)?'rgba(200,241,53,.1)':'transparent', color:dias===Number(d)?'var(--lime)':'var(--silver)', borderColor:dias===Number(d)?'rgba(200,241,53,.3)':'var(--fog)', padding:'8px 14px'}}>
