@@ -38,13 +38,11 @@ export default function TestBodyPage() {
           </div>
         </div>
             
-            {selected && (
-              <div style={{ marginTop: 20, padding: 16, background: '#ef444410', border: '1px solid #ef444430', borderRadius: 12 }}>
-                <p style={{ color: '#f87171', fontWeight: 700 }}>Zona seleccionada actualmente: {selected}</p>
-              </div>
-            )}
+        {selected && (
+          <div style={{ marginTop: 20, padding: 16, background: '#ef444410', border: '1px solid #ef444430', borderRadius: 12 }}>
+            <p style={{ color: '#f87171', fontWeight: 700 }}>Zona seleccionada actualmente: {selected}</p>
           </div>
-        </div>
+        )}
 
         <div style={{ marginTop: 40, textAlign: 'center' }}>
           <p style={{ color: '#475569', fontSize: 12 }}>Este es un entorno de prueba. Tu reporte real de wellness no se verá afectado hasta que apruebes el cambio.</p>

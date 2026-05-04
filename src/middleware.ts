@@ -46,6 +46,11 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next()
   }
 
+  // ── Public paths (EARLY RETURN) ──────────────────────────────────────────────
+  if (PUBLIC_PATHS.some(p => pathname === p || pathname === p + '/')) {
+    return addSecHeaders(NextResponse.next())
+  }
+
   // ── Cron-only endpoints ──────────────────────────────────────────────────────
   if (CRON_ONLY_PATHS.some(p => pathname.startsWith(p))) {
     const isVercelCron = req.headers.get('x-vercel-cron') === '1'
@@ -95,11 +100,6 @@ export async function middleware(req: NextRequest) {
     if (!s || s.rol !== 'master_admin') {
       return addSecHeaders(NextResponse.json({ error: 'No autorizado — se requiere master_admin' }, { status: 403 }))
     }
-    return addSecHeaders(NextResponse.next())
-  }
-
-  // ── Public paths ─────────────────────────────────────────────────────────────
-  if (PUBLIC_PATHS.some(p => pathname === p)) {
     return addSecHeaders(NextResponse.next())
   }
 
