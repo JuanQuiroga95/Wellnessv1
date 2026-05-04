@@ -37,7 +37,7 @@ export async function GET(req: NextRequest) {
       SELECT * FROM antropometria
       WHERE jugador_id = ${Number(jugador_id)}
         AND club_id = ${clubId}
-      ORDER BY fecha DESC
+      ORDER BY fecha DESC, id DESC
       LIMIT 50
     `
     return NextResponse.json(rows)
