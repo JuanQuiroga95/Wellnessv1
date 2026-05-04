@@ -325,6 +325,20 @@ function StatsTab({ jugador, gpsStats, wellnessStreak, totalSesiones, totalUA, m
   weeklyUA.reverse()
   const maxWeekUA = Math.max(...weeklyUA, 1)
 
+  // RPE Streak: días consecutivos contestando RPE (hacia atrás desde hoy o ayer)
+  let rpeStreak = 0
+  const rpeDates = new Set(recentLogs.filter((l:any) => l.rpe > 0).map((l:any) => String(l.fecha)))
+  const todayD2 = new Date()
+  for (let i = 0; i < 30; i++) {
+    const d = new Date(todayD2); d.setDate(d.getDate() - i)
+    const ds = d.toISOString().split('T')[0]
+    if (rpeDates.has(ds)) {
+      rpeStreak++
+    } else {
+      if (i > 0) break // permits missing today, but if missed yesterday, breaks
+    }
+  }
+
   const wAvg = recentWellness.slice(0, 7).length > 0
     ? Math.round(recentWellness.slice(0, 7).reduce((s: number, w: any) =>
         s + Number(w.fatiga) + Number(w.calidad_sueno) + Number(w.dolor_muscular) + Number(w.nivel_estres) + Number(w.estado_animo), 0
@@ -334,9 +348,8 @@ function StatsTab({ jugador, gpsStats, wellnessStreak, totalSesiones, totalUA, m
   const STAT_CARDS = [
     { icon:'🔥', label:'Racha Wellness', value: wellnessStreak, unit:'días', sub: streakLabel, color: wellnessStreak >= 7 ? '#c8f135' : wellnessStreak >= 3 ? '#f59e0b' : '#94a3b8', badge: streakEmoji },
     { icon:'💨', label:'Velocidad Máxima', value: gpsStats?.maxVelocidad ? Number(gpsStats.maxVelocidad).toFixed(1) : '—', unit:'km/h', sub: gpsStats?.maxVelocidad ? 'Récord personal GPS' : 'Sin datos GPS aún', color:'#06b6d4', badge: null },
-    { icon:'⚡', label:'Carga Esta Semana', value: weeklyUA[3] || 0, unit:'UA', sub: weeklyUA[2] > 0 ? `Sem. anterior: ${weeklyUA[2]} UA` : 'Últimos 7 días', color:'#a3e635', badge: null },
+    { icon:'⚡', label:'Racha RPE', value: rpeStreak, unit:'días', sub: rpeStreak > 0 ? 'Contestando carga post-entreno' : 'Últimos 30 días', color:'#a3e635', badge: null },
     { icon:'🏃', label:'Sesiones (28 días)', value: totalSesiones, unit:'sesiones', sub: `${totalUA} UA acumuladas`, color:'#f97316', badge: null },
-    { icon:'📊', label:'RPE más bajo', value: mejorRpe ?? '—', unit: mejorRpe ? '/10' : '', sub: mejorRpe ? 'Sesión más liviana' : 'Sin registros RPE', color:'#22c55e', badge: null },
     { icon:'🏅', label:'Sesiones GPS', value: gpsStats?.totalSesionesGps ?? 0, unit:'', sub: gpsStats?.maxSprints ? `Máx. ${gpsStats.maxSprints} sprints` : 'Sin datos GPS', color:'#8b5cf6', badge: null },
   ]
 
@@ -363,24 +376,7 @@ function StatsTab({ jugador, gpsStats, wellnessStreak, totalSesiones, totalUA, m
         ))}
       </div>
 
-      {/* Gráfico de carga semanal */}
-      <div style={card} className="anim-up">
-        <p style={{ fontSize:11, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:16 }}>Carga semanal — últimas 4 semanas</p>
-        <div style={{ display:'flex', gap:8, alignItems:'flex-end', height:88 }}>
-          {weeklyUA.map((v, i) => {
-            const pct = maxWeekUA > 0 ? (v / maxWeekUA) : 0
-            const h = Math.max(pct * 72, v > 0 ? 6 : 0)
-            const labels = ['Hace 3 sem','Hace 2 sem','Sem. pasada','Esta semana']
-            return (
-              <div key={i} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', gap:4 }}>
-                <span style={{ fontSize:10, color:'var(--silver)', fontFamily:'DM Mono,monospace' }}>{v > 0 ? v : ''}</span>
-                <div style={{ width:'100%', height:h, background: i === 3 ? 'var(--lime)' : '#334155', borderRadius:'4px 4px 0 0', minHeight: v > 0 ? 4 : 0 }} />
-                <span style={{ fontSize:9, color:'var(--fog)', textAlign:'center', lineHeight:1.2 }}>{labels[i]}</span>
-              </div>
-            )
-          })}
-        </div>
-      </div>
+
 
       {/* Récords GPS */}
       {gpsStats && (gpsStats.maxVelocidad || gpsStats.maxDistancia) && (
@@ -390,6 +386,7 @@ function StatsTab({ jugador, gpsStats, wellnessStreak, totalSesiones, totalUA, m
             {[
               { label:'Velocidad máxima', value: gpsStats.maxVelocidad ? `${Number(gpsStats.maxVelocidad).toFixed(1)} km/h` : '—', color:'#06b6d4', pct: gpsStats.maxVelocidad ? Math.min((Number(gpsStats.maxVelocidad)/38)*100, 100) : 0 },
               { label:'Distancia máxima (una sesión)', value: gpsStats.maxDistancia ? `${(Number(gpsStats.maxDistancia)/1000).toFixed(1)} km` : '—', color:'#a3e635', pct: gpsStats.maxDistancia ? Math.min((Number(gpsStats.maxDistancia)/14000)*100, 100) : 0 },
+              { label:'Distancia máxima en HSR', value: gpsStats.maxHir ? `${Number(gpsStats.maxHir).toFixed(0)} m` : '—', color:'#f59e0b', pct: gpsStats.maxHir ? Math.min((Number(gpsStats.maxHir)/2000)*100, 100) : 0 },
               { label:'Sprints máximos (una sesión)', value: gpsStats.maxSprints ? `${gpsStats.maxSprints} sprints` : '—', color:'#f97316', pct: gpsStats.maxSprints ? Math.min((gpsStats.maxSprints/30)*100, 100) : 0 },
             ].map((r, i) => (
               <div key={i}>

@@ -18,7 +18,7 @@ export default async function PlayerPage() {
     sql`SELECT fecha::text, carga_ua::int, rpe::int, duracion_min::int, tipo_sesion FROM entrenamiento_logs WHERE jugador_id=${jugadorId} AND fecha>=CURRENT_DATE-28 ORDER BY fecha ASC`,
     sql`SELECT fecha::text, fatiga::int, calidad_sueno::int, dolor_muscular::int, nivel_estres::int, estado_animo::int, dolor_zona, COALESCE(tqr::int,0) AS tqr, COALESCE(recovery::int,0) AS recovery, COALESCE(dolor_eva::int,0) AS dolor_eva, COALESCE(entrena_grupo::text,'true') AS entrena_grupo, COALESCE(fue_gimnasio::text,'false') AS fue_gimnasio, COALESCE(grupos_musculares,'') AS grupos_musculares FROM wellness_logs WHERE jugador_id=${jugadorId} ORDER BY fecha DESC LIMIT 10`,
     sql`SELECT fecha::text, fatiga::int, calidad_sueno::int, dolor_muscular::int, nivel_estres::int, estado_animo::int, dolor_zona, COALESCE(tqr::int,0) AS tqr, COALESCE(recovery::int,0) AS recovery, COALESCE(dolor_eva::int,0) AS dolor_eva, COALESCE(entrena_grupo::text,'true') AS entrena_grupo, COALESCE(fue_gimnasio::text,'false') AS fue_gimnasio, COALESCE(grupos_musculares,'') AS grupos_musculares FROM wellness_logs WHERE jugador_id=${jugadorId} AND fecha=${today} LIMIT 1`,
-    sql`SELECT MAX(max_velocity)::text AS max_vel, MAX(dist_total)::text AS max_dist, MAX(n_sprints)::int AS max_sprints, COUNT(*)::int AS total_sesiones_gps FROM gps_logs WHERE jugador_id=${jugadorId}`.catch(()=>[]),
+    sql`SELECT MAX(max_velocity)::text AS max_vel, MAX(dist_total)::text AS max_dist, MAX(dist_hir)::text AS max_hir, MAX(n_sprints)::int AS max_sprints, COUNT(*)::int AS total_sesiones_gps FROM gps_logs WHERE jugador_id=${jugadorId}`.catch(()=>[]),
     sql`SELECT fecha::text FROM wellness_logs WHERE jugador_id=${jugadorId} ORDER BY fecha DESC LIMIT 60`.catch(()=>[]),
   ])
 
@@ -31,6 +31,7 @@ export default async function PlayerPage() {
   const gpsStats = gpsRows[0] ? {
     maxVelocidad: parseFloat(gpsRows[0].max_vel||'0') || null,
     maxDistancia: parseFloat(gpsRows[0].max_dist||'0') || null,
+    maxHir: parseFloat(gpsRows[0].max_hir||'0') || null,
     maxSprints: Number(gpsRows[0].max_sprints)||null,
     totalSesionesGps: Number(gpsRows[0].total_sesiones_gps)||0,
   } : null
