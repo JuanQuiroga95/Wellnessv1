@@ -206,8 +206,8 @@ export default function CanchasPanel(){
     <div style={{display:'flex',flexDirection:'column',gap:16}}>
       <div className="anim-up" style={{display:'flex',alignItems:'center',justifyContent:'space-between',flexWrap:'wrap',gap:10}}>
         <div>
-          <h2 className="display" style={{fontSize:48,color:'var(--snow)'}}>CANCHAS</h2>
-          <p style={{fontSize:12,color:'var(--silver)',marginTop:2}}>Buscador de canchas · Medidas y dimensiones</p>
+          <h2 className="display" style={{fontSize:48,color:'var(--snow)'}}>ESTADIOS</h2>
+          <p style={{fontSize:12,color:'var(--silver)',marginTop:2}}>Buscador de estadios · Medidas y dimensiones</p>
         </div>
         <div style={{display:'flex',gap:6}}>
           {(['buscar','guardadas'] as const).map(t=>(
@@ -231,8 +231,8 @@ export default function CanchasPanel(){
             <button onClick={()=>{if(navigator.geolocation&&mapInst.current){navigator.geolocation.getCurrentPosition(p=>{mapInst.current.setView([p.coords.latitude,p.coords.longitude],15);setTimeout(loadPitches,500)})}}} style={C.btnGhost} title="Mi ubicación">
               📍
             </button>
-            <button onClick={loadPitches} disabled={loading} style={C.btnGhost} title="Buscar canchas en esta zona">
-              ⚽ Buscar canchas aquí
+            <button onClick={loadPitches} disabled={loading} style={C.btnGhost} title="Buscar estadios en esta zona">
+              ⚽ Buscar estadios aquí
             </button>
             <button onClick={startMeasure} style={{...C.btnGhost,color:measuring?'var(--lime)':'var(--silver)',borderColor:measuring?'var(--lime)':'var(--fog)'}} title="Medir cancha manualmente">
               📏 {measuring?'Click 4 esquinas...':'Medir'}
@@ -242,7 +242,7 @@ export default function CanchasPanel(){
           {/* Map */}
           <div style={{...C.card,padding:0,overflow:'hidden',position:'relative'}}>
             <div ref={mapRef} style={{width:'100%',height:480,background:'var(--ink3)'}}/>
-            {loading&&<div style={{position:'absolute',top:10,left:'50%',transform:'translateX(-50%)',background:'rgba(8,8,8,.9)',border:'1px solid var(--lime)',borderRadius:10,padding:'8px 20px',fontSize:12,color:'var(--lime)',fontWeight:600,zIndex:1000}}>⏳ Buscando canchas...</div>}
+            {loading&&<div style={{position:'absolute',top:10,left:'50%',transform:'translateX(-50%)',background:'rgba(8,8,8,.9)',border:'1px solid var(--lime)',borderRadius:10,padding:'8px 20px',fontSize:12,color:'var(--lime)',fontWeight:600,zIndex:1000}}>⏳ Buscando estadios...</div>}
           </div>
 
           {/* Measure result */}
