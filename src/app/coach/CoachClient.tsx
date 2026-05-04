@@ -9957,6 +9957,8 @@ function ManualPanel() {
     { id:'gps',            label:'Importar GPS',         icon:'🛰️' },
     { id:'jugadores',      label:'Jugadores',            icon:'🗂️' },
     { id:'biblioteca',     label:'Diseñador de Tareas', icon:'🎨' },
+    { id:'canchas',        label:'Canchas',             icon:'🏟️' },
+    { id:'vinculaciones',  label:'Vinculaciones',       icon:'🔗' },
   ]
 
   function generarPDF() {
@@ -10462,6 +10464,70 @@ ${secciones_data.map(sec => `
         </ManualSection>
         <ManualSection title="Usar una tarea en sesión">
           <p style={{ fontSize:12, color:'var(--silver)', lineHeight:1.65 }}>Desde el Calendario, al crear o editar una sesión, hacé clic en <strong style={{ color:'var(--lime)' }}>🎨 Mis Tareas</strong> para elegir una tarea diseñada con el diagrama y datos pre-completados. El contador de "veces usada" se incrementa automáticamente.</p>
+        </ManualSection>
+      </div>
+    ),
+
+    canchas: (
+      <div>
+        <h2 style={{ fontFamily:'Bebas Neue,sans-serif', fontSize:34, color:'var(--snow)', marginBottom:4, letterSpacing:'0.04em' }}>🏟️ Canchas</h2>
+        <p style={{ fontSize:12, color:'var(--silver)', marginBottom:20, lineHeight:1.65 }}>Buscador de canchas geolocalizadas con mapa interactivo. Permite buscar, medir y guardar canchas de fútbol directamente desde OpenStreetMap.</p>
+        <ManualSection title="Buscar canchas en el mapa">
+          <ManualRow label="Barra de búsqueda" desc="Escribí una dirección, ciudad o barrio y presioná Buscar. El mapa se mueve a esa zona automáticamente." />
+          <ManualRow label="📍 Mi ubicación" desc="Centra el mapa en tu posición actual usando el GPS del dispositivo." />
+          <ManualRow label="⚽ Buscar canchas aquí" desc="Consulta OpenStreetMap en el área visible del mapa y muestra todas las canchas de Fútbol 11 (≥90m × ≥45m) con sus dimensiones." />
+          <ManualRow label="Marcadores en el mapa" desc="Cada cancha encontrada aparece con un marcador. Hacé clic para ver sus dimensiones y guardarla." />
+        </ManualSection>
+        <ManualSection title="Detalle de una cancha">
+          <ManualRow label="Largo / Ancho" desc="Dimensiones calculadas automáticamente desde el polígono de OpenStreetMap usando la fórmula de Haversine." />
+          <ManualRow label="Área (m²)" desc="Superficie total de la cancha en metros cuadrados." />
+          <ManualRow label="Tipo" desc="Clasificación automática: F11 (≥90×45m), F9 (≥65×40m), F7 (≥45×25m) o F5." />
+        </ManualSection>
+        <ManualSection title="Herramienta de medición manual (📏 Medir)">
+          <p style={{ fontSize:12, color:'var(--silver)', lineHeight:1.65, marginBottom:8 }}>Si una cancha no tiene polígono en OpenStreetMap, podés medirla vos mismo haciendo clic en las 4 esquinas sobre el mapa.</p>
+          <ManualRow label="¿Cómo usarla?" desc="Presioná 📏 Medir, luego hacé clic en los 4 vértices de la cancha en el orden que quieras. El sistema calcula automáticamente largo, ancho y área." />
+          <ManualRow label="Resultado" desc="Aparece debajo del mapa con las dimensiones y la clasificación. Podés guardar esa medición junto con los datos de la cancha." />
+        </ManualSection>
+        <ManualSection title="Guardar canchas">
+          <ManualRow label="Nombre" desc="Nombre para identificar la cancha (por defecto usa el nombre de OpenStreetMap)." />
+          <ManualRow label="Superficie" desc="Tipo de superficie: Césped natural, Sintético, Tierra, Cemento u Otro." />
+          <ManualRow label="Notas" desc="Campo libre para anotaciones (iluminación, vestuarios, costo, etc.)." />
+          <ManualRow label="⭐ Guardar" desc="La cancha queda asociada al club y visible en la pestaña Guardadas." />
+        </ManualSection>
+        <ManualSection title="Pestaña Guardadas">
+          <p style={{ fontSize:12, color:'var(--silver)', lineHeight:1.65 }}>Muestra todas las canchas registradas para tu club. Desde aquí podés hacer clic en 🗺️ Ver para ir a esa cancha en el mapa, o 🗑 para eliminarla.</p>
+        </ManualSection>
+      </div>
+    ),
+
+    vinculaciones: (
+      <div>
+        <h2 style={{ fontFamily:'Bebas Neue,sans-serif', fontSize:34, color:'var(--snow)', marginBottom:4, letterSpacing:'0.04em' }}>🔗 Vinculaciones</h2>
+        <p style={{ fontSize:12, color:'var(--silver)', marginBottom:20, lineHeight:1.65 }}>Panel de análisis causal que cruza el historial de carga de entrenamiento (ACWR) con los episodios de lesión, para determinar si un pico de carga precedió a cada lesión.</p>
+        <ManualSection title="Tab: Timeline (análisis individual)">
+          <ManualRow label="Selector de jugador" desc="Elegí un jugador del plantel para ver su análisis personal." />
+          <ManualRow label="Período" desc="Seleccioná 30, 60, 90 o 180 días de historial." />
+          <ManualRow label="Gráfico Timeline" desc="Muestra la carga aguda (barras azules), el ACWR (línea naranja) y las lesiones (líneas rojas verticales) superpuestos en el tiempo. Las zonas de fondo indican el nivel de riesgo del ACWR." />
+          <ManualRow label="Marcador de lesión" desc="Hacé clic en cualquier línea roja del gráfico para ver el análisis causal de esa lesión." />
+          <ManualRow label="Punto naranja" desc="Indica que se detectó un pico de ACWR en los días previos a esa lesión." />
+        </ManualSection>
+        <ManualSection title="KPIs individuales">
+          <ManualRow label="ACWR Actual" desc="Ratio carga aguda/crónica del jugador a hoy. Verde (óptimo 0.8–1.3), amarillo (precaución 1.3–1.5), rojo (riesgo >1.5)." />
+          <ManualRow label="Días en Riesgo" desc="Días consecutivos que el jugador lleva en zona de precaución o peligro." />
+          <ManualRow label="Con Pico Previo" desc="Porcentaje de lesiones en el período que tuvieron un pico de carga detectado en los 14 días previos." />
+          <ManualRow label="Carga Aguda / Crónica" desc="UA de la semana actual vs. promedio de las últimas 4 semanas." />
+        </ManualSection>
+        <ManualSection title="Análisis causal de una lesión">
+          <p style={{ fontSize:12, color:'var(--silver)', lineHeight:1.65, marginBottom:8 }}>Al hacer clic en una lesión del gráfico o de la lista, aparece el detalle causal:</p>
+          <ManualRow label="ACWR día lesión / -7d / -14d" desc="Valor del ACWR en tres puntos clave antes de la lesión." />
+          <ManualRow label="Variación Semanal" desc="% de cambio de carga entre la semana previa y la anterior a esa. Rojo si supera el 10%." />
+          <ManualRow label="Días sin carga previos" desc="Días de descanso previos al evento de lesión." />
+          <ManualRow label="Veredicto" desc="Si el ACWR superó 1.3 en los 14 días previos → ⚠️ PICO DETECTADO (sobrecarga probable). Si no → ✅ Sin pico (posiblemente lesión por contacto u otro factor)." />
+        </ManualSection>
+        <ManualSection title="Tab: Equipo (estado del plantel)">
+          <p style={{ fontSize:12, color:'var(--silver)', lineHeight:1.65, marginBottom:8 }}>Vista colectiva con el estado ACWR actual de todos los jugadores:</p>
+          <ManualRow label="Lista ordenada por ACWR" desc="Jugadores ordenados de mayor a menor riesgo. El color del punto indica el estado: rojo (peligro), amarillo (precaución), verde (óptimo), azul (carga baja)." />
+          <ManualRow label="Contadores por zona" desc="Cuántos jugadores están en cada zona de riesgo en este momento." />
         </ManualSection>
       </div>
     ),
