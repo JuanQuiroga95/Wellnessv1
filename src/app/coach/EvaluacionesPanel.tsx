@@ -236,8 +236,25 @@ function AntropometriaPanel({ jugador }: { jugador: Jugador }) {
     load()
   }
 
-  // Mini sparkline for % grasa evolution
   const chartPts = [...historial].reverse().slice(-12)
+
+  // Alerta si la masa magra cayó > 2 kg desde la primera medición
+  const alertaMasaMagra = historial.length >= 2 ? (() => {
+    const primera = Number(historial[historial.length - 1].masa_magra_kg)
+    const ultima   = Number(historial[0].masa_magra_kg)
+    const delta    = ultima - primera
+    return delta <= -2 ? { delta: Math.abs(delta).toFixed(1), primera: primera.toFixed(1), ultima: ultima.toFixed(1) } : null
+  })() : null
+
+  // Hidratación calculator state
+  const [hidPre, setHidPre]           = useState('')
+  const [hidPost, setHidPost]         = useState('')
+  const [hidDurMin, setHidDurMin]     = useState('')
+  const perdidaMl = hidPre && hidPost && Number(hidPre) > Number(hidPost)
+    ? Math.round((Number(hidPre) - Number(hidPost)) * 1000)
+    : null
+  const pctPerdida = perdidaMl && hidPre ? ((perdidaMl / (Number(hidPre) * 1000)) * 100).toFixed(1) : null
+  const reposicion = perdidaMl ? Math.round(perdidaMl * 1.5) : null
 
   return (
     <Card title="Composición Corporal — Método Faulkner (4 Pliegues)" accent="#06b6d4">
@@ -294,28 +311,73 @@ function AntropometriaPanel({ jugador }: { jugador: Jugador }) {
         <span style={{ color: '#64748b', fontStyle: 'italic' }}>Fórmula: (Σ4 × 0.153) + 5.783</span>
       </div>
 
-      {/* Evolution chart */}
+      {/* Alerta de pérdida de masa muscular */}
+      {alertaMasaMagra && (
+        <div style={{ marginBottom: 16, padding: '12px 16px', borderRadius: 10, background: 'rgba(239,68,68,.08)', border: '1px solid rgba(239,68,68,.3)', display: 'flex', alignItems: 'center', gap: 14 }}>
+          <span style={{ fontSize: 24 }}>⚠️</span>
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: '#f87171' }}>Pérdida de masa muscular significativa</div>
+            <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 2 }}>
+              Bajó <strong style={{ color: '#f87171' }}>{alertaMasaMagra.delta} kg</strong> de masa magra desde la primera medición ({alertaMasaMagra.primera} kg → {alertaMasaMagra.ultima} kg). Revisar nutrición y carga de entrenamiento.
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Gráfico doble: % Grasa + Masa Magra */}
       {chartPts.length >= 2 && (() => {
-        const W = 400, H = 80, pad = { l: 35, r: 10, t: 10, b: 20 }
-        const vals = chartPts.map(p => Number(p.pct_grasa))
-        const mn = Math.min(...vals) - 1, mx = Math.max(...vals) + 1
-        const tx = (i: number) => pad.l + (i / (chartPts.length - 1)) * (W - pad.l - pad.r)
-        const ty = (v: number) => H - pad.b - ((v - mn) / (mx - mn)) * (H - pad.t - pad.b)
-        const d = chartPts.map((p, i) => `${i === 0 ? 'M' : 'L'}${tx(i)},${ty(Number(p.pct_grasa))}`).join(' ')
+        const W = 460, H = 110, pad = { l: 38, r: 38, t: 14, b: 22 }
+        const pW = W - pad.l - pad.r, pH = H - pad.t - pad.b
+
+        const grasaVals = chartPts.map(p => Number(p.pct_grasa))
+        const magraVals = chartPts.map(p => Number(p.masa_magra_kg))
+
+        const gMin = Math.min(...grasaVals) - 1,  gMax = Math.max(...grasaVals) + 1
+        const mMin = Math.min(...magraVals) - 1,  mMax = Math.max(...magraVals) + 1
+
+        const tx  = (i: number) => pad.l + (i / (chartPts.length - 1)) * pW
+        const tyG = (v: number) => pad.t + pH - ((v - gMin) / (gMax - gMin)) * pH
+        const tyM = (v: number) => pad.t + pH - ((v - mMin) / (mMax - mMin)) * pH
+
+        const dGrasa = chartPts.map((p, i) => `${i === 0 ? 'M' : 'L'}${tx(i)},${tyG(Number(p.pct_grasa))}`).join(' ')
+        const dMagra = chartPts.map((p, i) => `${i === 0 ? 'M' : 'L'}${tx(i)},${tyM(Number(p.masa_magra_kg))}`).join(' ')
+
         return (
           <div style={{ marginBottom: 16 }}>
-            <div style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginBottom: 6 }}>Evolución % Grasa</div>
-            <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', maxWidth: W, display: 'block' }}>
-              {/* Zone bands */}
-              <rect x={pad.l} y={ty(13)} width={W - pad.l - pad.r} height={ty(10.5) - ty(13)} fill="#f59e0b11" />
-              <rect x={pad.l} y={ty(10.5)} width={W - pad.l - pad.r} height={ty(mn) - ty(10.5)} fill="#22c55e11" />
-              <line x1={pad.l} y1={ty(10.5)} x2={W - pad.r} y2={ty(10.5)} stroke="#22c55e44" strokeDasharray="3 3" />
-              <line x1={pad.l} y1={ty(13)} x2={W - pad.r} y2={ty(13)} stroke="#f59e0b44" strokeDasharray="3 3" />
-              <text x={pad.l - 4} y={ty(10.5) + 3} textAnchor="end" fontSize={8} fill="#22c55e88">10.5</text>
-              <text x={pad.l - 4} y={ty(13) + 3} textAnchor="end" fontSize={8} fill="#f59e0b88">13</text>
-              <path d={d} fill="none" stroke="#06b6d4" strokeWidth={2} />
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Evolución Composición Corporal</div>
+              <div style={{ display: 'flex', gap: 14, fontSize: 10 }}>
+                <span style={{ color: '#06b6d4' }}>─ % Grasa</span>
+                <span style={{ color: '#22c55e' }}>─ Masa Magra (kg)</span>
+              </div>
+            </div>
+            <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', display: 'block' }}>
+              {/* Zona óptima % grasa */}
+              <rect x={pad.l} y={tyG(13)} width={pW} height={Math.max(0, tyG(10.5) - tyG(13))} fill="#f59e0b0a" />
+              <rect x={pad.l} y={tyG(10.5)} width={pW} height={Math.max(0, pad.t + pH - tyG(10.5))} fill="#22c55e0a" />
+              <line x1={pad.l} y1={tyG(10.5)} x2={pad.l + pW} y2={tyG(10.5)} stroke="#22c55e33" strokeDasharray="3 3" />
+              <line x1={pad.l} y1={tyG(13)}   x2={pad.l + pW} y2={tyG(13)}   stroke="#f59e0b33" strokeDasharray="3 3" />
+              {/* Eje Y izquierdo (% grasa) */}
+              <text x={pad.l - 4} y={tyG(gMin + 0.5) + 3} textAnchor="end" fontSize={8} fill="#06b6d488">{gMin.toFixed(0)}%</text>
+              <text x={pad.l - 4} y={tyG(gMax - 0.5) + 3} textAnchor="end" fontSize={8} fill="#06b6d488">{gMax.toFixed(0)}%</text>
+              {/* Eje Y derecho (masa magra) */}
+              <text x={pad.l + pW + 4} y={tyM(mMin + 0.5) + 3} textAnchor="start" fontSize={8} fill="#22c55e88">{mMin.toFixed(0)}</text>
+              <text x={pad.l + pW + 4} y={tyM(mMax - 0.5) + 3} textAnchor="start" fontSize={8} fill="#22c55e88">{mMax.toFixed(0)}</text>
+              {/* Líneas */}
+              <path d={dGrasa} fill="none" stroke="#06b6d4" strokeWidth={2} strokeLinejoin="round" />
+              <path d={dMagra} fill="none" stroke="#22c55e" strokeWidth={2} strokeLinejoin="round" strokeDasharray="5 3" />
+              {/* Puntos */}
               {chartPts.map((p, i) => (
-                <circle key={i} cx={tx(i)} cy={ty(Number(p.pct_grasa))} r={3} fill="#06b6d4" />
+                <g key={i}>
+                  <circle cx={tx(i)} cy={tyG(Number(p.pct_grasa))}    r={3} fill="#06b6d4" />
+                  <circle cx={tx(i)} cy={tyM(Number(p.masa_magra_kg))} r={3} fill="#22c55e" />
+                </g>
+              ))}
+              {/* Fechas eje X (cada 3 puntos) */}
+              {chartPts.map((p, i) => i % Math.ceil(chartPts.length / 4) === 0 && (
+                <text key={i} x={tx(i)} y={H - 4} textAnchor="middle" fontSize={8} fill="#475569">
+                  {String(p.fecha).slice(5)}
+                </text>
               ))}
             </svg>
           </div>

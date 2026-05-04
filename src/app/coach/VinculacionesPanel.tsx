@@ -38,7 +38,7 @@ export default function VinculacionesPanel({ teamData }: { teamData: any[] }) {
   // ── Timeline SVG ──────────────────────────────────────────────────────────────
   const TimelineSVG = ({ history, lesiones }: { history: any[], lesiones: any[] }) => {
     if (!history?.length) return <p style={{color:'var(--fog)',textAlign:'center',padding:40}}>Sin datos de carga</p>
-    const W=800, H=220, pad={l:50,r:20,t:20,b:30}
+    const W=800, H=220, pad={l:50,r:35,t:20,b:30}
     const pW=W-pad.l-pad.r, pH=H-pad.t-pad.b
     const maxLoad = Math.max(...history.map(h=>h.acuteLoad||0), 1)
     const toX = (i:number) => pad.l + (i/(history.length-1||1))*pW
@@ -109,7 +109,7 @@ export default function VinculacionesPanel({ teamData }: { teamData: any[] }) {
 
         {/* Y axis label */}
         <text x={pad.l-8} y={pad.t+pH/2} textAnchor="middle" fontSize={8} fill="var(--fog)" transform={`rotate(-90,${pad.l-8},${pad.t+pH/2})`}>Carga UA</text>
-        <text x={W-pad.r+18} y={pad.t+pH/2} textAnchor="middle" fontSize={8} fill="#f97316" transform={`rotate(90,${W-pad.r+18},${pad.t+pH/2})`}>ACWR</text>
+        <text x={W-pad.r+20} y={pad.t+pH/2} textAnchor="middle" fontSize={8} fill="#f97316" transform={`rotate(90,${W-pad.r+20},${pad.t+pH/2})`}>ACWR</text>
 
         {/* Legend */}
         <g transform={`translate(${pad.l},${pad.t-5})`}>
@@ -135,7 +135,7 @@ export default function VinculacionesPanel({ teamData }: { teamData: any[] }) {
       {/* Header */}
       <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',flexWrap:'wrap',gap:10}}>
         <div>
-          <h2 className="display" style={{fontSize:48,color:'var(--snow)',margin:0}}>VINCULACIONES</h2>
+          <h2 className="display" style={{fontSize:48,color:'var(--snow)',margin:0}}>ACWR</h2>
           <p style={{fontSize:12,color:'var(--silver)',marginTop:2}}>Análisis causal · Lesión ↔ Pico de Carga</p>
         </div>
         <div style={{display:'flex',gap:6}}>
