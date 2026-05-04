@@ -6,8 +6,8 @@ import { getSessionFromRequest } from '@/lib/auth'
 // Protected by middleware (requires master_admin) + double-check here
 export async function POST(req: NextRequest) {
   const s = await getSessionFromRequest(req)
-  if (!s || s.rol !== 'master_admin') {
-    return NextResponse.json({ error: 'No autorizado — se requiere master_admin' }, { status: 403 })
+  if (!s || (s.rol !== 'master_admin' && s.rol !== 'admin')) {
+    return NextResponse.json({ error: 'No autorizado — se requiere admin o master_admin' }, { status: 403 })
   }
 
   const sql = getDb()
@@ -174,6 +174,26 @@ export async function POST(req: NextRequest) {
     [`ALTER TABLE sesiones_plan ADD COLUMN IF NOT EXISTS rival VARCHAR(100)`, 'sesiones_plan.rival'],
     [`ALTER TABLE sesiones_plan ADD COLUMN IF NOT EXISTS rival_foto TEXT`, 'sesiones_plan.rival_foto'],
     [`CREATE UNIQUE INDEX IF NOT EXISTS idx_partido_logs_jugador_fecha_rival ON partido_logs(jugador_id, fecha, COALESCE(rival,''))`, 'partido_logs unique index jugador_fecha_rival'],
+    // ── Módulo Canchas ────────────────────────────────────────────────────
+    [`CREATE TABLE IF NOT EXISTS canchas (
+      id SERIAL PRIMARY KEY,
+      club_id INTEGER,
+      admin_id INTEGER REFERENCES usuarios(id),
+      nombre VARCHAR(200) NOT NULL,
+      direccion TEXT,
+      lat NUMERIC(10,7),
+      lng NUMERIC(10,7),
+      largo_m NUMERIC(6,1),
+      ancho_m NUMERIC(6,1),
+      area_m2 NUMERIC(8,1),
+      tipo_cancha VARCHAR(20),
+      superficie VARCHAR(50),
+      notas TEXT,
+      osm_id BIGINT,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )`, 'canchas table'],
+    [`CREATE INDEX IF NOT EXISTS idx_canchas_club ON canchas(club_id)`, 'canchas index club'],
+    [`CREATE INDEX IF NOT EXISTS idx_canchas_admin ON canchas(admin_id)`, 'canchas index admin'],
   ]
 
   for (const [sql_stmt, label] of migrations) {
