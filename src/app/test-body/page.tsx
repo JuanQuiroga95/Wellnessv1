@@ -5,6 +5,7 @@ import Topbar from '@/components/ui/Topbar'
 
 export default function TestBodyPage() {
   const [selected, setSelected] = useState<string | null>(null)
+  const [description, setDescription] = useState('')
 
   return (
     <div style={{ minHeight: '100vh', background: '#020617' }}>
@@ -13,11 +14,16 @@ export default function TestBodyPage() {
       <main style={{ maxWidth: 1000, margin: '0 auto', padding: '40px 20px' }}>
         <div style={{ textAlign: 'center', marginBottom: 40 }}>
           <h1 style={{ color: '#fff', fontSize: 42, fontWeight: 950, letterSpacing: '-0.02em', marginBottom: 12 }}>REPORTE ANATÓMICO 3D</h1>
-          <p style={{ color: '#64748b', fontSize: 18, maxWidth: 600, margin: '0 auto' }}>Nivel quirúrgico de detalle para el registro de lesiones musculares.</p>
+          <p style={{ color: '#64748b', fontSize: 18, maxWidth: 600, margin: '0 auto' }}>Registro quirúrgico de lesiones con mapa articular completo.</p>
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 32 }}>
-          <PhotoBodyMap selected={selected} onSelect={setSelected} />
+          <PhotoBodyMap 
+            selected={selected} 
+            onSelect={setSelected} 
+            description={description}
+            onDescriptionChange={setDescription}
+          />
 
           <div style={{ background: '#0f172a', padding: 32, borderRadius: 24, border: '1px solid #1e293b', boxShadow: '0 10px 40px rgba(0,0,0,0.5)' }}>
             <h3 style={{ color: '#fff', fontSize: 24, fontWeight: 800, marginBottom: 16 }}>Tecnología de Mapeo de Elite</h3>
@@ -38,13 +44,7 @@ export default function TestBodyPage() {
           </div>
         </div>
             
-        {selected && (
-          <div style={{ marginTop: 20, padding: 16, background: '#ef444410', border: '1px solid #ef444430', borderRadius: 12 }}>
-            <p style={{ color: '#f87171', fontWeight: 700 }}>Zona seleccionada actualmente: {selected}</p>
-          </div>
-        )}
-
-        <div style={{ marginTop: 40, textAlign: 'center' }}>
+        </div>
           <p style={{ color: '#475569', fontSize: 12 }}>Este es un entorno de prueba. Tu reporte real de wellness no se verá afectado hasta que apruebes el cambio.</p>
         </div>
       </main>
