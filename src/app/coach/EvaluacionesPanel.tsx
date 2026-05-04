@@ -246,16 +246,6 @@ function AntropometriaPanel({ jugador }: { jugador: Jugador }) {
     return delta <= -2 ? { delta: Math.abs(delta).toFixed(1), primera: primera.toFixed(1), ultima: ultima.toFixed(1) } : null
   })() : null
 
-  // Hidratación calculator state
-  const [hidPre, setHidPre]           = useState('')
-  const [hidPost, setHidPost]         = useState('')
-  const [hidDurMin, setHidDurMin]     = useState('')
-  const perdidaMl = hidPre && hidPost && Number(hidPre) > Number(hidPost)
-    ? Math.round((Number(hidPre) - Number(hidPost)) * 1000)
-    : null
-  const pctPerdida = perdidaMl && hidPre ? ((perdidaMl / (Number(hidPre) * 1000)) * 100).toFixed(1) : null
-  const reposicion = perdidaMl ? Math.round(perdidaMl * 1.5) : null
-
   return (
     <Card title="Composición Corporal — Método Faulkner (4 Pliegues)" accent="#06b6d4">
       <div style={{ background: '#1e293b', borderRadius: 10, padding: '10px 14px', marginBottom: 16, fontSize: 12, color: '#64748b', border: '1px solid #334155', lineHeight: 1.6 }}>
@@ -472,8 +462,6 @@ function HidratacionPanel({ jugador }: { jugador: Jugador }) {
         <div style={{ fontSize: 12, color: '#334155' }}>Ingresá el peso antes y después del entrenamiento para obtener la pérdida de fluidos y la recomendación de reposición.</div>
       )}
     </Card>
-  )
-}
   )
 }
 
