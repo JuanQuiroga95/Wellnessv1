@@ -10,6 +10,7 @@ const PUBLIC_PATHS = [
   '/api/auth/logout',
   '/api/invites/register',
   '/landing.html',
+  '/test-body',
 ]
 
 // Routes that are public ONLY during first-time setup (before any admin exists)
