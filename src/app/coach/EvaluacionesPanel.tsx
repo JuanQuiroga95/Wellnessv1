@@ -418,6 +418,38 @@ function AntropometriaPanel({ jugador }: { jugador: Jugador }) {
           </tbody>
         </table>
       )}
+
+      {/* ── Calculadora de Hidratación ── */}
+      <div style={{ marginTop: 24, paddingTop: 20, borderTop: '1px solid #1e293b' }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 14 }}>💧 Calculadora de Hidratación Pre/Post Entreno</div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: 10, marginBottom: 14 }}>
+          <Field label="Peso Pre (kg)"  value={hidPre}    onChange={setHidPre}    unit="kg" min="40" max="150" />
+          <Field label="Peso Post (kg)" value={hidPost}   onChange={setHidPost}   unit="kg" min="40" max="150" />
+          <Field label="Duración (min)" value={hidDurMin} onChange={setHidDurMin} unit="min" min="10" max="300" />
+        </div>
+        {perdidaMl !== null && (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 10 }}>
+            {[
+              { label: 'Pérdida de líquidos', value: `${perdidaMl} mL`, sub: `(${pctPerdida}% del peso corporal)`, color: perdidaMl > 2000 ? '#ef4444' : perdidaMl > 1000 ? '#f59e0b' : '#22c55e' },
+              { label: 'Reposición recomendada', value: `${reposicion} mL`, sub: '150% de la pérdida (Sawka et al.)', color: '#06b6d4' },
+              { label: 'Nivel de deshidratación', value: Number(pctPerdida) >= 3 ? 'Alta ⚠' : Number(pctPerdida) >= 2 ? 'Moderada' : 'Leve', sub: Number(pctPerdida) >= 3 ? 'Riesgo rendimiento' : Number(pctPerdida) >= 2 ? 'Atención' : 'Aceptable', color: Number(pctPerdida) >= 3 ? '#ef4444' : Number(pctPerdida) >= 2 ? '#f59e0b' : '#22c55e' },
+              ...(hidDurMin && Number(hidDurMin) > 0 ? [{ label: 'Tasa de sudoración', value: `${Math.round(perdidaMl / Number(hidDurMin) * 60)} mL/h`, sub: 'Pérdida por hora estimada', color: '#a3e635' }] : []),
+            ].map((item, i) => (
+              <div key={i} style={{ background: '#0f172a', borderRadius: 10, padding: '12px 16px', border: `1px solid ${item.color}33` }}>
+                <div style={{ fontSize: 10, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>{item.label}</div>
+                <div style={{ fontSize: 18, fontWeight: 800, color: item.color, marginBottom: 2 }}>{item.value}</div>
+                <div style={{ fontSize: 10, color: '#475569' }}>{item.sub}</div>
+              </div>
+            ))}
+          </div>
+        )}
+        {!perdidaMl && (hidPre || hidPost) && (
+          <div style={{ fontSize: 12, color: '#475569', fontStyle: 'italic' }}>Ingresá ambos pesos para calcular.</div>
+        )}
+        {!hidPre && !hidPost && (
+          <div style={{ fontSize: 12, color: '#334155' }}>Ingresá el peso antes y después del entrenamiento para obtener la pérdida de fluidos y la recomendación de reposición.</div>
+        )}
+      </div>
     </Card>
   )
 }
