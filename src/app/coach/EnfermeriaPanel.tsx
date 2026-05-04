@@ -22,8 +22,18 @@ const ACTIVIDADES = [
   { key: 'intermitente', label: 'Intermitente',  icon: '📊' },
   { key: 'sprint',       label: 'Sprint',        icon: '💨' },
   { key: 'contacto',     label: 'Contacto',      icon: '🤝' },
-  { key: 'con_categ',    label: 'Con categ.',     icon: '🏆' },
+  { key: 'con_categ',    label: 'Con categ.',    icon: '🏆' },
 ]
+
+const FASE_ACTIVIDADES: Record<string, string[]> = {
+  'F0 - Solo kinesio':              [],
+  'F1 - Ind. sin balón':            ['gimnasio'],
+  'F2 - Ind. con balón':            ['campo_ind', 'tecnica'],
+  'F3 - Grupal controlado':         ['reducido'],
+  'F4 - Reducido sin contacto':     ['intermitente'],
+  'F5 - Intermitente box2box':      ['sprint'],
+  'F6 - Con categoría':             ['contacto', 'con_categ'],
+}
 
 const STATUS_COLORS: Record<string,{bg:string,text:string,label:string}> = {
   ok:        { bg: '#22c55e22', text: '#22c55e', label: 'OK' },
@@ -698,13 +708,17 @@ function ReadaptacionCard({ lesion: l, checks, onUpdateFase, onSaveChecks, onDar
     setNota(checks?.nota_kinesio || '')
   }, [checks])
 
-  const faseInfo = FASE_MAP[l.fase] || FASES[0]
+  const faseIdx = FASES.findIndex(f => f.key === l.fase)
+  const faseInfo = faseIdx >= 0 ? FASES[faseIdx] : FASES[0]
+  const currentFaseActs = FASE_ACTIVIDADES[faseInfo.key] || []
+  const faseCompleta = currentFaseActs.length === 0 || currentFaseActs.every(k => localChecks[k] === 'ok')
+  const isLastFase = faseIdx === FASES.length - 1
+  const isFirstFase = faseIdx === 0
 
   const cycleStatus = (key: string) => {
     const order = ['pendiente', 'ok', 'cuidado', 'no_puede']
     const current = localChecks[key] || 'pendiente'
-    const next = order[(order.indexOf(current) + 1) % order.length]
-    setLocalChecks((p: any) => ({ ...p, [key]: next }))
+    setLocalChecks((p: any) => ({ ...p, [key]: order[(order.indexOf(current) + 1) % order.length] }))
   }
 
   const save = async () => {
@@ -715,6 +729,7 @@ function ReadaptacionCard({ lesion: l, checks, onUpdateFase, onSaveChecks, onDar
 
   return (
     <div style={{ background: 'var(--ink2)', border: `1px solid ${open ? faseInfo.color + '44' : 'var(--mist)'}`, borderRadius: 14, overflow: 'hidden' }}>
+      {/* ── Header ── */}
       <button onClick={() => setOpen(!open)} style={{
         width: '100%', display: 'flex', alignItems: 'center', gap: 12, padding: '14px 18px',
         background: 'transparent', border: 'none', cursor: 'pointer', textAlign: 'left',
@@ -726,49 +741,129 @@ function ReadaptacionCard({ lesion: l, checks, onUpdateFase, onSaveChecks, onDar
           </div>
         </div>
         <span style={{ fontSize: 10, padding: '5px 12px', borderRadius: 6, fontWeight: 700, color: faseInfo.color, background: `${faseInfo.color}18`, border: `1px solid ${faseInfo.color}44`, whiteSpace: 'nowrap' }}>
-          {faseInfo.short} - {faseInfo.label.toUpperCase()}
+          {faseInfo.short} — {faseInfo.label.toUpperCase()}
         </span>
+        {faseCompleta && !isLastFase && (
+          <span style={{ fontSize: 10, padding: '3px 8px', borderRadius: 6, fontWeight: 700, color: '#a3e635', background: 'rgba(163,230,53,.12)', border: '1px solid rgba(163,230,53,.3)', whiteSpace: 'nowrap' }}>
+            ✓ Listo
+          </span>
+        )}
         {l.eta_dias && <div style={{ textAlign: 'right', minWidth: 40 }}><div className="mono" style={{ fontSize: 14, fontWeight: 700, color: '#f87171' }}>{l.eta_dias}d</div></div>}
         <span style={{ color: 'var(--fog)', fontSize: 14, display: 'inline-block', transition: 'transform .2s', transform: open ? 'rotate(90deg)' : 'none' }}>›</span>
       </button>
 
       {open && (
         <div style={{ padding: '0 18px 18px', borderTop: '1px solid var(--mist)' }}>
-          {/* Activity grid with clickable toggles */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginTop: 14 }}>
-            {ACTIVIDADES.map(act => {
-              const status = localChecks[act.key] || 'pendiente'
-              const st = STATUS_COLORS[status]
-              return (
-                <button key={act.key} onClick={() => cycleStatus(act.key)} style={{
-                  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
-                  padding: '10px 6px', borderRadius: 10, cursor: 'pointer',
-                  border: `1px solid ${st.text}44`, background: st.bg, transition: 'all .15s',
-                }}>
-                  <span style={{ fontSize: 18 }}>{act.icon}</span>
-                  <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--silver)' }}>{act.label}</span>
-                  <span style={{ fontSize: 12, fontWeight: 800, color: st.text }}>{st.label}</span>
-                </button>
-              )
-            })}
+
+          {/* ── Barra de progreso de fases ── */}
+          <div style={{ margin: '18px 0 22px', position: 'relative' }}>
+            <div style={{ position: 'absolute', top: 13, left: '3%', right: '3%', height: 2, background: 'var(--mist)', zIndex: 0 }} />
+            <div style={{ display: 'flex', justifyContent: 'space-between', position: 'relative', zIndex: 1 }}>
+              {FASES.map((f, i) => {
+                const isPast = i < faseIdx
+                const isCurrent = i === faseIdx
+                const dotColor = isPast ? '#22c55e' : isCurrent ? f.color : '#334155'
+                const textColor = isPast ? '#22c55e' : isCurrent ? f.color : '#475569'
+                return (
+                  <div key={f.key} onClick={() => onUpdateFase(f.key)}
+                    style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+                    <div style={{
+                      width: isCurrent ? 28 : 22, height: isCurrent ? 28 : 22, borderRadius: '50%',
+                      background: dotColor, border: `2px solid ${dotColor}`,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: 9, fontWeight: 800, color: 'white',
+                      boxShadow: isCurrent ? `0 0 0 4px ${f.color}33` : 'none',
+                      transition: 'all .2s',
+                    }}>
+                      {isPast ? '✓' : f.short}
+                    </div>
+                    <span style={{ fontSize: 8, fontWeight: isCurrent ? 700 : 400, color: textColor, textAlign: 'center', lineHeight: 1.2, maxWidth: 46 }}>
+                      {f.label}
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
           </div>
 
-          {/* Kinesio note */}
-          <div style={{ marginTop: 12 }}>
+          {/* ── Actividades de la fase actual ── */}
+          {currentFaseActs.length === 0 ? (
+            <div style={{ padding: '12px 16px', borderRadius: 10, background: 'rgba(148,163,184,.06)', border: '1px solid rgba(148,163,184,.15)', fontSize: 12, color: 'var(--silver)', marginBottom: 14 }}>
+              Fase exclusiva de kinesiólogo — Sin actividades de campo requeridas.
+            </div>
+          ) : (
+            <div style={{ marginBottom: 14 }}>
+              <p style={{ fontSize: 10, fontWeight: 700, color: 'var(--fog)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>
+                Actividades {faseInfo.short} · Clic para cambiar estado
+              </p>
+              <div style={{ display: 'grid', gridTemplateColumns: `repeat(${currentFaseActs.length === 1 ? 1 : 2}, 1fr)`, gap: 8 }}>
+                {currentFaseActs.map(key => {
+                  const act = ACTIVIDADES.find(a => a.key === key)!
+                  const status = localChecks[key] || 'pendiente'
+                  const st = STATUS_COLORS[status]
+                  return (
+                    <button key={key} onClick={() => cycleStatus(key)} style={{
+                      display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px',
+                      borderRadius: 10, cursor: 'pointer', border: `1px solid ${st.text}44`,
+                      background: st.bg, transition: 'all .15s', textAlign: 'left',
+                    }}>
+                      <span style={{ fontSize: 24 }}>{act.icon}</span>
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--snow)' }}>{act.label}</div>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: st.text }}>
+                          {status === 'ok' ? '✓ Puede' : status === 'cuidado' ? '⚠ Con cuidado' : status === 'no_puede' ? '✕ No puede' : '— Pendiente'}
+                        </div>
+                      </div>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* ── Banner fase completa ── */}
+          {faseCompleta && !isLastFase && (
+            <div style={{ padding: '10px 16px', borderRadius: 10, background: 'rgba(163,230,53,.07)', border: '1px solid rgba(163,230,53,.25)', fontSize: 12, color: '#a3e635', fontWeight: 600, marginBottom: 14 }}>
+              ✓ {faseInfo.short} completa — Listo para avanzar a {FASES[faseIdx + 1].short}: {FASES[faseIdx + 1].label}
+            </div>
+          )}
+
+          {/* ── Banner alta médica (F6 completa) ── */}
+          {isLastFase && faseCompleta && (
+            <div style={{ padding: '12px 16px', borderRadius: 10, background: 'rgba(34,197,94,.07)', border: '1px solid rgba(34,197,94,.3)', marginBottom: 14, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+              <span style={{ fontSize: 13, color: '#4ade80', fontWeight: 700 }}>🏆 Protocolo RTP completo — El jugador puede recibir el alta médica</span>
+              <button style={{ padding: '7px 18px', borderRadius: 8, background: '#22c55e', color: 'white', border: 'none', fontWeight: 700, fontSize: 12, cursor: 'pointer', flexShrink: 0 }} onClick={onDarAlta}>
+                Dar Alta
+              </button>
+            </div>
+          )}
+
+          {/* ── Nota kinesio ── */}
+          <div style={{ marginBottom: 12 }}>
             <label style={{ display: 'block', fontSize: 10, fontWeight: 600, color: 'var(--silver)', textTransform: 'uppercase', marginBottom: 4 }}>Nota para el profe</label>
             <input className="wp-input" value={nota} onChange={e => setNota(e.target.value)} placeholder="Ej: Cuidado con cambios de dirección bruscos..." style={{ fontSize: 12, padding: '8px 12px' }} />
           </div>
 
-          {/* Phase selector + save */}
-          <div style={{ display: 'flex', gap: 10, alignItems: 'end', marginTop: 12 }}>
-            <div style={{ flex: 1 }}>
-              <label style={{ display: 'block', fontSize: 10, fontWeight: 600, color: 'var(--silver)', textTransform: 'uppercase', marginBottom: 4 }}>Fase</label>
-              <select className="wp-input" style={{ padding: '8px 12px', fontSize: 12, appearance: 'none' }} value={l.fase || FASES[0].key} onChange={e => onUpdateFase(e.target.value)}>
-                {FASES.map(f => <option key={f.key} value={f.key} style={{ background: 'var(--ink2)' }}>{f.short} - {f.label}</option>)}
-              </select>
-            </div>
-            <button className="btn-lime" style={{ fontSize: 12, padding: '8px 18px' }} onClick={save} disabled={saving}>{saving ? 'Guardando...' : 'Guardar'}</button>
-            <button className="btn-ghost" style={{ fontSize: 12, padding: '8px 14px', color: '#4ade80', borderColor: 'rgba(34,197,94,.3)' }} onClick={onDarAlta}>✓ Alta</button>
+          {/* ── Navegación de fases + guardar ── */}
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+            <button className="btn-ghost" style={{ fontSize: 12, padding: '8px 14px' }}
+              onClick={() => !isFirstFase && onUpdateFase(FASES[faseIdx - 1].key)} disabled={isFirstFase}>
+              ◀ {isFirstFase ? '—' : FASES[faseIdx - 1].short}
+            </button>
+            <button className="btn-ghost" style={{ fontSize: 12, padding: '8px 14px',
+                color: faseCompleta && !isLastFase ? '#a3e635' : 'var(--silver)',
+                borderColor: faseCompleta && !isLastFase ? 'rgba(163,230,53,.4)' : 'var(--fog)',
+              }}
+              onClick={() => !isLastFase && onUpdateFase(FASES[faseIdx + 1].key)} disabled={isLastFase}>
+              {isLastFase ? '— Final' : `${FASES[faseIdx + 1].short} ▶`}
+            </button>
+            <div style={{ flex: 1 }} />
+            <button className="btn-lime" style={{ fontSize: 12, padding: '8px 18px' }} onClick={save} disabled={saving}>
+              {saving ? 'Guardando...' : 'Guardar'}
+            </button>
+            {!isLastFase && (
+              <button className="btn-ghost" style={{ fontSize: 12, padding: '8px 14px', color: '#4ade80', borderColor: 'rgba(34,197,94,.3)' }} onClick={onDarAlta}>✓ Alta</button>
+            )}
           </div>
         </div>
       )}
