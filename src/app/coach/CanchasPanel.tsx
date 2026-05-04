@@ -42,6 +42,7 @@ export default function CanchasPanel(){
   const measureLayerRef=useRef<any>(null)
   const [loaded,setLoaded]=useState(false)
   const [query,setQuery]=useState('')
+  const [locationResults, setLocationResults]=useState<any[]>([])
   const [pitches,setPitches]=useState<Pitch[]>([])
   const [selected,setSelected]=useState<Pitch|null>(null)
   const [saved,setSaved]=useState<SavedPitch[]>([])
@@ -78,17 +79,36 @@ export default function CanchasPanel(){
   // Load saved
   useEffect(()=>{fetch('/api/canchas').then(r=>r.json()).then(d=>Array.isArray(d)?setSaved(d):setSaved([])).catch(()=>{})},[])
 
-  // Search location via Nominatim
+  // Search location via Geocoder
   const searchLocation=useCallback(async()=>{
     if(!query.trim()||!mapInst.current)return
     setLoading(true)
+    setLocationResults([])
     try{
       const r=await fetch(`/api/nominatim?q=${encodeURIComponent(query)}`)
       const d=await r.json()
-      if(d.length>0){const{lat,lon}=d[0];mapInst.current.setView([Number(lat),Number(lon)],15);await loadPitches()}
+      if(d.length>0){
+        // Si hay un solo resultado, viaja directo. Si hay más, muestra opciones para elegir.
+        if (d.length === 1) {
+          mapInst.current.setView([Number(d[0].lat),Number(d[0].lon)],15)
+          await loadPitches()
+        } else {
+          setLocationResults(d)
+        }
+      } else {
+        alert('No se encontraron resultados')
+      }
     }catch{}
     setLoading(false)
   },[query])
+
+  const selectLocation = async (loc: any) => {
+    setLocationResults([])
+    if (mapInst.current) {
+      mapInst.current.setView([Number(loc.lat),Number(loc.lon)],15)
+      await loadPitches()
+    }
+  }
 
   // Load pitches from Overpass
   const loadPitches=useCallback(async()=>{
@@ -238,6 +258,21 @@ export default function CanchasPanel(){
               📏 {measuring?'Click 4 esquinas...':'Medir'}
             </button>
           </div>
+
+          {/* Location Results Dropdown */}
+          {locationResults.length > 0 && (
+            <div style={{...C.card, padding:12, background:'var(--ink)', border:'1px solid var(--lime)'}}>
+              <p style={{fontSize:11,fontWeight:700,color:'var(--lime)',textTransform:'uppercase',marginBottom:8}}>Resultados (Elegí uno)</p>
+              <div style={{display:'flex',flexDirection:'column',gap:4}}>
+                {locationResults.map((loc, i) => (
+                  <button key={i} onClick={() => selectLocation(loc)} style={{...C.btnGhost, textAlign:'left', border:'none', background:'var(--ink3)', display:'flex', justifyContent:'space-between'}}>
+                    <span style={{fontWeight:600, color:'var(--snow)'}}>{loc.name}</span>
+                    <span style={{fontSize:11, color:'var(--silver)'}}>{loc.type} · {loc.city}{loc.city && loc.country ? ', ' : ''}{loc.country}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Map */}
           <div style={{...C.card,padding:0,overflow:'hidden',position:'relative'}}>
