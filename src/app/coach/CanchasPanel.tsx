@@ -83,7 +83,7 @@ export default function CanchasPanel(){
     if(!query.trim()||!mapInst.current)return
     setLoading(true)
     try{
-      const r=await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`)
+      const r=await fetch(`/api/nominatim?q=${encodeURIComponent(query)}`)
       const d=await r.json()
       if(d.length>0){const{lat,lon}=d[0];mapInst.current.setView([Number(lat),Number(lon)],15);await loadPitches()}
     }catch{}
@@ -98,7 +98,7 @@ export default function CanchasPanel(){
     const bbox=`${b.getSouth()},${b.getWest()},${b.getNorth()},${b.getEast()}`
     const q=`[out:json][timeout:15];(nwr["leisure"="pitch"]["sport"~"soccer|football|futbol"](${bbox});nwr["leisure"="pitch"](${bbox}););out geom;`
     try{
-      const r=await fetch('https://overpass-api.de/api/interpreter',{method:'POST',body:'data='+encodeURIComponent(q)})
+      const r=await fetch('/api/overpass',{method:'POST',body:'data='+encodeURIComponent(q)})
       const d=await r.json()
       const results:Pitch[]=[]
       for(const el of d.elements||[]){
