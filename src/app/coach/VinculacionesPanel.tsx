@@ -127,6 +127,8 @@ export default function VinculacionesPanel({ teamData }: { teamData: any[] }) {
   }
 
   const pctConPico = data?.lesiones?.length ? Math.round((data.lesiones.filter((l:any)=>l.picoDetectado).length / data.lesiones.length)*100) : 0
+  const noLoad = !!data && !data.acwrHistory?.length
+  const noLesiones = !!data && !data.lesiones?.length
 
   return (
     <div style={{display:'flex',flexDirection:'column',gap:16}}>
@@ -173,6 +175,27 @@ export default function VinculacionesPanel({ teamData }: { teamData: any[] }) {
 
           {!loading && data && jugadorId && (
             <>
+              {(noLoad || noLesiones) && (
+                <div style={{...C.card,border:'1px solid rgba(245,158,11,.25)',background:'rgba(245,158,11,.04)',padding:20}}>
+                  <p style={{fontSize:11,fontWeight:700,color:'#f59e0b',textTransform:'uppercase',letterSpacing:'0.08em',marginBottom:12}}>⚠️ Qué falta para ver el análisis</p>
+                  <div style={{display:'flex',flexDirection:'column',gap:8}}>
+                    <div style={{display:'flex',gap:10,padding:'10px 14px',background:'var(--ink3)',borderRadius:10,border:`1px solid ${noLoad?'rgba(239,68,68,.2)':'rgba(34,197,94,.2)'}`}}>
+                      <span>{noLoad?'❌':'✅'}</span>
+                      <div>
+                        <b style={{color:noLoad?'#f87171':'#4ade80',fontSize:13}}>{noLoad?'Sin registros de carga':'Carga registrada ✓'}</b>
+                        {noLoad&&<p style={{fontSize:12,color:'var(--silver)',margin:'4px 0 0'}}>Cargá sesiones en <b style={{color:'var(--snow)'}}>Control de Carga Calc</b> (RPE × minutos). Necesitás al menos 28 días para ver la línea de tiempo.</p>}
+                      </div>
+                    </div>
+                    <div style={{display:'flex',gap:10,padding:'10px 14px',background:'var(--ink3)',borderRadius:10,border:`1px solid ${noLesiones?'rgba(245,158,11,.2)':'rgba(34,197,94,.2)'}`}}>
+                      <span>{noLesiones?'⚠️':'✅'}</span>
+                      <div>
+                        <b style={{color:noLesiones?'#fbbf24':'#4ade80',fontSize:13}}>{noLesiones?'Sin lesiones en el período':`${data.lesiones.length} lesión/es ✓`}</b>
+                        {noLesiones&&<p style={{fontSize:12,color:'var(--silver)',margin:'4px 0 0'}}>Registrá episodios en <b style={{color:'var(--snow)'}}>Enfermería</b> para ver el análisis causal. Sin lesiones es una buena noticia 🙌</p>}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
               {/* KPIs */}
               <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(140px,1fr))',gap:10}}>
                 {[
