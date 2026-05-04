@@ -9,6 +9,7 @@ import WellnessTrend from '@/components/charts/WellnessTrend'
 // VERSION 2 - NO ACWR VISIBLE AL JUGADOR
 const PLAYER_TABS = [
   { id:'dashboard', label:'Mi Estado' },
+  { id:'stats',     label:'🏆 Mis Stats' },
   { id:'wellness',  label:'Wellness Pre-Entreno' },
   { id:'rpe',       label:'Registrar Carga' },
   { id:'config',    label:'⚙️ Mi Perfil' },
@@ -27,7 +28,7 @@ function getReadiness(total) {
   return { label:'Descarga recomendada', msg:'Tu bienestar está bajo. Contale al preparador cómo estás hoy.', col:'#ef4444', emoji:'🔴' }
 }
 
-export default function PlayerDashboard({ session, jugador, jugadorId, acuteLoad, recentLogs, recentWellness, todayWellness, today }) {
+export default function PlayerDashboard({ session, jugador, jugadorId, acuteLoad, recentLogs, recentWellness, todayWellness, today, gpsStats, wellnessStreak, totalSesiones, totalUA, mejorRpe }) {
   const [activeTab, setActiveTab] = useState('dashboard')
   const router = useRouter()
   const lastWellness = recentWellness[0]
@@ -189,6 +190,10 @@ export default function PlayerDashboard({ session, jugador, jugadorId, acuteLoad
           </div>
         )}
 
+        {activeTab === 'stats' && (
+          <StatsTab jugador={jugador} gpsStats={gpsStats} wellnessStreak={wellnessStreak} totalSesiones={totalSesiones} totalUA={totalUA} mejorRpe={mejorRpe} recentLogs={recentLogs} recentWellness={recentWellness} />
+        )}
+
         {activeTab === 'config' && (
           <NotificationConfig jugadorId={jugadorId} jugador={jugador} onSaved={() => router.refresh()} />
         )}
@@ -298,6 +303,123 @@ function NotificationConfig({ jugadorId, jugador, onSaved }) {
           <p key={i} style={{ fontSize:12, color:'var(--silver)', lineHeight:1.6, marginBottom:4 }}>{txt}</p>
         ))}
       </div>
+    </div>
+  )
+}
+
+// ─── Mis Stats ────────────────────────────────────────────────────────────────
+function StatsTab({ jugador, gpsStats, wellnessStreak, totalSesiones, totalUA, mejorRpe, recentLogs, recentWellness }: any) {
+  const card: any = { background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:16, padding:20 }
+
+  const streakEmoji = wellnessStreak >= 14 ? '🔥' : wellnessStreak >= 7 ? '⚡' : wellnessStreak >= 3 ? '✅' : '📋'
+  const streakLabel = wellnessStreak >= 14 ? '¡En racha!' : wellnessStreak >= 7 ? 'Constante' : wellnessStreak >= 3 ? 'Bien encaminado' : 'Empezá hoy'
+
+  // Carga por semana (últimas 4 semanas)
+  const weeklyUA: number[] = [0, 0, 0, 0]
+  const now = new Date()
+  recentLogs.forEach((l: any) => {
+    const daysAgo = Math.floor((now.getTime() - new Date(l.fecha + 'T12:00:00').getTime()) / 86400000)
+    const wi = Math.floor(daysAgo / 7)
+    if (wi < 4) weeklyUA[wi] += Number(l.carga_ua) || 0
+  })
+  weeklyUA.reverse()
+  const maxWeekUA = Math.max(...weeklyUA, 1)
+
+  const wAvg = recentWellness.slice(0, 7).length > 0
+    ? Math.round(recentWellness.slice(0, 7).reduce((s: number, w: any) =>
+        s + Number(w.fatiga) + Number(w.calidad_sueno) + Number(w.dolor_muscular) + Number(w.nivel_estres) + Number(w.estado_animo), 0
+      ) / recentWellness.slice(0, 7).length)
+    : null
+
+  const STAT_CARDS = [
+    { icon:'🔥', label:'Racha Wellness', value: wellnessStreak, unit:'días', sub: streakLabel, color: wellnessStreak >= 7 ? '#c8f135' : wellnessStreak >= 3 ? '#f59e0b' : '#94a3b8', badge: streakEmoji },
+    { icon:'💨', label:'Velocidad Máxima', value: gpsStats?.maxVelocidad ? Number(gpsStats.maxVelocidad).toFixed(1) : '—', unit:'km/h', sub: gpsStats?.maxVelocidad ? 'Récord personal GPS' : 'Sin datos GPS aún', color:'#06b6d4', badge: null },
+    { icon:'⚡', label:'Carga Esta Semana', value: weeklyUA[3] || 0, unit:'UA', sub: weeklyUA[2] > 0 ? `Sem. anterior: ${weeklyUA[2]} UA` : 'Últimos 7 días', color:'#a3e635', badge: null },
+    { icon:'🏃', label:'Sesiones (28 días)', value: totalSesiones, unit:'sesiones', sub: `${totalUA} UA acumuladas`, color:'#f97316', badge: null },
+    { icon:'📊', label:'RPE más bajo', value: mejorRpe ?? '—', unit: mejorRpe ? '/10' : '', sub: mejorRpe ? 'Sesión más liviana' : 'Sin registros RPE', color:'#22c55e', badge: null },
+    { icon:'🏅', label:'Sesiones GPS', value: gpsStats?.totalSesionesGps ?? 0, unit:'', sub: gpsStats?.maxSprints ? `Máx. ${gpsStats.maxSprints} sprints` : 'Sin datos GPS', color:'#8b5cf6', badge: null },
+  ]
+
+  return (
+    <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
+      <div className="anim-up">
+        <h2 style={{ fontFamily:'Bebas Neue,sans-serif', fontSize:48, color:'var(--snow)', margin:0, letterSpacing:'0.04em' }}>MIS STATS</h2>
+        <p style={{ fontSize:12, color:'var(--silver)', marginTop:2 }}>Tus números personales · Temporada en curso</p>
+      </div>
+
+      {/* Tarjetas de estadísticas */}
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }} className="anim-up">
+        {STAT_CARDS.map((s, i) => (
+          <div key={i} style={{ ...card, position:'relative', overflow:'hidden' }}>
+            <div style={{ position:'absolute', top:12, right:14, fontSize:24, opacity:0.12 }}>{s.icon}</div>
+            <div style={{ fontSize:10, fontWeight:700, color:'var(--fog)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:6 }}>{s.label}</div>
+            <div style={{ display:'flex', alignItems:'baseline', gap:4, marginBottom:4 }}>
+              <span style={{ fontSize:36, fontWeight:900, color:s.color, fontFamily:'DM Mono,monospace', lineHeight:1 }}>{s.value}</span>
+              {s.unit && <span style={{ fontSize:12, color:'var(--silver)' }}>{s.unit}</span>}
+              {s.badge && <span style={{ fontSize:18, marginLeft:4 }}>{s.badge}</span>}
+            </div>
+            <div style={{ fontSize:11, color:'var(--fog)' }}>{s.sub}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Gráfico de carga semanal */}
+      <div style={card} className="anim-up">
+        <p style={{ fontSize:11, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:16 }}>Carga semanal — últimas 4 semanas</p>
+        <div style={{ display:'flex', gap:8, alignItems:'flex-end', height:88 }}>
+          {weeklyUA.map((v, i) => {
+            const pct = maxWeekUA > 0 ? (v / maxWeekUA) : 0
+            const h = Math.max(pct * 72, v > 0 ? 6 : 0)
+            const labels = ['Hace 3 sem','Hace 2 sem','Sem. pasada','Esta semana']
+            return (
+              <div key={i} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', gap:4 }}>
+                <span style={{ fontSize:10, color:'var(--silver)', fontFamily:'DM Mono,monospace' }}>{v > 0 ? v : ''}</span>
+                <div style={{ width:'100%', height:h, background: i === 3 ? 'var(--lime)' : '#334155', borderRadius:'4px 4px 0 0', minHeight: v > 0 ? 4 : 0 }} />
+                <span style={{ fontSize:9, color:'var(--fog)', textAlign:'center', lineHeight:1.2 }}>{labels[i]}</span>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* Récords GPS */}
+      {gpsStats && (gpsStats.maxVelocidad || gpsStats.maxDistancia) && (
+        <div style={card} className="anim-up">
+          <p style={{ fontSize:11, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:14 }}>🛰 Récords GPS personales</p>
+          <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+            {[
+              { label:'Velocidad máxima', value: gpsStats.maxVelocidad ? `${Number(gpsStats.maxVelocidad).toFixed(1)} km/h` : '—', color:'#06b6d4', pct: gpsStats.maxVelocidad ? Math.min((Number(gpsStats.maxVelocidad)/38)*100, 100) : 0 },
+              { label:'Distancia máxima (una sesión)', value: gpsStats.maxDistancia ? `${(Number(gpsStats.maxDistancia)/1000).toFixed(1)} km` : '—', color:'#a3e635', pct: gpsStats.maxDistancia ? Math.min((Number(gpsStats.maxDistancia)/14000)*100, 100) : 0 },
+              { label:'Sprints máximos (una sesión)', value: gpsStats.maxSprints ? `${gpsStats.maxSprints} sprints` : '—', color:'#f97316', pct: gpsStats.maxSprints ? Math.min((gpsStats.maxSprints/30)*100, 100) : 0 },
+            ].map((r, i) => (
+              <div key={i}>
+                <div style={{ display:'flex', justifyContent:'space-between', marginBottom:5 }}>
+                  <span style={{ fontSize:12, color:'var(--silver)' }}>{r.label}</span>
+                  <span style={{ fontSize:13, fontWeight:700, color:r.color, fontFamily:'DM Mono,monospace' }}>{r.value}</span>
+                </div>
+                <div style={{ height:5, background:'var(--mist)', borderRadius:3, overflow:'hidden' }}>
+                  <div style={{ width:`${r.pct}%`, height:'100%', background:r.color, borderRadius:3 }} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Bienestar promedio */}
+      {wAvg !== null && (
+        <div style={{ ...card, background: wAvg <= 12 ? 'rgba(200,241,53,.05)' : wAvg <= 18 ? 'rgba(245,158,11,.05)' : 'rgba(239,68,68,.05)', border:`1px solid ${wAvg <= 12 ? 'rgba(200,241,53,.2)' : wAvg <= 18 ? 'rgba(245,158,11,.2)' : 'rgba(239,68,68,.2)'}` }} className="anim-up">
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+            <div>
+              <p style={{ fontSize:11, fontWeight:700, color:'var(--fog)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:6 }}>Bienestar promedio · últimos 7 días</p>
+              <p style={{ fontSize:12, color:'var(--silver)' }}>
+                {wAvg <= 12 ? '💪 Zona óptima — seguí así' : wAvg <= 18 ? '⚠ Bienestar moderado' : '🔴 Bajo — hablá con el profe'}
+              </p>
+            </div>
+            <div style={{ fontSize:44, fontWeight:900, color: wAvg <= 12 ? 'var(--lime)' : wAvg <= 18 ? '#f59e0b' : '#ef4444', fontFamily:'DM Mono,monospace', lineHeight:1 }}>{wAvg}</div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
