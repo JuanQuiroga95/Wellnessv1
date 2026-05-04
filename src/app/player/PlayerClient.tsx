@@ -417,6 +417,41 @@ function StatsTab({ jugador, gpsStats, wellnessStreak, totalSesiones, totalUA, m
           </div>
         </div>
       )}
+
+      {/* Historial de Sesiones */}
+      <div style={card} className="anim-up">
+        <p style={{ fontSize:11, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:14 }}>📅 Historial de Sesiones (Últimos 28 días)</p>
+        <div style={{ overflowX:'auto' }}>
+          <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12 }}>
+            <thead>
+              <tr style={{ borderBottom:'1px solid var(--mist)' }}>
+                {['Fecha', 'RPE', 'Duración', 'Carga (UA)'].map(h => (
+                  <th key={h} style={{ textAlign:'left', padding:'8px 4px', color:'var(--fog)', fontSize:10, fontWeight:700, textTransform:'uppercase' }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {recentLogs.length === 0 ? (
+                <tr><td colSpan={4} style={{ padding:20, textAlign:'center', color:'var(--fog)' }}>Sin sesiones registradas recientemente.</td></tr>
+              ) : recentLogs.map((l: any, i: number) => (
+                <tr key={i} style={{ borderBottom:'1px solid rgba(255,255,255,.03)' }}>
+                  <td style={{ padding:'10px 4px', color:'var(--silver)' }}>{l.fecha?.split('-').slice(1).reverse().join('/')}</td>
+                  <td style={{ padding:'10px 4px' }}>
+                    <span style={{ 
+                      padding:'2px 8px', borderRadius:4, background: l.rpe > 7 ? '#ef444422' : l.rpe > 4 ? '#f59e0b22' : '#22c55e22',
+                      color: l.rpe > 7 ? '#ef4444' : l.rpe > 4 ? '#f59e0b' : '#22c55e', fontWeight:700
+                    }}>
+                      {l.rpe || '—'}
+                    </span>
+                  </td>
+                  <td style={{ padding:'10px 4px', color:'var(--silver)' }}>{l.duracion_min} min</td>
+                  <td style={{ padding:'10px 4px', fontWeight:700, color:'var(--snow)', fontFamily:'DM Mono,monospace' }}>{l.carga_ua}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   )
 }

@@ -700,7 +700,14 @@ export default function EnfermeriaPanel({ teamData, onRefresh }: { teamData: any
 
       {/* ═══════ NUEVA LESIÓN ═══════ */}
       {!loading && subTab === 'nueva' && (
-        <NewLesionFormEnf teamData={teamData} onSuccess={() => { setSubTab('dashboard'); load(); onRefresh() }} />
+        <NewLesionFormEnf teamData={teamData} onSuccess={() => { 
+          setSubTab('dashboard'); 
+          setFilterTipo('all');
+          setFilterEstado('all');
+          setFilterRegion('all');
+          load(); 
+          onRefresh();
+        }} />
       )}
     </div>
   )
