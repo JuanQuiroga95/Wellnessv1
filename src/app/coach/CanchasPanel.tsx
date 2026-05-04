@@ -28,7 +28,7 @@ function calcDimensions(nodes:{lat:number,lon:number}[]){
   const area=Math.round(polyArea(nodes)*10)/10
   return{largo,ancho,area}
 }
-function classifyPitch(l:number,a:number){if(l>90&&a>55)return'F11';if(l>65&&a>40)return'F9';if(l>45&&a>25)return'F7';return'F5'}
+function classifyPitch(l:number,a:number){if(l>=90&&a>=45)return'F11';if(l>=65&&a>=40)return'F9';if(l>=45&&a>=25)return'F7';return'F5'}
 
 interface Pitch{id:string;name:string;lat:number;lon:number;largo?:number;ancho?:number;area?:number;tipo?:string;nodes?:{lat:number,lon:number}[];address?:string}
 interface SavedPitch{id:number;nombre:string;direccion:string;lat:string;lng:string;largo_m:string;ancho_m:string;area_m2:string;tipo_cancha:string;superficie:string;notas:string}
@@ -113,7 +113,10 @@ export default function CanchasPanel(){
         }
         if(!lat||!lon)continue
         const dim=nodes.length>=4?calcDimensions(nodes):null
-        results.push({id:`${el.type}_${el.id}`,name:el.tags?.name||'Cancha sin nombre',lat,lon,nodes,largo:dim?.largo,ancho:dim?.ancho,area:dim?.area,tipo:dim?classifyPitch(dim.largo,dim.ancho):undefined})
+        // Filtrar estricto: solo mostrar canchas que tengan dimensiones y sean de Fútbol 11 (>=90x45)
+        if(!dim || dim.largo < 90 || dim.ancho < 45) continue;
+        
+        results.push({id:`${el.type}_${el.id}`,name:el.tags?.name||'Cancha sin nombre',lat,lon,nodes,largo:dim.largo,ancho:dim.ancho,area:dim.area,tipo:'F11'})
       }
       setPitches(results)
       // Add markers
