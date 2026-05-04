@@ -137,17 +137,26 @@ export default function CanchasPanel(){
     const onClick=(e:any)=>{
       setMeasurePts(prev=>{
         const pts=[...prev,{lat:e.latlng.lat,lng:e.latlng.lng}]
-        if(pts.length>=2){
-          // Draw rectangle from 2 corners
-          const lats=pts.map(p=>p.lat),lngs=pts.map(p=>p.lng)
-          const bounds=[[Math.min(...lats),Math.min(...lngs)],[Math.max(...lats),Math.max(...lngs)]] as any
+        if (pts.length < 4) {
           if(measureLayerRef.current)map.removeLayer(measureLayerRef.current)
-          measureLayerRef.current=L.rectangle(bounds,{color:'#c8f135',weight:2,fillOpacity:0.15,dashArray:'6 4'}).addTo(map)
-          const dLat=haversine(Math.min(...lats),Math.min(...lngs),Math.max(...lats),Math.min(...lngs))
-          const dLon=haversine(Math.min(...lats),Math.min(...lngs),Math.min(...lats),Math.max(...lngs))
-          const largo=Math.round(Math.max(dLat,dLon)*10)/10
-          const ancho=Math.round(Math.min(dLat,dLon)*10)/10
-          setMeasureResult({largo,ancho,area:Math.round(largo*ancho*10)/10})
+          measureLayerRef.current=L.polyline(pts,{color:'#c8f135',weight:2,dashArray:'6 4'}).addTo(map)
+        } else {
+          if(measureLayerRef.current)map.removeLayer(measureLayerRef.current)
+          measureLayerRef.current=L.polygon(pts,{color:'#c8f135',weight:2,fillOpacity:0.15,dashArray:'6 4'}).addTo(map)
+          
+          const d1 = haversine(pts[0].lat, pts[0].lng, pts[1].lat, pts[1].lng)
+          const d2 = haversine(pts[1].lat, pts[1].lng, pts[2].lat, pts[2].lng)
+          const d3 = haversine(pts[2].lat, pts[2].lng, pts[3].lat, pts[3].lng)
+          const d4 = haversine(pts[3].lat, pts[3].lng, pts[0].lat, pts[0].lng)
+          
+          const l1 = (d1 + d3) / 2
+          const l2 = (d2 + d4) / 2
+          
+          const largo=Math.round(Math.max(l1,l2)*10)/10
+          const ancho=Math.round(Math.min(l1,l2)*10)/10
+          const area=Math.round(polyArea(pts.map(p=>({lat:p.lat,lon:p.lng})))*10)/10
+          
+          setMeasureResult({largo,ancho,area})
           setMeasuring(false)
           map.getContainer().style.cursor=''
           map.off('click',onClick)
@@ -223,7 +232,7 @@ export default function CanchasPanel(){
               ⚽ Buscar canchas aquí
             </button>
             <button onClick={startMeasure} style={{...C.btnGhost,color:measuring?'var(--lime)':'var(--silver)',borderColor:measuring?'var(--lime)':'var(--fog)'}} title="Medir cancha manualmente">
-              📏 {measuring?'Click 2 esquinas...':'Medir'}
+              📏 {measuring?'Click 4 esquinas...':'Medir'}
             </button>
           </div>
 
