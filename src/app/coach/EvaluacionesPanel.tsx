@@ -239,12 +239,15 @@ function AntropometriaPanel({ jugador }: { jugador: Jugador }) {
   const chartPts = [...historial].reverse().slice(-12)
 
   // Alerta si la masa magra cayó > 2 kg desde la primera medición
-  const alertaMasaMagra = historial.length >= 2 ? (() => {
+  let alertaMasaMagra = null
+  if (historial.length >= 2) {
     const primera = Number(historial[historial.length - 1].masa_magra_kg)
-    const ultima   = Number(historial[0].masa_magra_kg)
-    const delta    = ultima - primera
-    return delta <= -2 ? { delta: Math.abs(delta).toFixed(1), primera: primera.toFixed(1), ultima: ultima.toFixed(1) } : null
-  })() : null
+    const ultima = Number(historial[0].masa_magra_kg)
+    const delta = ultima - primera
+    if (delta <= -2) {
+      alertaMasaMagra = { delta: Math.abs(delta).toFixed(1), primera: primera.toFixed(1), ultima: ultima.toFixed(1) }
+    }
+  }
 
   return (
     <Card title="Composición Corporal — Método Faulkner (4 Pliegues)" accent="#06b6d4">
@@ -408,8 +411,6 @@ function AntropometriaPanel({ jugador }: { jugador: Jugador }) {
           </tbody>
         </table>
       )}
-
-      </div>
     </Card>
   )
 }
