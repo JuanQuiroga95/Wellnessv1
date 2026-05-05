@@ -313,6 +313,9 @@ export async function POST(req: NextRequest) {
     // ── Biblioteca: tactical_diagram for whiteboard data ─────────────────
     [`ALTER TABLE biblioteca_tareas ADD COLUMN IF NOT EXISTS tactical_diagram TEXT`, 'biblioteca_tareas.tactical_diagram'],
     [`ALTER TABLE biblioteca_tareas ADD COLUMN IF NOT EXISTS diagram_preview TEXT`, 'biblioteca_tareas.diagram_preview'],
+    // ── RTP v2: JSONB checks + updated fase default ───────────────────────
+    [`ALTER TABLE readaptacion_checks ADD COLUMN IF NOT EXISTS checks_data JSONB DEFAULT '{}'::jsonb`, 'readaptacion_checks.checks_data'],
+    [`ALTER TABLE lesiones ALTER COLUMN fase SET DEFAULT 'F1 - Rec. Funcional'`, 'lesiones.fase default RTP v2'],
   ]
   for (const [sql_str, label] of extra_migrations) {
     try {

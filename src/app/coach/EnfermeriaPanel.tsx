@@ -3,37 +3,47 @@ import { useState, useEffect, useCallback } from 'react'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const FASES = [
-  { key: 'F0 - Solo kinesio',       short: 'F0', label: 'Solo Kinesio',          color: '#94a3b8' },
-  { key: 'F1 - Ind. sin balón',     short: 'F1', label: 'Ind. Sin Balón',        color: '#f87171' },
-  { key: 'F2 - Ind. con balón',     short: 'F2', label: 'Ind. Con Balón',        color: '#fb923c' },
-  { key: 'F3 - Grupal controlado',  short: 'F3', label: 'Grupal Ctrl.',          color: '#fbbf24' },
-  { key: 'F4 - Reducido sin contacto', short: 'F4', label: 'Reducido',           color: '#a3e635' },
-  { key: 'F5 - Intermitente box2box', short: 'F5', label: 'Intermitente Box2Box', color: '#34d399' },
-  { key: 'F6 - Con categoría',      short: 'F6', label: 'Con Categoría',         color: '#22c55e' },
+  { key: 'F1 - Rec. Funcional',    short: 'F1', label: 'Rec. Funcional',    color: '#94a3b8' },
+  { key: 'F2 - Pre-optimización',  short: 'F2', label: 'Pre-optimización',  color: '#f87171' },
+  { key: 'F3 - Campo',             short: 'F3', label: 'Campo',              color: '#fbbf24' },
+  { key: 'F4 - RTTr',              short: 'F4', label: 'RTTr',               color: '#34d399' },
+  { key: 'F5 - RTP',               short: 'F5', label: 'RTP',                color: '#22c55e' },
 ]
 const FASE_MAP: Record<string,typeof FASES[0]> = {}
 FASES.forEach(f => { FASE_MAP[f.key] = f })
 
 const ACTIVIDADES = [
-  { key: 'gimnasio',     label: 'Gimnasio',     icon: '🏋️' },
-  { key: 'campo_ind',    label: 'Campo ind.',    icon: '🏃' },
-  { key: 'tecnica',      label: 'Técnica',       icon: '⚽' },
-  { key: 'reducido',     label: 'Reducido',      icon: '👥' },
-  { key: 'intermitente', label: 'Intermitente',  icon: '📊' },
-  { key: 'sprint',       label: 'Sprint',        icon: '💨' },
-  { key: 'contacto',     label: 'Contacto',      icon: '🤝' },
-  { key: 'con_categ',    label: 'Con categ.',    icon: '🏆' },
+  { key: 'control_dolor',    label: 'Control del Dolor',       icon: '💊', desc: 'Terapia manual y agentes físicos' },
+  { key: 'movilidad_rom',    label: 'Movilidad / ROM',          icon: '🔄', desc: 'Recuperar rangos de movimiento completos' },
+  { key: 'activacion_iso',   label: 'Activación Muscular',      icon: '💪', desc: 'Isométricos de baja carga — evitar atrofia' },
+  { key: 'fuerza_base',      label: 'Fuerza de Base',           icon: '🏋️', desc: 'Trabajo hipertrófico + estabilidad de core' },
+  { key: 'propiocepcion',    label: 'Propiocepción',            icon: '⚖️', desc: 'Equilibrio y reentrenamiento articular (SNC)' },
+  { key: 'saltos_bipodales', label: 'Saltos Bipodales',         icon: '⬆️', desc: 'Impacto controlado con dos piernas' },
+  { key: 'carrera_lineal',   label: 'Carrera Lineal',           icon: '🏃', desc: 'Trote suave → cambios de ritmo progresivos' },
+  { key: 'cambios_dir',      label: 'Cambios de Dirección',     icon: '↩️', desc: 'Giros, frenadas y desplazamientos laterales' },
+  { key: 'tecnica_ind',      label: 'Técnica Individual',       icon: '⚽', desc: 'Pases cortos y conducción sin oposición' },
+  { key: 'sin_contacto',     label: 'Sin Contacto',             icon: '👥', desc: 'Rondos y posesión con peto diferenciado' },
+  { key: 'carga_gps',        label: 'Carga GPS Controlada',     icon: '📊', desc: 'Monitoreo de volumen de carrera con GPS' },
+  { key: 'sim_fatiga',       label: 'Simulación de Fatiga',     icon: '🔋', desc: 'Gestos técnicos bajo estado de cansancio' },
+  { key: 'criterio_fuerza',  label: 'Fuerza < 10% diferencia', icon: '⚡', desc: 'Test isocinético: pierna lesionada vs sana' },
+  { key: 'criterio_saltos',  label: 'Jump Tests OK',            icon: '🦘', desc: 'Valores similares a test de pre-temporada' },
+  { key: 'criterio_tampa',   label: 'Escala Tampa OK',          icon: '🧠', desc: 'Confianza psicológica — sin kinesiofobia' },
 ]
 
 const FASE_ACTIVIDADES: Record<string, string[]> = {
-  'F0 - Solo kinesio':              [],
-  'F1 - Ind. sin balón':            ['gimnasio'],
-  'F2 - Ind. con balón':            ['campo_ind', 'tecnica'],
-  'F3 - Grupal controlado':         ['reducido'],
-  'F4 - Reducido sin contacto':     ['intermitente'],
-  'F5 - Intermitente box2box':      ['sprint'],
-  'F6 - Con categoría':             ['contacto', 'con_categ'],
+  'F1 - Rec. Funcional':   ['control_dolor', 'movilidad_rom', 'activacion_iso'],
+  'F2 - Pre-optimización': ['fuerza_base', 'propiocepcion', 'saltos_bipodales'],
+  'F3 - Campo':            ['carrera_lineal', 'cambios_dir', 'tecnica_ind'],
+  'F4 - RTTr':             ['sin_contacto', 'carga_gps', 'sim_fatiga'],
+  'F5 - RTP':              ['criterio_fuerza', 'criterio_saltos', 'criterio_tampa'],
 }
+
+const SPRINT_NIVELES = [
+  { nivel: 1, short: 'N1', label: 'Trote',              desc: 'Sin dolor, marcha normal — inicio post-dolor',         color: '#fbbf24' },
+  { nivel: 2, short: 'N2', label: 'Intervalos 60–70%',  desc: 'Ciclos de contracción-relajación más rápidos',          color: '#fb923c' },
+  { nivel: 3, short: 'N3', label: 'Sprint 80–90%',      desc: 'Línea recta, aceleración gradual, deceleración larga',  color: '#f87171' },
+  { nivel: 4, short: 'N4', label: 'Sprint Máximo 100%', desc: 'Sin miedo al movimiento — listo para avanzar a F4',    color: '#ef4444' },
+]
 
 const STATUS_COLORS: Record<string,{bg:string,text:string,label:string}> = {
   ok:        { bg: '#22c55e22', text: '#22c55e', label: 'OK' },
@@ -631,15 +641,15 @@ export default function EnfermeriaPanel({ teamData, onRefresh }: { teamData: any
             </div>
             <div style={{ background: 'var(--ink2)', border: '1px solid var(--mist)', borderRadius: 14, padding: '16px 20px' }}>
               <div style={{ fontSize: 36, fontWeight: 800, color: '#22c55e', fontFamily: 'DM Mono,monospace' }}>
-                {activas.filter(l => ['F4 - Reducido sin contacto', 'F5 - Intermitente box2box', 'F6 - Con categoría'].includes(l.fase || '')).length}
+                {activas.filter(l => ['F4 - RTTr', 'F5 - RTP'].includes(l.fase || '')).length}
               </div>
-              <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--fog)', textTransform: 'uppercase' }}>En Fase Avanzada (F4+)</div>
+              <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--fog)', textTransform: 'uppercase' }}>En Fase Avanzada (F4–F5)</div>
             </div>
             <div style={{ background: 'var(--ink2)', border: '1px solid var(--mist)', borderRadius: 14, padding: '16px 20px' }}>
               <div style={{ fontSize: 36, fontWeight: 800, color: '#94a3b8', fontFamily: 'DM Mono,monospace' }}>
-                {activas.filter(l => ['F0 - Solo kinesio', 'F1 - Ind. sin balón'].includes(l.fase || '')).length}
+                {activas.filter(l => ['F1 - Rec. Funcional', 'F2 - Pre-optimización'].includes(l.fase || '')).length}
               </div>
-              <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--fog)', textTransform: 'uppercase' }}>Solo Kinesio (F0-F1)</div>
+              <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--fog)', textTransform: 'uppercase' }}>Fase Clínica (F1–F2)</div>
             </div>
           </div>
 
@@ -718,19 +728,21 @@ function ReadaptacionCard({ lesion: l, checks, onUpdateFase, onSaveChecks, onDar
   lesion: any; checks: any; onUpdateFase: (f: string) => void; onSaveChecks: (c: any) => void; onDarAlta: () => void; diasBaja: number
 }) {
   const [open, setOpen] = useState(false)
-  const [localChecks, setLocalChecks] = useState<any>(checks || {})
+  const [localChecks, setLocalChecks] = useState<any>(checks?.checks_data || {})
   const [nota, setNota] = useState(checks?.nota_kinesio || '')
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
-    setLocalChecks(checks || {})
+    setLocalChecks(checks?.checks_data || {})
     setNota(checks?.nota_kinesio || '')
   }, [checks])
 
   const faseIdx = FASES.findIndex(f => f.key === l.fase)
   const faseInfo = faseIdx >= 0 ? FASES[faseIdx] : FASES[0]
   const currentFaseActs = FASE_ACTIVIDADES[faseInfo.key] || []
-  const faseCompleta = currentFaseActs.length === 0 || currentFaseActs.every(k => localChecks[k] === 'ok')
+  const sprintNivel = Number(localChecks.sprint_nivel) || 0
+  const sprintOk = faseInfo.key !== 'F3 - Campo' || sprintNivel >= 4
+  const faseCompleta = (currentFaseActs.length === 0 || currentFaseActs.every(k => localChecks[k] === 'ok')) && sprintOk
   const isLastFase = faseIdx === FASES.length - 1
   const isFirstFase = faseIdx === 0
 
@@ -742,7 +754,7 @@ function ReadaptacionCard({ lesion: l, checks, onUpdateFase, onSaveChecks, onDar
 
   const save = async () => {
     setSaving(true)
-    await onSaveChecks({ ...localChecks, nota_kinesio: nota || null })
+    await onSaveChecks({ checks_data: localChecks, nota_kinesio: nota || null })
     setSaving(false)
   }
 
@@ -834,14 +846,64 @@ function ReadaptacionCard({ lesion: l, checks, onUpdateFase, onSaveChecks, onDar
                       <span style={{ fontSize: 24 }}>{act.icon}</span>
                       <div>
                         <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--snow)' }}>{act.label}</div>
-                        <div style={{ fontSize: 11, fontWeight: 700, color: st.text }}>
-                          {status === 'ok' ? '✓ Puede' : status === 'cuidado' ? '⚠ Con cuidado' : status === 'no_puede' ? '✕ No puede' : '— Pendiente'}
+                        {isLastFase && <div style={{ fontSize: 10, color: 'var(--silver)', marginTop: 2, lineHeight: 1.3 }}>{act.desc}</div>}
+                        <div style={{ fontSize: 11, fontWeight: 700, color: st.text, marginTop: isLastFase ? 4 : 0 }}>
+                          {isLastFase
+                            ? (status === 'ok' ? '✓ Cumplido' : status === 'cuidado' ? '⚠ Parcial' : status === 'no_puede' ? '✕ No cumple' : '— Sin evaluar')
+                            : (status === 'ok' ? '✓ Puede' : status === 'cuidado' ? '⚠ Con cuidado' : status === 'no_puede' ? '✕ No puede' : '— Pendiente')}
                         </div>
                       </div>
                     </button>
                   )
                 })}
               </div>
+            </div>
+          )}
+
+          {/* ── Progresión de Sprint (F3 only) ── */}
+          {faseInfo.key === 'F3 - Campo' && (
+            <div style={{ marginBottom: 14 }}>
+              <p style={{ fontSize: 10, fontWeight: 700, color: 'var(--fog)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12 }}>
+                Progresión de Sprint{sprintNivel > 0 ? ` · ${SPRINT_NIVELES[sprintNivel - 1].label}` : ' · Sin iniciar'}
+              </p>
+              <div style={{ position: 'relative', marginBottom: 10 }}>
+                <div style={{ position: 'absolute', top: 14, left: '6%', right: '6%', height: 2, background: 'var(--mist)', zIndex: 0 }} />
+                <div style={{ display: 'flex', justifyContent: 'space-between', position: 'relative', zIndex: 1 }}>
+                  {SPRINT_NIVELES.map(sn => {
+                    const isReached = sprintNivel >= sn.nivel
+                    const isCurrent = sprintNivel === sn.nivel
+                    const dotColor = isReached ? sn.color : '#334155'
+                    return (
+                      <div key={sn.nivel} onClick={() => setLocalChecks((p: any) => ({ ...p, sprint_nivel: sn.nivel }))}
+                        style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+                        <div style={{
+                          width: isCurrent ? 30 : 22, height: isCurrent ? 30 : 22, borderRadius: '50%',
+                          background: dotColor, border: `2px solid ${dotColor}`,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          fontSize: 9, fontWeight: 800, color: 'white',
+                          boxShadow: isCurrent ? `0 0 0 4px ${sn.color}33` : 'none',
+                          transition: 'all .2s',
+                        }}>
+                          {isReached && !isCurrent ? '✓' : sn.short}
+                        </div>
+                        <span style={{ fontSize: 8, fontWeight: isCurrent ? 700 : 400, color: isReached ? sn.color : '#475569', textAlign: 'center', maxWidth: 54, lineHeight: 1.2 }}>
+                          {sn.label}
+                        </span>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+              {sprintNivel > 0 && (
+                <div style={{ padding: '8px 14px', borderRadius: 8, background: `${SPRINT_NIVELES[sprintNivel - 1].color}12`, border: `1px solid ${SPRINT_NIVELES[sprintNivel - 1].color}30`, fontSize: 11, color: SPRINT_NIVELES[sprintNivel - 1].color }}>
+                  {SPRINT_NIVELES[sprintNivel - 1].desc}
+                </div>
+              )}
+              {sprintNivel < 4 && (
+                <p style={{ fontSize: 10, color: 'var(--silver)', marginTop: 6 }}>
+                  ⚠ Se requiere Sprint Máximo (N4) para avanzar a F4
+                </p>
+              )}
             </div>
           )}
 
@@ -852,10 +914,10 @@ function ReadaptacionCard({ lesion: l, checks, onUpdateFase, onSaveChecks, onDar
             </div>
           )}
 
-          {/* ── Banner alta médica (F6 completa) ── */}
+          {/* ── Banner alta médica (F5 RTP completa) ── */}
           {isLastFase && faseCompleta && (
             <div style={{ padding: '12px 16px', borderRadius: 10, background: 'rgba(34,197,94,.07)', border: '1px solid rgba(34,197,94,.3)', marginBottom: 14, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
-              <span style={{ fontSize: 13, color: '#4ade80', fontWeight: 700 }}>🏆 Protocolo RTP completo — El jugador puede recibir el alta médica</span>
+              <span style={{ fontSize: 13, color: '#4ade80', fontWeight: 700 }}>🏆 Criterios de alta verificados — El jugador cumple el protocolo RTP completo</span>
               <button style={{ padding: '7px 18px', borderRadius: 8, background: '#22c55e', color: 'white', border: 'none', fontWeight: 700, fontSize: 12, cursor: 'pointer', flexShrink: 0 }} onClick={onDarAlta}>
                 Dar Alta
               </button>
@@ -908,7 +970,7 @@ function NewLesionFormEnf({ teamData, onSuccess }: { teamData: any[]; onSuccess:
   const [f, setF] = useState({
     jugador_id: '', fecha_inicio: new Date().toISOString().split('T')[0],
     tipo_lesion: 'Desgarro Muscular', region_corporal: '', zona: '', lateralidad: 'Bilateral',
-    mecanismo: '', descripcion: '', eta_dias: '', fase: 'F0 - Solo kinesio',
+    mecanismo: '', descripcion: '', eta_dias: '', fase: 'F1 - Rec. Funcional',
     recurrente: false, causa: '',
   })
   const [loading, setLoading] = useState(false)

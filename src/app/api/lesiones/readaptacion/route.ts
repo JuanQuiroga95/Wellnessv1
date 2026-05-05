@@ -51,37 +51,28 @@ export async function POST(req: NextRequest) {
   if (!s || !isAdmin(s)) return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
 
   const body = await req.json()
-  const { lesion_id, gimnasio, campo_ind, tecnica, reducido, intermitente, sprint, contacto, con_categ, nota_kinesio } = body
+  const { lesion_id, checks_data, nota_kinesio } = body
 
   if (!lesion_id) return NextResponse.json({ error: 'Falta lesion_id' }, { status: 400 })
 
   const sql = getDb()
+  const checksJson = JSON.stringify(checks_data ?? {})
 
   try {
-    // Upsert: check if exists
     const existing = await sql`SELECT id FROM readaptacion_checks WHERE lesion_id = ${Number(lesion_id)}`
 
     if (existing.length > 0) {
       await sql`
         UPDATE readaptacion_checks SET
-          gimnasio = ${gimnasio ?? 'pendiente'},
-          campo_ind = ${campo_ind ?? 'pendiente'},
-          tecnica = ${tecnica ?? 'pendiente'},
-          reducido = ${reducido ?? 'pendiente'},
-          intermitente = ${intermitente ?? 'pendiente'},
-          sprint = ${sprint ?? 'pendiente'},
-          contacto = ${contacto ?? 'pendiente'},
-          con_categ = ${con_categ ?? 'pendiente'},
+          checks_data = ${checksJson}::jsonb,
           nota_kinesio = ${nota_kinesio ?? null},
           updated_at = NOW()
         WHERE lesion_id = ${Number(lesion_id)}
       `
     } else {
       await sql`
-        INSERT INTO readaptacion_checks (lesion_id, gimnasio, campo_ind, tecnica, reducido, intermitente, sprint, contacto, con_categ, nota_kinesio)
-        VALUES (${Number(lesion_id)}, ${gimnasio ?? 'pendiente'}, ${campo_ind ?? 'pendiente'}, ${tecnica ?? 'pendiente'},
-                ${reducido ?? 'pendiente'}, ${intermitente ?? 'pendiente'}, ${sprint ?? 'pendiente'},
-                ${contacto ?? 'pendiente'}, ${con_categ ?? 'pendiente'}, ${nota_kinesio ?? null})
+        INSERT INTO readaptacion_checks (lesion_id, checks_data, nota_kinesio)
+        VALUES (${Number(lesion_id)}, ${checksJson}::jsonb, ${nota_kinesio ?? null})
       `
     }
 
