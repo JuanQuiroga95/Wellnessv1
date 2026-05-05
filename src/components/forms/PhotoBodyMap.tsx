@@ -2,60 +2,60 @@
 import { useState } from 'react'
 
 const ZONES = [
-  // VISTA FRONTAL (Centro aprox 275)
-  { id: 'cabeza',    label: 'Cabeza',          x: 275, y: 85,  r: 45 },
-  { id: 'cuello',    label: 'Cuello',          x: 275, y: 175, r: 25 },
-  { id: 'hombro_i',  label: 'Hombro Izq.',     x: 185, y: 245, r: 35 },
-  { id: 'hombro_d',  label: 'Hombro Der.',     x: 365, y: 245, r: 35 },
-  { id: 'pecho_i',   label: 'Pecho Izq.',      x: 235, y: 290, r: 40 },
-  { id: 'pecho_d',   label: 'Pecho Der.',      x: 315, y: 290, r: 40 },
-  { id: 'biceps_i',  label: 'Bíceps Izq.',     x: 145, y: 340, r: 25 },
-  { id: 'biceps_d',  label: 'Bíceps Der.',     x: 405, y: 340, r: 25 },
-  { id: 'codo_i',    label: 'Codo Izq.',       x: 115, y: 420, r: 25 },
-  { id: 'codo_d',    label: 'Codo Der.',       x: 435, y: 420, r: 25 },
-  { id: 'anteb_i',   label: 'Antebrazo Izq.',  x: 95,  y: 490, r: 25 },
-  { id: 'anteb_d',   label: 'Antebrazo Der.',  x: 455, y: 490, r: 25 },
-  { id: 'abdomen',   label: 'Abdomen',         x: 275, y: 410, r: 45 },
-  { id: 'muñeca_i',  label: 'Muñeca Izq.',     x: 75,  y: 560, r: 20 },
-  { id: 'muñeca_d',  label: 'Muñeca Der.',     x: 475, y: 560, r: 20 },
-  { id: 'mano_i',    label: 'Mano Izq.',       x: 60,  y: 610, r: 22 },
-  { id: 'mano_d',    label: 'Mano Der.',       x: 490, y: 610, r: 22 },
-  { id: 'cadera_i',  label: 'Cadera Izq.',     x: 235, y: 515, r: 30 },
-  { id: 'cadera_d',  label: 'Cadera Der.',     x: 315, y: 515, r: 30 },
-  { id: 'aductor_i', label: 'Aductor Izq.',    x: 255, y: 580, r: 25 },
-  { id: 'aductor_d', label: 'Aductor Der.',    x: 295, y: 580, r: 25 },
-  { id: 'cuad_i',    label: 'Cuádriceps Izq.', x: 225, y: 670, r: 45 },
-  { id: 'cuad_d',    label: 'Cuádriceps Der.', x: 325, y: 670, r: 45 },
-  { id: 'rodilla_i', label: 'Rodilla Izq.',    x: 225, y: 795, r: 25 },
-  { id: 'rodilla_d', label: 'Rodilla Der.',    x: 325, y: 795, r: 25 },
-  { id: 'tibia_i',   label: 'Tibia Izq.',      x: 225, y: 885, r: 35 },
-  { id: 'tibia_d',   label: 'Tibia Der.',      x: 325, y: 885, r: 35 },
-  { id: 'tobillo_i', label: 'Tobillo Izq.',    x: 225, y: 975, r: 20 },
-  { id: 'tobillo_d', label: 'Tobillo Der.',    x: 325, y: 975, r: 20 },
-  { id: 'pie_i',     label: 'Pie Izq.',        x: 225, y: 1010, r: 15 },
-  { id: 'pie_d',     label: 'Pie Der.',        x: 325, y: 1010, r: 15 },
+  // VISTA FRONTAL (Centro aprox 280)
+  { id: 'cabeza',    label: 'Cabeza',          x: 280, y: 120, r: 40 },
+  { id: 'cuello',    label: 'Cuello',          x: 280, y: 195, r: 20 },
+  { id: 'hombro_i',  label: 'Hombro Izq.',     x: 215, y: 245, r: 30 },
+  { id: 'hombro_d',  label: 'Hombro Der.',     x: 345, y: 245, r: 30 },
+  { id: 'pecho_i',   label: 'Pecho Izq.',      x: 245, y: 295, r: 35 },
+  { id: 'pecho_d',   label: 'Pecho Der.',      x: 315, y: 295, r: 35 },
+  { id: 'biceps_i',  label: 'Bíceps Izq.',     x: 195, y: 345, r: 22 },
+  { id: 'biceps_d',  label: 'Bíceps Der.',     x: 365, y: 345, r: 22 },
+  { id: 'codo_i',    label: 'Codo Izq.',       x: 185, y: 415, r: 20 },
+  { id: 'codo_d',    label: 'Codo Der.',       x: 375, y: 415, r: 20 },
+  { id: 'anteb_i',   label: 'Antebrazo Izq.',  x: 175, y: 485, r: 20 },
+  { id: 'anteb_d',   label: 'Antebrazo Der.',  x: 385, y: 485, r: 20 },
+  { id: 'abdomen',   label: 'Abdomen',         x: 280, y: 410, r: 40 },
+  { id: 'muñeca_i',  label: 'Muñeca Izq.',     x: 165, y: 545, r: 18 },
+  { id: 'muñeca_d',  label: 'Muñeca Der.',     x: 395, y: 545, r: 18 },
+  { id: 'mano_i',    label: 'Mano Izq.',       x: 155, y: 595, r: 20 },
+  { id: 'mano_d',    label: 'Mano Der.',       x: 405, y: 595, r: 20 },
+  { id: 'cadera_i',  label: 'Cadera Izq.',     x: 245, y: 505, r: 28 },
+  { id: 'cadera_d',  label: 'Cadera Der.',     x: 315, y: 505, r: 28 },
+  { id: 'aductor_i', label: 'Aductor Izq.',    x: 265, y: 575, r: 22 },
+  { id: 'aductor_d', label: 'Aductor Der.',    x: 295, y: 575, r: 22 },
+  { id: 'cuad_i',    label: 'Cuádriceps Izq.', x: 240, y: 660, r: 40 },
+  { id: 'cuad_d',    label: 'Cuádriceps Der.', x: 320, y: 660, r: 40 },
+  { id: 'rodilla_i', label: 'Rodilla Izq.',    x: 240, y: 785, r: 22 },
+  { id: 'rodilla_d', label: 'Rodilla Der.',    x: 320, y: 785, r: 22 },
+  { id: 'tibia_i',   label: 'Tibia Izq.',      x: 240, y: 875, r: 30 },
+  { id: 'tibia_d',   label: 'Tibia Der.',      x: 320, y: 875, r: 30 },
+  { id: 'tobillo_i', label: 'Tobillo Izq.',    x: 240, y: 965, r: 18 },
+  { id: 'tobillo_d', label: 'Tobillo Der.',    x: 320, y: 965, r: 18 },
+  { id: 'pie_i',     label: 'Pie Izq.',        x: 240, y: 1005, r: 15 },
+  { id: 'pie_d',     label: 'Pie Der.',        x: 320, y: 1005, r: 15 },
 
-  // VISTA POSTERIOR (Centro aprox 725)
-  { id: 'nuca',      label: 'Nuca',              x: 725, y: 175, r: 25 },
-  { id: 'trapecio',  label: 'Trapecio',          x: 725, y: 220, r: 40 },
-  { id: 'h_back_i',  label: 'Hombro Izq.',       x: 635, y: 245, r: 35 },
-  { id: 'h_back_d',  label: 'Hombro Der.',       x: 815, y: 245, r: 35 },
-  { id: 'esp_alta',  label: 'Espalda Alta',      x: 725, y: 310, r: 55 },
-  { id: 'triceps_i', label: 'Tríceps Izq.',      x: 595, y: 340, r: 25 },
-  { id: 'triceps_d', label: 'Tríceps Der.',      x: 855, y: 340, r: 25 },
-  { id: 'c_back_i',  label: 'Codo Izq.',         x: 565, y: 420, r: 25 },
-  { id: 'c_back_d',  label: 'Codo Der.',         x: 885, y: 420, r: 25 },
-  { id: 'lumbar',    label: 'Espalda Baja',      x: 725, y: 450, r: 45 },
-  { id: 'm_back_i',  label: 'Muñeca Izq.',       x: 525, y: 560, r: 20 },
-  { id: 'm_back_d',  label: 'Muñeca Der.',       x: 925, y: 560, r: 20 },
-  { id: 'gluteo_i',  label: 'Glúteo Izq.',       x: 685, y: 575, r: 45 },
-  { id: 'gluteo_d',  label: 'Glúteo Der.',       x: 765, y: 575, r: 45 },
-  { id: 'isquio_i',  label: 'Isquiotibial Izq.', x: 685, y: 720, r: 50 },
-  { id: 'isquio_d',  label: 'Isquiotibial Der.', x: 765, y: 720, r: 50 },
-  { id: 'gemelo_i',  label: 'Gemelo Izq.',       x: 685, y: 865, r: 40 },
-  { id: 'gemelo_d',  label: 'Gemelo Der.',       x: 765, y: 865, r: 40 },
-  { id: 't_back_i',  label: 'Tobillo Izq.',      x: 685, y: 975, r: 20 },
-  { id: 't_back_d',  label: 'Tobillo Der.',      x: 765, y: 975, r: 20 },
+  // VISTA POSTERIOR (Centro aprox 720)
+  { id: 'nuca',      label: 'Nuca',              x: 720, y: 195, r: 22 },
+  { id: 'trapecio',  label: 'Trapecio',          x: 720, y: 235, r: 35 },
+  { id: 'h_back_i',  label: 'Hombro Izq.',       x: 655, y: 245, r: 30 },
+  { id: 'h_back_d',  label: 'Hombro Der.',       x: 785, y: 245, r: 30 },
+  { id: 'esp_alta',  label: 'Espalda Alta',      x: 720, y: 315, r: 50 },
+  { id: 'triceps_i', label: 'Tríceps Izq.',      x: 635, y: 345, r: 22 },
+  { id: 'triceps_d', label: 'Tríceps Der.',      x: 805, y: 345, r: 22 },
+  { id: 'c_back_i',  label: 'Codo Izq.',         x: 625, y: 415, r: 20 },
+  { id: 'c_back_d',  label: 'Codo Der.',         x: 815, y: 415, r: 20 },
+  { id: 'lumbar',    label: 'Espalda Baja',      x: 720, y: 445, r: 40 },
+  { id: 'm_back_i',  label: 'Muñeca Izq.',       x: 605, y: 545, r: 18 },
+  { id: 'm_back_d',  label: 'Muñeca Der.',       x: 835, y: 545, r: 18 },
+  { id: 'gluteo_i',  label: 'Glúteo Izq.',       x: 685, y: 505, r: 40 },
+  { id: 'gluteo_d',  label: 'Glúteo Der.',       x: 755, y: 505, r: 40 },
+  { id: 'isquio_i',  label: 'Isquiotibial Izq.', x: 685, y: 645, r: 45 },
+  { id: 'isquio_d',  label: 'Isquiotibial Der.', x: 755, y: 645, r: 45 },
+  { id: 'gemelo_i',  label: 'Gemelo Izq.',       x: 685, y: 795, r: 35 },
+  { id: 'gemelo_d',  label: 'Gemelo Der.',       x: 755, y: 795, r: 35 },
+  { id: 't_back_i',  label: 'Tobillo Izq.',      x: 685, y: 965, r: 18 },
+  { id: 't_back_d',  label: 'Tobillo Der.',      x: 755, y: 965, r: 18 },
 ]
 
 export default function PhotoBodyMap({ onSelect, selected, description, onDescriptionChange }) {
@@ -84,7 +84,14 @@ export default function PhotoBodyMap({ onSelect, selected, description, onDescri
         }}>
           <img src="/images/anatomy-render.png" alt="Anatomy" style={{ width: '100%', display: 'block', opacity: 0.9 }} />
           
-          <svg viewBox="0 0 1024 1024" style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none' }}>
+          <svg viewBox="0 0 1024 1024" 
+               style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none' }}
+               onClick={(e) => {
+                 const rect = e.currentTarget.getBoundingClientRect()
+                 const x = Math.round(((e.clientX - rect.left) / rect.width) * 1024)
+                 const y = Math.round(((e.clientY - rect.top) / rect.height) * 1024)
+                 console.log(`Click en SVG: x: ${x}, y: ${y}`)
+               }}>
             <defs>
               <radialGradient id="highlight" cx="50%" cy="50%" r="50%">
                 <stop offset="0%" stopColor="#ef4444" stopOpacity="0.8" />
