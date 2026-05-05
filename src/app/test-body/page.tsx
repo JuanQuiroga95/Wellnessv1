@@ -43,8 +43,7 @@ export default function TestBodyPage() {
             </div>
           </div>
         </div>
-            
-        </div>
+        <div style={{ textAlign: 'center', marginTop: 40 }}>
           <p style={{ color: '#475569', fontSize: 12 }}>Este es un entorno de prueba. Tu reporte real de wellness no se verá afectado hasta que apruebes el cambio.</p>
         </div>
       </main>
