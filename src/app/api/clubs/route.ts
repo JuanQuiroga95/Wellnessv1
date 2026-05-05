@@ -71,10 +71,23 @@ export async function DELETE(req: NextRequest) {
     const jugadores = await sql`SELECT id FROM jugadores WHERE club_id = ${id}`
     const jids = (jugadores as any[]).map(j => j.id)
 
-    // Step 2: delete tables that reference jugador_id WITHOUT ON DELETE CASCADE
+    // Step 2: delete tables that reference jugador_id or club_id WITHOUT ON DELETE CASCADE
     // (tables with ON DELETE CASCADE will auto-delete when jugadores row is deleted)
     // sesiones_plan references admin (usuario), not jugador — delete separately
     await sql`DELETE FROM sesiones_plan WHERE club_id = ${id}`
+    
+    // Step 2b: delete canchas and other club-level entities
+    try { await sql`DELETE FROM canchas WHERE club_id = ${id}` } catch(_) {}
+
+    // Step 2c: delete invite_tokens linked to users of this club
+    try {
+      await sql`DELETE FROM invite_tokens WHERE created_by IN (SELECT id FROM usuarios WHERE club_id = ${id})`
+      await sql`DELETE FROM invite_tokens WHERE used_by IN (SELECT id FROM usuarios WHERE club_id = ${id})`
+    } catch(_) {}
+
+    // Step 2d: delete biblioteca_tareas and club_settings linked to users of this club
+    try { await sql`DELETE FROM biblioteca_tareas WHERE admin_id IN (SELECT id FROM usuarios WHERE club_id = ${id})` } catch(_) {}
+    try { await sql`DELETE FROM club_settings WHERE admin_id IN (SELECT id FROM usuarios WHERE club_id = ${id})` } catch(_) {}
 
     // Step 3: delete evaluacion tables that have jugador FK but no cascade on club deletion
     // Most have ON DELETE CASCADE on jugador_id, so they'll clean up automatically.
@@ -97,8 +110,6 @@ export async function DELETE(req: NextRequest) {
     // Step 6: delete coach/admin usuarios for this club
     await sql`DELETE FROM usuarios WHERE club_id = ${id}`
 
-    // Step 7: delete club_settings for admins of this club (already deleted above, best-effort)
-    try { await sql`DELETE FROM club_settings WHERE admin_id NOT IN (SELECT id FROM usuarios)` } catch(_) {}
 
     // Step 8: delete the club itself
     await sql`DELETE FROM clubs WHERE id = ${id}`
