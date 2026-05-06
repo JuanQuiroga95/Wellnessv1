@@ -19,13 +19,13 @@ function polyArea(coords:{lat:number,lon:number}[]){
 }
 function calcDimensions(nodes:{lat:number,lon:number}[]){
   if(nodes.length<4) return null
-  let minLat=Infinity,maxLat=-Infinity,minLon=Infinity,maxLon=-Infinity
-  for(const n of nodes){minLat=Math.min(minLat,n.lat);maxLat=Math.max(maxLat,n.lat);minLon=Math.min(minLon,n.lon);maxLon=Math.max(maxLon,n.lon)}
-  const dLat=haversine(minLat,minLon,maxLat,minLon)
-  const dLon=haversine(minLat,minLon,minLat,maxLon)
-  const largo=Math.round(Math.max(dLat,dLon)*10)/10
-  const ancho=Math.round(Math.min(dLat,dLon)*10)/10
   const area=Math.round(polyArea(nodes)*10)/10
+  const dists:number[]=[]
+  for(let i=0;i<nodes.length-1;i++) dists.push(haversine(nodes[i].lat,nodes[i].lon,nodes[i+1].lat,nodes[i+1].lon))
+  const maxSeg=Math.max(...dists)
+  if(maxSeg<1) return null
+  const largo=Math.round(maxSeg*10)/10
+  const ancho=Math.round((area/maxSeg)*10)/10
   return{largo,ancho,area}
 }
 function classifyPitch(l:number,a:number){if(l>=90&&a>=45)return'F11';if(l>=65&&a>=40)return'F9';if(l>=45&&a>=25)return'F7';return'F5'}
@@ -50,9 +50,35 @@ export default function CanchasPanel(){
   const [measuring,setMeasuring]=useState(false)
   const [measurePts,setMeasurePts]=useState<{lat:number,lng:number}[]>([])
   const [measureResult,setMeasureResult]=useState<{largo:number,ancho:number,area:number}|null>(null)
-  const [saveForm,setSaveForm]=useState<{nombre:string,superficie:string,notas:string}>({nombre:'',superficie:'natural',notas:''})
+  const [saveForm,setSaveForm]=useState<{nombre:string,superficie:string,notas:string,largo:number,ancho:number,area:number,tipo:string}>({nombre:'',superficie:'natural',notas:'',largo:0,ancho:0,area:0,tipo:''})
   const [saving,setSaving]=useState(false)
+  const [saveError,setSaveError]=useState<string|null>(null)
   const [tab,setTab]=useState<'buscar'|'guardadas'>('buscar')
+
+  const selectPitch = (p: Pitch | null) => {
+    setSelected(p)
+    if (p) {
+      setSaveForm(f => ({
+        ...f,
+        nombre: p.name || '',
+        largo: p.largo || 0,
+        ancho: p.ancho || 0,
+        area: p.area || 0,
+        tipo: p.tipo || classifyPitch(p.largo || 0, p.ancho || 0)
+      }))
+    }
+  }
+
+  const updateDim = (field: 'largo' | 'ancho' | 'area', val: number) => {
+    setSaveForm(f => {
+      const next = { ...f, [field]: val }
+      if (field === 'largo' || field === 'ancho') {
+        next.area = Math.round(next.largo * next.ancho * 10) / 10
+        next.tipo = classifyPitch(next.largo, next.ancho)
+      }
+      return next
+    })
+  }
 
   // Load Leaflet CSS + JS
   useEffect(()=>{
@@ -136,9 +162,9 @@ export default function CanchasPanel(){
         const isStadium = el.tags?.leisure === 'stadium'
         const hasFootball = el.tags?.sport?.match(/soccer|football|futbol/i)
         
-        // Filtro: Si es estadio, lo mostramos. Si es pitch, exigimos que tenga medidas de cancha de 11 (>= 80x40 para ser flexibles con canchas amateur)
+        // Filtro: Si es estadio, lo mostramos. Si es pitch, exigimos que tenga medidas mínimas (>= 30m para evitar objetos pequeños)
         if (!isStadium) {
-           if (!dim || dim.largo < 80 || dim.ancho < 40) continue;
+           if (!dim || dim.largo < 30) continue;
         }
         
         results.push({
@@ -156,7 +182,7 @@ export default function CanchasPanel(){
       const icon=L.divIcon({className:'',html:`<div style="width:28px;height:28px;background:#c8f135;border:2px solid #080808;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;box-shadow:0 2px 8px rgba(0,0,0,.4)">⚽</div>`,iconSize:[28,28],iconAnchor:[14,14]})
       for(const p of results){
         const m=L.marker([p.lat,p.lon],{icon}).addTo(mapInst.current)
-        m.on('click',()=>setSelected(p))
+        m.on('click',()=>selectPitch(p))
         markersRef.current.push(m)
       }
     }catch(e){console.error('Overpass error',e)}
@@ -178,16 +204,15 @@ export default function CanchasPanel(){
           if(measureLayerRef.current)map.removeLayer(measureLayerRef.current)
           measureLayerRef.current=L.polygon(pts,{color:'#c8f135',weight:2,fillOpacity:0.15,dashArray:'6 4'}).addTo(map)
           
-          const d1 = haversine(pts[0].lat, pts[0].lng, pts[1].lat, pts[1].lng)
-          const d2 = haversine(pts[1].lat, pts[1].lng, pts[2].lat, pts[2].lng)
-          const d3 = haversine(pts[2].lat, pts[2].lng, pts[3].lat, pts[3].lng)
-          const d4 = haversine(pts[3].lat, pts[3].lng, pts[0].lat, pts[0].lng)
-          
-          const l1 = (d1 + d3) / 2
-          const l2 = (d2 + d4) / 2
-          
-          const largo=Math.round(Math.max(l1,l2)*10)/10
-          const ancho=Math.round(Math.min(l1,l2)*10)/10
+          const d12=haversine(pts[0].lat,pts[0].lng,pts[1].lat,pts[1].lng)
+          const d23=haversine(pts[1].lat,pts[1].lng,pts[2].lat,pts[2].lng)
+          const d34=haversine(pts[2].lat,pts[2].lng,pts[3].lat,pts[3].lng)
+          const d41=haversine(pts[3].lat,pts[3].lng,pts[0].lat,pts[0].lng)
+          const d13=haversine(pts[0].lat,pts[0].lng,pts[2].lat,pts[2].lng)
+          const d24=haversine(pts[1].lat,pts[1].lng,pts[3].lat,pts[3].lng)
+          const allDists=[d12,d23,d34,d41,d13,d24].sort((a,b)=>b-a)
+          const largo=Math.round(((allDists[2]+allDists[3])/2)*10)/10
+          const ancho=Math.round(((allDists[4]+allDists[5])/2)*10)/10
           const area=Math.round(polyArea(pts.map(p=>({lat:p.lat,lon:p.lng})))*10)/10
           
           setMeasureResult({largo,ancho,area})
@@ -207,15 +232,67 @@ export default function CanchasPanel(){
     setMeasurePts([]);setMeasureResult(null);setMeasuring(true)
   }
 
+  const handleSaveManual = () => {
+    if (!measureResult || measurePts.length === 0) return
+    // Calculate center point for the manual measurement
+    const lat = measurePts.reduce((s, p) => s + p.lat, 0) / measurePts.length
+    const lon = measurePts.reduce((s, p) => s + p.lng, 0) / measurePts.length
+    
+    const newPitch: Pitch = {
+      id: `manual_${Date.now()}`,
+      name: 'Nueva cancha manual',
+      lat,
+      lon,
+      largo: measureResult.largo,
+      ancho: measureResult.ancho,
+      area: measureResult.area,
+      tipo: classifyPitch(measureResult.largo, measureResult.ancho),
+      nodes: measurePts.map(p => ({ lat: p.lat, lon: p.lng }))
+    }
+    selectPitch(newPitch)
+  }
+
   const savePitch=async(p:Pitch)=>{
     setSaving(true)
+    setSaveError(null)
     try{
-      const r=await fetch('/api/canchas',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nombre:saveForm.nombre||p.name,direccion:p.address||'',lat:p.lat,lng:p.lon,largo_m:p.largo,ancho_m:p.ancho,area_m2:p.area,tipo_cancha:p.tipo,superficie:saveForm.superficie,notas:saveForm.notas,osm_id:p.id.includes('_')?Number(p.id.split('_')[1]):null})})
+      const isOsm = p.id.includes('_') && !p.id.startsWith('manual')
+      const osmId = isOsm ? Number(p.id.split('_')[1]) : null
+
+      const r=await fetch('/api/canchas',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({
+          nombre:saveForm.nombre||p.name,
+          direccion:p.address||'',
+          lat:p.lat,
+          lng:p.lon,
+          largo_m:saveForm.largo,
+          ancho_m:saveForm.ancho,
+          area_m2:saveForm.area,
+          tipo_cancha:saveForm.tipo,
+          superficie:saveForm.superficie,
+          notas:saveForm.notas,
+          osm_id: osmId
+        })
+      })
       const d=await r.json()
-      if(d.id)setSaved(prev=>[d,...prev])
-      setSaveForm({nombre:'',superficie:'natural',notas:''})
-      setSelected(null)
-    }catch{}
+      if(d.id){
+        setSaved(prev=>[d,...prev])
+        setSaveForm({nombre:'',superficie:'natural',notas:'',largo:0,ancho:0,area:0,tipo:''})
+        setSelected(null)
+        setMeasureResult(null)
+        if(measureLayerRef.current && mapInst.current) {
+          mapInst.current.removeLayer(measureLayerRef.current)
+          measureLayerRef.current = null
+        }
+        alert('Cancha guardada con éxito')
+      }else{
+        setSaveError(d.error||'Error al guardar la cancha')
+      }
+    }catch(err: any){
+      setSaveError('Error de conexión: ' + err.message)
+    }
     setSaving(false)
   }
 
@@ -259,7 +336,26 @@ export default function CanchasPanel(){
             <button onClick={searchLocation} disabled={loading} style={{...C.btn,opacity:loading?0.5:1}}>
               {loading?'Buscando...':'🔍 Buscar'}
             </button>
-            <button onClick={()=>{if(navigator.geolocation&&mapInst.current){navigator.geolocation.getCurrentPosition(p=>{mapInst.current.setView([p.coords.latitude,p.coords.longitude],15);setTimeout(loadPitches,500)})}}} style={C.btnGhost} title="Mi ubicación">
+            <button onClick={()=>{
+              if(navigator.geolocation && mapInst.current){
+                navigator.geolocation.getCurrentPosition(
+                  p=>{
+                    mapInst.current.setView([p.coords.latitude,p.coords.longitude],15);
+                    setTimeout(loadPitches,500)
+                  },
+                  err => {
+                    console.error('Error de geolocalización:', err);
+                    let msg = 'No se pudo obtener tu ubicación.';
+                    if (err.code === 1) msg = 'Permiso de ubicación denegado.';
+                    else if (err.code === 3) msg = 'Tiempo de espera agotado.';
+                    alert(msg);
+                  },
+                  { timeout: 10000, enableHighAccuracy: true }
+                )
+              } else {
+                alert('La geolocalización no está disponible en este navegador o el mapa no está listo.')
+              }
+            }} style={C.btnGhost} title="Mi ubicación">
               📍
             </button>
             <button onClick={loadPitches} disabled={loading} style={C.btnGhost} title="Buscar estadios en esta zona">
@@ -306,7 +402,10 @@ export default function CanchasPanel(){
                     </div>
                   </div>
                 </div>
-                <button onClick={startMeasure} style={C.btnGhost}>📏 Medir otra</button>
+                <div style={{display:'flex', gap:8}}>
+                  <button onClick={handleSaveManual} style={{...C.btn, padding:'8px 16px'}}>⭐ Guardar medición</button>
+                  <button onClick={startMeasure} style={C.btnGhost}>📏 Medir otra</button>
+                </div>
               </div>
             </div>
           )}
@@ -317,7 +416,10 @@ export default function CanchasPanel(){
               <p style={{fontSize:11,fontWeight:700,color:'var(--silver)',textTransform:'uppercase',letterSpacing:'0.08em',marginBottom:12}}>⚽ {pitches.length} canchas encontradas</p>
               <div style={{display:'flex',flexDirection:'column',gap:6,maxHeight:300,overflowY:'auto'}}>
                 {pitches.map(p=>(
-                  <button key={p.id} onClick={()=>{setSelected(p);if(mapInst.current)mapInst.current.setView([p.lat,p.lon],17)}} style={{width:'100%',display:'flex',alignItems:'center',justifyContent:'space-between',gap:12,padding:'12px 16px',background:selected?.id===p.id?'rgba(200,241,53,.08)':'transparent',border:selected?.id===p.id?'1px solid rgba(200,241,53,.2)':'1px solid var(--mist)',borderRadius:12,cursor:'pointer',textAlign:'left',transition:'all .12s'}}>
+                  <button key={p.id} onClick={()=>{
+                    selectPitch(p);
+                    if(mapInst.current)mapInst.current.setView([p.lat,p.lon],17)
+                  }} style={{width:'100%',display:'flex',alignItems:'center',justifyContent:'space-between',gap:12,padding:'12px 16px',background:selected?.id===p.id?'rgba(200,241,53,.08)':'transparent',border:selected?.id===p.id?'1px solid rgba(200,241,53,.2)':'1px solid var(--mist)',borderRadius:12,cursor:'pointer',textAlign:'left',transition:'all .12s'}}>
                     <div style={{flex:1,minWidth:0}}>
                       <div style={{fontWeight:600,fontSize:14,color:'var(--snow)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{p.name}</div>
                       {p.largo&&p.ancho&&<div style={{fontSize:12,color:'var(--silver)',marginTop:2}}>{p.largo}m × {p.ancho}m · {p.area}m²</div>}
@@ -337,18 +439,60 @@ export default function CanchasPanel(){
                   <h3 style={{fontSize:22,fontWeight:700,color:'var(--snow)',marginBottom:4}}>{selected.name}</h3>
                   <p style={{fontSize:12,color:'var(--fog)'}}>Lat: {selected.lat.toFixed(5)}, Lng: {selected.lon.toFixed(5)}</p>
                 </div>
-                <button onClick={()=>setSelected(null)} style={{background:'none',border:'none',color:'var(--fog)',cursor:'pointer',fontSize:18}}>✕</button>
+                <button onClick={()=>selectPitch(null)} style={{background:'none',border:'none',color:'var(--fog)',cursor:'pointer',fontSize:18}}>✕</button>
               </div>
-              {selected.largo&&selected.ancho&&(
-                <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(120px,1fr))',gap:10,marginBottom:16}}>
-                  {[['Largo',`${selected.largo}m`,'var(--snow)'],['Ancho',`${selected.ancho}m`,'var(--snow)'],['Área',`${selected.area}m²`,'var(--lime)'],['Tipo',selected.tipo||'—','var(--lime)']].map(([l,v,c])=>(
-                    <div key={l as string} style={{background:'var(--ink3)',border:'1px solid var(--mist)',borderRadius:12,padding:'12px 16px',textAlign:'center'}}>
-                      <div className="display" style={{fontSize:32,color:c as string,lineHeight:1}}>{v}</div>
-                      <div style={{fontSize:10,color:'var(--silver)',marginTop:4,textTransform:'uppercase',letterSpacing:'0.06em'}}>{l}</div>
-                    </div>
-                  ))}
+              <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(120px,1fr))',gap:10,marginBottom:16}}>
+                <div style={{background:'var(--ink3)',border:'1px solid var(--mist)',borderRadius:12,padding:'12px 16px',textAlign:'center'}}>
+                  <input 
+                    type="number" 
+                    value={saveForm.largo} 
+                    onChange={e => {
+                      const val = parseFloat(e.target.value) || 0;
+                      setSaveForm(f => {
+                        const next = { ...f, largo: val };
+                        next.area = Math.round(next.largo * next.ancho * 10) / 10;
+                        next.tipo = classifyPitch(next.largo, next.ancho);
+                        return next;
+                      });
+                    }}
+                    className="display" 
+                    style={{fontSize:32, color:'var(--snow)', background:'transparent', border:'none', width:'100%', textAlign:'center', outline:'none', fontFamily:'Bebas Neue,sans-serif'}}
+                  />
+                  <div style={{fontSize:10,color:'var(--silver)',marginTop:4,textTransform:'uppercase',letterSpacing:'0.06em'}}>Largo (m)</div>
                 </div>
-              )}
+                <div style={{background:'var(--ink3)',border:'1px solid var(--mist)',borderRadius:12,padding:'12px 16px',textAlign:'center'}}>
+                  <input 
+                    type="number" 
+                    value={saveForm.ancho} 
+                    onChange={e => {
+                      const val = parseFloat(e.target.value) || 0;
+                      setSaveForm(f => {
+                        const next = { ...f, ancho: val };
+                        next.area = Math.round(next.largo * next.ancho * 10) / 10;
+                        next.tipo = classifyPitch(next.largo, next.ancho);
+                        return next;
+                      });
+                    }}
+                    className="display" 
+                    style={{fontSize:32, color:'var(--snow)', background:'transparent', border:'none', width:'100%', textAlign:'center', outline:'none', fontFamily:'Bebas Neue,sans-serif'}}
+                  />
+                  <div style={{fontSize:10,color:'var(--silver)',marginTop:4,textTransform:'uppercase',letterSpacing:'0.06em'}}>Ancho (m)</div>
+                </div>
+                <div style={{background:'var(--ink3)',border:'1px solid var(--mist)',borderRadius:12,padding:'12px 16px',textAlign:'center'}}>
+                  <input 
+                    type="number" 
+                    value={saveForm.area} 
+                    onChange={e => setSaveForm(f => ({ ...f, area: parseFloat(e.target.value) || 0 }))}
+                    className="display" 
+                    style={{fontSize:32, color:'var(--lime)', background:'transparent', border:'none', width:'100%', textAlign:'center', outline:'none', fontFamily:'Bebas Neue,sans-serif'}}
+                  />
+                  <div style={{fontSize:10,color:'var(--silver)',marginTop:4,textTransform:'uppercase',letterSpacing:'0.06em'}}>Área (m²)</div>
+                </div>
+                <div style={{background:'var(--ink3)',border:'1px solid var(--mist)',borderRadius:12,padding:'12px 16px',textAlign:'center'}}>
+                  <div className="display" style={{fontSize:32,color:'var(--lime)',lineHeight:1}}>{saveForm.tipo || '—'}</div>
+                  <div style={{fontSize:10,color:'var(--silver)',marginTop:4,textTransform:'uppercase',letterSpacing:'0.06em'}}>Tipo</div>
+                </div>
+              </div>
               {!selected.largo&&<p style={{fontSize:13,color:'var(--fog)',fontStyle:'italic',marginBottom:12}}>⚠ Esta cancha no tiene polígono mapeado. Usá la herramienta 📏 Medir para obtener dimensiones.</p>}
               <div style={{borderTop:'1px solid var(--mist)',paddingTop:14}}>
                 <p style={{fontSize:11,fontWeight:700,color:'var(--silver)',textTransform:'uppercase',letterSpacing:'0.08em',marginBottom:10}}>💾 Guardar cancha</p>
@@ -373,6 +517,7 @@ export default function CanchasPanel(){
                   </div>
                   <button onClick={()=>savePitch(selected)} disabled={saving} style={{...C.btn,opacity:saving?0.5:1}}>{saving?'Guardando...':'⭐ Guardar'}</button>
                 </div>
+                {saveError&&<p style={{fontSize:12,color:'#f87171',marginTop:8}}>{saveError}</p>}
               </div>
             </div>
           )}
