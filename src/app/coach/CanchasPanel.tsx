@@ -319,211 +319,216 @@ export default function CanchasPanel(){
         </div>
         <div style={{display:'flex',gap:6}}>
           {(['buscar','guardadas'] as const).map(t=>(
-            <button key={t} onClick={()=>setTab(t)} style={{...C.btnGhost,background:tab===t?'rgba(200,241,53,.1)':'transparent',color:tab===t?'var(--lime)':'var(--silver)',borderColor:tab===t?'rgba(200,241,53,.3)':'var(--fog)',fontWeight:tab===t?700:500}}>
+            <button key={t} onClick={()=>{
+              setTab(t);
+              if(t==='buscar' && mapInst.current){
+                setTimeout(()=>mapInst.current.invalidateSize(), 100);
+              }
+            }} style={{...C.btnGhost,background:tab===t?'rgba(200,241,53,.1)':'transparent',color:tab===t?'var(--lime)':'var(--silver)',borderColor:tab===t?'rgba(200,241,53,.3)':'var(--fog)',fontWeight:tab===t?700:500}}>
               {t==='buscar'?'🗺️ Buscar':'⭐ Guardadas'} {t==='guardadas'&&saved.length>0&&`(${saved.length})`}
             </button>
           ))}
         </div>
       </div>
 
-      {tab==='buscar'&&(
-        <>
-          {/* Search bar */}
-          <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
-            <div style={{flex:1,minWidth:200,position:'relative'}}>
-              <input value={query} onChange={e=>setQuery(e.target.value)} onKeyDown={e=>{if(e.key==='Enter')searchLocation()}} placeholder="Buscar dirección, ciudad o barrio..." style={C.input}/>
-            </div>
-            <button onClick={searchLocation} disabled={loading} style={{...C.btn,opacity:loading?0.5:1}}>
-              {loading?'Buscando...':'🔍 Buscar'}
-            </button>
-            <button onClick={()=>{
-              if(navigator.geolocation && mapInst.current){
-                navigator.geolocation.getCurrentPosition(
-                  p=>{
-                    mapInst.current.setView([p.coords.latitude,p.coords.longitude],15);
-                    setTimeout(loadPitches,500)
-                  },
-                  err => {
-                    console.error('Error de geolocalización:', err);
-                    let msg = 'No se pudo obtener tu ubicación.';
-                    if (err.code === 1) msg = 'Permiso de ubicación denegado.';
-                    else if (err.code === 3) msg = 'Tiempo de espera agotado.';
-                    alert(msg);
-                  },
-                  { timeout: 10000, enableHighAccuracy: true }
-                )
-              } else {
-                alert('La geolocalización no está disponible en este navegador o el mapa no está listo.')
-              }
-            }} style={C.btnGhost} title="Mi ubicación">
-              📍
-            </button>
-            <button onClick={loadPitches} disabled={loading} style={C.btnGhost} title="Buscar estadios en esta zona">
-              ⚽ Buscar estadios aquí
-            </button>
-            <button onClick={startMeasure} style={{...C.btnGhost,color:measuring?'var(--lime)':'var(--silver)',borderColor:measuring?'var(--lime)':'var(--fog)'}} title="Medir cancha manualmente">
-              📏 {measuring?'Click 4 esquinas...':'Medir'}
-            </button>
+      {/* Persistent Map and Search controls (visible only in 'buscar' tab) */}
+      <div style={{display: tab==='buscar'?'flex':'none', flexDirection:'column', gap:16}}>
+        {/* Search bar */}
+        <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
+          <div style={{flex:1,minWidth:200,position:'relative'}}>
+            <input value={query} onChange={e=>setQuery(e.target.value)} onKeyDown={e=>{if(e.key==='Enter')searchLocation()}} placeholder="Buscar dirección, ciudad o barrio..." style={C.input}/>
           </div>
+          <button onClick={searchLocation} disabled={loading} style={{...C.btn,opacity:loading?0.5:1}}>
+            {loading?'Buscando...':'🔍 Buscar'}
+          </button>
+          <button onClick={()=>{
+            if(navigator.geolocation && mapInst.current){
+              navigator.geolocation.getCurrentPosition(
+                p=>{
+                  mapInst.current.setView([p.coords.latitude,p.coords.longitude],15);
+                  setTimeout(loadPitches,500)
+                },
+                err => {
+                  console.error('Error de geolocalización:', err);
+                  let msg = 'No se pudo obtener tu ubicación.';
+                  if (err.code === 1) msg = 'Permiso de ubicación denegado.';
+                  else if (err.code === 3) msg = 'Tiempo de espera agotado.';
+                  alert(msg);
+                },
+                { timeout: 10000, enableHighAccuracy: true }
+              )
+            } else {
+              alert('La geolocalización no está disponible en este navegador o el mapa no está listo.')
+            }
+          }} style={C.btnGhost} title="Mi ubicación">
+            📍
+          </button>
+          <button onClick={loadPitches} disabled={loading} style={C.btnGhost} title="Buscar estadios en esta zona">
+            ⚽ Buscar estadios aquí
+          </button>
+          <button onClick={startMeasure} style={{...C.btnGhost,color:measuring?'var(--lime)':'var(--silver)',borderColor:measuring?'var(--lime)':'var(--fog)'}} title="Medir cancha manualmente">
+            📏 {measuring?'Click 4 esquinas...':'Medir'}
+          </button>
+        </div>
 
-          {/* Location Results Dropdown */}
-          {locationResults.length > 0 && (
-            <div style={{...C.card, padding:12, background:'var(--ink)', border:'1px solid var(--lime)'}}>
-              <p style={{fontSize:11,fontWeight:700,color:'var(--lime)',textTransform:'uppercase',marginBottom:8}}>Resultados (Elegí uno)</p>
-              <div style={{display:'flex',flexDirection:'column',gap:4}}>
-                {locationResults.map((loc, i) => (
-                  <button key={i} onClick={() => selectLocation(loc)} style={{...C.btnGhost, textAlign:'left', border:'none', background:'var(--ink3)', display:'flex', justifyContent:'space-between'}}>
-                    <span style={{fontWeight:600, color:'var(--snow)'}}>{loc.name}</span>
-                    <span style={{fontSize:11, color:'var(--silver)'}}>{loc.type} · {loc.city}{loc.city && loc.country ? ', ' : ''}{loc.country}</span>
-                  </button>
-                ))}
-              </div>
+        {/* Location Results Dropdown */}
+        {locationResults.length > 0 && (
+          <div style={{...C.card, padding:12, background:'var(--ink)', border:'1px solid var(--lime)'}}>
+            <p style={{fontSize:11,fontWeight:700,color:'var(--lime)',textTransform:'uppercase',marginBottom:8}}>Resultados (Elegí uno)</p>
+            <div style={{display:'flex',flexDirection:'column',gap:4}}>
+              {locationResults.map((loc, i) => (
+                <button key={i} onClick={() => selectLocation(loc)} style={{...C.btnGhost, textAlign:'left', border:'none', background:'var(--ink3)', display:'flex', justifyContent:'space-between'}}>
+                  <span style={{fontWeight:600, color:'var(--snow)'}}>{loc.name}</span>
+                  <span style={{fontSize:11, color:'var(--silver)'}}>{loc.type} · {loc.city}{loc.city && loc.country ? ', ' : ''}{loc.country}</span>
+                </button>
+              ))}
             </div>
-          )}
-
-          {/* Map */}
-          <div style={{...C.card,padding:0,overflow:'hidden',position:'relative'}}>
-            <div ref={mapRef} style={{width:'100%',height:480,background:'var(--ink3)'}}/>
-            {loading&&<div style={{position:'absolute',top:10,left:'50%',transform:'translateX(-50%)',background:'rgba(8,8,8,.9)',border:'1px solid var(--lime)',borderRadius:10,padding:'8px 20px',fontSize:12,color:'var(--lime)',fontWeight:600,zIndex:1000}}>⏳ Buscando estadios...</div>}
           </div>
+        )}
 
-          {/* Measure result */}
-          {measureResult&&(
-            <div style={{...C.card,background:'rgba(200,241,53,.06)',border:'1px solid rgba(200,241,53,.2)'}}>
-              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',flexWrap:'wrap',gap:12}}>
-                <div>
-                  <p style={{fontSize:11,fontWeight:700,color:'var(--lime)',textTransform:'uppercase',letterSpacing:'0.08em',marginBottom:6}}>📏 Medición Manual</p>
-                  <div style={{display:'flex',gap:16,flexWrap:'wrap'}}>
-                    <div><span style={{fontSize:28,fontWeight:900,color:'var(--snow)',fontFamily:'Bebas Neue,sans-serif'}}>{measureResult.largo}</span><span style={{fontSize:12,color:'var(--silver)',marginLeft:4}}>m largo</span></div>
-                    <div><span style={{fontSize:28,fontWeight:900,color:'var(--snow)',fontFamily:'Bebas Neue,sans-serif'}}>{measureResult.ancho}</span><span style={{fontSize:12,color:'var(--silver)',marginLeft:4}}>m ancho</span></div>
-                    <div><span style={{fontSize:28,fontWeight:900,color:'var(--lime)',fontFamily:'Bebas Neue,sans-serif'}}>{measureResult.area}</span><span style={{fontSize:12,color:'var(--silver)',marginLeft:4}}>m²</span></div>
-                    <div style={{display:'flex',alignItems:'center',gap:6}}>
-                      <span style={{fontSize:11,padding:'4px 12px',borderRadius:20,background:'rgba(200,241,53,.15)',color:'var(--lime)',border:'1px solid rgba(200,241,53,.3)',fontWeight:700}}>{classifyPitch(measureResult.largo,measureResult.ancho)}</span>
-                    </div>
+        {/* Map Container (Always in DOM) */}
+        <div style={{...C.card,padding:0,overflow:'hidden',position:'relative'}}>
+          <div ref={mapRef} style={{width:'100%',height:480,background:'var(--ink3)'}}/>
+          {loading&&<div style={{position:'absolute',top:10,left:'50%',transform:'translateX(-50%)',background:'rgba(8,8,8,.9)',border:'1px solid var(--lime)',borderRadius:10,padding:'8px 20px',fontSize:12,color:'var(--lime)',fontWeight:600,zIndex:1000}}>⏳ Buscando estadios...</div>}
+        </div>
+
+        {/* Measure result */}
+        {measureResult&&(
+          <div style={{...C.card,background:'rgba(200,241,53,.06)',border:'1px solid rgba(200,241,53,.2)'}}>
+            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',flexWrap:'wrap',gap:12}}>
+              <div>
+                <p style={{fontSize:11,fontWeight:700,color:'var(--lime)',textTransform:'uppercase',letterSpacing:'0.08em',marginBottom:6}}>📏 Medición Manual</p>
+                <div style={{display:'flex',gap:16,flexWrap:'wrap'}}>
+                  <div><span style={{fontSize:28,fontWeight:900,color:'var(--snow)',fontFamily:'Bebas Neue,sans-serif'}}>{measureResult.largo}</span><span style={{fontSize:12,color:'var(--silver)',marginLeft:4}}>m largo</span></div>
+                  <div><span style={{fontSize:28,fontWeight:900,color:'var(--snow)',fontFamily:'Bebas Neue,sans-serif'}}>{measureResult.ancho}</span><span style={{fontSize:12,color:'var(--silver)',marginLeft:4}}>m ancho</span></div>
+                  <div><span style={{fontSize:28,fontWeight:900,color:'var(--lime)',fontFamily:'Bebas Neue,sans-serif'}}>{measureResult.area}</span><span style={{fontSize:12,color:'var(--silver)',marginLeft:4}}>m²</span></div>
+                  <div style={{display:'flex',alignItems:'center',gap:6}}>
+                    <span style={{fontSize:11,padding:'4px 12px',borderRadius:20,background:'rgba(200,241,53,.15)',color:'var(--lime)',border:'1px solid rgba(200,241,53,.3)',fontWeight:700}}>{classifyPitch(measureResult.largo,measureResult.ancho)}</span>
                   </div>
                 </div>
-                <div style={{display:'flex', gap:8}}>
-                  <button onClick={handleSaveManual} style={{...C.btn, padding:'8px 16px'}}>⭐ Guardar medición</button>
-                  <button onClick={startMeasure} style={C.btnGhost}>📏 Medir otra</button>
-                </div>
+              </div>
+              <div style={{display:'flex', gap:8}}>
+                <button onClick={handleSaveManual} style={{...C.btn, padding:'8px 16px'}}>⭐ Guardar medición</button>
+                <button onClick={startMeasure} style={C.btnGhost}>📏 Medir otra</button>
               </div>
             </div>
-          )}
+          </div>
+        )}
 
-          {/* Found pitches */}
-          {pitches.length>0&&(
-            <div style={C.card}>
-              <p style={{fontSize:11,fontWeight:700,color:'var(--silver)',textTransform:'uppercase',letterSpacing:'0.08em',marginBottom:12}}>⚽ {pitches.length} canchas encontradas</p>
-              <div style={{display:'flex',flexDirection:'column',gap:6,maxHeight:300,overflowY:'auto'}}>
-                {pitches.map(p=>(
-                  <button key={p.id} onClick={()=>{
-                    selectPitch(p);
-                    if(mapInst.current)mapInst.current.setView([p.lat,p.lon],17)
-                  }} style={{width:'100%',display:'flex',alignItems:'center',justifyContent:'space-between',gap:12,padding:'12px 16px',background:selected?.id===p.id?'rgba(200,241,53,.08)':'transparent',border:selected?.id===p.id?'1px solid rgba(200,241,53,.2)':'1px solid var(--mist)',borderRadius:12,cursor:'pointer',textAlign:'left',transition:'all .12s'}}>
-                    <div style={{flex:1,minWidth:0}}>
-                      <div style={{fontWeight:600,fontSize:14,color:'var(--snow)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{p.name}</div>
-                      {p.largo&&p.ancho&&<div style={{fontSize:12,color:'var(--silver)',marginTop:2}}>{p.largo}m × {p.ancho}m · {p.area}m²</div>}
-                    </div>
-                    {p.tipo&&<span style={{fontSize:11,padding:'3px 10px',borderRadius:20,background:'rgba(200,241,53,.1)',color:'var(--lime)',border:'1px solid rgba(200,241,53,.2)',fontWeight:700,flexShrink:0}}>{p.tipo}</span>}
-                  </button>
-                ))}
+        {/* Found pitches */}
+        {pitches.length>0&&(
+          <div style={C.card}>
+            <p style={{fontSize:11,fontWeight:700,color:'var(--silver)',textTransform:'uppercase',letterSpacing:'0.08em',marginBottom:12}}>⚽ {pitches.length} canchas encontradas</p>
+            <div style={{display:'flex',flexDirection:'column',gap:6,maxHeight:300,overflowY:'auto'}}>
+              {pitches.map(p=>(
+                <button key={p.id} onClick={()=>{
+                  selectPitch(p);
+                  if(mapInst.current)mapInst.current.setView([p.lat,p.lon],17)
+                }} style={{width:'100%',display:'flex',alignItems:'center',justifyContent:'space-between',gap:12,padding:'12px 16px',background:selected?.id===p.id?'rgba(200,241,53,.08)':'transparent',border:selected?.id===p.id?'1px solid rgba(200,241,53,.2)':'1px solid var(--mist)',borderRadius:12,cursor:'pointer',textAlign:'left',transition:'all .12s'}}>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontWeight:600,fontSize:14,color:'var(--snow)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{p.name}</div>
+                    {p.largo&&p.ancho&&<div style={{fontSize:12,color:'var(--silver)',marginTop:2}}>{p.largo}m × {p.ancho}m · {p.area}m²</div>}
+                  </div>
+                  {p.tipo&&<span style={{fontSize:11,padding:'3px 10px',borderRadius:20,background:'rgba(200,241,53,.1)',color:'var(--lime)',border:'1px solid rgba(200,241,53,.2)',fontWeight:700,flexShrink:0}}>{p.tipo}</span>}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Selected pitch detail + save */}
+        {selected&&(
+          <div style={{...C.card,border:'1px solid rgba(200,241,53,.25)'}}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',flexWrap:'wrap',gap:12,marginBottom:16}}>
+              <div>
+                <h3 style={{fontSize:22,fontWeight:700,color:'var(--snow)',marginBottom:4}}>{selected.name}</h3>
+                <p style={{fontSize:12,color:'var(--fog)'}}>Lat: {selected.lat.toFixed(5)}, Lng: {selected.lon.toFixed(5)}</p>
+              </div>
+              <button onClick={()=>selectPitch(null)} style={{background:'none',border:'none',color:'var(--fog)',cursor:'pointer',fontSize:18}}>✕</button>
+            </div>
+            <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(120px,1fr))',gap:10,marginBottom:16}}>
+              <div style={{background:'var(--ink3)',border:'1px solid var(--mist)',borderRadius:12,padding:'12px 16px',textAlign:'center'}}>
+                <input 
+                  type="number" 
+                  value={saveForm.largo} 
+                  onChange={e => {
+                    const val = parseFloat(e.target.value) || 0;
+                    setSaveForm(f => {
+                      const next = { ...f, largo: val };
+                      next.area = Math.round(next.largo * next.ancho * 10) / 10;
+                      next.tipo = classifyPitch(next.largo, next.ancho);
+                      return next;
+                    });
+                  }}
+                  className="display" 
+                  style={{fontSize:32, color:'var(--snow)', background:'transparent', border:'none', width:'100%', textAlign:'center', outline:'none', fontFamily:'Bebas Neue,sans-serif'}}
+                />
+                <div style={{fontSize:10,color:'var(--silver)',marginTop:4,textTransform:'uppercase',letterSpacing:'0.06em'}}>Largo (m)</div>
+              </div>
+              <div style={{background:'var(--ink3)',border:'1px solid var(--mist)',borderRadius:12,padding:'12px 16px',textAlign:'center'}}>
+                <input 
+                  type="number" 
+                  value={saveForm.ancho} 
+                  onChange={e => {
+                    const val = parseFloat(e.target.value) || 0;
+                    setSaveForm(f => {
+                      const next = { ...f, ancho: val };
+                      next.area = Math.round(next.largo * next.ancho * 10) / 10;
+                      next.tipo = classifyPitch(next.largo, next.ancho);
+                      return next;
+                    });
+                  }}
+                  className="display" 
+                  style={{fontSize:32, color:'var(--snow)', background:'transparent', border:'none', width:'100%', textAlign:'center', outline:'none', fontFamily:'Bebas Neue,sans-serif'}}
+                />
+                <div style={{fontSize:10,color:'var(--silver)',marginTop:4,textTransform:'uppercase',letterSpacing:'0.06em'}}>Ancho (m)</div>
+              </div>
+              <div style={{background:'var(--ink3)',border:'1px solid var(--mist)',borderRadius:12,padding:'12px 16px',textAlign:'center'}}>
+                <input 
+                  type="number" 
+                  value={saveForm.area} 
+                  onChange={e => setSaveForm(f => ({ ...f, area: parseFloat(e.target.value) || 0 }))}
+                  className="display" 
+                  style={{fontSize:32, color:'var(--lime)', background:'transparent', border:'none', width:'100%', textAlign:'center', outline:'none', fontFamily:'Bebas Neue,sans-serif'}}
+                />
+                <div style={{fontSize:10,color:'var(--silver)',marginTop:4,textTransform:'uppercase',letterSpacing:'0.06em'}}>Área (m²)</div>
+              </div>
+              <div style={{background:'var(--ink3)',border:'1px solid var(--mist)',borderRadius:12,padding:'12px 16px',textAlign:'center'}}>
+                <div className="display" style={{fontSize:32,color:'var(--lime)',lineHeight:1}}>{saveForm.tipo || '—'}</div>
+                <div style={{fontSize:10,color:'var(--silver)',marginTop:4,textTransform:'uppercase',letterSpacing:'0.06em'}}>Tipo</div>
               </div>
             </div>
-          )}
-
-          {/* Selected pitch detail + save */}
-          {selected&&(
-            <div style={{...C.card,border:'1px solid rgba(200,241,53,.25)'}}>
-              <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',flexWrap:'wrap',gap:12,marginBottom:16}}>
-                <div>
-                  <h3 style={{fontSize:22,fontWeight:700,color:'var(--snow)',marginBottom:4}}>{selected.name}</h3>
-                  <p style={{fontSize:12,color:'var(--fog)'}}>Lat: {selected.lat.toFixed(5)}, Lng: {selected.lon.toFixed(5)}</p>
+            {!selected.largo&&<p style={{fontSize:13,color:'var(--fog)',fontStyle:'italic',marginBottom:12}}>⚠ Esta cancha no tiene polígono mapeado. Usá la herramienta 📏 Medir para obtener dimensiones.</p>}
+            <div style={{borderTop:'1px solid var(--mist)',paddingTop:14}}>
+              <p style={{fontSize:11,fontWeight:700,color:'var(--silver)',textTransform:'uppercase',letterSpacing:'0.08em',marginBottom:10}}>💾 Guardar cancha</p>
+              <div style={{display:'flex',gap:8,flexWrap:'wrap',alignItems:'flex-end'}}>
+                <div style={{flex:1,minWidth:150}}>
+                  <label style={{fontSize:10,color:'var(--silver)'}}>Nombre</label>
+                  <input value={saveForm.nombre} onChange={e=>setSaveForm(f=>({...f,nombre:e.target.value}))} placeholder={selected.name} style={{...C.input,padding:'8px 12px',fontSize:13}}/>
                 </div>
-                <button onClick={()=>selectPitch(null)} style={{background:'none',border:'none',color:'var(--fog)',cursor:'pointer',fontSize:18}}>✕</button>
+                <div style={{minWidth:120}}>
+                  <label style={{fontSize:10,color:'var(--silver)'}}>Superficie</label>
+                  <select value={saveForm.superficie} onChange={e=>setSaveForm(f=>({...f,superficie:e.target.value}))} style={{...C.input,padding:'8px 12px',fontSize:13}}>
+                    <option value="natural">Césped natural</option>
+                    <option value="sintetico">Sintético</option>
+                    <option value="tierra">Tierra</option>
+                    <option value="cemento">Cemento</option>
+                    <option value="otro">Otro</option>
+                  </select>
+                </div>
+                <div style={{flex:1,minWidth:150}}>
+                  <label style={{fontSize:10,color:'var(--silver)'}}>Notas</label>
+                  <input value={saveForm.notas} onChange={e=>setSaveForm(f=>({...f,notas:e.target.value}))} placeholder="Notas opcionales..." style={{...C.input,padding:'8px 12px',fontSize:13}}/>
+                </div>
+                <button onClick={()=>savePitch(selected)} disabled={saving} style={{...C.btn,opacity:saving?0.5:1}}>{saving?'Guardando...':'⭐ Guardar'}</button>
               </div>
-              <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(120px,1fr))',gap:10,marginBottom:16}}>
-                <div style={{background:'var(--ink3)',border:'1px solid var(--mist)',borderRadius:12,padding:'12px 16px',textAlign:'center'}}>
-                  <input 
-                    type="number" 
-                    value={saveForm.largo} 
-                    onChange={e => {
-                      const val = parseFloat(e.target.value) || 0;
-                      setSaveForm(f => {
-                        const next = { ...f, largo: val };
-                        next.area = Math.round(next.largo * next.ancho * 10) / 10;
-                        next.tipo = classifyPitch(next.largo, next.ancho);
-                        return next;
-                      });
-                    }}
-                    className="display" 
-                    style={{fontSize:32, color:'var(--snow)', background:'transparent', border:'none', width:'100%', textAlign:'center', outline:'none', fontFamily:'Bebas Neue,sans-serif'}}
-                  />
-                  <div style={{fontSize:10,color:'var(--silver)',marginTop:4,textTransform:'uppercase',letterSpacing:'0.06em'}}>Largo (m)</div>
-                </div>
-                <div style={{background:'var(--ink3)',border:'1px solid var(--mist)',borderRadius:12,padding:'12px 16px',textAlign:'center'}}>
-                  <input 
-                    type="number" 
-                    value={saveForm.ancho} 
-                    onChange={e => {
-                      const val = parseFloat(e.target.value) || 0;
-                      setSaveForm(f => {
-                        const next = { ...f, ancho: val };
-                        next.area = Math.round(next.largo * next.ancho * 10) / 10;
-                        next.tipo = classifyPitch(next.largo, next.ancho);
-                        return next;
-                      });
-                    }}
-                    className="display" 
-                    style={{fontSize:32, color:'var(--snow)', background:'transparent', border:'none', width:'100%', textAlign:'center', outline:'none', fontFamily:'Bebas Neue,sans-serif'}}
-                  />
-                  <div style={{fontSize:10,color:'var(--silver)',marginTop:4,textTransform:'uppercase',letterSpacing:'0.06em'}}>Ancho (m)</div>
-                </div>
-                <div style={{background:'var(--ink3)',border:'1px solid var(--mist)',borderRadius:12,padding:'12px 16px',textAlign:'center'}}>
-                  <input 
-                    type="number" 
-                    value={saveForm.area} 
-                    onChange={e => setSaveForm(f => ({ ...f, area: parseFloat(e.target.value) || 0 }))}
-                    className="display" 
-                    style={{fontSize:32, color:'var(--lime)', background:'transparent', border:'none', width:'100%', textAlign:'center', outline:'none', fontFamily:'Bebas Neue,sans-serif'}}
-                  />
-                  <div style={{fontSize:10,color:'var(--silver)',marginTop:4,textTransform:'uppercase',letterSpacing:'0.06em'}}>Área (m²)</div>
-                </div>
-                <div style={{background:'var(--ink3)',border:'1px solid var(--mist)',borderRadius:12,padding:'12px 16px',textAlign:'center'}}>
-                  <div className="display" style={{fontSize:32,color:'var(--lime)',lineHeight:1}}>{saveForm.tipo || '—'}</div>
-                  <div style={{fontSize:10,color:'var(--silver)',marginTop:4,textTransform:'uppercase',letterSpacing:'0.06em'}}>Tipo</div>
-                </div>
-              </div>
-              {!selected.largo&&<p style={{fontSize:13,color:'var(--fog)',fontStyle:'italic',marginBottom:12}}>⚠ Esta cancha no tiene polígono mapeado. Usá la herramienta 📏 Medir para obtener dimensiones.</p>}
-              <div style={{borderTop:'1px solid var(--mist)',paddingTop:14}}>
-                <p style={{fontSize:11,fontWeight:700,color:'var(--silver)',textTransform:'uppercase',letterSpacing:'0.08em',marginBottom:10}}>💾 Guardar cancha</p>
-                <div style={{display:'flex',gap:8,flexWrap:'wrap',alignItems:'flex-end'}}>
-                  <div style={{flex:1,minWidth:150}}>
-                    <label style={{fontSize:10,color:'var(--silver)'}}>Nombre</label>
-                    <input value={saveForm.nombre} onChange={e=>setSaveForm(f=>({...f,nombre:e.target.value}))} placeholder={selected.name} style={{...C.input,padding:'8px 12px',fontSize:13}}/>
-                  </div>
-                  <div style={{minWidth:120}}>
-                    <label style={{fontSize:10,color:'var(--silver)'}}>Superficie</label>
-                    <select value={saveForm.superficie} onChange={e=>setSaveForm(f=>({...f,superficie:e.target.value}))} style={{...C.input,padding:'8px 12px',fontSize:13}}>
-                      <option value="natural">Césped natural</option>
-                      <option value="sintetico">Sintético</option>
-                      <option value="tierra">Tierra</option>
-                      <option value="cemento">Cemento</option>
-                      <option value="otro">Otro</option>
-                    </select>
-                  </div>
-                  <div style={{flex:1,minWidth:150}}>
-                    <label style={{fontSize:10,color:'var(--silver)'}}>Notas</label>
-                    <input value={saveForm.notas} onChange={e=>setSaveForm(f=>({...f,notas:e.target.value}))} placeholder="Notas opcionales..." style={{...C.input,padding:'8px 12px',fontSize:13}}/>
-                  </div>
-                  <button onClick={()=>savePitch(selected)} disabled={saving} style={{...C.btn,opacity:saving?0.5:1}}>{saving?'Guardando...':'⭐ Guardar'}</button>
-                </div>
-                {saveError&&<p style={{fontSize:12,color:'#f87171',marginTop:8}}>{saveError}</p>}
-              </div>
+              {saveError&&<p style={{fontSize:12,color:'#f87171',marginTop:8}}>{saveError}</p>}
             </div>
-          )}
-        </>
-      )}
+          </div>
+        )}
+      </div>
 
+      {/* Saved Tab */}
       {tab==='guardadas'&&(
         <div style={C.card}>
           <p style={{fontSize:11,fontWeight:700,color:'var(--silver)',textTransform:'uppercase',letterSpacing:'0.08em',marginBottom:14}}>⭐ Canchas guardadas</p>
