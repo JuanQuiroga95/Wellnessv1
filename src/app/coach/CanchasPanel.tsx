@@ -105,37 +105,6 @@ export default function CanchasPanel(){
   // Load saved
   useEffect(()=>{fetch('/api/canchas').then(r=>r.json()).then(d=>Array.isArray(d)?setSaved(d):setSaved([])).catch(()=>{})},[])
 
-  // Search location via Geocoder
-  const searchLocation=useCallback(async()=>{
-    if(!query.trim()||!mapInst.current)return
-    setLoading(true)
-    setLocationResults([])
-    try{
-      const r=await fetch(`/api/nominatim?q=${encodeURIComponent(query)}`)
-      const d=await r.json()
-      if(d.length>0){
-        // Si hay un solo resultado, viaja directo. Si hay más, muestra opciones para elegir.
-        if (d.length === 1) {
-          mapInst.current.setView([Number(d[0].lat),Number(d[0].lon)],15)
-          await loadPitches()
-        } else {
-          setLocationResults(d)
-        }
-      } else {
-        alert('No se encontraron resultados')
-      }
-    }catch{}
-    setLoading(false)
-  },[query, loadPitches])
-
-  const selectLocation = async (loc: any) => {
-    setLocationResults([])
-    if (mapInst.current) {
-      mapInst.current.setView([Number(loc.lat),Number(loc.lon)],15)
-      await loadPitches()
-    }
-  }
-
   // Load pitches from Overpass
   const loadPitches=useCallback(async()=>{
     if(!mapInst.current)return
@@ -194,6 +163,37 @@ export default function CanchasPanel(){
     }catch(e){console.error('Overpass error',e)}
     setLoading(false)
   },[saved])
+
+  const selectLocation = async (loc: any) => {
+    setLocationResults([])
+    if (mapInst.current) {
+      mapInst.current.setView([Number(loc.lat),Number(loc.lon)],15)
+      await loadPitches()
+    }
+  }
+
+  // Search location via Geocoder
+  const searchLocation=useCallback(async()=>{
+    if(!query.trim()||!mapInst.current)return
+    setLoading(true)
+    setLocationResults([])
+    try{
+      const r=await fetch(`/api/nominatim?q=${encodeURIComponent(query)}`)
+      const d=await r.json()
+      if(d.length>0){
+        // Si hay un solo resultado, viaja directo. Si hay más, muestra opciones para elegir.
+        if (d.length === 1) {
+          mapInst.current.setView([Number(d[0].lat),Number(d[0].lon)],15)
+          await loadPitches()
+        } else {
+          setLocationResults(d)
+        }
+      } else {
+        alert('No se encontraron resultados')
+      }
+    }catch{}
+    setLoading(false)
+  },[query, loadPitches])
 
   // Measure mode click handler
   useEffect(()=>{
