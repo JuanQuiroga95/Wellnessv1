@@ -114,7 +114,8 @@ export default function CanchasPanel(){
     const q=`[out:json][timeout:15];(nwr["leisure"="stadium"](${bbox});nwr["leisure"="pitch"]["sport"~"soccer|football|futbol"](${bbox}););out geom;`
     try{
       const r=await fetch('/api/overpass',{method:'POST',body:'data='+encodeURIComponent(q)})
-      const d=await r.json()
+      const text = await r.text()
+      const d = JSON.parse(text.replace(/"id":\s*(\d+)/g, '"id": "$1"'))
       const results:Pitch[]=[]
       for(const el of d.elements||[]){
         let lat=el.lat,lon=el.lon,nodes:any[]=[]
