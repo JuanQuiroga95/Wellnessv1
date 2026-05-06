@@ -5,56 +5,56 @@ const ZONES = [
   // ── VISTA FRONTAL ────────────────────────────────────────────────────────────
   { id: 'cabeza',    label: 'Cabeza',            x: 263, y: 78,  r: 42 },
   { id: 'cuello',    label: 'Cuello',            x: 263, y: 155, r: 18 },
-  { id: 'hombro_d',  label: 'Hombro Der.',       x: 178, y: 205, r: 28 },
-  { id: 'hombro_i',  label: 'Hombro Izq.',       x: 350, y: 205, r: 28 },
+  { id: 'hombro_d',  label: 'Hombro Der.',       x: 178, y: 200, r: 28 },
+  { id: 'hombro_i',  label: 'Hombro Izq.',       x: 350, y: 200, r: 28 },
   { id: 'pecho_d',   label: 'Pectoral Der.',     x: 228, y: 272, r: 42 },
   { id: 'pecho_i',   label: 'Pectoral Izq.',     x: 298, y: 272, r: 42 },
-  { id: 'biceps_d',  label: 'Bíceps Der.',       x: 160, y: 340, r: 22 },
-  { id: 'biceps_i',  label: 'Bíceps Izq.',       x: 365, y: 340, r: 22 },
-  { id: 'anteb_d',   label: 'Antebrazo Der.',    x: 113, y: 440, r: 20 },
-  { id: 'anteb_i',   label: 'Antebrazo Izq.',    x: 409, y: 440, r: 20 },
-  { id: 'abdomen',   label: 'Zona Abdominal',    x: 263, y: 385, r: 38 },
-  { id: 'muñeca_d',  label: 'Muñeca Der.',       x: 88,  y: 545, r: 18 },
-  { id: 'muñeca_i',  label: 'Muñeca Izq.',       x: 438, y: 545, r: 18 },
-  { id: 'mano_d',    label: 'Mano Der.',         x: 80,  y: 600, r: 20 },
-  { id: 'mano_i',    label: 'Mano Izq.',         x: 446, y: 600, r: 20 },
+  { id: 'biceps_d',  label: 'Bíceps Der.',       x: 160, y: 325, r: 22 },
+  { id: 'biceps_i',  label: 'Bíceps Izq.',       x: 365, y: 325, r: 22 },
+  { id: 'anteb_d',   label: 'Antebrazo Der.',    x: 113, y: 408, r: 20 },
+  { id: 'anteb_i',   label: 'Antebrazo Izq.',    x: 409, y: 408, r: 20 },
+  { id: 'abdomen',   label: 'Zona Abdominal',    x: 263, y: 378, r: 38 },
+  { id: 'muñeca_d',  label: 'Muñeca Der.',       x: 94,  y: 469, r: 18 },
+  { id: 'muñeca_i',  label: 'Muñeca Izq.',       x: 433, y: 471, r: 18 },
+  { id: 'mano_d',    label: 'Mano Der.',         x: 90,  y: 496, r: 20 },
+  { id: 'mano_i',    label: 'Mano Izq.',         x: 434, y: 496, r: 20 },
   { id: 'cadera_d',  label: 'Cadera Der.',       x: 195, y: 455, r: 26 },
   { id: 'cadera_i',  label: 'Cadera Izq.',       x: 335, y: 455, r: 26 },
-  { id: 'pubis',     label: 'Pubis / Inguinal',  x: 263, y: 480, r: 20 },
-  { id: 'aductor_d', label: 'Aductor Der.',      x: 250, y: 565, r: 22 },
-  { id: 'aductor_i', label: 'Aductor Izq.',      x: 278, y: 565, r: 22 },
-  { id: 'cuad_d',    label: 'Cuádriceps Der.',   x: 199, y: 600, r: 38 },
-  { id: 'cuad_i',    label: 'Cuádriceps Izq.',   x: 335, y: 600, r: 38 },
-  { id: 'rodilla_d', label: 'Rodilla Der.',      x: 199, y: 700, r: 22 }, // Re-ajuste: en la imagen 707 era shin. 700 es mejor.
-  { id: 'rodilla_i', label: 'Rodilla Izq.',      x: 323, y: 700, r: 22 },
-  { id: 'tibia_d',   label: 'Tibia Der.',        x: 190, y: 800, r: 28 },
-  { id: 'tibia_i',   label: 'Tibia Izq.',        x: 338, y: 800, r: 28 },
-  { id: 'tobillo_d', label: 'Tobillo Der.',      x: 195, y: 895, r: 18 },
-  { id: 'tobillo_i', label: 'Tobillo Izq.',      x: 329, y: 895, r: 18 },
-  { id: 'pie_d',     label: 'Pie Der.',          x: 195, y: 975, r: 15 },
-  { id: 'pie_i',     label: 'Pie Izq.',          x: 329, y: 975, r: 15 },
+  { id: 'pubis',     label: 'Pubis / Inguinal',  x: 263, y: 462, r: 20 },
+  { id: 'aductor_d', label: 'Aductor Der.',      x: 250, y: 545, r: 22 },
+  { id: 'aductor_i', label: 'Aductor Izq.',      x: 278, y: 545, r: 22 },
+  { id: 'cuad_d',    label: 'Cuádriceps Der.',   x: 199, y: 577, r: 38 },
+  { id: 'cuad_i',    label: 'Cuádriceps Izq.',   x: 335, y: 576, r: 38 },
+  { id: 'rodilla_d', label: 'Rodilla Der.',      x: 199, y: 707, r: 22 },
+  { id: 'rodilla_i', label: 'Rodilla Izq.',      x: 323, y: 703, r: 22 },
+  { id: 'tibia_d',   label: 'Tibia Der.',        x: 190, y: 809, r: 28 },
+  { id: 'tibia_i',   label: 'Tibia Izq.',        x: 338, y: 806, r: 28 },
+  { id: 'tobillo_d', label: 'Tobillo Der.',      x: 195, y: 906, r: 18 },
+  { id: 'tobillo_i', label: 'Tobillo Izq.',      x: 329, y: 905, r: 18 },
+  { id: 'pie_d',     label: 'Pie Der.',          x: 195, y: 980, r: 15 },
+  { id: 'pie_i',     label: 'Pie Izq.',          x: 329, y: 980, r: 15 },
 
   // ── VISTA POSTERIOR ──────────────────────────────────────────────────────────
   { id: 'nuca',      label: 'Nuca',              x: 762, y: 155, r: 22 },
   { id: 'trapecio',  label: 'Trapecio',          x: 762, y: 222, r: 35 },
-  { id: 'h_back_d',  label: 'Hombro Der.',       x: 665, y: 205, r: 28 },
-  { id: 'h_back_i',  label: 'Hombro Izq.',       x: 858, y: 205, r: 28 },
+  { id: 'h_back_d',  label: 'Hombro Der.',       x: 665, y: 200, r: 28 },
+  { id: 'h_back_i',  label: 'Hombro Izq.',       x: 858, y: 200, r: 28 },
   { id: 'esp_alta',  label: 'Espalda Alta',      x: 762, y: 305, r: 48 },
-  { id: 'triceps_d', label: 'Tríceps Der.',      x: 645, y: 345, r: 22 },
-  { id: 'triceps_i', label: 'Tríceps Izq.',      x: 878, y: 345, r: 22 },
-  { id: 'c_back_d',  label: 'Codo Der.',         x: 632, y: 440, r: 20 },
-  { id: 'c_back_i',  label: 'Codo Izq.',         x: 892, y: 440, r: 20 },
-  { id: 'lumbar',    label: 'Espalda Baja',      x: 762, y: 465, r: 38 },
-  { id: 'm_back_d',  label: 'Muñeca Der.',       x: 615, y: 550, r: 18 },
-  { id: 'm_back_i',  label: 'Muñeca Izq.',       x: 910, y: 550, r: 18 },
-  { id: 'gluteo_d',  label: 'Glúteo Der.',       x: 717, y: 565, r: 38 },
-  { id: 'gluteo_i',  label: 'Glúteo Izq.',       x: 808, y: 565, r: 38 },
-  { id: 'isquio_d',  label: 'Isquiotibial Der.', x: 717, y: 725, r: 43 },
-  { id: 'isquio_i',  label: 'Isquiotibial Izq.', x: 808, y: 725, r: 43 },
-  { id: 'gemelo_d',  label: 'Gemelo Der.',       x: 704, y: 865, r: 33 },
-  { id: 'gemelo_i',  label: 'Gemelo Izq.',       x: 833, y: 865, r: 33 },
-  { id: 't_back_d',  label: 'Talón Der.',        x: 717, y: 960, r: 18 },
-  { id: 't_back_i',  label: 'Talón Izq.',        x: 839, y: 960, r: 18 },
+  { id: 'triceps_d', label: 'Tríceps Der.',      x: 645, y: 325, r: 22 },
+  { id: 'triceps_i', label: 'Tríceps Izq.',      x: 878, y: 325, r: 22 },
+  { id: 'c_back_d',  label: 'Codo Der.',         x: 632, y: 402, r: 20 },
+  { id: 'c_back_i',  label: 'Codo Izq.',         x: 892, y: 402, r: 20 },
+  { id: 'lumbar',    label: 'Espalda Baja',      x: 762, y: 442, r: 38 },
+  { id: 'm_back_d',  label: 'Muñeca Der.',       x: 620, y: 535, r: 18 },
+  { id: 'm_back_i',  label: 'Muñeca Izq.',       x: 903, y: 535, r: 18 },
+  { id: 'gluteo_d',  label: 'Glúteo Der.',       x: 717, y: 495, r: 38 },
+  { id: 'gluteo_i',  label: 'Glúteo Izq.',       x: 808, y: 495, r: 38 },
+  { id: 'isquio_d',  label: 'Isquiotibial Der.', x: 717, y: 638, r: 43 },
+  { id: 'isquio_i',  label: 'Isquiotibial Izq.', x: 808, y: 638, r: 43 },
+  { id: 'gemelo_d',  label: 'Gemelo Der.',       x: 704, y: 764, r: 33 },
+  { id: 'gemelo_i',  label: 'Gemelo Izq.',       x: 833, y: 764, r: 33 },
+  { id: 't_back_d',  label: 'Talón Der.',        x: 717, y: 948, r: 18 },
+  { id: 't_back_i',  label: 'Talón Izq.',        x: 839, y: 942, r: 18 },
 ]
 
 export default function PhotoBodyMap({ onSelect, selected, description, onDescriptionChange, showCalibration = false }: {
@@ -158,7 +158,7 @@ export default function PhotoBodyMap({ onSelect, selected, description, onDescri
             </defs>
 
             {ZONES.map(z => {
-              const isActive = selected === z.label || hovered === z.id
+              const isActive = selected.includes(z.label) || hovered === z.id
               return (
                 <g key={z.id} style={{ pointerEvents: 'auto', cursor: 'pointer' }} 
                    onMouseEnter={() => setHovered(z.id)} 
@@ -202,9 +202,9 @@ export default function PhotoBodyMap({ onSelect, selected, description, onDescri
         <div style={{ display: 'flex', gap: 16, marginBottom: 24 }}>
           <button onClick={() => onSelect('Ningún dolor')} style={{
             flex: 1, padding: '16px', borderRadius: 16, fontSize: 13, fontWeight: 800, cursor: 'pointer',
-            border: selected === 'Ningún dolor' ? '2px solid #4ade80' : '1px solid rgba(255,255,255,0.1)',
-            background: selected === 'Ningún dolor' ? 'rgba(74,222,128,0.15)' : 'rgba(255,255,255,0.03)',
-            color: selected === 'Ningún dolor' ? '#4ade80' : '#64748b',
+            border: selected.includes('Ningún dolor') ? '2px solid #4ade80' : '1px solid rgba(255,255,255,0.1)',
+            background: selected.includes('Ningún dolor') ? 'rgba(74,222,128,0.15)' : 'rgba(255,255,255,0.03)',
+            color: selected.includes('Ningún dolor') ? '#4ade80' : '#64748b',
             transition: 'all 0.2s',
             textTransform: 'uppercase',
             letterSpacing: '0.05em'
@@ -212,9 +212,9 @@ export default function PhotoBodyMap({ onSelect, selected, description, onDescri
           
           <button onClick={() => onSelect('Otro')} style={{
             flex: 1, padding: '16px', borderRadius: 16, fontSize: 13, fontWeight: 800, cursor: 'pointer',
-            border: selected === 'Otro' ? '2px solid #f59e0b' : '1px solid rgba(255,255,255,0.1)',
-            background: selected === 'Otro' ? 'rgba(245,158,11,0.15)' : 'rgba(255,255,255,0.03)',
-            color: selected === 'Otro' ? '#f59e0b' : '#64748b',
+            border: selected.includes('Otro') ? '2px solid #f59e0b' : '1px solid rgba(255,255,255,0.1)',
+            background: selected.includes('Otro') ? 'rgba(245,158,11,0.15)' : 'rgba(255,255,255,0.03)',
+            color: selected.includes('Otro') ? '#f59e0b' : '#64748b',
             transition: 'all 0.2s',
             textTransform: 'uppercase',
             letterSpacing: '0.05em'
@@ -238,14 +238,16 @@ export default function PhotoBodyMap({ onSelect, selected, description, onDescri
           />
         </div>
         
-        {selected && selected !== 'Ningún dolor' && (
+        {selected.length > 0 && !selected.includes('Ningún dolor') && (
           <div style={{ 
             marginTop: 20, padding: '12px 20px', borderRadius: 12, 
             background: 'rgba(239, 68, 68, 0.1)', borderLeft: '4px solid #ef4444',
             display: 'flex', alignItems: 'center', gap: 10
           }}>
-            <span style={{ fontSize: 14, color: '#f87171' }}>Zona seleccionada:</span>
-            <strong style={{ fontSize: 14, color: '#fff', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{selected}</strong>
+            <span style={{ fontSize: 14, color: '#f87171' }}>Zonas seleccionadas:</span>
+            <strong style={{ fontSize: 14, color: '#fff', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              {selected.join(' · ')}
+            </strong>
           </div>
         )}
       </div>
