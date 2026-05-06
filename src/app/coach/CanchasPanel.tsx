@@ -30,8 +30,8 @@ function calcDimensions(nodes:{lat:number,lon:number}[]){
 }
 function classifyPitch(l:number,a:number){if(l>=90&&a>=45)return'F11';if(l>=65&&a>=40)return'F9';if(l>=45&&a>=25)return'F7';return'F5'}
 
-interface Pitch{id:string;name:string;lat:number;lon:number;largo?:number;ancho?:number;area?:number;tipo?:string;nodes?:{lat:number,lon:number}[];address?:string}
-interface SavedPitch{id:number;nombre:string;direccion:string;lat:string;lng:string;largo_m:string;ancho_m:string;area_m2:string;tipo_cancha:string;superficie:string;notas:string}
+interface Pitch{id:string;name:string;lat:number;lon:number;largo?:number;ancho?:number;area?:number;tipo?:string;nodes?:{lat:number,lon:number}[];address?:string;isSaved?:boolean}
+interface SavedPitch{id:number;nombre:string;direccion:string;lat:string;lng:string;largo_m:string;ancho_m:string;area_m2:string;tipo_cancha:string;superficie:string;notas:string;osm_id?:string}
 
 declare const L:any
 
@@ -167,12 +167,18 @@ export default function CanchasPanel(){
            if (!dim || dim.largo < 30) continue;
         }
         
+        const osmIdStr = String(el.id)
+        const savedVersion = saved.find(s => s.osm_id === osmIdStr)
+
         results.push({
           id:`${el.type}_${el.id}`,
-          name:el.tags?.name || (isStadium ? 'Estadio sin nombre' : 'Cancha sin nombre'),
+          name: savedVersion ? savedVersion.nombre : (el.tags?.name || (isStadium ? 'Estadio sin nombre' : 'Cancha sin nombre')),
           lat,lon,nodes,
-          largo:undefined,ancho:undefined,area:undefined,
-          tipo: isStadium ? 'Estadio' : 'Fútbol 11'
+          largo: savedVersion ? Number(savedVersion.largo_m) : undefined,
+          ancho: savedVersion ? Number(savedVersion.ancho_m) : undefined,
+          area: savedVersion ? Number(savedVersion.area_m2) : undefined,
+          tipo: savedVersion ? savedVersion.tipo_cancha : (isStadium ? 'Estadio' : 'Fútbol 11'),
+          isSaved: !!savedVersion
         })
       }
       setPitches(results)
@@ -426,7 +432,9 @@ export default function CanchasPanel(){
                   if(mapInst.current)mapInst.current.setView([p.lat,p.lon],17)
                 }} style={{width:'100%',display:'flex',alignItems:'center',justifyContent:'space-between',gap:12,padding:'12px 16px',background:selected?.id===p.id?'rgba(200,241,53,.08)':'transparent',border:selected?.id===p.id?'1px solid rgba(200,241,53,.2)':'1px solid var(--mist)',borderRadius:12,cursor:'pointer',textAlign:'left',transition:'all .12s'}}>
                   <div style={{flex:1,minWidth:0}}>
-                    <div style={{fontWeight:600,fontSize:14,color:'var(--snow)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{p.name}</div>
+                    <div style={{fontWeight:600,fontSize:14,color:p.isSaved?'var(--lime)':'var(--snow)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
+                      {p.isSaved && '⭐ '}{p.name}
+                    </div>
                     {p.largo&&p.ancho&&<div style={{fontSize:12,color:'var(--silver)',marginTop:2}}>{p.largo}m × {p.ancho}m · {p.area}m²</div>}
                   </div>
                   {p.tipo&&<span style={{fontSize:11,padding:'3px 10px',borderRadius:20,background:'rgba(200,241,53,.1)',color:'var(--lime)',border:'1px solid rgba(200,241,53,.2)',fontWeight:700,flexShrink:0}}>{p.tipo}</span>}
