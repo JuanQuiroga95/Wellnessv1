@@ -59,7 +59,7 @@ const ZONES = [
 
 export default function PhotoBodyMap({ onSelect, selected, description, onDescriptionChange, showCalibration = false }: {
   onSelect: (z: string) => void
-  selected: string | null
+  selected: string[]
   description: string
   onDescriptionChange: (v: string) => void
   showCalibration?: boolean

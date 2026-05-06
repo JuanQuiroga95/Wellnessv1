@@ -10026,7 +10026,7 @@ function ManualPanel() {
         ['🔄 Amarillo — Recuperación', 'Sesión regenerativa o de recuperación activa.'],
         ['😴 Gris — Descanso', 'Día libre sin actividad programada.'],
         ['⚠ Rojo — <24h', 'Alerta automática cuando hay menos de 24 horas entre el final de un evento y el inicio del siguiente.'],
-        ['Crear sesión', 'Usá el botón + Nueva sesión o hacé clic en cualquier día. Campos: fecha/hora, tipo, etiqueta MD (MD+1 a MD), objetivos y bloques de tareas.'],
+        ['Crear sesión', 'Usá el botón + Nueva sesión o hacé clic en cualquier día. Campos: fecha/hora, tipo, etiqueta MD (MD+1 a MD), objetivos, estadio vinculado y bloques de tareas.'],
         ['Calculadora de carga', 'Cuando una tarea tiene espacio definido (Rondo, Partido reducido, etc.), calcula automáticamente carga GPS estimada según densidad (m²/jug) y tiempo activo. Basado en Sangnier et al. (2018).'],
         ['Objetivo de la tarea', 'Categoría: Fuerza, Activación, Resistencia o Velocidad. El número (1–4) indica intensidad dentro de esa categoría (1 = más intenso).'],
         ['✏️ Editar GPS', 'Podés sobrescribir cualquier métrica calculada con el dato real de GPS. Los valores editados se muestran en azul.'],
@@ -10037,6 +10037,7 @@ function ManualPanel() {
         ['Variable', 'Seleccioná qué métrica visualizar: UA, RPE, Distancia total, Sprints, Aceleraciones, etc.'],
         ['Vista diaria / semanal', 'Diaria: cada sesión. Semanal: agrupa por semana para ver tendencia macro.'],
         ['Gráficos A y B', 'A: RPE vs. Total Wellness — zona verde = carga alta con buen bienestar (ideal). B: RPE vs. Dolor Muscular — detecta sesiones de alta carga con dolor muscular elevado.'],
+        ['Perfil Neuromuscular', 'Analiza el equilibrio entre Carga Metabólica vs. Neuromuscular según las dimensiones del estadio vinculado en el Calendario.'],
         ['% de cambio', 'Variación respecto al período anterior. Verde = normal (−5% a +15%), rojo = aumento alto (>+15%), azul = reducción notable (<−5%).'],
       ]},
       { titulo: 'Minutaje', icono: '⏱', intro: 'Registro acumulado de minutos jugados y entrenados. Controla la exposición por tiempo.', rows: [
@@ -10254,6 +10255,7 @@ ${secciones_data.map(sec => `
           <ManualRow label="Tipo" desc="Entrenamiento, Partido, Recuperación o Descanso." />
           <ManualRow label="Título (MD)" desc="Etiqueta del microciclo: MD+1, MD+2, MD-4, MD-3, MD-2, MD-1, MD. Fundamental para el análisis de carga por MD." />
           <ManualRow label="Objetivos" desc="Objetivo físico principal (Fuerza, Resistencia, Velocidad, etc.) y objetivo secundario." />
+          <ManualRow label="Estadio / Cancha" desc="📍 Seleccioná el lugar del entrenamiento. Esto es clave para el análisis posterior de densidad y perfil neuromuscular según las dimensiones del campo." />
           <ManualRow label="Bloques de tareas" desc="Podés agregar múltiples tareas dentro de una sesión. Cada bloque tiene su propio tipo, series, minutos, espacio y jugadores." />
         </ManualSection>
         <ManualSection title="Calculadora de carga en bloques de tarea">
@@ -10276,6 +10278,7 @@ ${secciones_data.map(sec => `
           <ManualRow label="Vista diaria / semanal" desc="Diaria: cada sesión. Semanal: agrupa por semana para ver la tendencia macro." />
           <ManualRow label="Gráfico A — RPE vs. Wellness" desc="Zona verde = carga alta con buen bienestar (ideal). Zona roja = carga alta con mal bienestar (riesgo)." />
           <ManualRow label="Gráfico B — RPE vs. Dolor" desc="Detecta sesiones de alta carga con dolor muscular elevado." />
+          <ManualRow label="Perfil Neuromuscular" desc="📊 Nueva vista que cruza datos GPS con dimensiones del estadio. Compara el equilibrio entre Carga Metabólica (Distancia/HSR) y Carga Neuromuscular (Aceleraciones/Desaceleraciones). Detecta automáticamente picos de densidad en canchas reducidas." />
           <ManualRow label="% de cambio" desc="Variación respecto al período anterior. Verde = normal (−5% a +15%), rojo = aumento alto (>+15%), azul = reducción notable (<−5%)." />
         </ManualSection>
       </div>
@@ -10516,7 +10519,10 @@ ${secciones_data.map(sec => `
           <ManualRow label="Nombre" desc="Nombre para identificar la cancha (por defecto usa el nombre de OpenStreetMap)." />
           <ManualRow label="Superficie" desc="Tipo de superficie: Césped natural, Sintético, Tierra, Cemento u Otro." />
           <ManualRow label="Notas" desc="Campo libre para anotaciones (iluminación, vestuarios, costo, etc.)." />
-          <ManualRow label="⭐ Guardar" desc="La cancha queda asociada al club y visible en la pestaña Guardadas." />
+          <ManualRow label="⭐ Guardar" desc="La cancha queda asociada al club y visible en la pestaña Guardadas. Una vez guardada, podrás seleccionarla en el Calendario para vincularla a tus entrenamientos." />
+        </ManualSection>
+        <ManualSection title="Impacto en el rendimiento">
+          <p style={{ fontSize:12, color:'var(--silver)', lineHeight:1.65 }}>Vincular una cancha a una sesión permite al sistema calcular el <strong>Perfil Neuromuscular</strong> en Analytics, ayudándote a entender cómo las dimensiones del campo afectan la densidad de aceleraciones y frenos de tus jugadores.</p>
         </ManualSection>
         <ManualSection title="Pestaña Guardadas">
           <p style={{ fontSize:12, color:'var(--silver)', lineHeight:1.65 }}>Muestra todas las canchas registradas para tu club. Desde aquí podés hacer clic en 🗺️ Ver para ir a esa cancha en el mapa, o 🗑 para eliminarla.</p>

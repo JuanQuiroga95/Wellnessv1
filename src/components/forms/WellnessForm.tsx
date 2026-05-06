@@ -510,7 +510,7 @@ function AlreadyCompleted({ data, onBack }) {
             {data.entrena_grupo ? '✓ Entrena con el grupo' : '✗ No entrena con el grupo'}
           </span>
           {data.fue_gimnasio && <span style={{ fontSize:12, padding:'5px 12px', borderRadius:20, background:'rgba(200,241,53,.08)', color:'var(--lime)', border:'1px solid rgba(200,241,53,.2)', fontWeight:600 }}>🏋 Fue al gimnasio</span>}
-          {data.dolor_zona && <span style={{ fontSize:12, padding:'5px 12px', borderRadius:20, background:'rgba(239,68,68,.08)', color:'#f87171', border:'1px solid rgba(239,68,68,.25)', fontWeight:600 }}>📍 {data.dolor_zona}</span>}
+          {data.dolor_zona && (() => { let zonas: string[]; try { const p = JSON.parse(data.dolor_zona); zonas = Array.isArray(p) ? p : [data.dolor_zona] } catch { zonas = [data.dolor_zona] }; return zonas.map(z => <span key={z} style={{ fontSize:12, padding:'5px 12px', borderRadius:20, background:'rgba(239,68,68,.08)', color:'#f87171', border:'1px solid rgba(239,68,68,.25)', fontWeight:600 }}>📍 {z}</span>) })()}
           {data.dolor_eva != null && data.dolor_eva > 0 && <span style={{ fontSize:12, padding:'5px 12px', borderRadius:20, background:'rgba(239,68,68,.08)', color:'#f87171', border:'1px solid rgba(239,68,68,.25)', fontWeight:600 }}>EVA: {data.dolor_eva}/10</span>}
           {data.dolor_descripcion && <p style={{ fontSize:11, color:'#f87171', marginTop:6, fontStyle:'italic' }}>💬 {data.dolor_descripcion}</p>}
         </div>
@@ -538,10 +538,27 @@ export default function WellnessForm({ jugadorId, onSuccess, todayWellness }) {
 
   // Mostrar mapa corporal cuando dolor >= 2 (algo de dolor)
   const showBodyMap = vals.dolor_muscular !== null && vals.dolor_muscular >= 2
-  // Mostrar EVA cuando se seleccionó zona
-  const showEVA = showBodyMap && zonaSeleccionada !== null
+  // Mostrar EVA cuando se seleccionó zona (no "Ningún dolor")
+  const showEVA = showBodyMap && zonasSeleccionadas.length > 0 && !zonasSeleccionadas.includes('Ningún dolor')
 
-  const allFilled = Object.values(vals).every(v => v !== null) && tqr !== null && entrenaGrupo !== null && fueGimnasio !== null && (!showBodyMap || zonaSeleccionada !== null || (vals.dolor_muscular != null && vals.dolor_muscular < 2)) && (!showEVA || dolorEva !== null)
+  function handleZoneSelect(z: string) {
+    if (z === 'Ningún dolor') {
+      setZonasSeleccionadas(['Ningún dolor'])
+      setDolorEva(null)
+      setDolorDescripcion('')
+      return
+    }
+    setZonasSeleccionadas(prev => {
+      const withoutNinguno = prev.filter(x => x !== 'Ningún dolor')
+      if (withoutNinguno.includes(z)) {
+        if (z === 'Otro') setDolorDescripcion('')
+        return withoutNinguno.filter(x => x !== z)
+      }
+      return [...withoutNinguno, z]
+    })
+  }
+
+  const allFilled = Object.values(vals).every(v => v !== null) && tqr !== null && entrenaGrupo !== null && fueGimnasio !== null && (!showBodyMap || zonasSeleccionadas.length > 0 || (vals.dolor_muscular != null && vals.dolor_muscular < 2)) && (!showEVA || dolorEva !== null)
 
   const filledCount = Object.values(vals).filter(v=>v!==null).length + (tqr?1:0) + (entrenaGrupo!==null?1:0) + (fueGimnasio!==null?1:0)
   const totalFields = 5 + 1 + 1 + 1 // wellness + tqr + entrena + gimnasio
@@ -555,7 +572,7 @@ export default function WellnessForm({ jugadorId, onSuccess, todayWellness }) {
         method:'POST', headers:{'Content-Type':'application/json'},
         body: JSON.stringify({
           jugador_id:jugadorId, ...vals,
-          dolor_zona: zonaSeleccionada||null,
+          dolor_zona: zonasSeleccionadas.length > 0 ? JSON.stringify(zonasSeleccionadas) : null,
           dolor_descripcion: dolorDescripcion||null,
           dolor_eva: dolorEva,
           tqr, recovery: tqr,
@@ -602,8 +619,8 @@ export default function WellnessForm({ jugadorId, onSuccess, todayWellness }) {
             <div style={{ marginTop:14 }}>
               <p style={{ fontSize:11, fontWeight:700, color:'#f87171', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:10 }}>📍 ¿En qué parte sentís dolor o molestia?</p>
               <PhotoBodyMap
-                selected={zonaSeleccionada}
-                onSelect={(z) => { setZonaSeleccionada(z); if (!z) setDolorEva(null); if (z !== 'Otro') setDolorDescripcion('') }}
+                selected={zonasSeleccionadas}
+                onSelect={handleZoneSelect}
                 description={dolorDescripcion}
                 onDescriptionChange={setDolorDescripcion}
               />
