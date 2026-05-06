@@ -162,6 +162,7 @@ export default function PhotoBodyMap({ onSelect, selected, description, onDescri
               const isSelected = (selected || []).includes(z.label)
               const isHovered = hovered === z.id
               const tooltipColor = isSelected ? 'rgba(239,68,68,0.92)' : 'rgba(34,197,94,0.92)'
+              const tooltipAbove = z.y - z.r > 70
               return (
                 <g key={z.id} style={{ pointerEvents: 'auto', cursor: 'pointer' }}
                    onMouseEnter={() => setHovered(z.id)}
@@ -178,13 +179,25 @@ export default function PhotoBodyMap({ onSelect, selected, description, onDescri
 
                   {(isSelected || isHovered) && (
                     <g style={{ pointerEvents: 'none' }}>
-                      <rect x={z.x - 75} y={z.y - z.r - 55} width={150} height={34} rx={17}
-                            fill={tooltipColor} />
-                      <text x={z.x} y={z.y - z.r - 33} textAnchor="middle" fill="#fff"
-                            style={{ fontSize: 11, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                        {z.label}
-                      </text>
-                      <path d={`M ${z.x} ${z.y - z.r - 21} L ${z.x - 6} ${z.y - z.r - 21} L ${z.x} ${z.y - z.r - 12} L ${z.x + 6} ${z.y - z.r - 21} Z`} fill={tooltipColor} />
+                      {tooltipAbove ? (
+                        <>
+                          <rect x={z.x - 75} y={z.y - z.r - 55} width={150} height={34} rx={17} fill={tooltipColor} />
+                          <text x={z.x} y={z.y - z.r - 33} textAnchor="middle" fill="#fff"
+                                style={{ fontSize: 11, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                            {z.label}
+                          </text>
+                          <path d={`M ${z.x} ${z.y - z.r - 21} L ${z.x - 6} ${z.y - z.r - 21} L ${z.x} ${z.y - z.r - 12} L ${z.x + 6} ${z.y - z.r - 21} Z`} fill={tooltipColor} />
+                        </>
+                      ) : (
+                        <>
+                          <rect x={z.x + z.r + 9} y={z.y - 17} width={150} height={34} rx={17} fill={tooltipColor} />
+                          <text x={z.x + z.r + 84} y={z.y + 5} textAnchor="middle" fill="#fff"
+                                style={{ fontSize: 11, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                            {z.label}
+                          </text>
+                          <path d={`M ${z.x + z.r + 1} ${z.y} L ${z.x + z.r + 9} ${z.y - 6} L ${z.x + z.r + 9} ${z.y + 6} Z`} fill={tooltipColor} />
+                        </>
+                      )}
                     </g>
                   )}
                 </g>
