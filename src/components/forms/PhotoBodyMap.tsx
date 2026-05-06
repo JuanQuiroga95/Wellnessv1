@@ -158,7 +158,7 @@ export default function PhotoBodyMap({ onSelect, selected, description, onDescri
             </defs>
 
             {ZONES.map(z => {
-              const isActive = selected.includes(z.label) || hovered === z.id
+              const isActive = (selected || []).includes(z.label) || hovered === z.id
               return (
                 <g key={z.id} style={{ pointerEvents: 'auto', cursor: 'pointer' }} 
                    onMouseEnter={() => setHovered(z.id)} 
@@ -202,9 +202,9 @@ export default function PhotoBodyMap({ onSelect, selected, description, onDescri
         <div style={{ display: 'flex', gap: 16, marginBottom: 24 }}>
           <button onClick={() => onSelect('Ningún dolor')} style={{
             flex: 1, padding: '16px', borderRadius: 16, fontSize: 13, fontWeight: 800, cursor: 'pointer',
-            border: selected.includes('Ningún dolor') ? '2px solid #4ade80' : '1px solid rgba(255,255,255,0.1)',
-            background: selected.includes('Ningún dolor') ? 'rgba(74,222,128,0.15)' : 'rgba(255,255,255,0.03)',
-            color: selected.includes('Ningún dolor') ? '#4ade80' : '#64748b',
+            border: (selected || []).includes('Ningún dolor') ? '2px solid #4ade80' : '1px solid rgba(255,255,255,0.1)',
+            background: (selected || []).includes('Ningún dolor') ? 'rgba(74,222,128,0.15)' : 'rgba(255,255,255,0.03)',
+            color: (selected || []).includes('Ningún dolor') ? '#4ade80' : '#64748b',
             transition: 'all 0.2s',
             textTransform: 'uppercase',
             letterSpacing: '0.05em'
@@ -212,9 +212,9 @@ export default function PhotoBodyMap({ onSelect, selected, description, onDescri
           
           <button onClick={() => onSelect('Otro')} style={{
             flex: 1, padding: '16px', borderRadius: 16, fontSize: 13, fontWeight: 800, cursor: 'pointer',
-            border: selected.includes('Otro') ? '2px solid #f59e0b' : '1px solid rgba(255,255,255,0.1)',
-            background: selected.includes('Otro') ? 'rgba(245,158,11,0.15)' : 'rgba(255,255,255,0.03)',
-            color: selected.includes('Otro') ? '#f59e0b' : '#64748b',
+            border: (selected || []).includes('Otro') ? '2px solid #f59e0b' : '1px solid rgba(255,255,255,0.1)',
+            background: (selected || []).includes('Otro') ? 'rgba(245,158,11,0.15)' : 'rgba(255,255,255,0.03)',
+            color: (selected || []).includes('Otro') ? '#f59e0b' : '#64748b',
             transition: 'all 0.2s',
             textTransform: 'uppercase',
             letterSpacing: '0.05em'
@@ -238,7 +238,7 @@ export default function PhotoBodyMap({ onSelect, selected, description, onDescri
           />
         </div>
         
-        {selected.length > 0 && !selected.includes('Ningún dolor') && (
+        {selected && selected.length > 0 && !selected.includes('Ningún dolor') && (
           <div style={{ 
             marginTop: 20, padding: '12px 20px', borderRadius: 12, 
             background: 'rgba(239, 68, 68, 0.1)', borderLeft: '4px solid #ef4444',

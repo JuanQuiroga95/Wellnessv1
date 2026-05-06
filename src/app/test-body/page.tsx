@@ -4,8 +4,17 @@ import PhotoBodyMap from '@/components/forms/PhotoBodyMap'
 import Topbar from '@/components/ui/Topbar'
 
 export default function TestBodyPage() {
-  const [selected, setSelected] = useState<string | null>(null)
+  const [selected, setSelected] = useState<string[]>([])
   const [description, setDescription] = useState('')
+
+  function handleSelect(z: string) {
+    setSelected(prev => {
+      if (z === 'Ningún dolor') return ['Ningún dolor']
+      const withoutNinguno = prev.filter(x => x !== 'Ningún dolor')
+      if (withoutNinguno.includes(z)) return withoutNinguno.filter(x => x !== z)
+      return [...withoutNinguno, z]
+    })
+  }
 
   return (
     <div style={{ minHeight: '100vh', background: '#020617' }}>
@@ -20,7 +29,7 @@ export default function TestBodyPage() {
         <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 32 }}>
           <PhotoBodyMap
             selected={selected}
-            onSelect={setSelected}
+            onSelect={handleSelect}
             description={description}
             onDescriptionChange={setDescription}
             showCalibration={true}
