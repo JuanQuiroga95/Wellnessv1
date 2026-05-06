@@ -35,26 +35,27 @@ const ZONES = [
   { id: 'pie_i',     label: 'Pie Izq.',          x: 329, y: 980, r: 15 },
 
   // ── VISTA POSTERIOR ──────────────────────────────────────────────────────────
+  // En vista posterior, izq/der se miran desde atrás: el lado izq de la imagen = izq del jugador
   { id: 'nuca',      label: 'Nuca',              x: 762, y: 155, r: 22 },
   { id: 'trapecio',  label: 'Trapecio',          x: 762, y: 222, r: 35 },
-  { id: 'h_back_d',  label: 'Hombro Der.',       x: 665, y: 200, r: 28 },
-  { id: 'h_back_i',  label: 'Hombro Izq.',       x: 858, y: 200, r: 28 },
+  { id: 'h_back_d',  label: 'Hombro Izq.',       x: 665, y: 200, r: 28 },
+  { id: 'h_back_i',  label: 'Hombro Der.',       x: 858, y: 200, r: 28 },
   { id: 'esp_alta',  label: 'Espalda Alta',      x: 762, y: 305, r: 48 },
-  { id: 'triceps_d', label: 'Tríceps Der.',      x: 645, y: 325, r: 22 },
-  { id: 'triceps_i', label: 'Tríceps Izq.',      x: 878, y: 325, r: 22 },
-  { id: 'c_back_d',  label: 'Codo Der.',         x: 632, y: 402, r: 20 },
-  { id: 'c_back_i',  label: 'Codo Izq.',         x: 892, y: 402, r: 20 },
+  { id: 'triceps_d', label: 'Tríceps Izq.',      x: 645, y: 325, r: 22 },
+  { id: 'triceps_i', label: 'Tríceps Der.',      x: 878, y: 325, r: 22 },
+  { id: 'c_back_d',  label: 'Codo Izq.',         x: 632, y: 402, r: 20 },
+  { id: 'c_back_i',  label: 'Codo Der.',         x: 892, y: 402, r: 20 },
   { id: 'lumbar',    label: 'Espalda Baja',      x: 762, y: 442, r: 38 },
-  { id: 'm_back_d',  label: 'Muñeca Der.',       x: 620, y: 535, r: 18 },
-  { id: 'm_back_i',  label: 'Muñeca Izq.',       x: 903, y: 535, r: 18 },
-  { id: 'gluteo_d',  label: 'Glúteo Der.',       x: 717, y: 495, r: 38 },
-  { id: 'gluteo_i',  label: 'Glúteo Izq.',       x: 808, y: 495, r: 38 },
-  { id: 'isquio_d',  label: 'Isquiotibial Der.', x: 717, y: 638, r: 43 },
-  { id: 'isquio_i',  label: 'Isquiotibial Izq.', x: 808, y: 638, r: 43 },
-  { id: 'gemelo_d',  label: 'Gemelo Der.',       x: 704, y: 764, r: 33 },
-  { id: 'gemelo_i',  label: 'Gemelo Izq.',       x: 833, y: 764, r: 33 },
-  { id: 't_back_d',  label: 'Talón Der.',        x: 717, y: 948, r: 18 },
-  { id: 't_back_i',  label: 'Talón Izq.',        x: 839, y: 942, r: 18 },
+  { id: 'm_back_d',  label: 'Muñeca Izq.',       x: 620, y: 535, r: 18 },
+  { id: 'm_back_i',  label: 'Muñeca Der.',       x: 903, y: 535, r: 18 },
+  { id: 'gluteo_d',  label: 'Glúteo Izq.',       x: 717, y: 495, r: 38 },
+  { id: 'gluteo_i',  label: 'Glúteo Der.',       x: 808, y: 495, r: 38 },
+  { id: 'isquio_d',  label: 'Isquiotibial Izq.', x: 717, y: 638, r: 43 },
+  { id: 'isquio_i',  label: 'Isquiotibial Der.', x: 808, y: 638, r: 43 },
+  { id: 'gemelo_d',  label: 'Gemelo Izq.',       x: 704, y: 764, r: 33 },
+  { id: 'gemelo_i',  label: 'Gemelo Der.',       x: 833, y: 764, r: 33 },
+  { id: 't_back_d',  label: 'Talón Izq.',        x: 717, y: 948, r: 18 },
+  { id: 't_back_i',  label: 'Talón Der.',        x: 839, y: 942, r: 18 },
 ]
 
 export default function PhotoBodyMap({ onSelect, selected, description, onDescriptionChange, showCalibration = false }: {
@@ -158,30 +159,32 @@ export default function PhotoBodyMap({ onSelect, selected, description, onDescri
             </defs>
 
             {ZONES.map(z => {
-              const isActive = (selected || []).includes(z.label) || hovered === z.id
+              const isSelected = (selected || []).includes(z.label)
+              const isHovered = hovered === z.id
+              const tooltipColor = isSelected ? 'rgba(239,68,68,0.92)' : 'rgba(34,197,94,0.92)'
               return (
-                <g key={z.id} style={{ pointerEvents: 'auto', cursor: 'pointer' }} 
-                   onMouseEnter={() => setHovered(z.id)} 
+                <g key={z.id} style={{ pointerEvents: 'auto', cursor: 'pointer' }}
+                   onMouseEnter={() => setHovered(z.id)}
                    onMouseLeave={() => setHovered(null)}
                    onClick={() => onSelect(z.label)}>
-                  
-                  <circle cx={z.x} cy={z.y} r={isActive ? z.r * 1.1 : z.r * 0.8} 
-                          fill={isActive ? 'url(#highlight)' : 'rgba(255,255,255,0.02)'} 
-                          stroke={isActive ? '#ef4444' : 'rgba(255,255,255,0.05)'} 
-                          strokeWidth={isActive ? 2 : 1}
-                          filter={isActive ? 'url(#glow)' : 'none'}
-                          style={{ transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)' }} />
-                  
-                  {isActive && (
+
+                  <circle cx={z.x} cy={z.y}
+                          r={isSelected ? z.r * 1.1 : isHovered ? z.r * 0.95 : z.r * 0.75}
+                          fill={isSelected ? 'url(#highlight)' : isHovered ? 'rgba(74,222,128,0.45)' : 'rgba(74,222,128,0.22)'}
+                          stroke={isSelected ? '#ef4444' : isHovered ? '#4ade80' : 'rgba(74,222,128,0.55)'}
+                          strokeWidth={isSelected ? 2 : 1.5}
+                          filter={isSelected ? 'url(#glow)' : 'none'}
+                          style={{ transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)' }} />
+
+                  {(isSelected || isHovered) && (
                     <g style={{ pointerEvents: 'none' }}>
-                      <rect x={z.x - 75} y={z.y - z.r - 55} width={150} height={34} rx={17} 
-                            fill="rgba(239, 68, 68, 0.9)" 
-                            style={{ backdropFilter: 'blur(4px)' }} />
-                      <text x={z.x} y={z.y - z.r - 33} textAnchor="middle" fill="#fff" 
+                      <rect x={z.x - 75} y={z.y - z.r - 55} width={150} height={34} rx={17}
+                            fill={tooltipColor} />
+                      <text x={z.x} y={z.y - z.r - 33} textAnchor="middle" fill="#fff"
                             style={{ fontSize: 11, fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                         {z.label}
                       </text>
-                      <path d={`M ${z.x} ${z.y - z.r - 21} L ${z.x - 6} ${z.y - z.r - 21} L ${z.x} ${z.y - z.r - 12} L ${z.x + 6} ${z.y - z.r - 21} Z`} fill="rgba(239, 68, 68, 0.9)" />
+                      <path d={`M ${z.x} ${z.y - z.r - 21} L ${z.x - 6} ${z.y - z.r - 21} L ${z.x} ${z.y - z.r - 12} L ${z.x + 6} ${z.y - z.r - 21} Z`} fill={tooltipColor} />
                     </g>
                   )}
                 </g>
