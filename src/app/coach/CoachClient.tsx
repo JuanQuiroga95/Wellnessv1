@@ -1541,7 +1541,7 @@ function CalendarioPanel({ teamData }) {
       setData(await r.json())
       const rc = await fetch('/api/canchas')
       const dc = await rc.json()
-      setCanchas(dc.canchas || [])
+      setCanchas(Array.isArray(dc) ? dc : [])
     } catch {}
     setLoading(false)
   }

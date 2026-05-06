@@ -171,7 +171,7 @@ export default function CanchasPanel(){
           id:`${el.type}_${el.id}`,
           name:el.tags?.name || (isStadium ? 'Estadio sin nombre' : 'Cancha sin nombre'),
           lat,lon,nodes,
-          largo:dim?.largo,ancho:dim?.ancho,area:dim?.area,
+          largo:undefined,ancho:undefined,area:undefined,
           tipo: isStadium ? 'Estadio' : 'Fútbol 11'
         })
       }
