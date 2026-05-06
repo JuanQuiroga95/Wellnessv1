@@ -222,6 +222,10 @@ export default function CanchasPanel(){
           const area=Math.round(polyArea(pts.map(p=>({lat:p.lat,lon:p.lng})))*10)/10
           
           setMeasureResult({largo,ancho,area})
+          if (selected) {
+            setSaveForm(f => ({ ...f, largo, ancho, area, tipo: classifyPitch(largo, ancho) }))
+            setMeasureResult(null) // Hide the floating box since it's already in the form
+          }
           setMeasuring(false)
           map.getContainer().style.cursor=''
           map.off('click',onClick)
@@ -263,7 +267,7 @@ export default function CanchasPanel(){
     setSaveError(null)
     try{
       const isOsm = p.id.includes('_') && !p.id.startsWith('manual')
-      const osmId = isOsm ? Number(p.id.split('_')[1]) : null
+      const osmId = isOsm ? p.id.split('_')[1] : null
 
       const r=await fetch('/api/canchas',{
         method:'POST',
