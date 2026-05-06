@@ -126,7 +126,7 @@ export default function CanchasPanel(){
       }
     }catch{}
     setLoading(false)
-  },[query])
+  },[query, loadPitches])
 
   const selectLocation = async (loc: any) => {
     setLocationResults([])
@@ -193,7 +193,7 @@ export default function CanchasPanel(){
       }
     }catch(e){console.error('Overpass error',e)}
     setLoading(false)
-  },[])
+  },[saved])
 
   // Measure mode click handler
   useEffect(()=>{
