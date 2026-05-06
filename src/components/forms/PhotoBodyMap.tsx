@@ -58,38 +58,81 @@ const ZONES = [
 
 export default function PhotoBodyMap({ onSelect, selected, description, onDescriptionChange }) {
   const [hovered, setHovered] = useState(null)
+  const [calMode, setCalMode] = useState(false)
+  const [calPos, setCalPos] = useState<{x:number, y:number} | null>(null)
+  const [calPinned, setCalPinned] = useState<{x:number, y:number} | null>(null)
+
+  function handleCalMove(e: React.MouseEvent<HTMLDivElement>) {
+    if (!calMode) return
+    const rect = e.currentTarget.getBoundingClientRect()
+    const x = Math.round(((e.clientX - rect.left) / rect.width) * 1024)
+    const y = Math.round(((e.clientY - rect.top) / rect.height) * 1024)
+    setCalPos({ x, y })
+  }
+
+  function handleCalClick(e: React.MouseEvent<HTMLDivElement>) {
+    if (!calMode) return
+    const rect = e.currentTarget.getBoundingClientRect()
+    const x = Math.round(((e.clientX - rect.left) / rect.width) * 1024)
+    const y = Math.round(((e.clientY - rect.top) / rect.height) * 1024)
+    setCalPinned({ x, y })
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-      <div style={{ 
-        background: 'rgba(15, 23, 42, 0.6)', 
+
+      {/* ── Botón modo calibración ── */}
+      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+        <button onClick={() => { setCalMode(!calMode); setCalPinned(null) }} style={{
+          padding: '6px 14px', borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: 'pointer',
+          background: calMode ? 'rgba(251,191,36,.15)' : 'rgba(255,255,255,.05)',
+          border: calMode ? '1px solid rgba(251,191,36,.5)' : '1px solid rgba(255,255,255,.1)',
+          color: calMode ? '#fbbf24' : '#64748b',
+        }}>
+          {calMode ? '⚡ CALIBRACIÓN ON — Click para fijar punto' : '🎯 Modo calibración'}
+        </button>
+      </div>
+
+      <div style={{
+        background: 'rgba(15, 23, 42, 0.6)',
         backdropFilter: 'blur(12px)',
-        padding: 16, 
-        borderRadius: 32, 
-        border: '1px solid rgba(255, 255, 255, 0.1)', 
+        padding: 16,
+        borderRadius: 32,
+        border: '1px solid rgba(255, 255, 255, 0.1)',
         boxShadow: '0 25px 80px rgba(0,0,0,0.6)',
         position: 'relative'
       }}>
-        <div style={{ 
-          position: 'relative', 
-          width: '100%', 
-          maxWidth: 850, 
-          margin: '0 auto', 
-          overflow: 'hidden', 
-          borderRadius: 24, 
-          border: '1px solid rgba(255, 255, 255, 0.05)',
-          background: '#020617'
-        }}>
+        <div
+          onMouseMove={handleCalMove}
+          onClick={handleCalClick}
+          style={{
+            position: 'relative',
+            width: '100%',
+            maxWidth: 850,
+            margin: '0 auto',
+            overflow: 'hidden',
+            borderRadius: 24,
+            border: '1px solid rgba(255, 255, 255, 0.05)',
+            background: '#020617',
+            cursor: calMode ? 'crosshair' : 'default',
+          }}>
           <img src="/images/anatomy-render.png" alt="Anatomy" style={{ width: '100%', display: 'block', opacity: 0.9 }} />
-          
-          <svg viewBox="0 0 1024 1024" 
-               style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none' }}
-               onClick={(e) => {
-                 const rect = e.currentTarget.getBoundingClientRect()
-                 const x = Math.round(((e.clientX - rect.left) / rect.width) * 1024)
-                 const y = Math.round(((e.clientY - rect.top) / rect.height) * 1024)
-                 console.log(`Click en SVG: x: ${x}, y: ${y}`)
-               }}>
+
+          {/* coordenadas en tiempo real */}
+          {calMode && calPos && (
+            <div style={{ position: 'absolute', top: 8, left: 8, background: 'rgba(0,0,0,.85)', color: '#fbbf24', padding: '4px 10px', borderRadius: 6, fontSize: 12, fontFamily: 'monospace', fontWeight: 700, pointerEvents: 'none', zIndex: 20 }}>
+              x: {calPos.x} · y: {calPos.y}
+            </div>
+          )}
+          {/* punto fijado al hacer click */}
+          {calMode && calPinned && (
+            <div style={{ position: 'absolute', top: 32, left: 8, background: 'rgba(239,68,68,.9)', color: '#fff', padding: '4px 10px', borderRadius: 6, fontSize: 12, fontFamily: 'monospace', fontWeight: 700, pointerEvents: 'none', zIndex: 20 }}>
+              📍 x: {calPinned.x} · y: {calPinned.y}
+            </div>
+          )}
+
+          <svg viewBox="0 0 1024 1024"
+               style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: calMode ? 'none' : 'none' }}>
             <defs>
               <radialGradient id="highlight" cx="50%" cy="50%" r="50%">
                 <stop offset="0%" stopColor="#ef4444" stopOpacity="0.8" />
