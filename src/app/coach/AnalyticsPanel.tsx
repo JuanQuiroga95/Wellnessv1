@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, ReferenceLine } from 'recharts'
+import { ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, ReferenceLine, PieChart, Pie, Legend } from 'recharts'
 
 // ── Readiness logic ─────────────────────────────────────────────────────────
 function readiness(total) {
@@ -363,6 +363,83 @@ export default function AnalyticsPanel() {
     )
   }
 
+  function PerfilNeuromuscularView() {
+    const rows = data?.loadAnalysis || []
+    if (rows.length === 0) return <div style={{ padding:60, textAlign:'center', color:'var(--silver)' }}>Sin datos de GPS vinculados a estadios en este período.</div>
+
+    return (
+      <div style={{ display:'flex', flexDirection:'column', gap:20 }}>
+        {rows.map((r, i) => {
+          const total = r.metabolic + r.neuromuscular
+          const pieData = [
+            { name: 'Metabólica (m)', value: r.metabolic, color: '#3b82f6' },
+            { name: 'Neuromuscular (Acc/Dec)', value: r.neuromuscular, color: '#a855f7' }
+          ]
+          const isSmallPitch = r.area < 4500 // Arbitrary threshold for small pitch
+          
+          return (
+            <div key={i} style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:16, padding:20 }}>
+              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:16 }}>
+                <div>
+                  <h3 style={{ fontSize:18, color:'var(--snow)', margin:0 }}>{r.cancha}</h3>
+                  <p style={{ fontSize:12, color:'var(--silver)', marginTop:4 }}>📏 Dimensiones: <span style={{ color:'var(--lime)' }}>{r.dimensiones}m</span> ({r.area}m²)</p>
+                </div>
+                <div style={{ textAlign:'right' }}>
+                  <span style={{ fontSize:10, padding:'4px 10px', borderRadius:8, background:isSmallPitch?'rgba(168,85,247,.1)':'rgba(59,130,246,.1)', color:isSmallPitch?'#a855f7':'#3b82f6', border:`1px solid ${isSmallPitch?'rgba(168,85,247,.3)':'rgba(59,130,246,.3)'}`, fontWeight:700 }}>
+                    {isSmallPitch ? 'PERFIL NEUROMUSCULAR' : 'PERFIL METABÓLICO'}
+                  </span>
+                  <p style={{ fontSize:10, color:'var(--fog)', marginTop:4 }}>{r.registros} registros GPS</p>
+                </div>
+              </div>
+
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:20, alignItems:'center' }}>
+                <div style={{ height:200 }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5}>
+                        {pieData.map((entry, idx) => <Cell key={idx} fill={entry.color} />)}
+                      </Pie>
+                      <Tooltip />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+                <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+                  <div>
+                    <div style={{ display:'flex', justifyContent:'space-between', fontSize:11, color:'var(--silver)', marginBottom:4 }}>
+                      <span>CARGA METABÓLICA</span>
+                      <span style={{ fontWeight:700, color:'#3b82f6' }}>{total > 0 ? Math.round((r.metabolic/total)*100) : 0}%</span>
+                    </div>
+                    <div style={{ height:6, background:'var(--mist)', borderRadius:3, overflow:'hidden' }}>
+                      <div style={{ width:`${total > 0 ? (r.metabolic/total)*100 : 0}%`, height:'100%', background:'#3b82f6' }} />
+                    </div>
+                    <p style={{ fontSize:9, color:'var(--fog)', marginTop:3 }}>Distancia total + HSR (m)</p>
+                  </div>
+                  <div>
+                    <div style={{ display:'flex', justifyContent:'space-between', fontSize:11, color:'var(--silver)', marginBottom:4 }}>
+                      <span>CARGA NEUROMUSCULAR</span>
+                      <span style={{ fontWeight:700, color:'#a855f7' }}>{total > 0 ? Math.round((r.neuromuscular/total)*100) : 0}%</span>
+                    </div>
+                    <div style={{ height:6, background:'var(--mist)', borderRadius:3, overflow:'hidden' }}>
+                      <div style={{ width:`${total > 0 ? (r.neuromuscular/total)*100 : 0}%`, height:'100%', background:'#a855f7' }} />
+                    </div>
+                    <p style={{ fontSize:9, color:'var(--fog)', marginTop:3 }}>Aceleraciones + Desaceleraciones totales</p>
+                  </div>
+                </div>
+              </div>
+              
+              {isSmallPitch && (
+                <div style={{ marginTop:16, padding:'10px 14px', background:'rgba(168,85,247,.05)', border:'1px solid rgba(168,85,247,.2)', borderRadius:10, fontSize:12, color:'var(--silver)', display:'flex', gap:10, alignItems:'center' }}>
+                  <span style={{ fontSize:20 }}>⚠️</span>
+                  <p style={{ margin:0 }}>Pitch reducido detectado: Se observa una mayor densidad de acciones explosivas en relación a la distancia recorrida.</p>
+                </div>
+              )}
+            </div>
+          )
+        })}
+      </div>
+    )
+  }
+
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', flexWrap:'wrap', gap:12 }}>
@@ -387,6 +464,7 @@ export default function AnalyticsPanel() {
         {[
           ['readiness', 'Readiness Hoy'],
           ['scatter',   'Scatter Plots'],
+          ['neuromuscular', 'Perfil Neuromuscular'],
           ['acum',      'Bienestar Microciclo'],
         ].map(([id,lbl]) => (
           <button key={id} type="button" onClick={()=>setView(id)} style={{
@@ -403,9 +481,10 @@ export default function AnalyticsPanel() {
         ? <div style={{ padding:60, textAlign:'center', color:'var(--silver)', fontSize:13 }}>Cargando datos de análisis...</div>
         : data === null 
           ? <div style={{ padding:60, textAlign:'center', color:'var(--silver)', fontSize:13 }}>No hay datos registrados en este período.</div>
-          : view==='readiness' ? <ReadinessView />
-          : view==='scatter'   ? <ScatterView />
-          :                      <AcumView />
+          : view==='readiness'     ? <ReadinessView />
+          : view==='scatter'       ? <ScatterView />
+          : view==='neuromuscular' ? <PerfilNeuromuscularView />
+          :                          <AcumView />
       }
     </div>
   )

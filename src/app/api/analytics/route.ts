@@ -84,10 +84,34 @@ export async function GET(req: NextRequest) {
         AND (${isMaster}::boolean OR (u.club_id=${clubId} AND j.club_id=${clubId}))
       ORDER BY j.id, w.fecha DESC NULLS LAST`
 
+    // Análisis de carga: Neuromuscular vs Metabólica x Estadio
+    const loadAnalysis = await sql`
+      SELECT c.nombre AS cancha_nombre, c.largo_m, c.ancho_m,
+             AVG(g.dist_total) AS avg_dist_total,
+             AVG(g.dist_hsr) AS avg_dist_hsr,
+             AVG(g.acel_total) AS avg_acel_total,
+             AVG(g.decel_total) AS avg_decel_total,
+             COUNT(g.id)::int AS registros
+      FROM gps_logs g
+      JOIN sesiones_plan s ON s.id = g.sesion_id
+      JOIN canchas c ON c.id = s.cancha_id
+      WHERE g.fecha >= ${fDesde}::date AND g.fecha <= ${fHasta}::timestamp
+        AND (${isMaster}::boolean OR s.club_id = ${clubId})
+      GROUP BY c.id, c.nombre, c.largo_m, c.ancho_m
+      ORDER BY registros DESC`
+
     return NextResponse.json({
       wellnessWeekly: wellnessWeekly.map(r => ({ ...r, semana:String(r.semana||''), avg_fatiga:Number(r.avg_fatiga)||0, avg_sueno:Number(r.avg_sueno)||0, avg_dolor:Number(r.avg_dolor)||0, avg_estres:Number(r.avg_estres)||0, avg_animo:Number(r.avg_animo)||0, total_wellness:Number(r.total_wellness)||0 })),
       rpeWeekly: rpeWeekly.map(r => ({ ...r, semana:String(r.semana||''), avg_rpe:Number(r.avg_rpe)||0, avg_duracion:Number(r.avg_duracion)||0 })),
       readinessToday: readinessToday.map(r => ({ jugador_id:Number(r.jugador_id), nombre:String(r.nombre||''), posicion:String(r.posicion||''), foto_url:r.foto_url?String(r.foto_url):null, fecha:r.fecha?String(r.fecha):null, fatiga:Number(r.fatiga)||0, calidad_sueno:Number(r.calidad_sueno)||0, dolor_muscular:Number(r.dolor_muscular)||0, nivel_estres:Number(r.nivel_estres)||0, estado_animo:Number(r.estado_animo)||0, total_wellness:Number(r.total_wellness)||0 })),
+      loadAnalysis: loadAnalysis.map(r => ({
+        cancha: r.cancha_nombre,
+        dimensiones: `${r.largo_m}x${r.ancho_m}`,
+        area: Number(r.largo_m) * Number(r.ancho_m),
+        metabolic: Number(r.avg_dist_total) + Number(r.avg_dist_hsr),
+        neuromuscular: Number(r.avg_acel_total) + Number(r.avg_decel_total),
+        registros: r.registros
+      }))
     })
   } catch (err) {
     console.error('[Analytics GET error]', err)

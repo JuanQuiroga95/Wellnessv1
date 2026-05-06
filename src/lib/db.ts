@@ -168,4 +168,5 @@ export const SCHEMA_STATEMENTS = [
   )`,
   `CREATE INDEX IF NOT EXISTS idx_canchas_club ON canchas(club_id)`,
   `CREATE INDEX IF NOT EXISTS idx_canchas_admin ON canchas(admin_id)`,
+  `ALTER TABLE sesiones_plan ADD COLUMN IF NOT EXISTS cancha_id INTEGER REFERENCES canchas(id) ON DELETE SET NULL`,
 ]

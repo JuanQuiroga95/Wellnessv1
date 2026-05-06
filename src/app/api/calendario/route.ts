@@ -47,7 +47,7 @@ export async function GET(req: NextRequest) {
     const sesiones = clubId ? await sql`
       SELECT id, fecha::text, hora_inicio::text, hora_fin::text, tipo, titulo,
              objetivo, objetivo_secundario, descripcion, ejercicios, rpe_objetivo, notas,
-             rival, rival_foto
+             rival, rival_foto, cancha_id
       FROM sesiones_plan
       WHERE club_id = ${clubId}
         AND fecha >= ${desde}::date AND fecha < ${hastaInc}::date
@@ -55,7 +55,7 @@ export async function GET(req: NextRequest) {
     : await sql`
       SELECT id, fecha::text, hora_inicio::text, hora_fin::text, tipo, titulo,
              objetivo, objetivo_secundario, descripcion, ejercicios, rpe_objetivo, notas,
-             rival, rival_foto
+             rival, rival_foto, cancha_id
       FROM sesiones_plan
       WHERE admin_id = ${s.userId}
         AND club_id IS NULL
@@ -111,21 +111,21 @@ export async function POST(req: NextRequest) {
     if (!s || !isAdmin(s)) return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
     const b = await req.json()
     const { fecha, hora_inicio, hora_fin, tipo, titulo, objetivo, objetivo_secundario,
-            descripcion, ejercicios, rpe_objetivo, notas, rival, rival_foto } = b
+            descripcion, ejercicios, rpe_objetivo, notas, rival, rival_foto, cancha_id } = b
     if (!fecha) return NextResponse.json({ error: 'Fecha requerida' }, { status: 400 })
     const sql = getDb()
 
     const [r] = await sql`
       INSERT INTO sesiones_plan(admin_id, club_id, fecha, hora_inicio, hora_fin, tipo, titulo,
-                                objetivo, objetivo_secundario, descripcion, ejercicios, rpe_objetivo, notas,
-                                rival, rival_foto)
+                                 objetivo, objetivo_secundario, descripcion, ejercicios, rpe_objetivo, notas,
+                                 rival, rival_foto, cancha_id)
       VALUES(${s.userId}, ${s.clubId ? Number(s.clubId) : null}, ${fecha},
              ${hora_inicio || null}, ${hora_fin || null},
              ${tipo || 'entrenamiento'}, ${titulo || null}, ${objetivo || null},
              ${objetivo_secundario || null}, ${descripcion || null},
              ${JSON.stringify(ejercicios || [])}::jsonb,
              ${rpe_objetivo || null}, ${notas || null},
-             ${rival || null}, ${rival_foto || null})
+             ${rival || null}, ${rival_foto || null}, ${cancha_id ? Number(cancha_id) : null})
       RETURNING id, fecha::text`
     return NextResponse.json(r)
   } catch (err) {
@@ -139,7 +139,7 @@ export async function PATCH(req: NextRequest) {
     const s = await getSessionFromRequest(req)
     if (!s || !isAdmin(s)) return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
     const { id, fecha, hora_inicio, hora_fin, tipo, titulo, objetivo, objetivo_secundario,
-            descripcion, ejercicios, rpe_objetivo, notas, rival, rival_foto } = await req.json()
+            descripcion, ejercicios, rpe_objetivo, notas, rival, rival_foto, cancha_id } = await req.json()
     if (!id) return NextResponse.json({ error: 'id requerido' }, { status: 400 })
     const sql = getDb()
 
@@ -159,7 +159,8 @@ export async function PATCH(req: NextRequest) {
         rpe_objetivo       = COALESCE(${rpe_objetivo ?? null}, rpe_objetivo),
         notas              = COALESCE(${notas ?? null}, notas),
         rival              = CASE WHEN ${rival !== undefined ? 'y' : 'n'} = 'y' THEN ${rival ?? null} ELSE rival END,
-        rival_foto         = CASE WHEN ${rival_foto !== undefined ? 'y' : 'n'} = 'y' THEN ${rival_foto ?? null} ELSE rival_foto END
+        rival_foto         = CASE WHEN ${rival_foto !== undefined ? 'y' : 'n'} = 'y' THEN ${rival_foto ?? null} ELSE rival_foto END,
+        cancha_id          = CASE WHEN ${cancha_id !== undefined ? 'y' : 'n'} = 'y' THEN ${cancha_id ? Number(cancha_id) : null} ELSE cancha_id END
       WHERE id = ${id} AND admin_id = ${s.userId}`
     return NextResponse.json({ ok: true })
   } catch (err) {

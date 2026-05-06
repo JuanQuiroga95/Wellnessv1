@@ -524,7 +524,7 @@ function AlreadyCompleted({ data, onBack }) {
 export default function WellnessForm({ jugadorId, onSuccess, todayWellness }) {
   const [vals, setVals] = useState({ fatiga:null, calidad_sueno:null, dolor_muscular:null, nivel_estres:null, estado_animo:null })
   const [tqr, setTqr] = useState(null)
-  const [zonaSeleccionada, setZonaSeleccionada] = useState(null)
+  const [zonasSeleccionadas, setZonasSeleccionadas] = useState<string[]>([])
   const [dolorDescripcion, setDolorDescripcion] = useState('')
   const [dolorEva, setDolorEva] = useState(null)
   const [entrenaGrupo, setEntrenaGrupo] = useState(null)

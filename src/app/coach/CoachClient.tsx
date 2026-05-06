@@ -1516,6 +1516,7 @@ function CalendarioPanel({ teamData }) {
   const [selectedDay, setSelectedDay] = useState<string|null>(null)
   const [editSesion, setEditSesion] = useState<any|null>(null)
   const [showEditor, setShowEditor] = useState(false)
+  const [canchas, setCanchas] = useState<any[]>([])
 
   const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
   const DIAS = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom']
@@ -1538,6 +1539,9 @@ function CalendarioPanel({ teamData }) {
     try {
       const r = await fetch(`/api/calendario?desde=${desde}&hasta=${hasta}`)
       setData(await r.json())
+      const rc = await fetch('/api/canchas')
+      const dc = await rc.json()
+      setCanchas(dc.canchas || [])
     } catch {}
     setLoading(false)
   }
@@ -1915,6 +1919,10 @@ function CalendarioPanel({ teamData }) {
                   </div>
                 </div>
                 {(s.objetivo||s.objetivo_secundario) && <p style={{ fontSize:12, color:'var(--silver)', marginTop:4 }}>🎯 {[s.objetivo,s.objetivo_secundario].filter(Boolean).join(' · ')}</p>}
+                {s.cancha_id && (() => {
+                  const c = canchas.find(cc => cc.id === s.cancha_id || String(cc.id) === String(s.cancha_id))
+                  return c ? <p style={{ fontSize:11, color:'var(--lime)', marginTop:2 }}>📍 {c.nombre} <span style={{ color:'var(--fog)', fontSize:9 }}>({c.largo_m}×{c.ancho_m}m)</span></p> : null
+                })()}
                 {s.rpe_objetivo && <p style={{ fontSize:12, color:'var(--lime)', fontFamily:'DM Mono,monospace', marginTop:2 }}>RPE objetivo: {s.rpe_objetivo}</p>}
                 {s.hora_inicio && <p style={{ fontSize:12, color:'var(--fog)' }}>🕐 {s.hora_inicio.slice(0,5)}{s.hora_fin?` – ${s.hora_fin.slice(0,5)}`:''}</p>}
                 {s.ejercicios?.length>0 && (
@@ -2077,6 +2085,7 @@ function CalendarioPanel({ teamData }) {
           } : undefined}
           onCancel={()=>{ setShowEditor(false); setEditSesion(null) }}
           teamPlayers={teamData}
+          canchas={canchas}
         />
         )
       })()}
@@ -2614,7 +2623,7 @@ function imprimirSesion(f: any, bloques: any[], teamPlayers: any[] = []) {
   if (win) { win.document.write(html); win.document.close() }
 }
 
-function SesionEditor({ sesion, defaultFecha, rpeReal = 0, onSave, onDelete, onCancel, teamPlayers = [] }) {
+function SesionEditor({ sesion, defaultFecha, rpeReal = 0, onSave, onDelete, onCancel, teamPlayers = [], canchas = [] }) {
   const [f, setF] = useState({
     fecha: sesion?.fecha || defaultFecha,
     hora_inicio: sesion?.hora_inicio?.slice(0,5) || '',
@@ -2628,6 +2637,7 @@ function SesionEditor({ sesion, defaultFecha, rpeReal = 0, onSave, onDelete, onC
     descripcion: sesion?.descripcion || '',
     rpe_objetivo: sesion?.rpe_objetivo ? String(sesion.rpe_objetivo) : '',
     notas: sesion?.notas || '',
+    cancha_id: sesion?.cancha_id || '',
   })
   const [bloques, setBloques] = useState<any[]>(() => {
     try { return sesion?.ejercicios?.length ? sesion.ejercicios : [] } catch { return [] }
@@ -2747,6 +2757,14 @@ function SesionEditor({ sesion, defaultFecha, rpeReal = 0, onSave, onDelete, onC
         <div style={{ gridColumn:'span 2' }}>
           <label style={{ display:'block', fontSize:10, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:5 }}>RPE objetivo (1–10)</label>
           <input type="number" min="1" max="10" className="wp-input" value={f.rpe_objetivo} onChange={e=>set('rpe_objetivo',e.target.value)} placeholder="ej: 7" style={{ padding:'8px 12px', fontSize:13 }} />
+        </div>
+        {/* Estadio / Cancha */}
+        <div style={{ gridColumn:'span 2' }}>
+          <label style={{ display:'block', fontSize:10, fontWeight:700, color:'var(--lime)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:5 }}>📍 Estadio / Cancha</label>
+          <select className="wp-input" value={f.cancha_id} onChange={e=>set('cancha_id',e.target.value)} style={{ padding:'8px 12px', fontSize:13, appearance:'none' }}>
+            <option value="">— Sin vincular —</option>
+            {canchas.map(c=><option key={c.id} value={c.id} style={{ background:'var(--ink2)' }}>{c.nombre} ({c.largo_m}×{c.ancho_m}m)</option>)}
+          </select>
         </div>
         {/* Rival + escudo — solo para tipo partido */}
         {f.tipo === 'partido' && (<>
