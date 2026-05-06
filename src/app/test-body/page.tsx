@@ -18,11 +18,12 @@ export default function TestBodyPage() {
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 32 }}>
-          <PhotoBodyMap 
-            selected={selected} 
-            onSelect={setSelected} 
+          <PhotoBodyMap
+            selected={selected}
+            onSelect={setSelected}
             description={description}
             onDescriptionChange={setDescription}
+            showCalibration={true}
           />
 
           <div style={{ background: '#0f172a', padding: 32, borderRadius: 24, border: '1px solid #1e293b', boxShadow: '0 10px 40px rgba(0,0,0,0.5)' }}>

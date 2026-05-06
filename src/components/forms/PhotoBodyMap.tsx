@@ -57,7 +57,13 @@ const ZONES = [
   { id: 't_back_i',  label: 'Talón Izq.',        x: 839, y: 942, r: 18 },
 ]
 
-export default function PhotoBodyMap({ onSelect, selected, description, onDescriptionChange }) {
+export default function PhotoBodyMap({ onSelect, selected, description, onDescriptionChange, showCalibration = false }: {
+  onSelect: (z: string) => void
+  selected: string | null
+  description: string
+  onDescriptionChange: (v: string) => void
+  showCalibration?: boolean
+}) {
   const [hovered, setHovered] = useState(null)
   const [calMode, setCalMode] = useState(false)
   const [calPos, setCalPos] = useState<{x:number, y:number} | null>(null)
@@ -82,17 +88,19 @@ export default function PhotoBodyMap({ onSelect, selected, description, onDescri
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
 
-      {/* ── Botón modo calibración ── */}
-      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-        <button onClick={() => { setCalMode(!calMode); setCalPinned(null) }} style={{
-          padding: '6px 14px', borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: 'pointer',
-          background: calMode ? 'rgba(251,191,36,.15)' : 'rgba(255,255,255,.05)',
-          border: calMode ? '1px solid rgba(251,191,36,.5)' : '1px solid rgba(255,255,255,.1)',
-          color: calMode ? '#fbbf24' : '#64748b',
-        }}>
-          {calMode ? '⚡ CALIBRACIÓN ON — Click para fijar punto' : '🎯 Modo calibración'}
-        </button>
-      </div>
+      {/* ── Botón modo calibración (solo en demo/test) ── */}
+      {showCalibration && (
+        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+          <button onClick={() => { setCalMode(!calMode); setCalPinned(null) }} style={{
+            padding: '6px 14px', borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: 'pointer',
+            background: calMode ? 'rgba(251,191,36,.15)' : 'rgba(255,255,255,.05)',
+            border: calMode ? '1px solid rgba(251,191,36,.5)' : '1px solid rgba(255,255,255,.1)',
+            color: calMode ? '#fbbf24' : '#64748b',
+          }}>
+            {calMode ? '⚡ CALIBRACIÓN ON — Click para fijar punto' : '🎯 Modo calibración'}
+          </button>
+        </div>
+      )}
 
       <div style={{
         background: 'rgba(15, 23, 42, 0.6)',
