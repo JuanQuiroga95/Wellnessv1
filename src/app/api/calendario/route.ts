@@ -41,6 +41,9 @@ export async function GET(req: NextRequest) {
           SET club_id = ${clubId}
           WHERE admin_id = ${s.userId}
             AND club_id IS NULL`
+        
+        // Auto-migration: ensure cancha_id column exists
+        await sql`ALTER TABLE sesiones_plan ADD COLUMN IF NOT EXISTS cancha_id INTEGER`.catch(() => {})
       } catch { /* ignore if table doesn't exist yet */ }
     }
 

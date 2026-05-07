@@ -4177,8 +4177,8 @@ function ComparativaPanel({ teamData }: { teamData: any[] }) {
     { key:'dist_v5',     label:'Vel B6',      color:'#f97316', unit:'m',    src:'gps' },
     { key:'n_sprints',   label:'Nº Sprints',  color:'#ec4899', unit:'nº',   src:'gps' },
     { key:'max_velocity',label:'Vel. Máx',    color:'#ef4444', unit:'km/h', src:'gps' },
-    { key:'acc2',        label:'Acc B2-3',    color:'#8b5cf6', unit:'nº',   src:'gps' },
-    { key:'dec2',        label:'Dec B2-3',    color:'#06b6d4', unit:'nº',   src:'gps' },
+    { key:'acc3',        label:'Acc B2-3',    color:'#8b5cf6', unit:'nº',   src:'gps' },
+    { key:'dec3',        label:'Dec B2-3',    color:'#06b6d4', unit:'nº',   src:'gps' },
   ]
 
   const posColor = (pos: string) => {

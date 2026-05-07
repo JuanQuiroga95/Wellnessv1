@@ -313,7 +313,27 @@ export default function CanchasPanel(){
   }
 
   const goToSaved=(s:SavedPitch)=>{
-    if(mapInst.current&&s.lat&&s.lng){mapInst.current.setView([Number(s.lat),Number(s.lng)],17);setTab('buscar')}
+    if(mapInst.current&&s.lat&&s.lng){
+      const lat = Number(s.lat)
+      const lon = Number(s.lng)
+      mapInst.current.setView([lat, lon],17)
+      setTab('buscar')
+      
+      // Select it so dimensions appear
+      const p: Pitch = {
+        id: s.osm_id ? `way_${s.osm_id}` : `manual_${s.id}`,
+        name: s.nombre,
+        lat,
+        lon,
+        largo: Number(s.largo_m) || 0,
+        ancho: Number(s.ancho_m) || 0,
+        area: Number(s.area_m2) || 0,
+        tipo: s.tipo_cancha,
+        address: s.direccion,
+        isSaved: true
+      }
+      selectPitch(p)
+    }
   }
 
   const C={card:{background:'var(--ink2)',border:'1px solid var(--mist)',borderRadius:16,padding:20} as any,

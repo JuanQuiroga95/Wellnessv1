@@ -46,11 +46,11 @@ const METRIC_COL_MAP: Array<[string, string]> = [
   // "DEC >3" = Decel B2-3 (Gen 2) de Catapult → se guarda como dec3
   ['acc b2-3 tot effs','acc3'],['acc b2-3 tot','acc3'],['acc b2-3','acc3'],
   ['accelerations b2 3','acc3'],['accelerations b2','acc3'],['aceleraciones b2','acc3'],
-  ['acc b2','acc3'],['acc2 eff','acc3'],['acc 2','acc3'],['accel b2','acc3'],
+  ['acc b2','acc3'],['acc2 eff','acc3'],['acc 2','acc3'],['accel b2','acc3'],['acc 80 2','acc3'],
   ['aceleraciones','acc3'],['accelerations','acc3'], // Ubico
   ['decel b2-3 tot effs','dec3'],['decel b2-3 tot','dec3'],['decel b2-3','dec3'],
   ['decelerations b2 3','dec3'],['decelerations b2','dec3'],['desaceleraciones b2','dec3'],
-  ['dec b2','dec3'],['dec2 eff','dec3'],['dec 2','dec3'],['decel b2','dec3'],
+  ['dec b2','dec3'],['dec2 eff','dec3'],['dec 2','dec3'],['decel b2','dec3'],['dec 80 2','dec3'],
   ['desaceleraciones','dec3'],['decelerations','dec3'], // Ubico
   // ACEL / DECEL B3 (banda superior, si existiera en algún export)
   ['acc b3 tot effs','acc2'],['acc b3 tot','acc2'],['acc b3','acc2'],

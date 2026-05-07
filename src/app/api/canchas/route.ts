@@ -49,15 +49,15 @@ export async function POST(req: NextRequest) {
         ${userId}, 
         ${nombre}, 
         ${direccion || null}, 
-        ${lat ? Number(lat) : null}, 
-        ${lng ? Number(lng) : null}, 
-        ${largo_m ? Number(largo_m) : null}, 
-        ${ancho_m ? Number(ancho_m) : null}, 
-        ${area_m2 ? Number(area_m2) : null}, 
+        ${(lat !== null && lat !== undefined) ? Number(lat) : null}, 
+        ${(lng !== null && lng !== undefined) ? Number(lng) : null}, 
+        ${(largo_m !== null && largo_m !== undefined) ? Number(largo_m) : null}, 
+        ${(ancho_m !== null && ancho_m !== undefined) ? Number(ancho_m) : null}, 
+        ${(area_m2 !== null && area_m2 !== undefined) ? Number(area_m2) : null}, 
         ${tipo_cancha || null}, 
         ${superficie || null}, 
         ${notas || null}, 
-        ${osm_id ? BigInt(osm_id) : null}
+        ${(osm_id !== null && osm_id !== undefined) ? BigInt(osm_id) : null}
       )
       RETURNING id, nombre, direccion, lat::text, lng::text, largo_m::text, ancho_m::text, area_m2::text, tipo_cancha, superficie, notas, osm_id::text, created_at::text
     `
