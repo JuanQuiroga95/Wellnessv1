@@ -312,6 +312,27 @@ export default function CanchasPanel(){
     setSaved(prev=>prev.filter(s=>s.id!==id))
   }
 
+  const uploadPhoto=async(id:number,file:File)=>{
+    setUploadingPhoto(id)
+    const reader=new FileReader()
+    reader.onload=async(e)=>{
+      const dataUrl=e.target?.result as string
+      const img=new Image()
+      img.onload=async()=>{
+        const canvas=document.createElement('canvas')
+        const max=600,scale=Math.min(1,max/Math.max(img.width,img.height))
+        canvas.width=Math.round(img.width*scale);canvas.height=Math.round(img.height*scale)
+        canvas.getContext('2d')!.drawImage(img,0,0,canvas.width,canvas.height)
+        const compressed=canvas.toDataURL('image/jpeg',0.75)
+        await fetch(`/api/canchas?id=${id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({foto_url:compressed})})
+        setSaved(prev=>prev.map(s=>s.id===id?{...s,foto_url:compressed}:s))
+        setUploadingPhoto(null)
+      }
+      img.src=dataUrl
+    }
+    reader.readAsDataURL(file)
+  }
+
   const goToSaved=(s:SavedPitch)=>{
     if(mapInst.current&&s.lat&&s.lng){
       const lat = Number(s.lat)
@@ -569,7 +590,7 @@ export default function CanchasPanel(){
             <div style={{display:'flex',flexDirection:'column',gap:8}}>
               {saved.map(s=>(
                 <div key={s.id} style={{display:'flex',alignItems:'center',gap:12,padding:'14px 18px',background:'var(--ink3)',border:'1px solid var(--mist)',borderRadius:14,transition:'all .12s'}}>
-                  <div style={{fontSize:22,flexShrink:0}}>🏟️</div>
+                  <label title="Agregar foto" style={{width:52,height:52,borderRadius:10,overflow:"hidden",border:"1px solid var(--mist)",background:"var(--ink2)",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",position:"relative"}}>{s.foto_url?<img src={s.foto_url} style={{width:"100%",height:"100%",objectFit:"cover"}} alt="foto"/>:<span style={{fontSize:22}}>???</span>}{uploadingPhoto===s.id&&<span style={{position:"absolute",inset:0,background:"rgba(0,0,0,.5)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,color:"#fff"}}>...</span>}<input type="file" accept="image/*" style={{display:"none"}} onChange={e=>{if(e.target.files?.[0])uploadPhoto(s.id,e.target.files[0])}}/></label>
                   <div style={{flex:1,minWidth:0}}>
                     <div style={{fontWeight:600,fontSize:15,color:'var(--snow)'}}>{s.nombre}</div>
                     <div style={{fontSize:12,color:'var(--silver)',marginTop:2}}>

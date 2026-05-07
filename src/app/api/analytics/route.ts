@@ -88,9 +88,9 @@ export async function GET(req: NextRequest) {
     const loadAnalysis = await sql`
       SELECT c.nombre AS cancha_nombre, c.largo_m, c.ancho_m,
              AVG(g.dist_total) AS avg_dist_total,
-             AVG(g.dist_hsr) AS avg_dist_hsr,
-             AVG(g.acel_total) AS avg_acel_total,
-             AVG(g.decel_total) AS avg_decel_total,
+             AVG(COALESCE(g.dist_hir,0)) AS avg_dist_hir,
+             AVG(COALESCE(g.acc2,0) + COALESCE(g.acc3,0)) AS avg_acel_total,
+             AVG(COALESCE(g.dec2,0) + COALESCE(g.dec3,0)) AS avg_decel_total,
              COUNT(g.id)::int AS registros
       FROM gps_logs g
       JOIN sesiones_plan s ON s.id = g.sesion_id
@@ -108,7 +108,7 @@ export async function GET(req: NextRequest) {
         cancha: r.cancha_nombre,
         dimensiones: `${r.largo_m}x${r.ancho_m}`,
         area: Number(r.largo_m) * Number(r.ancho_m),
-        metabolic: Number(r.avg_dist_total) + Number(r.avg_dist_hsr),
+        metabolic: Number(r.avg_dist_total) + Number(r.avg_dist_hir),
         neuromuscular: Number(r.avg_acel_total) + Number(r.avg_decel_total),
         registros: r.registros
       }))

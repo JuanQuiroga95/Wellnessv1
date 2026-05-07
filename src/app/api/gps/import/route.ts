@@ -464,12 +464,21 @@ async function matchPlayers(rows: Record<string,any>[], clubId: number|null) {
   const sql = getDb()
   const jugadores = clubId ? await sql`SELECT j.id, u.nombre FROM jugadores j JOIN usuarios u ON u.id = j.usuario_id WHERE (u.club_id = ${clubId} OR j.club_id = ${clubId}) AND u.activo = true` : []
   const matched: any[] = [], unmatched: string[] = []
+
+  function scoreMatch(pdfNorm: string, dbNorm: string): number {
+    if (dbNorm === pdfNorm) return 100
+    if (dbNorm.includes(pdfNorm) || pdfNorm.includes(dbNorm)) return 80
+    const dbWords = dbNorm.split(' '), pdfWords = pdfNorm.split(' ')
+    const common = pdfWords.filter(pw => dbWords.includes(pw) && pw.length >= 3).length
+    return common > 0 ? common * 10 : 0
+  }
+
   for (const row of rows) {
     const pdfNorm = row.nombre_norm
-    let jug = (jugadores as any[]).find(j => {
-      const dbNorm = normalizeName(j.nombre), dbWords = dbNorm.split(' '), pdfWords = pdfNorm.split(' ')
-      return dbNorm === pdfNorm || pdfWords.some(pw => dbWords.includes(pw) && pw.length >= 3) || dbNorm.includes(pdfNorm) || pdfNorm.includes(dbNorm)
-    })
+    const scored = (jugadores as any[]).map(j => ({ j, score: scoreMatch(pdfNorm, normalizeName(j.nombre)) }))
+    const bestScore = scored.reduce((mx, s) => Math.max(mx, s.score), 0)
+    const bestMatches = scored.filter(s => s.score === bestScore && s.score > 0)
+    const jug = bestMatches.length === 1 ? bestMatches[0].j : null
     if (jug) matched.push({ ...row, jugador_id: jug.id, jugador_nombre: jug.nombre, match_method: 'parcial', n_metricas: Object.keys(row.metricas||{}).length, sin_datos: false })
     else unmatched.push(row.nombre_catapult)
   }

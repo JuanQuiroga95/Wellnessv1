@@ -59,7 +59,7 @@ function fmtGps(key: string, val: any): string {
   if (val === null || val === undefined || val === 0 || val === '') return '—'
   const n = Number(val)
   if (isNaN(n) || n === 0) return '—'
-  if (key === 'dist_total' || key === 'equiv_distance') return `${(n / 1000).toFixed(2)}km`
+  if (key === 'dist_total' || key === 'equiv_distance') return `${Math.round(n)}m`
   if (key.startsWith('dist_')) return `${Math.round(n)}m`
   if (key === 'max_velocity') return `${n}km/h`
   if (key === 'dist_per_min') return `${Math.round(n)}`
@@ -2761,7 +2761,7 @@ function SesionEditor({ sesion, defaultFecha, rpeReal = 0, onSave, onDelete, onC
         {/* Estadio / Cancha */}
         <div style={{ gridColumn:'span 2' }}>
           <label style={{ display:'block', fontSize:10, fontWeight:700, color:'var(--lime)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:5 }}>📍 Estadio / Cancha</label>
-          <select className="wp-input" value={f.cancha_id} onChange={e=>set('cancha_id',e.target.value)} style={{ padding:'8px 12px', fontSize:13, appearance:'none' }}>
+          <select className="wp-input" value={f.cancha_id} onChange={e=>{const id=e.target.value;set('cancha_id',id);if(id){const c=canchas.find(cc=>String(cc.id)===String(id));if(c&&c.largo_m&&c.ancho_m){setBloques(prev=>prev.map(bl=>({...bl,largo:bl.largo||String(c.largo_m),ancho:bl.ancho||String(c.ancho_m)})))}}}} style={{ padding:'8px 12px', fontSize:13, appearance:'none' }}>
             <option value="">— Sin vincular —</option>
             {canchas.map(c=><option key={c.id} value={c.id} style={{ background:'var(--ink2)' }}>{c.nombre} ({c.largo_m}×{c.ancho_m}m)</option>)}
           </select>
