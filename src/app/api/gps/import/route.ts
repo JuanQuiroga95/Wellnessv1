@@ -15,19 +15,18 @@ const normalizeName = normStr
 
 // ─── UNIVERSAL METRIC MAP (Catapult + UBICO + Wimu + Oliver) ───────────────
 const METRIC_COL_MAP: Array<[string, string]> = [
-  // DISTANCIA TOTAL
-  ['total distance','dist_total'],['total dist','dist_total'],['tot dist','dist_total'],
-  ['distance','dist_total'],['distancia','dist_total'],['dist totale','dist_total'],
-  ['distancia total','dist_total'],['distance totale','dist_total'],
+  // 1. METRICAS ESPECIFICAS (Mecanismos de prioridad para evitar sobreescrituras)
   // METROS POR MINUTO
   ['meterage per minute','dist_per_min'],['meterage per min','dist_per_min'],
   ['distance per minute','dist_per_min'],['dist per min','dist_per_min'],['dist/min','dist_per_min'],
   ['metros por minuto','dist_per_min'],['metres par minute','dist_per_min'],
   ['m/min','dist_per_min'], // Ubico/Wimu
+  
   // HIGH SPEED RUNNING
   ['high speed running','dist_hir'],['high speed dist','dist_hir'],['high speed distance','dist_hir'],
   ['high speed','dist_hir'],['hsr','dist_hir'],['high intensity running','dist_hir'],
   ['alta intensidad','dist_hir'],['course haute intensite','dist_hir'],['haute intensite','dist_hir'],
+  
   // VELOCIDAD BANDAS
   ['vel b4 tot dist','dist_v4'],['vel b4 tot','dist_v4'],['vel b4','dist_v4'],
   ['velocity band 4','dist_v4'],['v4 dist','dist_v4'],['banda 4','dist_v4'],
@@ -36,14 +35,21 @@ const METRIC_COL_MAP: Array<[string, string]> = [
   ['vel b5 tot dist','dist_v5'],['vel b5 tot','dist_v5'],['vel b5','dist_v5'],
   ['velocity band 6','dist_v5'],['velocity band 5','dist_v5'],
   ['v6 dist','dist_v5'],['v5 dist','dist_v5'],
+  
   // SPRINTS
   ['sprint distance','dist_v5'],['sprint dist','dist_v5'],['distancia sprint','dist_v5'],
   ['banda 6','dist_v5'],['banda 5','dist_v5'],['>20','dist_v5'],['> 20','dist_v5'], // Ubico
   ['number of sprints','n_sprints'],['number sprints','n_sprints'],['num sprints','n_sprints'],
   ['numero sprints','n_sprints'],['numero de sprints','n_sprints'],['sprints','n_sprints'],
-  // ACEL / DECEL
-  // NOMENCLATURA DEL CLUB: "ACE >3" = Acc B2-3 (Gen 2) de Catapult → se guarda como acc3
-  // "DEC >3" = Decel B2-3 (Gen 2) de Catapult → se guarda como dec3
+  ['numero sprint','n_sprints'],['número sprint','n_sprints'],['numero de sprint','n_sprints'],
+
+  // 2. DISTANCIA TOTAL (Variantes específicas primero)
+  ['total distance','dist_total'],['total dist','dist_total'],['tot dist','dist_total'],
+  ['distancia total','dist_total'],['distance totale','dist_total'],['dist totale','dist_total'],
+  ['tot dist m','dist_total'],['total distance m','dist_total'],['total dist m','dist_total'],
+  ['distancia total m','dist_total'],
+
+  // 3. ACEL / DECEL
   ['acc b2-3 tot effs','acc3'],['acc b2-3 tot','acc3'],['acc b2-3','acc3'],
   ['accelerations b2 3','acc3'],['accelerations b2','acc3'],['aceleraciones b2','acc3'],
   ['acc b2','acc3'],['acc2 eff','acc3'],['acc 2','acc3'],['accel b2','acc3'],['acc 80 2','acc3'],
@@ -52,7 +58,7 @@ const METRIC_COL_MAP: Array<[string, string]> = [
   ['decelerations b2 3','dec3'],['decelerations b2','dec3'],['desaceleraciones b2','dec3'],
   ['dec b2','dec3'],['dec2 eff','dec3'],['dec 2','dec3'],['decel b2','dec3'],['dec 80 2','dec3'],
   ['desaceleraciones','dec3'],['decelerations','dec3'], // Ubico
-  // ACEL / DECEL B3 (banda superior, si existiera en algún export)
+  
   ['acc b3 tot effs','acc2'],['acc b3 tot','acc2'],['acc b3','acc2'],
   ['accelerations b3','acc2'],['aceleraciones b3','acc2'],
   ['acc3 eff','acc2'],['acc 3','acc2'],['accel b3','acc2'],
@@ -65,30 +71,36 @@ const METRIC_COL_MAP: Array<[string, string]> = [
   ['ima deceleration b3','dec2'],['ima dec b3','dec2'],
   ['high decelerations','dec2'],['high intensity decelerations','dec2'],
   ['explosive decelerations','dec2'],['explosive dec','dec2'],
-  // PLAYER LOAD / VEL MAX
+
+  // 4. PLAYER LOAD / VEL MAX / DURACION
   ['player load','player_load'],['playerload','player_load'],['carga jugador','player_load'],
   ['max velocity','max_velocity'],['max vel','max_velocity'],['top speed','max_velocity'],
   ['velocidad maxima','max_velocity'],['vitesse maximale','max_velocity'],['vel max','max_velocity'],
-  // DURACION
   ['total duration','duracion_min'],['total dur','duracion_min'],['tot dur','duracion_min'],
   ['duration','duracion_min'],['duracion','duracion_min'],['time','duracion_min'],['tiempo','duracion_min'],
   ['tiempo min','duracion_min'],['tiempo (min)','duracion_min'],['minutos','duracion_min'],
-  ['numero sprint','n_sprints'],['número sprint','n_sprints'],['numero de sprint','n_sprints'],
+
+  // 5. TERMINOS GENERICOS (Ultima instancia)
+  ['distance','dist_total'],['distancia','dist_total'],['dist','dist_total'],
 ]
 
 function matchMetricCol(h: string): string | null {
   const hn = normStr(h)
   
-  // 1. Match Exacto (Prioridad Máxima): Atrapa "Tot Dist" sin confundirse.
+  // 1. Match Exacto (Prioridad Máxima)
   for (const [label, field] of METRIC_COL_MAP) {
     if (hn === normStr(label)) return field
   }
   
   // 2. Match Parcial Seguro
   for (const [label, field] of METRIC_COL_MAP) {
-    if (hn.includes(normStr(label))) {
-      // BLOQUEO UBICO: Si la columna es "distance_vrangeX", ignorarla para que NO sobreescriba la Distancia Total.
-      if (field === 'dist_total' && (hn.includes('vrange') || hn.includes('zone'))) continue
+    const ln = normStr(label)
+    if (hn.includes(ln)) {
+      // BLOQUEO dist_total: No permitir que "distance" atrape métricas de alta intensidad o por minuto
+      if (field === 'dist_total') {
+        const isSubMetric = ['vrange', 'zone', 'band', 'hir', 'hsr', 'speed', 'sprint', 'intensity', 'minute', 'minuto', 'min', '/', 'max'].some(k => hn.includes(k))
+        if (isSubMetric && !hn.includes('total') && !hn.includes('tot')) continue
+      }
       
       // BLOQUEO UBICO: Evitar que "max_acc" pise el contador de aceleraciones normales.
       if ((field === 'acc2' || field === 'acc3' || field === 'dec2' || field === 'dec3') && hn.includes('max') && !hn.includes('b3') && !hn.includes('b2')) continue
@@ -98,6 +110,7 @@ function matchMetricCol(h: string): string | null {
   }
   return null
 }
+
 
 const matchExcelCol = matchMetricCol
 
