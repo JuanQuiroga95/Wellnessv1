@@ -6332,7 +6332,12 @@ function GpsPanel({ teamData }: { teamData: any }) {
         return r.json()
       })
       .then(d => { 
-        setHistorial(Array.isArray(d) ? d : [])
+        if (d.error) {
+          setError('Error de historial: ' + d.error)
+          setHistorial([])
+        } else {
+          setHistorial(Array.isArray(d) ? d : [])
+        }
         setLoadingHistorial(false) 
       })
       .catch(err => { 

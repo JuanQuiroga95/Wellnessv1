@@ -12,13 +12,16 @@ async function run() {
     console.table(tableInfo);
 
     const samples = await sql`
-      SELECT id, club_id, fecha, tipo_sesion, sesion_id 
+      SELECT id, club_id, fecha::text, tipo_sesion, sesion_id 
       FROM gps_logs 
       WHERE fecha = '2026-05-01'
-      ORDER BY id DESC 
     `;
     console.log('--- GPS_LOGS FOR 2026-05-01 ---');
     console.table(samples);
+
+    const clubIds = await sql`SELECT DISTINCT club_id FROM gps_logs`;
+    console.log('--- DISTINCT CLUB_IDS ---');
+    console.log(clubIds);
   } catch (e) {
     console.error(e);
   } finally {
