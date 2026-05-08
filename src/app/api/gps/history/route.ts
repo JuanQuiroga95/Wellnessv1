@@ -14,14 +14,15 @@ export async function GET(req: NextRequest) {
     const clubId = s.clubId ? Number(s.clubId) : null
     if (!clubId) return NextResponse.json([])
 
-    // Últimas 20 cargas agrupadas
+    // Últimas 20 cargas agrupadas, incluyendo los IDs de los registros para borrado directo
     const history = await sql`
       SELECT 
         g.fecha::text, 
         g.tipo_sesion, 
         g.sesion_id, 
         COUNT(*)::int as n_jugadores,
-        s.titulo as sesion_titulo
+        s.titulo as sesion_titulo,
+        ARRAY_AGG(g.id)::int[] as ids
       FROM gps_logs g
       LEFT JOIN sesiones_plan s ON s.id = g.sesion_id
       WHERE g.club_id = ${clubId}
@@ -30,7 +31,6 @@ export async function GET(req: NextRequest) {
       LIMIT 20
     `
 
-    console.log('[GPS history]', { clubId, historyCount: history.length })
     return NextResponse.json(history)
   } catch (err: any) {
     console.error('[GPS history error]', err)

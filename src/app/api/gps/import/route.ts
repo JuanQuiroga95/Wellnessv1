@@ -330,9 +330,19 @@ export async function DELETE(req: NextRequest) {
     const clubId = s.clubId ? Number(s.clubId) : null
     if (!clubId) return NextResponse.json({ error: 'No club' }, { status: 400 })
 
+    const idsStr = searchParams.get('ids')
     const sid = (sesion_id === 'null' || sesion_id === 'undefined' || !sesion_id || sesion_id === '0') ? null : Number(sesion_id)
 
     let res;
+    if (idsStr) {
+      const ids = idsStr.split(',').map(Number).filter(n => !isNaN(n))
+      if (ids.length > 0) {
+        res = await sql`DELETE FROM gps_logs WHERE club_id = ${clubId} AND id = ANY(${ids})`
+        return NextResponse.json({ ok: true, count: res.count })
+      }
+    }
+
+    // Fallback: Borrado por metadata si no hay IDs
     if (sid !== null && !isNaN(sid)) {
       res = await sql`DELETE FROM gps_logs WHERE club_id = ${clubId} AND fecha::date = ${fecha}::date AND sesion_id = ${sid}`
     } else {

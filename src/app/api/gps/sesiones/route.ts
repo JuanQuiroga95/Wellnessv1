@@ -81,7 +81,7 @@ export async function GET(req: NextRequest) {
     if (clubId) {
       try {
         existing = await sql`
-          SELECT fecha::text, tipo_sesion, sesion_id, COUNT(*)::int as n_jugadores
+          SELECT fecha::text, tipo_sesion, sesion_id, COUNT(*)::int as n_jugadores, ARRAY_AGG(id)::int[] as ids
           FROM gps_logs
           WHERE club_id = ${clubId}
             AND fecha = ${fecha}

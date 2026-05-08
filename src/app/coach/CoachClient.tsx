@@ -6334,13 +6334,14 @@ function GpsPanel({ teamData }: { teamData: any }) {
 
   useEffect(() => { loadHistory() }, [result])
 
-  async function handleDelete(e: { fecha: string, tipo_sesion: string, sesion_id: any }) {
+  async function handleDelete(e: { fecha: string, tipo_sesion: string, sesion_id: any, ids?: number[] }) {
     if (!confirm(`¿Eliminar los datos GPS del ${e.fecha} (${e.tipo_sesion})?`)) return
     try {
       const params = new URLSearchParams({
         fecha: e.fecha,
         tipo_sesion: e.tipo_sesion,
-        sesion_id: String(e.sesion_id ?? 'null')
+        sesion_id: String(e.sesion_id ?? 'null'),
+        ids: e.ids ? e.ids.join(',') : ''
       })
       const url = `/api/gps/import?${params.toString()}`
       const r = await fetch(url, { method: 'DELETE' })
