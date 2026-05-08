@@ -81,11 +81,11 @@ export async function GET(req: NextRequest) {
     if (clubId) {
       try {
         existing = await sql`
-          SELECT fecha::text, tipo_sesion, COUNT(*)::int as n_jugadores
+          SELECT fecha::text, tipo_sesion, sesion_id, COUNT(*)::int as n_jugadores
           FROM gps_logs
           WHERE club_id = ${clubId}
             AND fecha = ${fecha}
-          GROUP BY fecha, tipo_sesion
+          GROUP BY fecha, tipo_sesion, sesion_id
         ` as any[]
       } catch {
         // Table doesn't exist yet — ignore

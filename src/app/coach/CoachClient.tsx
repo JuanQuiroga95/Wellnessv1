@@ -6318,16 +6318,31 @@ function GpsPanel({ teamData }: { teamData: any }) {
       .catch(() => {})
   }, [fecha])
 
-  // Load GPS history
-  useEffect(() => {
+  const loadHistory = () => {
     setLoadingHistorial(true)
-    const desde = new Date(); desde.setDate(desde.getDate() - 30)
-    const desdeStr = localDateStr(desde)
-    fetch(`/api/gps/sesiones?fecha=${today}`)
+    fetch('/api/gps/history')
       .then(r => r.json())
-      .then(() => setLoadingHistorial(false))
+      .then(d => { setHistorial(Array.isArray(d) ? d : []); setLoadingHistorial(false) })
       .catch(() => setLoadingHistorial(false))
-  }, [result])
+  }
+
+  useEffect(() => { loadHistory() }, [result])
+
+  async function handleDelete(e: { fecha: string, tipo_sesion: string, sesion_id: any }) {
+    if (!confirm(`¿Eliminar los datos GPS del ${e.fecha} (${e.tipo_sesion})?`)) return
+    try {
+      const url = `/api/gps/import?fecha=${e.fecha}&tipo_sesion=${e.tipo_sesion}&sesion_id=${e.sesion_id || 'null'}`
+      const r = await fetch(url, { method: 'DELETE' })
+      if (r.ok) {
+        fetch(`/api/gps/sesiones?fecha=${fecha}`).then(r => r.json()).then(d => setExisting(d.existing || []))
+        loadHistory()
+        window.dispatchEvent(new CustomEvent('gps-data-updated'))
+      } else {
+        const d = await r.json()
+        alert('Error al borrar: ' + (d.error || 'Error desconocido'))
+      }
+    } catch (err) { console.error(err); alert('Error de conexión') }
+  }
 
   // For Excel: parse client-side, send only rows JSON (avoids Vercel 4.5MB body limit)
   // Extract PDF text client-side using pdf.js, ordered by Y-coordinate (row by row).
@@ -6498,11 +6513,16 @@ function GpsPanel({ teamData }: { teamData: any }) {
         <div style={{ background: 'rgba(200,241,53,.06)', border: '1px solid rgba(200,241,53,.2)', borderRadius: 12, padding: '12px 16px', marginBottom: 20, display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
           <span style={{ fontSize: 12, color: 'var(--lime)', fontWeight: 700 }}>✓ GPS ya cargado para esta fecha:</span>
           {existing.map((e: any, i: number) => (
-            <span key={i} style={{ fontSize: 11, background: 'rgba(200,241,53,.12)', borderRadius: 6, padding: '4px 10px', color: 'var(--lime)', fontFamily: 'DM Mono, monospace' }}>
-              {e.tipo_sesion} · {e.n_jugadores} jugadores
-            </span>
+            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(200,241,53,.12)', borderRadius: 6, padding: '4px 8px 4px 10px' }}>
+              <span style={{ fontSize: 11, color: 'var(--lime)', fontFamily: 'DM Mono, monospace' }}>
+                {e.tipo_sesion} · {e.n_jugadores} j.
+              </span>
+              <button onClick={() => handleDelete(e)} style={{ background: 'transparent', border: 'none', color: 'rgba(239,68,68,.6)', cursor: 'pointer', fontSize: 13, padding: '0 2px', display: 'flex', alignItems: 'center' }} title="Borrar carga">
+                🗑️
+              </button>
+            </div>
           ))}
-          <span style={{ fontSize: 11, color: 'var(--fog)' }}>Podés sobreescribir subiendo uno nuevo.</span>
+          <span style={{ fontSize: 11, color: 'var(--fog)', marginLeft: 'auto' }}>Podés sobreescribir subiendo uno nuevo o borrar manualmente.</span>
         </div>
       )}
 
@@ -6632,6 +6652,22 @@ function GpsPanel({ teamData }: { teamData: any }) {
                   {' · '}<span style={{ color: 'var(--lime)' }}>{sortedCols.length} variables detectadas</span>
                 </p>
               </div>
+
+              {/* DUPLICATE WARNING */}
+              {preview.alreadyExists && (
+                <div style={{ width: '100%', background: 'rgba(239,68,68,.12)', border: '1px solid rgba(239,68,68,.35)', borderRadius: 12, padding: '14px 18px', display: 'flex', gap: 14, alignItems: 'center', order: 3, marginTop: 4 }}>
+                  <div style={{ fontSize: 24 }}>⚠️</div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: '#f87171', marginBottom: 2 }}>
+                      ¡Atención! Ya existen datos GPS cargados
+                    </div>
+                    <div style={{ fontSize: 11, color: 'var(--silver)', lineHeight: 1.5 }}>
+                      Ya hay registros para <strong style={{ color: 'var(--snow)' }}>{preview.fecha} ({preview.tipo_sesion})</strong>. Si confirmás, los datos anteriores serán <strong style={{ color: '#fca5a5' }}>borrados y reemplazados</strong> por estos nuevos. No se sumarán ni se promediarán.
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
                 <button onClick={() => setPreview(null)} className="btn-ghost" style={{ fontSize: 12, padding: '8px 16px' }}>Cancelar</button>
                 <button
@@ -6757,6 +6793,42 @@ function GpsPanel({ teamData }: { teamData: any }) {
           <li>Si ya hay GPS cargado para esa fecha y tipo, se sobreescribe al confirmar</li>
           <li><strong style={{ color: 'var(--silver)' }}>No usás GPS?</strong> No pasa nada — las otras secciones funcionan igual sin estos datos</li>
         </ul>
+      </div>
+
+      {/* Historial de Cargas */}
+      <div style={{ marginTop: 32 }}>
+        <h3 style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: 24, color: 'var(--snow)', letterSpacing: '0.04em', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 10 }}>
+          ⏳ ÚLTIMAS CARGAS
+          {loadingHistorial && <span style={{ fontSize: 12, color: 'var(--fog)', fontFamily: 'DM Sans' }}>Cargando...</span>}
+        </h3>
+        
+        {historial.length === 0 ? (
+          <div style={{ padding: 32, textAlign: 'center', background: 'var(--ink2)', border: '1px dashed var(--mist)', borderRadius: 16, color: 'var(--fog)', fontSize: 13 }}>
+            No hay cargas recientes en los últimos 30 días.
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {historial.map((h, i) => (
+              <div key={i} style={{ background: 'var(--ink2)', border: '1px solid var(--mist)', borderRadius: 12, padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 14 }}>
+                <div style={{ fontSize: 18 }}>{h.tipo_sesion === 'partido' ? '🏆' : '⚽'}</div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--snow)' }}>
+                    {h.fecha} · {h.tipo_sesion.toUpperCase()}
+                  </div>
+                  <div style={{ fontSize: 11, color: 'var(--silver)', marginTop: 2 }}>
+                    {h.sesion_titulo ? `🔗 ${h.sesion_titulo}` : 'Sin vincular'} · {h.n_jugadores} jugadores
+                  </div>
+                </div>
+                <button 
+                  onClick={() => handleDelete(h)} 
+                  style={{ background: 'rgba(239,68,68,.08)', border: '1px solid rgba(239,68,68,.2)', borderRadius: 8, padding: '6px 10px', color: '#f87171', cursor: 'pointer', fontSize: 12, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}
+                >
+                  🗑️ Borrar
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   )

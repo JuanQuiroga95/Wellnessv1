@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
     FROM usuarios u
     LEFT JOIN clubs c ON c.id=u.club_id
     WHERE u.rol='admin'
-    ORDER BY u.nombre`
+    ORDER BY u.created_at DESC`
   return NextResponse.json(coaches)
 }
 

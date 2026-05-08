@@ -168,7 +168,7 @@ function parseRawRows(raw: any[][]): Record<string, any>[] {
     if (!name) return
     const nl = name.toLowerCase()
     const isAggregate = ['team', 'average', 'promedio', 'total', 'equipo', 'media',
-      'squad', 'mean', 'promedio equipo', 'team average'].some(k => nl === k || nl.startsWith(k + ' ') || nl.endsWith(' ' + k))
+      'squad', 'mean', 'promedio equipo', 'team average', 'max', 'maximo', 'máximo'].some(k => nl === k || nl.startsWith(k + ' ') || nl.endsWith(' ' + k))
     if (isAggregate) return
     if (Object.keys(metricas).length === 0) return
 
@@ -512,14 +512,35 @@ export async function POST(req: NextRequest) {
     
     if (!parsedRows.length) return NextResponse.json({ error: 'No se encontraron datos.' }, { status: 400 })
     
-    const { matched, unmatched } = await matchPlayers(parsedRows, s.clubId || null)
-    if (!confirm) return NextResponse.json({ preview: true, fecha, tipo_sesion, sesion_id, fuente: pdfText ? 'pdf' : 'excel', matched, unmatched, total_filas: parsedRows.length, columnas_detectadas: Object.keys(parsedRows[0]?.metricas||{}) })
-    
     const sql = getDb()
     const clubId = s.clubId ? Number(s.clubId) : null
     
+    const { matched, unmatched } = await matchPlayers(parsedRows, clubId)
+    
+    if (!confirm) {
+      let alreadyExists = false
+      if (clubId) {
+        const check = sesion_id 
+          ? await sql`SELECT 1 FROM gps_logs WHERE club_id = ${clubId} AND fecha = ${fecha}::date AND sesion_id = ${sesion_id} LIMIT 1`
+          : await sql`SELECT 1 FROM gps_logs WHERE club_id = ${clubId} AND fecha = ${fecha}::date AND sesion_id IS NULL AND tipo_sesion = ${tipo_sesion} LIMIT 1`
+        alreadyExists = check.length > 0
+      }
+      return NextResponse.json({ 
+        preview: true, fecha, tipo_sesion, sesion_id, 
+        fuente: pdfText ? 'pdf' : 'excel', matched, unmatched, 
+        total_filas: parsedRows.length, 
+        columnas_detectadas: Object.keys(parsedRows[0]?.metricas||{}),
+        alreadyExists
+      })
+    }
+    
     if (clubId) {
-      await sql`DELETE FROM gps_logs WHERE club_id = ${clubId} AND fecha = ${fecha}::date AND sesion_id = ${sesion_id}`
+      // FIX: Asegurar que borramos correctamente si sesion_id es null (usar IS NULL en vez de = NULL)
+      if (sesion_id) {
+        await sql`DELETE FROM gps_logs WHERE club_id = ${clubId} AND fecha = ${fecha}::date AND sesion_id = ${sesion_id}`
+      } else {
+        await sql`DELETE FROM gps_logs WHERE club_id = ${clubId} AND fecha = ${fecha}::date AND sesion_id IS NULL AND tipo_sesion = ${tipo_sesion}`
+      }
       
       for (const m of matched) {
         const met = m.metricas || {}
@@ -531,5 +552,34 @@ export async function POST(req: NextRequest) {
   } catch (err) { 
     console.error(err)
     return NextResponse.json({ error: String(err) }, { status: 500 }) 
+  }
+}
+
+export async function DELETE(req: NextRequest) {
+  try {
+    const s = await getSessionFromRequest(req)
+    if (!s || !isAdmin(s)) return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
+
+    const { searchParams } = new URL(req.url)
+    const fecha = searchParams.get('fecha')
+    const tipo_sesion = searchParams.get('tipo_sesion')
+    const sesion_id = searchParams.get('sesion_id')
+
+    if (!fecha) return NextResponse.json({ error: 'Falta fecha' }, { status: 400 })
+
+    const sql = getDb()
+    const clubId = s.clubId ? Number(s.clubId) : null
+    if (!clubId) return NextResponse.json({ error: 'No club' }, { status: 400 })
+
+    if (sesion_id && sesion_id !== 'null') {
+      await sql`DELETE FROM gps_logs WHERE club_id = ${clubId} AND fecha = ${fecha}::date AND sesion_id = ${Number(sesion_id)}`
+    } else {
+      await sql`DELETE FROM gps_logs WHERE club_id = ${clubId} AND fecha = ${fecha}::date AND sesion_id IS NULL AND tipo_sesion = ${tipo_sesion}`
+    }
+
+    return NextResponse.json({ ok: true })
+  } catch (err) {
+    console.error(err)
+    return NextResponse.json({ error: String(err) }, { status: 500 })
   }
 }

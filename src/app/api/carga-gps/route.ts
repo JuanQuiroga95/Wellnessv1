@@ -406,8 +406,18 @@ export async function GET(req: NextRequest) {
           
           for (const k of activeCols) {
             if (r[k] !== null && r[k] !== undefined) {
-              if (k === 'max_velocity') p[k] = Math.max(p[k] || 0, Number(r[k]) || 0)
-              else p[k] = (p[k] || 0) + (Number(r[k]) || 0)
+              const val = Number(r[k]) || 0
+              if (k === 'max_velocity') {
+                p[k] = Math.max(p[k] || 0, val)
+              } else if (k === 'dist_per_min') {
+                // Para Mts/min en el mismo día, si hay múltiples logs (ej: bloques), 
+                // lo ideal es el promedio ponderado o simplemente el promedio si no tenemos duración.
+                // Usamos _sum/_cnt interno para promediar al final.
+                p[`_sum_${k}`] = (p[`_sum_${k}`] || 0) + val
+                p[`_cnt_${k}`] = (p[`_cnt_${k}`] || 0) + 1
+              } else {
+                p[k] = (p[k] || 0) + val
+              }
             }
           }
           
@@ -425,7 +435,13 @@ export async function GET(req: NextRequest) {
         for (const [md, players] of Object.entries(mdMap)) {
           gpsPerMD[md] = Object.values(players).map((p: any) => {
             const out: any = { jugador_id: p.jugador_id, nombre: p.nombre, posicion: p.posicion, sesiones: p.sesiones }
-            for (const k of allMetricCols) out[k] = Math.round((p[k] || 0) * 10) / 10
+            for (const k of allMetricCols) {
+              if (k === 'dist_per_min' && p[`_cnt_${k}`]) {
+                out[k] = Math.round((p[`_sum_${k}`] / p[`_cnt_${k}`]) * 10) / 10
+              } else {
+                out[k] = Math.round((p[k] || 0) * 10) / 10
+              }
+            }
             return out
           }).sort((a: any, b: any) => a.nombre.localeCompare(b.nombre))
         }
