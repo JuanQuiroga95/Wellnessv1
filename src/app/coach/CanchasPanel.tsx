@@ -31,7 +31,7 @@ function calcDimensions(nodes:{lat:number,lon:number}[]){
 function classifyPitch(l:number,a:number){if(l>=90&&a>=45)return'F11';if(l>=65&&a>=40)return'F9';if(l>=45&&a>=25)return'F7';return'F5'}
 
 interface Pitch{id:string;name:string;lat:number;lon:number;largo?:number;ancho?:number;area?:number;tipo?:string;nodes?:{lat:number,lon:number}[];address?:string;isSaved?:boolean}
-interface SavedPitch{id:number;nombre:string;direccion:string;lat:string;lng:string;largo_m:string;ancho_m:string;area_m2:string;tipo_cancha:string;superficie:string;notas:string;osm_id?:string}
+interface SavedPitch{id:number;nombre:string;direccion:string;lat:string;lng:string;largo_m:string;ancho_m:string;area_m2:string;tipo_cancha:string;superficie:string;notas:string;osm_id?:string;foto_url?:string}
 
 declare const L:any
 
@@ -52,6 +52,7 @@ export default function CanchasPanel(){
   const [measureResult,setMeasureResult]=useState<{largo:number,ancho:number,area:number}|null>(null)
   const [saveForm,setSaveForm]=useState<{nombre:string,superficie:string,notas:string,largo:number,ancho:number,area:number,tipo:string}>({nombre:'',superficie:'natural',notas:'',largo:0,ancho:0,area:0,tipo:''})
   const [saving,setSaving]=useState(false)
+  const [uploadingPhoto,setUploadingPhoto]=useState<number|null>(null)
   const [saveError,setSaveError]=useState<string|null>(null)
   const [tab,setTab]=useState<'buscar'|'guardadas'>('buscar')
 
