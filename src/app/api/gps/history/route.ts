@@ -14,19 +14,19 @@ export async function GET(req: NextRequest) {
     const clubId = s.clubId ? Number(s.clubId) : null
     if (!clubId) return NextResponse.json([])
 
-    // Últimas 100 cargas agrupadas, usando una query más simple para asegurar visibilidad
     const history = await sql`
       SELECT 
-        fecha::date::text as fecha, 
-        tipo_sesion, 
-        COALESCE(sesion_id, 0) as sesion_id, 
+        g.fecha::date::text as fecha, 
+        g.tipo_sesion, 
+        COALESCE(g.sesion_id, 0) as sesion_id, 
         COUNT(*)::int as n_jugadores,
-        (SELECT titulo FROM sesiones_plan WHERE id = sesion_id LIMIT 1) as sesion_titulo,
-        ARRAY_AGG(id)::int[] as ids
-      FROM gps_logs
-      WHERE club_id = ${clubId}
-      GROUP BY fecha::date, tipo_sesion, COALESCE(sesion_id, 0)
-      ORDER BY fecha::date DESC, tipo_sesion DESC
+        s.titulo as sesion_titulo,
+        ARRAY_AGG(g.id)::int[] as ids
+      FROM gps_logs g
+      LEFT JOIN sesiones_plan s ON s.id = g.sesion_id
+      WHERE g.club_id = ${clubId}
+      GROUP BY g.fecha::date, g.tipo_sesion, g.sesion_id, s.titulo
+      ORDER BY g.fecha::date DESC, g.tipo_sesion DESC
       LIMIT 100
     `
 
