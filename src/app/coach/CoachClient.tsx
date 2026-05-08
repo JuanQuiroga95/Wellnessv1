@@ -6316,6 +6316,9 @@ function GpsPanel({ teamData }: { teamData: any }) {
         setSesionId(null)
       })
       .catch(() => {})
+    
+    // Always reload history when date changes or component remounts
+    loadHistory()
   }, [fecha])
 
   const loadHistory = () => {
@@ -6488,7 +6491,7 @@ function GpsPanel({ teamData }: { teamData: any }) {
       const { body, headers } = await buildImportBody(true)
       const r = await fetch('/api/gps/import', { method: 'POST', body, headers })
       const d = await r.json()
-      if (r.ok) {
+      if (r.ok && d.ok) {
         alert(`Éxito: Se han guardado ${d.saved || 0} registros GPS.`)
         setResult(d); setPreview(null); setFile(null)
         fetch(`/api/gps/sesiones?fecha=${fecha}`).then(r => r.json()).then(d => setExisting(d.existing || []))
@@ -6497,8 +6500,12 @@ function GpsPanel({ teamData }: { teamData: any }) {
         window.dispatchEvent(new CustomEvent('gps-data-updated'))
       } else {
         setError(d.error || 'Error al importar')
+        alert('Error al guardar: ' + (d.error || 'Respuesta no válida del servidor'))
       }
-    } catch (e) { setError('Error de conexión') }
+    } catch (e) { 
+      setError('Error de conexión') 
+      alert('Error de conexión: No se pudo contactar con el servidor')
+    }
     finally { setImporting(false) }
   }
 
@@ -6847,10 +6854,20 @@ function GpsPanel({ teamData }: { teamData: any }) {
 
       {/* Historial de Cargas */}
       <div style={{ marginTop: 32 }}>
-        <h3 style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: 24, color: 'var(--snow)', letterSpacing: '0.04em', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 10 }}>
-          ⏳ ÚLTIMAS CARGAS
-          {loadingHistorial && <span style={{ fontSize: 12, color: 'var(--fog)', fontFamily: 'DM Sans' }}>Cargando...</span>}
-        </h3>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+          <h3 style={{ fontFamily: 'Bebas Neue, sans-serif', fontSize: 24, color: 'var(--snow)', letterSpacing: '0.04em', display: 'flex', alignItems: 'center', gap: 10, margin: 0 }}>
+            ⏳ ÚLTIMAS CARGAS
+            {loadingHistorial && <span style={{ fontSize: 12, color: 'var(--fog)', fontFamily: 'DM Sans' }}>Cargando...</span>}
+          </h3>
+          <button 
+            onClick={() => loadHistory()} 
+            disabled={loadingHistorial}
+            className="wp-button-secondary" 
+            style={{ padding: '4px 12px', fontSize: 12, borderRadius: 8 }}
+          >
+            {loadingHistorial ? '...' : '🔄 Actualizar'}
+          </button>
+        </div>
         
         {historial.length === 0 ? (
           <div style={{ padding: 32, textAlign: 'center', background: 'var(--ink2)', border: '1px dashed var(--mist)', borderRadius: 16, color: 'var(--fog)', fontSize: 13 }}>

@@ -294,20 +294,25 @@ export async function POST(req: NextRequest) {
       })
     }
     
-    if (clubId) {
-      if (sesion_id) {
-        await sql`DELETE FROM gps_logs WHERE club_id = ${clubId} AND fecha = ${fecha}::date AND sesion_id = ${sesion_id}`
-      } else {
-        await sql`DELETE FROM gps_logs WHERE club_id = ${clubId} AND fecha = ${fecha}::date AND sesion_id IS NULL AND tipo_sesion = ${tipo_sesion}`
-      }
-      
-      for (const m of matched) {
-        const met = m.metricas || {}
-        await sql`INSERT INTO gps_logs (jugador_id, club_id, fecha, sesion_id, tipo_sesion, dist_total, dist_hir, dist_v4, dist_v5, player_load, max_velocity, acc2, dec2, acc3, dec3, dist_per_min, n_sprints, metricas, fuente)
-                  VALUES (${m.jugador_id}, ${clubId}, ${fecha}, ${sesion_id}, ${tipo_sesion}, ${met.dist_total||0}, ${met.dist_hir||0}, ${met.dist_v4||0}, ${met.dist_v5||0}, ${met.player_load||0}, ${met.max_velocity||0}, ${met.acc2||0}, ${met.dec2||0}, ${met.acc3||0}, ${met.dec3||0}, ${met.dist_per_min||0}, ${met.n_sprints||0}, ${JSON.stringify(met)}, ${pdfText?'pdf':'excel'})`
-      }
+    if (confirm && clubId) {
+      const sid = (sesion_id === 0 || sesion_id === '0') ? null : sesion_id
+      await sql.begin(async sql => {
+        if (sid) {
+          await sql`DELETE FROM gps_logs WHERE club_id = ${clubId} AND fecha = ${fecha}::date AND sesion_id = ${sid}`
+        } else {
+          await sql`DELETE FROM gps_logs WHERE club_id = ${clubId} AND fecha = ${fecha}::date AND (sesion_id IS NULL OR sesion_id = 0) AND tipo_sesion = ${tipo_sesion}`
+        }
+        
+        for (const m of matched) {
+          const met = m.metricas || {}
+          await sql`INSERT INTO gps_logs (jugador_id, club_id, fecha, sesion_id, tipo_sesion, dist_total, dist_hir, dist_v4, dist_v5, player_load, max_velocity, acc2, dec2, acc3, dec3, dist_per_min, n_sprints, metricas, fuente)
+                    VALUES (${m.jugador_id}, ${clubId}, ${fecha}, ${sid}, ${tipo_sesion}, ${met.dist_total||0}, ${met.dist_hir||0}, ${met.dist_v4||0}, ${met.dist_v5||0}, ${met.player_load||0}, ${met.max_velocity||0}, ${met.acc2||0}, ${met.dec2||0}, ${met.acc3||0}, ${met.dec3||0}, ${met.dist_per_min||0}, ${met.n_sprints||0}, ${JSON.stringify(met)}, ${pdfText?'pdf':'excel'})`
+        }
+      })
+      return NextResponse.json({ ok: true, saved: matched.length, unmatched })
     }
-    return NextResponse.json({ ok: true, saved: matched.length, unmatched })
+    
+    return NextResponse.json({ ok: true, saved: 0, error: 'No se pudo guardar: falta confirmación o clubId' })
   } catch (err) { 
     console.error(err)
     return NextResponse.json({ error: String(err) }, { status: 500 }) 

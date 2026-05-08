@@ -26,9 +26,9 @@ export async function GET(req: NextRequest) {
       FROM gps_logs g
       LEFT JOIN sesiones_plan s ON s.id = g.sesion_id
       WHERE g.club_id = ${clubId}
-      GROUP BY g.fecha::date, g.tipo_sesion, g.sesion_id, s.titulo
+      GROUP BY g.fecha::date, g.tipo_sesion, COALESCE(g.sesion_id, 0), s.titulo
       ORDER BY g.fecha::date DESC, g.tipo_sesion DESC
-      LIMIT 40
+      LIMIT 100
     `
 
     return NextResponse.json(history, {
