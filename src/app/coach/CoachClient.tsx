@@ -6885,7 +6885,7 @@ function GpsPanel({ teamData }: { teamData: any }) {
                 <div style={{ fontSize: 18 }}>{h.tipo_sesion === 'partido' ? '🏆' : '⚽'}</div>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--snow)' }}>
-                    {h.fecha} · {h.tipo_sesion.toUpperCase()}
+                    {h.fecha} · {(h.tipo_sesion || 'S/T').toUpperCase()}
                   </div>
                   <div style={{ fontSize: 11, color: 'var(--silver)', marginTop: 2 }}>
                     {h.sesion_titulo ? `🔗 ${h.sesion_titulo}` : 'Sin vincular'} · {h.n_jugadores} jugadores
