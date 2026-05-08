@@ -31,7 +31,12 @@ export async function GET(req: NextRequest) {
       LIMIT 40
     `
 
-    return NextResponse.json(history)
+    return NextResponse.json(history, {
+      headers: {
+        'Cache-Control': 'no-store, max-age=0',
+        'Pragma': 'no-cache'
+      }
+    })
   } catch (err: any) {
     console.error('[GPS history error]', err)
     return NextResponse.json({ error: String(err), details: err.message }, { status: 500 })

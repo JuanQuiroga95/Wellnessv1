@@ -6320,12 +6320,18 @@ function GpsPanel({ teamData }: { teamData: any }) {
 
   const loadHistory = () => {
     setLoadingHistorial(true)
-    fetch(`/api/gps/history?t=${Date.now()}`)
+    fetch(`/api/gps/history?t=${Date.now()}`, {
+      cache: 'no-store',
+      headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' }
+    })
       .then(async r => {
         if (!r.ok) throw new Error('Error en el servidor')
         return r.json()
       })
-      .then(d => { setHistorial(Array.isArray(d) ? d : []); setLoadingHistorial(false) })
+      .then(d => { 
+        setHistorial(Array.isArray(d) ? d : [])
+        setLoadingHistorial(false) 
+      })
       .catch(err => { 
         console.error('Error cargando historial:', err)
         setLoadingHistorial(false) 
