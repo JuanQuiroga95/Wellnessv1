@@ -334,22 +334,28 @@ export async function DELETE(req: NextRequest) {
     const sid = (sesion_id === 'null' || sesion_id === 'undefined' || !sesion_id || sesion_id === '0') ? null : Number(sesion_id)
 
     let res;
-    if (idsStr) {
-      const ids = idsStr.split(',').map(Number).filter(n => !isNaN(n))
+    let deletedCount = 0;
+
+    if (idsStr && idsStr.trim().length > 0) {
+      const ids = idsStr.split(',').map(Number).filter(n => !isNaN(n) && n > 0)
       if (ids.length > 0) {
         res = await sql`DELETE FROM gps_logs WHERE club_id = ${clubId} AND id = ANY(${ids})`
-        return NextResponse.json({ ok: true, count: res.count })
+        deletedCount = res.count
       }
     }
 
-    // Fallback: Borrado por metadata si no hay IDs
-    if (sid !== null && !isNaN(sid)) {
-      res = await sql`DELETE FROM gps_logs WHERE club_id = ${clubId} AND fecha::date = ${fecha}::date AND sesion_id = ${sid}`
-    } else {
-      res = await sql`DELETE FROM gps_logs WHERE club_id = ${clubId} AND fecha::date = ${fecha}::date AND (sesion_id IS NULL OR sesion_id = 0) AND tipo_sesion = ${tipo_sesion}`
+    // Fallback or safety: If no IDs were deleted, or just to be sure, delete by metadata
+    // only if deletedCount is still 0 (to avoid double work, but here we want to be sure)
+    if (deletedCount === 0) {
+      if (sid !== null && !isNaN(sid)) {
+        res = await sql`DELETE FROM gps_logs WHERE club_id = ${clubId} AND fecha::date = ${fecha}::date AND sesion_id = ${sid}`
+      } else {
+        res = await sql`DELETE FROM gps_logs WHERE club_id = ${clubId} AND fecha::date = ${fecha}::date AND (sesion_id IS NULL OR sesion_id = 0) AND tipo_sesion = ${tipo_sesion}`
+      }
+      deletedCount = res.count
     }
 
-    return NextResponse.json({ ok: true, count: res.count })
+    return NextResponse.json({ ok: true, count: deletedCount })
   } catch (err: any) {
     console.error('[GPS DELETE error]', err)
     return NextResponse.json({ error: String(err) }, { status: 500 })

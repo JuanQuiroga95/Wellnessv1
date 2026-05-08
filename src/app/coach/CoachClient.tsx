@@ -6338,7 +6338,17 @@ function GpsPanel({ teamData }: { teamData: any }) {
       })
   }
 
-  useEffect(() => { loadHistory() }, [result])
+  // Load history on mount and when result changes
+  useEffect(() => { 
+    loadHistory() 
+  }, [result])
+
+  // Also reload history if other panels trigger an update
+  useEffect(() => {
+    const handler = () => loadHistory()
+    window.addEventListener('gps-data-updated', handler)
+    return () => window.removeEventListener('gps-data-updated', handler)
+  }, [])
 
   async function handleDelete(e: { fecha: string, tipo_sesion: string, sesion_id: any, ids?: number[] }) {
     if (!confirm(`¿Eliminar los datos GPS del ${e.fecha} (${e.tipo_sesion})?`)) return
@@ -6363,8 +6373,10 @@ function GpsPanel({ teamData }: { teamData: any }) {
           .then(d => setExisting(d.existing || []))
           .catch(() => {})
         
-        // Actualizar el historial global
-        loadHistory()
+        // Actualizar el historial global (con un mini delay para asegurar que la DB impactó)
+        setTimeout(() => {
+          loadHistory()
+        }, 400)
         
         // Avisar al resto de componentes
         window.dispatchEvent(new CustomEvent('gps-data-updated'))
