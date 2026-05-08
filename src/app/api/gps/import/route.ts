@@ -330,15 +330,16 @@ export async function DELETE(req: NextRequest) {
     const clubId = s.clubId ? Number(s.clubId) : null
     if (!clubId) return NextResponse.json({ error: 'No club' }, { status: 400 })
 
-    const sid = (sesion_id === 'null' || sesion_id === 'undefined' || !sesion_id) ? null : Number(sesion_id)
+    const sid = (sesion_id === 'null' || sesion_id === 'undefined' || !sesion_id || sesion_id === '0') ? null : Number(sesion_id)
 
+    let res;
     if (sid !== null && !isNaN(sid)) {
-      await sql`DELETE FROM gps_logs WHERE club_id = ${clubId} AND fecha = ${fecha}::date AND sesion_id = ${sid}`
+      res = await sql`DELETE FROM gps_logs WHERE club_id = ${clubId} AND fecha::date = ${fecha}::date AND sesion_id = ${sid}`
     } else {
-      await sql`DELETE FROM gps_logs WHERE club_id = ${clubId} AND fecha = ${fecha}::date AND sesion_id IS NULL AND tipo_sesion = ${tipo_sesion}`
+      res = await sql`DELETE FROM gps_logs WHERE club_id = ${clubId} AND fecha::date = ${fecha}::date AND (sesion_id IS NULL OR sesion_id = 0) AND tipo_sesion = ${tipo_sesion}`
     }
 
-    return NextResponse.json({ ok: true })
+    return NextResponse.json({ ok: true, count: res.count })
   } catch (err: any) {
     console.error('[GPS DELETE error]', err)
     return NextResponse.json({ error: String(err) }, { status: 500 })

@@ -6347,6 +6347,9 @@ function GpsPanel({ teamData }: { teamData: any }) {
       const d = await r.json().catch(() => ({ error: 'Error de respuesta del servidor' }))
       
       if (r.ok && d.ok) {
+        if (d.count === 0) {
+          alert('No se encontraron registros para borrar. Ya deberían estar borrados o hay un error de fecha.')
+        }
         // Actualizar el estado de la fecha seleccionada
         fetch(`/api/gps/sesiones?fecha=${fecha}`)
           .then(r => r.json())
