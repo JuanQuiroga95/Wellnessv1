@@ -30,9 +30,10 @@ export async function GET(req: NextRequest) {
       LIMIT 20
     `
 
+    console.log('[GPS history]', { clubId, historyCount: history.length })
     return NextResponse.json(history)
-  } catch (err) {
+  } catch (err: any) {
     console.error('[GPS history error]', err)
-    return NextResponse.json({ error: String(err) }, { status: 500 })
+    return NextResponse.json({ error: String(err), details: err.message }, { status: 500 })
   }
 }

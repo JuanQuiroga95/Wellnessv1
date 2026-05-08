@@ -59,443 +59,206 @@ const METRIC_COL_MAP: Array<[string, string]> = [
   ['dec b2','dec3'],['dec2 eff','dec3'],['dec 2','dec3'],['decel b2','dec3'],['dec 80 2','dec3'],
   ['desaceleraciones','dec3'],['decelerations','dec3'], // Ubico
   
-  ['acc b3 tot effs','acc2'],['acc b3 tot','acc2'],['acc b3','acc2'],
-  ['accelerations b3','acc2'],['aceleraciones b3','acc2'],
-  ['acc3 eff','acc2'],['acc 3','acc2'],['accel b3','acc2'],
-  ['ima acceleration b3','acc2'],['ima acc b3','acc2'],
-  ['high accelerations','acc2'],['high intensity accelerations','acc2'],
-  ['explosive accelerations','acc2'],['explosive acc','acc2'],
-  ['decel b3 tot effs','dec2'],['decel b3 tot','dec2'],['decel b3','dec2'],
-  ['decelerations b3','dec2'],['desaceleraciones b3','dec2'],
-  ['dec3 eff','dec2'],['dec 3','dec2'],['decel b3','dec2'],
-  ['ima deceleration b3','dec2'],['ima dec b3','dec2'],
-  ['high decelerations','dec2'],['high intensity decelerations','dec2'],
-  ['explosive decelerations','dec2'],['explosive dec','dec2'],
+  ['accel b1','acc1'],['decel b1','dec1'],
+  ['accel b4','acc4'],['decel b4','dec4'],
 
-  // 4. PLAYER LOAD / VEL MAX / DURACION
-  ['player load','player_load'],['playerload','player_load'],['carga jugador','player_load'],
-  ['max velocity','max_velocity'],['max vel','max_velocity'],['top speed','max_velocity'],
-  ['velocidad maxima','max_velocity'],['vitesse maximale','max_velocity'],['vel max','max_velocity'],
-  ['total duration','duracion_min'],['total dur','duracion_min'],['tot dur','duracion_min'],
-  ['duration','duracion_min'],['duracion','duracion_min'],['time','duracion_min'],['tiempo','duracion_min'],
-  ['tiempo min','duracion_min'],['tiempo (min)','duracion_min'],['minutos','duracion_min'],
-
-  // 5. TERMINOS GENERICOS (Ultima instancia)
-  ['distance','dist_total'],['distancia','dist_total'],['dist','dist_total'],
+  // 4. PLAYER LOAD & OTRAS
+  ['player load','player_load'],['load','player_load'],['charge','player_load'],
+  ['velocidad maxima','max_velocity'],['max velocity','max_velocity'],['vitesse max','max_velocity'],
+  ['max speed','max_velocity'],['peak velocity','max_velocity'],['peak speed','max_velocity'],
+  ['top speed','max_velocity'],['vmax','max_velocity'],
+  ['duracion','duracion_min'],['duration','duracion_min'],['time','duracion_min'],['tiempo','duracion_min'],
 ]
 
-function matchMetricCol(h: string): string | null {
-  const hn = normStr(h)
-  
-  // 1. Match Exacto (Prioridad Máxima)
-  for (const [label, field] of METRIC_COL_MAP) {
-    if (hn === normStr(label)) return field
-  }
-  
-  // 2. Match Parcial Seguro
-  for (const [label, field] of METRIC_COL_MAP) {
-    const ln = normStr(label)
-    if (hn.includes(ln)) {
-      // BLOQUEO dist_total: No permitir que "distance" atrape métricas de alta intensidad o por minuto
-      if (field === 'dist_total') {
-        const isSubMetric = ['vrange', 'zone', 'band', 'hir', 'hsr', 'speed', 'sprint', 'intensity', 'minute', 'minuto', 'min', '/', 'max'].some(k => hn.includes(k))
-        if (isSubMetric && !hn.includes('total') && !hn.includes('tot')) continue
-      }
-      
-      // BLOQUEO UBICO: Evitar que "max_acc" pise el contador de aceleraciones normales.
-      if ((field === 'acc2' || field === 'acc3' || field === 'dec2' || field === 'dec3') && hn.includes('max') && !hn.includes('b3') && !hn.includes('b2')) continue
-      
-      return field
-    }
+// Finds the best metric key for a given column header
+function mapHeaderToMetric(header: string): string | null {
+  const h = header.toLowerCase().trim()
+  for (const [pattern, key] of METRIC_COL_MAP) {
+    if (h === pattern || h.includes(pattern)) return key
   }
   return null
 }
 
-
-const matchExcelCol = matchMetricCol
-
-// ─── MOTOR EXCEL INTELIGENTE (UBICO/CATAPULT/WIMU) ───────────────
-function parseRawRows(raw: any[][]): Record<string, any>[] {
-  if (raw.length < 2) return []
-  const headers = (raw[0] as any[]).map(h => String(h ?? ''))
+async function matchPlayers(rows: any[], clubId: number | null) {
+  const sql = getDb()
+  const dbPlayers = clubId 
+    ? await sql`SELECT id, nombre, apodo FROM jugadores WHERE club_id = ${clubId}`
+    : await sql`SELECT id, nombre, apodo FROM jugadores`
   
-  const colMap: (string | null)[] = headers.map(h => {
-    const ln = normStr(h)
-    const isNameCol = ln === 'name' || ln === 'nombre' || ln === 'athlete' || ln === 'player' ||
-      ln === 'jugador' || ln.includes('first name') || ln.includes('player name') || ln.includes('athlete name') || ln === 'jugadores' || ln === 'nombre y apellido' || ln === 'nombre apellido'
-    if (isNameCol) return '__name__'
-    if (['interval','time','date','fecha','session','period','device','jersey','shirt','position','pos', 'split'].some(k => ln === k || ln.startsWith(k + ' '))) return null
-    return matchExcelCol(h)
-  })
+  const matched: any[] = []
+  const unmatched: string[] = []
 
-  const playerRows: Record<string, any> = {}
-
-  raw.slice(1).forEach(row => {
-    if (!row.some((c: any) => c !== null && c !== '')) return
+  for (const row of rows) {
+    const rawName = row.name
+    if (!rawName) continue
     
-    let name: string | null = null
-    const metricas: Record<string, number> = {}
+    const nRaw = normalizeName(rawName)
     
-    ;(row as any[]).forEach((cell: any, idx: number) => {
-      const f = colMap[idx]
-      if (!f || cell === null || cell === '') return
-      if (f === '__name__') { name = String(cell).trim(); return }
-      
-      if (f === 'duracion_min') {
-        const durStr = String(cell).trim()
-        const durMatch = durStr.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/)
-        if (durMatch) {
-          const h = durMatch[3] ? parseInt(durMatch[1]) : 0
-          const m = durMatch[3] ? parseInt(durMatch[2]) : parseInt(durMatch[1])
-          const s = durMatch[3] ? parseInt(durMatch[3]) : parseInt(durMatch[2])
-          const totalMin = h * 60 + m + s / 60
-          if (totalMin > 0) metricas[f] = Math.round(totalMin * 10) / 10
-          return
-        }
+    // 1. Exact match (normalize both)
+    let p = dbPlayers.find(dp => normalizeName(dp.nombre) === nRaw || normalizeName(dp.apodo) === nRaw)
+    let method = 'nombre'
+
+    // 2. Partial match (starts with or ends with)
+    if (!p) {
+      p = dbPlayers.find(dp => {
+        const nDb = normalizeName(dp.nombre)
+        return nDb.includes(nRaw) || nRaw.includes(nDb)
+      })
+      method = 'parcial'
+    }
+
+    if (p) {
+      matched.push({
+        jugador_id: p.id,
+        jugador_nombre: p.nombre,
+        nombre_catapult: rawName,
+        match_method: method,
+        metricas: row.metricas,
+        sin_datos: row.sin_datos
+      })
+    } else {
+      unmatched.push(rawName)
+    }
+  }
+
+  return { matched, unmatched }
+}
+
+function parseRawRows(rows: any[][]): any[] {
+  if (rows.length < 2) return []
+  
+  // Find the header row (the one that has "Distance" or "Name")
+  let headerIdx = -1
+  for (let i = 0; i < Math.min(rows.length, 15); i++) {
+    const row = rows[i]
+    if (row.some(c => {
+      const s = String(c).toLowerCase()
+      return s.includes('dist') || s.includes('nombre') || s.includes('name') || s.includes('player') || s.includes('meterage')
+    })) {
+      headerIdx = i; break
+    }
+  }
+  if (headerIdx === -1) return []
+
+  const headers = rows[headerIdx].map(h => String(h || ''))
+  const dataRows = rows.slice(headerIdx + 1)
+  const results: any[] = []
+
+  // Column indexes for Player Name (can be multiple columns in different formats)
+  const nameCols = headers.reduce((acc, h, i) => {
+    const hl = h.toLowerCase()
+    if (hl.includes('nombre') || hl.includes('name') || hl.includes('player') || hl.includes('athlete')) acc.push(i)
+    return acc
+  }, [] as number[])
+
+  for (const row of dataRows) {
+    // Extract name
+    let name = ''
+    for (const idx of nameCols) {
+      const val = String(row[idx] || '').trim()
+      if (val && !val.toLowerCase().includes('total') && !val.toLowerCase().includes('average')) {
+        name = val; break
       }
-
-      let cleanNumStr = String(cell).replace(/\s/g, '').replace(/;/g, '')
-      if (/\d+\.\d+,\d+/.test(cleanNumStr)) {
-        cleanNumStr = cleanNumStr.replace(/\./g, '').replace(',', '.')
-      } else {
-        cleanNumStr = cleanNumStr.replace(',', '.')
-      }
-
-      const n = parseFloat(cleanNumStr)
-      if (!isNaN(n)) metricas[f] = n
-    })
-
-    if (!name) return
+    }
+    if (!name) continue
+    
+    // Ignore aggregate rows
     const nl = name.toLowerCase()
     const isAggregate = ['team', 'average', 'promedio', 'total', 'equipo', 'media',
       'squad', 'mean', 'promedio equipo', 'team average', 'max', 'maximo', 'máximo'].some(k => nl === k || nl.startsWith(k + ' ') || nl.endsWith(' ' + k))
-    if (isAggregate) return
-    if (Object.keys(metricas).length === 0) return
+    if (isAggregate) continue
 
-    const finalNameNorm = normalizeName(name)
-    const distTotalActual = metricas.dist_total || 0
-    
-    if (!playerRows[finalNameNorm] || distTotalActual > (playerRows[finalNameNorm].metricas.dist_total || 0)) {
-      playerRows[finalNameNorm] = { 
-        nombre_catapult: cleanCatapultName(name), 
-        nombre_norm: finalNameNorm, 
-        metricas 
-      }
-    }
-  })
-
-  return Object.values(playerRows)
-}
-
-function parseExcel(bytes: Uint8Array): Record<string, any>[] {
-  const wb = XLSX.read(bytes, { type: 'array' })
-  const sheet = wb.Sheets[wb.SheetNames[0]]
-  const raw: any[][] = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: null }) as any[][]
-  return parseRawRows(raw)
-}
-
-function cleanCatapultName(raw: string): string {
-  const parts = raw.trim().replace(/\.$/, '').split(/\s+/)
-  const n = parts.length
-  if (n < 2) return raw.trim()
-  if (n === 2 && parts[0].toUpperCase() === parts[1].toUpperCase()) return parts[0]
-  for (let split = 1; split < n; split++) {
-    const first = parts.slice(0, split), rest = parts.slice(split)
-    if (first.length < 1 || normStr(first.join(' ')).length < 2) continue
-    if (first[0].length < 2) continue
-    const fn = normStr(first.join(' ')), rn = normStr(rest.join(' '))
-    if (fn === rn) return first.join(' ')
-    if (rest.length === 1 && normStr(first[first.length - 1]) === normStr(rest[0])) return first.join(' ')
-    if (rest.length > 0 && normStr(rest[0]) === normStr(first[0]) && fn.length >= 4) return first.join(' ')
-  }
-  return raw.trim().replace(/\.$/, '')
-}
-
-function parsePdfRowFormat(lines: string[]): Record<string, any>[] | null {
-  const POS_CODES = ['CAM','CDM','LB','RB','LW','RW','WB','CB','CM','ST','FB','GK','CF','AM','DM','LM','RM','W']
-  const posDetect = new RegExp(POS_CODES.join('|'))
-  const FIELD_MAP = ['dist_total', 'dist_per_min', 'dist_v4', 'dist_v5', null, 'n_sprints', 'dist_hir', 'acc3', 'dec3', 'acc2', 'dec2', 'player_load', 'duracion_min', 'max_velocity']
-  const SUMMARY_WORDS = new Set(['total','moyenne','average','promedio','media','totale','totaux','totals'])
-  const results: Record<string, any>[] = []
-  const lonePosCodes = lines.filter(l => l.trim()).filter(l => POS_CODES.includes(l.trim()))
-  const isFragmented = lonePosCodes.length >= 2
-  let workingLines: string[]
-  if (isFragmented) {
-    const tokens: string[] = []
-    for (const line of lines) {
-      const t = line.trim(); if (!t || /^page\s+\d+/i.test(t) || /^\d{2}\/\d{2}\/\d{4}$/.test(t)) continue
-      for (const tok of t.split(/\s+/)) tokens.push(tok)
-    }
-    const rows: string[] = []
-    let i = 0
-    while (i < tokens.length) {
-      if (POS_CODES.includes(tokens[i]) && i + 1 < tokens.length && /^\d{3,5}$/.test(tokens[i + 1])) {
-        const posIdx = i; let nameStart = posIdx - 1
-        while (nameStart >= 0) {
-          const tok = tokens[nameStart]; if (/^\d/.test(tok) || POS_CODES.includes(tok)) break
-          if (!/^[A-Za-zÀ-ÿ'-]+$/.test(tok)) break
-          nameStart--
+    const metricas: any = {}
+    let hasAnyData = false
+    headers.forEach((h, i) => {
+      const mKey = mapHeaderToMetric(h)
+      if (mKey) {
+        let val = row[i]
+        if (typeof val === 'string') {
+          val = val.replace(/[^\d.,-]/g, '').replace(',', '.')
+          val = parseFloat(val)
         }
-        nameStart++; const nameParts = tokens.slice(nameStart, posIdx), pos = tokens[posIdx], dataParts: string[] = []
-        let j = posIdx + 1
-        while (j < tokens.length) {
-          const tok = tokens[j]; if (POS_CODES.includes(tok) && j + 1 < tokens.length && /^\d{3,5}$/.test(tokens[j + 1])) break
-          if (SUMMARY_WORDS.has(normStr(tok)) || (/^[A-Za-z]/.test(tok) && !POS_CODES.includes(tok))) break
-          dataParts.push(tok); j++
+        if (typeof val === 'number' && !isNaN(val)) {
+          metricas[mKey] = val
+          if (val > 0) hasAnyData = true
         }
-        if (nameParts.length > 0 && dataParts.length >= 6) rows.push([...nameParts, pos, ...dataParts].join(' '))
-        i = j; continue
       }
-      i++
-    }
-    workingLines = rows
-  } else {
-    const mergedLines: string[] = []
-    for (let i = 0; i < lines.length; i++) {
-      const cur = lines[i].trim(); if (cur.length <= 2 && /^[A-Z]$/.test(cur) && i + 1 < lines.length) { mergedLines.push(cur + ' ' + lines[i + 1].trim()); i++ } else mergedLines.push(cur)
-    }
-    workingLines = mergedLines
-  }
-  for (const line of workingLines) {
-    if (!line.trim() || !posDetect.test(line)) continue
-    const parts = line.trim().split(/\s+/); let posIdx = parts.findIndex(p => POS_CODES.includes(p)), name = '', rest = ''
-    if (posIdx >= 0) { name = parts.slice(0, posIdx).join(' '); rest = parts.slice(posIdx + 1).join(' ') } else {
-      const m = line.match(new RegExp(`^(.+?)(${POS_CODES.join('|')})(.+)$`)); if (!m) continue
-      name = m[1].trim(); rest = m[3].trim()
-    }
-    if (!name || !rest || name.replace(/\s/g, '').length < 3 || SUMMARY_WORDS.has(normStr(name))) continue
-    const spaceParts = rest.trim().split(/\s+/), metricas: Record<string, number> = {}
-    if (spaceParts.length >= 8) {
-      for (let i = 0; i < spaceParts.length && i < FIELD_MAP.length; i++) {
-        const field = FIELD_MAP[i]; if (!field) continue
-        if (/^\d{1,2}:\d{2}:\d{2}$/.test(spaceParts[i])) {
-          const [h, m, s] = spaceParts[i].split(':').map(Number); metricas['duracion_min'] = Math.round((h * 60 + m + s / 60) * 10) / 10
-          continue
-        }
-        const val = parseFloat(spaceParts[i].replace(',', '.')); if (!isNaN(val)) metricas[field] = val
-      }
-    } else {
-      const durMatch = rest.match(/(\d{1,2}:\d{2}:\d{2})/); let restNoDur = rest
-      if (durMatch) {
-        const [hh, mm, ss] = durMatch[1].split(':').map(Number); metricas['duracion_min'] = Math.round((hh * 60 + mm + ss / 60) * 10) / 10
-        restNoDur = rest.replace(durMatch[1], ' ').trim()
-      }
-      const nums = (restNoDur.match(/\d+(?:\.\d+)?/g) || []).map(n => parseFloat(n)); if (nums.length < 6) continue
-      const maxVelCandidate = nums[nums.length - 1]; if (!isNaN(maxVelCandidate) && maxVelCandidate >= 15 && maxVelCandidate <= 45) metricas['max_velocity'] = maxVelCandidate
-      const MERGED_MAP = ['dist_total', 'dist_per_min', 'dist_v4', 'dist_v5', null, 'n_sprints', 'dist_hir', 'acc3', 'dec3', 'player_load']
-      const dataNums = nums.slice(0, nums.length - 1)
-      for (let i = 0; i < dataNums.length && i < MERGED_MAP.length; i++) {
-        const field = MERGED_MAP[i]; if (field && !isNaN(dataNums[i])) metricas[field] = dataNums[i]
-      }
-    }
-    if (Object.values(metricas).some(v => v > 0)) { const cleanName = cleanCatapultName(name); results.push({ nombre_catapult: cleanName, nombre_norm: normalizeName(cleanName), metricas }) }
-  }
-  return results.length > 0 ? results : null
-}
+    })
 
-const CUADRO_RESUMEN_COL_MAP = ['dist_total', 'dist_per_min', 'dist_v4', 'dist_hir', 'dist_v5', 'n_sprints', 'acc3', 'dec3', 'max_velocity']
-function parsePdfCuadroResumen(lines: string[]): Record<string, any>[] | null {
-  const SUMMARY_WORDS = new Set(['total','moyenne','average','promedio','media','totale','totaux','totals','max','maximo','máximo','min','minimo'])
-  const results: Record<string, any>[] = []
-  for (const line of lines) {
-    const trimmed = line.trim(); if (!trimmed) continue
-    if (/page \d+ of|cuadro resumen|catapult/i.test(trimmed)) continue
-    
-    const parts = trimmed.split(/\s+/); if (parts.length < 4) continue
-    let dataStart = parts.length; while (dataStart > 0 && /^[\d.,]+$/.test(parts[dataStart - 1])) dataStart--
-    const numericParts = parts.slice(dataStart), nameParts = parts.slice(0, dataStart)
-    if (numericParts.length < 3 || nameParts.length === 0) continue
-    const firstNum = parseFloat(numericParts[0].replace(',', '.')); if (isNaN(firstNum) || firstNum < 500 || firstNum > 20000) continue
-    
-    let nameRaw = nameParts.join(' ').trim()
-    nameRaw = nameRaw.replace(/^[\d\/\-]+\s*/, '').trim() 
-    if (nameRaw.length < 2) continue
-
-    const nameNorm2 = normStr(nameRaw)
-    if (SUMMARY_WORDS.has(nameNorm2) || [...SUMMARY_WORDS].some(w => nameNorm2.startsWith(w)) || /^\d{2}\/\d{2}\/\d{4}$/.test(nameRaw)) continue
-    
-    const metricas: Record<string, number> = {}
-    for (let i = 0; i < numericParts.length && i < CUADRO_RESUMEN_COL_MAP.length; i++) {
-      const field = CUADRO_RESUMEN_COL_MAP[i]; if (field) metricas[field] = parseFloat(numericParts[i].replace(',', '.'))
-    }
-    if (Object.values(metricas).some(v => v > 0)) { const cleanName = cleanCatapultName(nameRaw); results.push({ nombre_catapult: cleanName, nombre_norm: normalizeName(cleanName), metricas }) }
-  }
-  return results.length >= 2 ? results : null
-}
-
-const BLOB_METRIC_RANGES: Record<string, [number, number]> = {
-  dist_total: [500, 20000], dist_per_min: [20, 200], dist_v4: [0, 6000], dist_hir: [0, 3000], dist_v5: [0, 3000],
-  n_sprints: [0, 60], acc2: [0, 120], dec2: [0, 120], acc3: [0, 60], dec3: [0, 60], max_velocity: [10, 50],
-  player_load: [0, 2000], duracion_min: [1, 200],
-}
-
-function dpSegmentBlob(blob: string, ranges: Array<[number, number]>): number[] | null {
-  const N = ranges.length, L = blob.length
-  const dp: (number[] | null)[][] = Array.from({ length: N + 1 }, () => new Array(L + 1).fill(null))
-  dp[0][0] = []
-  for (let seg = 0; seg < N; seg++) {
-    const [rMin, rMax] = ranges[seg]
-    for (let pos = 0; pos <= L; pos++) {
-      if (dp[seg][pos] === null) continue
-      const prevPath = dp[seg][pos] as number[]
-      for (let len = 1; len <= Math.min(6, L - pos); len++) {
-        if (len > 1 && blob[pos] === '0') continue
-        const val = parseInt(blob.slice(pos, pos + len), 10)
-        if (!isNaN(val) && val >= rMin && val <= rMax && dp[seg + 1][pos + len] === null)
-          dp[seg + 1][pos + len] = [...prevPath, val]
-      }
-    }
-  }
-  return dp[N][L]
-}
-
-function parsePdfBlobColumnar(lines: string[]): Record<string, any>[] | null {
-  const blobLines = lines.filter(l => /^\d{15,}$/.test(l.trim()))
-  if (blobLines.length < 2) return null
-  const SEPARATOR_WORDS = new Set(['promedio','moyenne','average','media','total','prom','avg','mean','totaux','totale','totals'])
-  const names: string[] = []; let blobStart = -1
-  for (let i = 0; i < lines.length; i++) {
-    const s = lines[i].trim(); if (!s) continue
-    if (/^\d{15,}$/.test(s) || SEPARATOR_WORDS.has(normStr(s))) { blobStart = i; break }
-    if (!/PAGE \d+|\d{2}\/\d{2}/i.test(s)) names.push(s)
-  }
-  if (names.length === 0 || blobStart === -1) return null
-  const uniqueNames = names.map(n => cleanCatapultName(n)).filter(cn => cn.length >= 2)
-  const metricBlobs: { label: string, blob: string }[] = []
-  let currentLabel = ''
-  for (let i = blobStart; i < lines.length; i++) {
-    const s = lines[i].trim(); if (!s || /\d{2}\/\d{2}|page/i.test(s)) continue
-    if (/^\d{15,}$/.test(s)) { metricBlobs.push({ label: currentLabel, blob: s }); currentLabel = '' }
-    else currentLabel = (currentLabel + ' ' + s).trim()
-  }
-  const results = uniqueNames.map(name => ({ nombre_catapult: name, nombre_norm: normalizeName(name), metricas: {} as Record<string, number> }))
-  for (let bi = 0; bi < metricBlobs.length; bi++) {
-    const { label, blob } = metricBlobs[bi], field = matchMetricCol(label); if (!field) continue
-    const range = BLOB_METRIC_RANGES[field]
-    for (const n of [uniqueNames.length, uniqueNames.length + 2, uniqueNames.length + 1]) {
-      const segmented = dpSegmentBlob(blob, Array.from({ length: n }, () => range))
-      if (segmented) { for (let pi = 0; pi < uniqueNames.length; pi++) results[pi].metricas[field] = segmented[pi]; break }
-    }
-  }
-  return results.filter(r => Object.values(r.metricas).some(v => v > 0))
-}
-
-function parsePdfFromText(lines: string[]): Record<string, any>[] {
-  const results: Record<string, any>[] = []
-  let lastNameFound: string | null = null
-  let pendingMetrics: Record<string, number> | null = null
-
-  const isGarbageHeader = (s: string) => {
-    const n = normStr(s)
-    const exactMatch = ['promedio', 'max', 'average', 'total', 'media', 'min'].includes(n)
-    const garbageWords = ['minute', 'meterage', 'sprints', 'effs', 'gen 2', 'velocidad', 'velocity', 'high speed', 'tot dist', 'cuadro', 'resumen', 'catapult', 'estadisticas', 'page', 'vs', 'temporada', 'jornada']
-    const containsGarbageWord = garbageWords.some(w => new RegExp(`\\b${normStr(w)}\\b`).test(n))
-    return exactMatch || containsGarbageWord
-  }
-
-  for (const line of lines) {
-    if (/^\d{1,2}\/\d{1,2}\/\d{2,4}$/.test(line)) continue
-    
-    const parts = line.split(/\s+/)
-    let dataStart = parts.length
-    while (dataStart > 0 && /^[\d,.]+$/.test(parts[dataStart - 1])) dataStart--
-    
-    const numericParts = parts.slice(dataStart)
-    let nameFromLine = parts.slice(0, dataStart).join(' ').trim()
-    
-    nameFromLine = nameFromLine.replace(/^[\d\/\-]+\s*/, '').trim()
-    nameFromLine = nameFromLine.replace(/^(PAGE|page)\s*\d+\s*(OF|of)\s*\d*\s*/i, '').trim()
-
-    if (numericParts.length >= 3) {
-      const metricas: Record<string, number> = {}
-      const colOrder = ['dist_total', 'dist_per_min', 'dist_v4', 'dist_hir', 'dist_v5', 'n_sprints', 'acc3', 'dec3', 'max_velocity']
-      
-      for (let i = 0; i < numericParts.length && i < colOrder.length; i++) {
-        const val = parseFloat(numericParts[i].replace(',', '.'))
-        if (!isNaN(val)) metricas[colOrder[i]] = val
-      }
-      
-      const finalName = nameFromLine || lastNameFound
-      
-      if (finalName && /[a-zA-Z]/.test(finalName)) {
-        if (!isGarbageHeader(finalName)) {
-          const cleanName = cleanCatapultName(finalName)
-          results.push({ nombre_catapult: cleanName, nombre_norm: normalizeName(cleanName), metricas })
-          pendingMetrics = null
-        } else {
-          pendingMetrics = null
-        }
-      } else {
-        pendingMetrics = metricas
-      }
-      lastNameFound = null
-    } else if (nameFromLine.length > 2 && /[a-zA-Z]/.test(nameFromLine)) {
-      if (!isGarbageHeader(nameFromLine)) {
-        if (pendingMetrics) {
-          const cleanName = cleanCatapultName(nameFromLine)
-          results.push({ nombre_catapult: cleanName, nombre_norm: normalizeName(cleanName), metricas: pendingMetrics })
-          pendingMetrics = null
-        } else {
-          lastNameFound = nameFromLine
-        }
-      } else {
-        lastNameFound = null 
-      }
+    if (Object.keys(metricas).length > 0) {
+      results.push({ name, metricas, sin_datos: !hasAnyData })
     }
   }
   return results
 }
 
-function parsePdfAllMethods(rawText: string): Record<string, any>[] {
-  const lines = rawText.split('\n').map(l => l.trim()).filter(Boolean)
+// PDF Parser for Session Summary (OpenField)
+function parsePdfAllMethods(text: string): any[] {
+  const lines = text.split('\n').map(l => l.trim()).filter(Boolean)
+  const results: any[] = []
   
-  const resText = parsePdfFromText(lines)
-  const resRow = parsePdfRowFormat(lines) || []
-  const resCuadro = parsePdfCuadroResumen(lines) || []
-  const resBlob = parsePdfBlobColumnar(lines) || []
-
-  const options = [resText, resRow, resCuadro, resBlob].filter(arr => arr && arr.length > 0)
-  
-  if (options.length === 0) return []
-
-  options.sort((a, b) => b.length - a.length)
-  const bestResult = options[0]
-
-  const uniquePlayers: Record<string, any>[] = []
-  const seenNames = new Set<string>()
-  for (const row of bestResult) {
-    if (!seenNames.has(row.nombre_norm)) {
-      seenNames.add(row.nombre_norm)
-      uniquePlayers.push(row)
+  // 1. Find Header Line
+  let headerIdx = -1
+  for (let i = 0; i < Math.min(lines.length, 40); i++) {
+    const l = lines[i].toLowerCase()
+    if ((l.includes('player') || l.includes('nombre')) && (l.includes('dist') || l.includes('meterage'))) {
+      headerIdx = i; break
     }
   }
+  if (headerIdx === -1) return []
+
+  const headerLine = lines[headerIdx]
+  const headerParts = headerLine.split(/\s{2,}/).filter(Boolean)
+  const colMap = headerParts.map(p => ({ label: p, metric: mapHeaderToMetric(p) }))
   
-  return uniquePlayers
-}
+  // 2. Parse Data Rows
+  for (let i = headerIdx + 1; i < lines.length; i++) {
+    const line = lines[i]
+    if (line.toLowerCase().includes('squad') || line.toLowerCase().includes('team') || line.toLowerCase().includes('promedio')) continue
+    
+    // Pattern: [Name...] [Number] [Number] ...
+    // Names in Catapult PDFs usually don't have numbers
+    const parts = line.split(/\s+/).filter(Boolean)
+    if (parts.length < 3) continue
+    
+    // Find where name ends and numbers begin
+    let firstNumIdx = -1
+    for (let j = 0; j < parts.length; j++) {
+      if (/^-?\d+([.,]\d+)?$/.test(parts[j].replace(/[^\d.,-]/g, ''))) {
+        firstNumIdx = j; break
+      }
+    }
+    if (firstNumIdx === -1 || firstNumIdx === 0) continue
 
-async function matchPlayers(rows: Record<string,any>[], clubId: number|null) {
-  const sql = getDb()
-  const jugadores = clubId ? await sql`SELECT j.id, u.nombre FROM jugadores j JOIN usuarios u ON u.id = j.usuario_id WHERE (u.club_id = ${clubId} OR j.club_id = ${clubId}) AND u.activo = true` : []
-  const matched: any[] = [], unmatched: string[] = []
+    const name = parts.slice(0, firstNumIdx).join(' ')
+    const numParts = parts.slice(firstNumIdx)
+    
+    const metricas: any = {}
+    let hasAnyData = false
+    // Map mapped metrics to their values
+    let metricIdx = 0
+    colMap.forEach(cm => {
+      if (cm.metric) {
+        const rawVal = numParts[metricIdx]
+        if (rawVal) {
+          const val = parseFloat(rawVal.replace(/[^\d.,-]/g, '').replace(',', '.'))
+          if (!isNaN(val)) {
+            metricas[cm.metric] = val
+            if (val > 0) hasAnyData = true
+          }
+        }
+        metricIdx++
+      } else if (cm.label.toLowerCase() !== 'player' && cm.label.toLowerCase() !== 'nombre') {
+        // Skip unmapped columns in the data parts too
+        metricIdx++
+      }
+    })
 
-  function scoreMatch(pdfNorm: string, dbNorm: string): number {
-    if (dbNorm === pdfNorm) return 100
-    if (dbNorm.includes(pdfNorm) || pdfNorm.includes(dbNorm)) return 80
-    const dbWords = dbNorm.split(' '), pdfWords = pdfNorm.split(' ')
-    const common = pdfWords.filter(pw => dbWords.includes(pw) && pw.length >= 3).length
-    return common > 0 ? common * 10 : 0
+    if (Object.keys(metricas).length > 0) {
+      results.push({ name, metricas, sin_datos: !hasAnyData })
+    }
   }
-
-  for (const row of rows) {
-    const pdfNorm = row.nombre_norm
-    const scored = (jugadores as any[]).map(j => ({ j, score: scoreMatch(pdfNorm, normalizeName(j.nombre)) }))
-    const bestScore = scored.reduce((mx, s) => Math.max(mx, s.score), 0)
-    const bestMatches = scored.filter(s => s.score === bestScore && s.score > 0)
-    const jug = bestMatches.length === 1 ? bestMatches[0].j : null
-    if (jug) matched.push({ ...row, jugador_id: jug.id, jugador_nombre: jug.nombre, match_method: 'parcial', n_metricas: Object.keys(row.metricas||{}).length, sin_datos: false })
-    else unmatched.push(row.nombre_catapult)
-  }
-  return { matched, unmatched }
+  return results
 }
 
 export async function POST(req: NextRequest) {
@@ -507,14 +270,11 @@ export async function POST(req: NextRequest) {
     const { fecha, tipo_sesion, sesion_id, confirm, pdfText, rows } = body
     if (!fecha) return NextResponse.json({ error: 'Falta fecha' }, { status: 400 })
     
-    // Llamada al Motor Maestro de PDF o al Nuevo Motor Excel de UBICO/CATAPULT
     let parsedRows = (rows && Array.isArray(rows)) ? parseRawRows(rows) : (pdfText ? parsePdfAllMethods(pdfText) : [])
-    
     if (!parsedRows.length) return NextResponse.json({ error: 'No se encontraron datos.' }, { status: 400 })
     
     const sql = getDb()
     const clubId = s.clubId ? Number(s.clubId) : null
-    
     const { matched, unmatched } = await matchPlayers(parsedRows, clubId)
     
     if (!confirm) {
@@ -535,7 +295,6 @@ export async function POST(req: NextRequest) {
     }
     
     if (clubId) {
-      // FIX: Asegurar que borramos correctamente si sesion_id es null (usar IS NULL en vez de = NULL)
       if (sesion_id) {
         await sql`DELETE FROM gps_logs WHERE club_id = ${clubId} AND fecha = ${fecha}::date AND sesion_id = ${sesion_id}`
       } else {
@@ -565,21 +324,23 @@ export async function DELETE(req: NextRequest) {
     const tipo_sesion = searchParams.get('tipo_sesion')
     const sesion_id = searchParams.get('sesion_id')
 
-    if (!fecha) return NextResponse.json({ error: 'Falta fecha' }, { status: 400 })
+    if (!fecha || !tipo_sesion) return NextResponse.json({ error: 'Faltan parámetros' }, { status: 400 })
 
     const sql = getDb()
     const clubId = s.clubId ? Number(s.clubId) : null
     if (!clubId) return NextResponse.json({ error: 'No club' }, { status: 400 })
 
-    if (sesion_id && sesion_id !== 'null') {
-      await sql`DELETE FROM gps_logs WHERE club_id = ${clubId} AND fecha = ${fecha}::date AND sesion_id = ${Number(sesion_id)}`
+    const sid = (sesion_id === 'null' || sesion_id === 'undefined' || !sesion_id) ? null : Number(sesion_id)
+
+    if (sid !== null && !isNaN(sid)) {
+      await sql`DELETE FROM gps_logs WHERE club_id = ${clubId} AND fecha = ${fecha}::date AND sesion_id = ${sid}`
     } else {
       await sql`DELETE FROM gps_logs WHERE club_id = ${clubId} AND fecha = ${fecha}::date AND sesion_id IS NULL AND tipo_sesion = ${tipo_sesion}`
     }
 
     return NextResponse.json({ ok: true })
-  } catch (err) {
-    console.error(err)
+  } catch (err: any) {
+    console.error('[GPS DELETE error]', err)
     return NextResponse.json({ error: String(err) }, { status: 500 })
   }
 }

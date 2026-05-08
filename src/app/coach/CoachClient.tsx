@@ -6321,9 +6321,15 @@ function GpsPanel({ teamData }: { teamData: any }) {
   const loadHistory = () => {
     setLoadingHistorial(true)
     fetch('/api/gps/history')
-      .then(r => r.json())
+      .then(async r => {
+        if (!r.ok) throw new Error('Error en el servidor')
+        return r.json()
+      })
       .then(d => { setHistorial(Array.isArray(d) ? d : []); setLoadingHistorial(false) })
-      .catch(() => setLoadingHistorial(false))
+      .catch(err => { 
+        console.error('Error cargando historial:', err)
+        setLoadingHistorial(false) 
+      })
   }
 
   useEffect(() => { loadHistory() }, [result])
@@ -6333,15 +6339,27 @@ function GpsPanel({ teamData }: { teamData: any }) {
     try {
       const url = `/api/gps/import?fecha=${e.fecha}&tipo_sesion=${e.tipo_sesion}&sesion_id=${e.sesion_id || 'null'}`
       const r = await fetch(url, { method: 'DELETE' })
-      if (r.ok) {
-        fetch(`/api/gps/sesiones?fecha=${fecha}`).then(r => r.json()).then(d => setExisting(d.existing || []))
+      const d = await r.json().catch(() => ({ error: 'Error de respuesta' }))
+      
+      if (r.ok && d.ok) {
+        // Actualizar el estado de la fecha seleccionada
+        fetch(`/api/gps/sesiones?fecha=${fecha}`)
+          .then(r => r.json())
+          .then(d => setExisting(d.existing || []))
+          .catch(() => {})
+        
+        // Actualizar el historial global
         loadHistory()
+        
+        // Avisar al resto de componentes
         window.dispatchEvent(new CustomEvent('gps-data-updated'))
       } else {
-        const d = await r.json()
         alert('Error al borrar: ' + (d.error || 'Error desconocido'))
       }
-    } catch (err) { console.error(err); alert('Error de conexión') }
+    } catch (err) { 
+      console.error(err)
+      alert('Error de conexión al intentar borrar') 
+    }
   }
 
   // For Excel: parse client-side, send only rows JSON (avoids Vercel 4.5MB body limit)
