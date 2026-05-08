@@ -344,20 +344,20 @@ export async function DELETE(req: NextRequest) {
     if (idsStr && idsStr.trim().length > 0) {
       const ids = idsStr.split(',').map(Number).filter(n => !isNaN(n) && n > 0)
       if (ids.length > 0) {
-        res = await sql`DELETE FROM gps_logs WHERE club_id = ${clubId} AND id = ANY(${ids})`
+        const res = await sql`DELETE FROM gps_logs WHERE club_id = ${clubId} AND id = ANY(${ids})`
         deletedCount = res.count
       }
     }
 
-    // Fallback or safety: If no IDs were deleted, or just to be sure, delete by metadata
-    // only if deletedCount is still 0 (to avoid double work, but here we want to be sure)
+    // Si no se borró nada por ID, o para asegurar limpieza por metadatos
     if (deletedCount === 0) {
-      if (sid !== null && !isNaN(sid)) {
-        res = await sql`DELETE FROM gps_logs WHERE club_id = ${clubId} AND fecha::date = ${fecha}::date AND sesion_id = ${sid}`
+      if (sid && sid > 0) {
+        const res = await sql`DELETE FROM gps_logs WHERE club_id = ${clubId} AND fecha::date = ${fecha}::date AND sesion_id = ${sid}`
+        deletedCount = res.count
       } else {
-        res = await sql`DELETE FROM gps_logs WHERE club_id = ${clubId} AND fecha::date = ${fecha}::date AND (sesion_id IS NULL OR sesion_id = 0) AND tipo_sesion = ${tipo_sesion}`
+        const res = await sql`DELETE FROM gps_logs WHERE club_id = ${clubId} AND fecha::date = ${fecha}::date AND (sesion_id IS NULL OR sesion_id = 0) AND tipo_sesion = ${tipo_sesion}`
+        deletedCount = res.count
       }
-      deletedCount = res.count
     }
 
     return NextResponse.json({ ok: true, count: deletedCount })

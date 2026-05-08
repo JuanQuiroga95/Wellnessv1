@@ -16,17 +16,16 @@ export async function GET(req: NextRequest) {
 
     const history = await sql`
       SELECT 
-        g.fecha::date::text as fecha, 
-        g.tipo_sesion, 
-        COALESCE(g.sesion_id, 0) as sesion_id, 
+        fecha::date::text as fecha, 
+        tipo_sesion, 
+        sesion_id, 
         COUNT(*)::int as n_jugadores,
-        s.titulo as sesion_titulo,
-        ARRAY_AGG(g.id)::int[] as ids
-      FROM gps_logs g
-      LEFT JOIN sesiones_plan s ON s.id = g.sesion_id
-      WHERE g.club_id = ${clubId}
-      GROUP BY g.fecha::date, g.tipo_sesion, g.sesion_id, s.titulo
-      ORDER BY g.fecha::date DESC, g.tipo_sesion DESC
+        (SELECT titulo FROM sesiones_plan WHERE id = sesion_id LIMIT 1) as sesion_titulo,
+        ARRAY_AGG(id)::int[] as ids
+      FROM gps_logs
+      WHERE club_id = ${clubId}
+      GROUP BY 1, 2, 3
+      ORDER BY fecha DESC, tipo_sesion DESC
       LIMIT 100
     `
 

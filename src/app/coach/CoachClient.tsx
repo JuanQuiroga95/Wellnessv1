@@ -6383,11 +6383,8 @@ function GpsPanel({ teamData }: { teamData: any }) {
         
         // Actualizar el historial global (con un mini delay para asegurar que la DB impactó)
         setTimeout(() => {
-          loadHistory()
-        }, 400)
-        
-        // Avisar al resto de componentes
-        window.dispatchEvent(new CustomEvent('gps-data-updated'))
+          window.location.reload()
+        }, 300)
       } else {
         alert('Error al borrar: ' + (d.error || 'Error desconocido'))
       }
@@ -6498,11 +6495,7 @@ function GpsPanel({ teamData }: { teamData: any }) {
       const d = await r.json()
       if (r.ok && d.ok) {
         alert(`Éxito: Se han guardado ${d.saved || 0} registros GPS.`)
-        setResult(d); setPreview(null); setFile(null)
-        fetch(`/api/gps/sesiones?fecha=${fecha}`).then(r => r.json()).then(d => setExisting(d.existing || []))
-        loadHistory()
-        // Notify all panels that GPS data changed so they auto-reload
-        window.dispatchEvent(new CustomEvent('gps-data-updated'))
+        window.location.reload()
       } else {
         setError(d.error || 'Error al importar')
         alert('Error al guardar: ' + (d.error || 'Respuesta no válida del servidor'))
