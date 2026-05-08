@@ -27,8 +27,8 @@ export async function GET(req: NextRequest) {
       LEFT JOIN sesiones_plan s ON s.id = g.sesion_id
       WHERE g.club_id = ${clubId}
       GROUP BY g.fecha, g.tipo_sesion, g.sesion_id, s.titulo
-      ORDER BY g.fecha DESC, g.tipo_sesion
-      LIMIT 20
+      ORDER BY g.fecha DESC, g.tipo_sesion DESC
+      LIMIT 40
     `
 
     return NextResponse.json(history)

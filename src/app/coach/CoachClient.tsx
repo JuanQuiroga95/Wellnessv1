@@ -6320,7 +6320,7 @@ function GpsPanel({ teamData }: { teamData: any }) {
 
   const loadHistory = () => {
     setLoadingHistorial(true)
-    fetch('/api/gps/history')
+    fetch(`/api/gps/history?t=${Date.now()}`)
       .then(async r => {
         if (!r.ok) throw new Error('Error en el servidor')
         return r.json()
@@ -6470,11 +6470,16 @@ function GpsPanel({ teamData }: { teamData: any }) {
       const { body, headers } = await buildImportBody(true)
       const r = await fetch('/api/gps/import', { method: 'POST', body, headers })
       const d = await r.json()
-      if (!r.ok) { setError(d.error || 'Error al importar'); return }
-      setResult(d); setPreview(null); setFile(null)
-      fetch(`/api/gps/sesiones?fecha=${fecha}`).then(r => r.json()).then(d => setExisting(d.existing || []))
-      // Notify all panels that GPS data changed so they auto-reload
-      window.dispatchEvent(new CustomEvent('gps-data-updated'))
+      if (r.ok) {
+        alert(`Éxito: Se han guardado ${d.saved || 0} registros GPS.`)
+        setResult(d); setPreview(null); setFile(null)
+        fetch(`/api/gps/sesiones?fecha=${fecha}`).then(r => r.json()).then(d => setExisting(d.existing || []))
+        loadHistory()
+        // Notify all panels that GPS data changed so they auto-reload
+        window.dispatchEvent(new CustomEvent('gps-data-updated'))
+      } else {
+        setError(d.error || 'Error al importar')
+      }
     } catch (e) { setError('Error de conexión') }
     finally { setImporting(false) }
   }
