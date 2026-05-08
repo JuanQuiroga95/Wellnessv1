@@ -6337,9 +6337,14 @@ function GpsPanel({ teamData }: { teamData: any }) {
   async function handleDelete(e: { fecha: string, tipo_sesion: string, sesion_id: any }) {
     if (!confirm(`¿Eliminar los datos GPS del ${e.fecha} (${e.tipo_sesion})?`)) return
     try {
-      const url = `/api/gps/import?fecha=${e.fecha}&tipo_sesion=${e.tipo_sesion}&sesion_id=${e.sesion_id || 'null'}`
+      const params = new URLSearchParams({
+        fecha: e.fecha,
+        tipo_sesion: e.tipo_sesion,
+        sesion_id: String(e.sesion_id ?? 'null')
+      })
+      const url = `/api/gps/import?${params.toString()}`
       const r = await fetch(url, { method: 'DELETE' })
-      const d = await r.json().catch(() => ({ error: 'Error de respuesta' }))
+      const d = await r.json().catch(() => ({ error: 'Error de respuesta del servidor' }))
       
       if (r.ok && d.ok) {
         // Actualizar el estado de la fecha seleccionada
