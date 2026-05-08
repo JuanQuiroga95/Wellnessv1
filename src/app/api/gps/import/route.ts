@@ -82,8 +82,8 @@ function mapHeaderToMetric(header: string): string | null {
 async function matchPlayers(rows: any[], clubId: number | null) {
   const sql = getDb()
   const dbPlayers = clubId 
-    ? await sql`SELECT id, nombre, apodo FROM jugadores WHERE club_id = ${clubId}`
-    : await sql`SELECT id, nombre, apodo FROM jugadores`
+    ? await sql`SELECT j.id, u.nombre FROM jugadores j JOIN usuarios u ON j.usuario_id = u.id WHERE j.club_id = ${clubId}`
+    : await sql`SELECT j.id, u.nombre FROM jugadores j JOIN usuarios u ON j.usuario_id = u.id`
   
   const matched: any[] = []
   const unmatched: string[] = []
@@ -95,7 +95,7 @@ async function matchPlayers(rows: any[], clubId: number | null) {
     const nRaw = normalizeName(rawName)
     
     // 1. Exact match (normalize both)
-    let p = dbPlayers.find(dp => normalizeName(dp.nombre) === nRaw || normalizeName(dp.apodo) === nRaw)
+    let p = dbPlayers.find(dp => normalizeName(dp.nombre) === nRaw)
     let method = 'nombre'
 
     // 2. Partial match (starts with or ends with)
