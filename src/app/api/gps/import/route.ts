@@ -298,9 +298,9 @@ export async function POST(req: NextRequest) {
       const sid = (sesion_id === 0 || sesion_id === '0') ? null : sesion_id
       
       if (sid) {
-        await sql`DELETE FROM gps_logs WHERE club_id = ${clubId} AND fecha = ${fecha}::date AND sesion_id = ${sid}`
+        await sql`DELETE FROM gps_logs WHERE fecha = ${fecha}::date AND sesion_id = ${sid} AND (club_id = ${clubId} OR (club_id IS NULL AND jugador_id IN (SELECT id FROM jugadores WHERE club_id = ${clubId})))`
       } else {
-        await sql`DELETE FROM gps_logs WHERE club_id = ${clubId} AND fecha = ${fecha}::date AND (sesion_id IS NULL OR sesion_id = 0) AND tipo_sesion = ${tipo_sesion}`
+        await sql`DELETE FROM gps_logs WHERE fecha = ${fecha}::date AND (sesion_id IS NULL OR sesion_id = 0) AND tipo_sesion = ${tipo_sesion} AND (club_id = ${clubId} OR (club_id IS NULL AND jugador_id IN (SELECT id FROM jugadores WHERE club_id = ${clubId})))`
       }
       
       for (const m of matched) {
@@ -344,7 +344,7 @@ export async function DELETE(req: NextRequest) {
     if (idsStr && idsStr.trim().length > 0) {
       const ids = idsStr.split(',').map(Number).filter(n => !isNaN(n) && n > 0)
       if (ids.length > 0) {
-        const res = await sql`DELETE FROM gps_logs WHERE club_id = ${clubId} AND id = ANY(${ids})`
+        const res = await sql`DELETE FROM gps_logs WHERE id = ANY(${ids}) AND (club_id = ${clubId} OR (club_id IS NULL AND jugador_id IN (SELECT id FROM jugadores WHERE club_id = ${clubId})))`
         deletedCount = res.count
       }
     }
@@ -352,10 +352,10 @@ export async function DELETE(req: NextRequest) {
     // Si no se borró nada por ID, o para asegurar limpieza por metadatos
     if (deletedCount === 0) {
       if (sid && sid > 0) {
-        const res = await sql`DELETE FROM gps_logs WHERE club_id = ${clubId} AND fecha::date = ${fecha}::date AND sesion_id = ${sid}`
+        const res = await sql`DELETE FROM gps_logs WHERE fecha::date = ${fecha}::date AND sesion_id = ${sid} AND (club_id = ${clubId} OR (club_id IS NULL AND jugador_id IN (SELECT id FROM jugadores WHERE club_id = ${clubId})))`
         deletedCount = res.count
       } else {
-        const res = await sql`DELETE FROM gps_logs WHERE club_id = ${clubId} AND fecha::date = ${fecha}::date AND (sesion_id IS NULL OR sesion_id = 0) AND tipo_sesion = ${tipo_sesion}`
+        const res = await sql`DELETE FROM gps_logs WHERE fecha::date = ${fecha}::date AND (sesion_id IS NULL OR sesion_id = 0) AND tipo_sesion = ${tipo_sesion} AND (club_id = ${clubId} OR (club_id IS NULL AND jugador_id IN (SELECT id FROM jugadores WHERE club_id = ${clubId})))`
         deletedCount = res.count
       }
     }

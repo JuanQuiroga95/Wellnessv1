@@ -6304,7 +6304,28 @@ function GpsPanel({ teamData }: { teamData: any }) {
   const [historial, setHistorial] = useState<any[]>([])
   const [loadingHistorial, setLoadingHistorial] = useState(false)
 
-  // Load sessions for the selected date
+  function loadHistory() {
+    setLoadingHistorial(true)
+    fetch(`/api/gps/history?t=${Date.now()}`, {
+      cache: 'no-store',
+      headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' }
+    })
+      .then(async r => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`)
+        return r.json()
+      })
+      .then(d => {
+        setHistorial(Array.isArray(d) ? d : [])
+        setLoadingHistorial(false)
+      })
+      .catch(err => {
+        console.error('[GPS historial]', err)
+        setError('No se pudo cargar el historial GPS.')
+        setLoadingHistorial(false)
+      })
+  }
+
+  // Load sessions + history when date changes (or on mount)
   useEffect(() => {
     setPreview(null); setResult(null); setError('')
     fetch(`/api/gps/sesiones?fecha=${fecha}`)
@@ -6316,44 +6337,9 @@ function GpsPanel({ teamData }: { teamData: any }) {
         setSesionId(null)
       })
       .catch(() => {})
-    
-    // Always reload history when date changes or component remounts
     loadHistory()
   }, [fecha])
 
-  const loadHistory = () => {
-    setLoadingHistorial(true)
-    fetch(`/api/gps/history?t=${Date.now()}`, {
-      cache: 'no-store',
-      headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' }
-    })
-      .then(async r => {
-        if (!r.ok) throw new Error('Error en el servidor')
-        return r.json()
-      })
-      .then(d => {
-        console.log('[GPS historial]', Array.isArray(d) ? `${d.length} entradas` : d)
-        if (d.error) {
-          setError('Error de historial: ' + d.error)
-          setHistorial([])
-        } else {
-          setHistorial(Array.isArray(d) ? d : [])
-        }
-        setLoadingHistorial(false)
-      })
-      .catch(err => {
-        console.error('Error cargando historial:', err)
-        setError('No se pudo cargar el historial GPS. Verificá la conexión o recargá la página.')
-        setLoadingHistorial(false)
-      })
-  }
-
-  // Load history on mount and when result changes
-  useEffect(() => { 
-    loadHistory() 
-  }, [result])
-
-  // Also reload history if other panels trigger an update
   useEffect(() => {
     const handler = () => loadHistory()
     window.addEventListener('gps-data-updated', handler)
@@ -6374,19 +6360,11 @@ function GpsPanel({ teamData }: { teamData: any }) {
       const d = await r.json().catch(() => ({ error: 'Error de respuesta del servidor' }))
       
       if (r.ok && d.ok) {
-        if (d.count === 0) {
-          alert('No se encontraron registros para borrar. Ya deberían estar borrados o hay un error de fecha.')
-        }
-        // Actualizar el estado de la fecha seleccionada
         fetch(`/api/gps/sesiones?fecha=${fecha}`)
           .then(r => r.json())
-          .then(d => setExisting(d.existing || []))
+          .then(sd => setExisting(sd.existing || []))
           .catch(() => {})
-        
-        // Actualizar el historial global (con un mini delay para asegurar que la DB impactó)
-        setTimeout(() => {
-          loadHistory()
-        }, 300)
+        loadHistory()
       } else {
         alert('Error al borrar: ' + (d.error || 'Error desconocido'))
       }
