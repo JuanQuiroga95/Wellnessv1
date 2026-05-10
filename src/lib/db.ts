@@ -171,4 +171,9 @@ export const SCHEMA_STATEMENTS = [
   `CREATE INDEX IF NOT EXISTS idx_canchas_club ON canchas(club_id)`,
   `CREATE INDEX IF NOT EXISTS idx_canchas_admin ON canchas(admin_id)`,
   `ALTER TABLE sesiones_plan ADD COLUMN IF NOT EXISTS cancha_id INTEGER REFERENCES canchas(id) ON DELETE SET NULL`,
+  // ── Backfill jugadores.club_id from their linked usuario ─────────────────────
+  // Jugadores created before multi-tenancy have club_id = NULL; link via usuario.club_id
+  `UPDATE jugadores j SET club_id = u.club_id FROM usuarios u WHERE j.usuario_id = u.id AND j.club_id IS NULL AND u.club_id IS NOT NULL`,
+  // Re-run GPS logs club_id backfill now that jugadores have club_id populated
+  `UPDATE gps_logs SET club_id = (SELECT j.club_id FROM jugadores j WHERE j.id = gps_logs.jugador_id) WHERE club_id IS NULL AND jugador_id IS NOT NULL`,
 ]

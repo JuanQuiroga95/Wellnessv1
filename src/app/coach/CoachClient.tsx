@@ -6869,16 +6869,27 @@ function GpsPanel({ teamData }: { teamData: any }) {
                     `Jugadores en club: ${d.jugadoresInClub}\n` +
                     `GPS logs via jugadores: ${d.gpsLogsByJugadores}\n` +
                     `GPS logs (OR ambos): ${d.gpsLogsByEither}\n` +
-                    `Historial actual (${(d.historyByEither||[]).length} grupos):\n` +
-                    (d.historyByEither||[]).map((h: any) => `  ${h.fecha} ${h.tipo_sesion} sesion_id=${h.sesion_id} n=${h.n} ids=${JSON.stringify(h.ids)}`).join('\n') +
-                    `\n\nÚltimos 10 registros raw:\n` +
-                    (d.rawRows||[]).slice(0,10).map((r: any) => `  id=${r.id} jugador=${r.jugador_id} club=${r.club_id} fecha=${r.fecha} tipo=${r.tipo_sesion}`).join('\n')
+                    `Historial (${(d.historyByEither||[]).length} grupos):\n` +
+                    (d.historyByEither||[]).map((h: any) => `  ${h.fecha} ${h.tipo_sesion} n=${h.n}`).join('\n')
                   )
                 }).catch(e => alert('Error debug: ' + e))
               }}
               style={{ padding: '4px 10px', fontSize: 11, borderRadius: 8, background: 'rgba(96,165,250,.1)', border: '1px solid rgba(96,165,250,.2)', color: '#60a5fa', cursor: 'pointer' }}
             >
               🔍 Diagnóstico
+            </button>
+            <button
+              onClick={() => {
+                if (!confirm('¿Reparar datos GPS? Esto va a vincular los registros huérfanos al club actual.')) return
+                fetch('/api/gps/fix', { method: 'POST' }).then(r => r.json()).then(d => {
+                  if (d.error) { alert('Error: ' + d.error); return }
+                  alert(`✓ Reparación completada:\n- Jugadores actualizados: ${d.jugadoresFixed}\n- GPS logs vinculados: ${d.gpsLogsFixed}\n- Total GPS para tu club ahora: ${d.totalGpsForClub}`)
+                  loadHistory()
+                }).catch(e => alert('Error: ' + e))
+              }}
+              style={{ padding: '4px 10px', fontSize: 11, borderRadius: 8, background: 'rgba(34,197,94,.1)', border: '1px solid rgba(34,197,94,.2)', color: '#22c55e', cursor: 'pointer' }}
+            >
+              🔧 Reparar datos
             </button>
           </div>
         </div>
