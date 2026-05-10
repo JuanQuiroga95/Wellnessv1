@@ -6475,9 +6475,9 @@ function GpsPanel({ teamData }: { teamData: any }) {
       const d = await r.json()
       if (r.ok && d.ok) {
         if ((d.saved || 0) === 0) {
-          alert(`⚠️ Se procesó el archivo pero no se guardó ningún registro GPS.\n\nPosible causa: ningún jugador del archivo coincidió con el plantel.\nRevisá los nombres en el archivo vs. los del plantel.${d.unmatched?.length ? `\n\nSin match: ${d.unmatched.slice(0,5).join(', ')}` : ''}`)
+          alert(`⚠️ Se procesó el archivo pero no se guardó ningún registro GPS.\n\nIntentados: ${d.attempted ?? 0}\nGuardados en DB: ${d.saved ?? 0}\n\nPosible causa: ningún jugador del archivo coincidió con el plantel, o las inserciones fallaron.${d.insertErrors?.length ? `\n\nErrores: ${d.insertErrors.slice(0,3).join(' | ')}` : ''}${d.unmatched?.length ? `\n\nSin match: ${d.unmatched.slice(0,5).join(', ')}` : ''}`)
         } else {
-          alert(`Éxito: Se han guardado ${d.saved} registros GPS para la fecha ${fecha} (${tipoSesion}).`)
+          alert(`✓ Éxito: Se guardaron ${d.saved}/${d.attempted ?? d.saved} registros GPS para la fecha ${fecha} (${tipoSesion}).${d.insertErrors?.length ? `\n\n⚠️ Errores: ${d.insertErrors.slice(0,3).join(' | ')}` : ''}`)
         }
         setResult(d)
         setPreview(null)
@@ -6849,14 +6849,33 @@ function GpsPanel({ teamData }: { teamData: any }) {
             ⏳ ÚLTIMAS CARGAS
             {loadingHistorial && <span style={{ fontSize: 12, color: 'var(--fog)', fontFamily: 'DM Sans' }}>Cargando...</span>}
           </h3>
-          <button
-            onClick={() => loadHistory()}
-            disabled={loadingHistorial}
-            className="wp-button-secondary"
-            style={{ padding: '4px 12px', fontSize: 12, borderRadius: 8 }}
-          >
-            {loadingHistorial ? '...' : '🔄 Actualizar'}
-          </button>
+          <div style={{ display: 'flex', gap: 6 }}>
+            <button
+              onClick={() => loadHistory()}
+              disabled={loadingHistorial}
+              className="wp-button-secondary"
+              style={{ padding: '4px 12px', fontSize: 12, borderRadius: 8 }}
+            >
+              {loadingHistorial ? '...' : '🔄 Actualizar'}
+            </button>
+            <button
+              onClick={() => {
+                fetch('/api/gps/debug').then(r => r.json()).then(d => {
+                  alert(
+                    `=== ESTADO GPS DE TU CLUB ===\n` +
+                    `Club ID: ${d.clubId}\n` +
+                    `GPS logs en TU club: ${d.gpsLogsByClubId}\n` +
+                    `Jugadores en tu club: ${d.jugadoresInClub}\n\n` +
+                    `Distribución total (todos los clubes):\n` +
+                    (d.distribution||[]).map((r: any) => `  gps_club=${r.gps_club_id} usr_club=${r.usuario_club_id} → ${r.n} logs`).join('\n')
+                  )
+                }).catch(e => alert('Error: ' + e))
+              }}
+              style={{ padding: '4px 10px', fontSize: 11, borderRadius: 8, background: 'rgba(96,165,250,.1)', border: '1px solid rgba(96,165,250,.2)', color: '#60a5fa', cursor: 'pointer' }}
+            >
+              🔍 Ver estado
+            </button>
+          </div>
         </div>
         
         {historial.length === 0 ? (
