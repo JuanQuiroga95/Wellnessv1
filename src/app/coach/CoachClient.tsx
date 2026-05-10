@@ -6849,83 +6849,14 @@ function GpsPanel({ teamData }: { teamData: any }) {
             ⏳ ÚLTIMAS CARGAS
             {loadingHistorial && <span style={{ fontSize: 12, color: 'var(--fog)', fontFamily: 'DM Sans' }}>Cargando...</span>}
           </h3>
-          <div style={{ display: 'flex', gap: 6 }}>
-            <button
-              onClick={() => loadHistory()}
-              disabled={loadingHistorial}
-              className="wp-button-secondary"
-              style={{ padding: '4px 12px', fontSize: 12, borderRadius: 8 }}
-            >
-              {loadingHistorial ? '...' : '🔄 Actualizar'}
-            </button>
-            <button
-              onClick={() => {
-                fetch('/api/gps/debug').then(r => r.json()).then(d => {
-                  alert(
-                    `=== DIAGNÓSTICO GPS ===\n` +
-                    `Club ID: ${d.clubId} · User ID: ${d.userId}\n` +
-                    `GPS logs totales: ${d.totalGpsLogs}\n` +
-                    `GPS logs con club_id=${d.clubId}: ${d.gpsLogsByClubId}\n` +
-                    `Jugadores con club_id=${d.clubId}: ${d.jugadoresInClub}\n` +
-                    `GPS logs reclamables (via usuario): ${d.gpsLogsViaUsuario}\n\n` +
-                    `Distribución gps_log.club_id / usuario.club_id:\n` +
-                    (d.distribution||[]).map((r: any) => `  gps_club=${r.gps_club_id} usr_club=${r.usuario_club_id} → ${r.n} logs`).join('\n')
-                  )
-                }).catch(e => alert('Error debug: ' + e))
-              }}
-              style={{ padding: '4px 10px', fontSize: 11, borderRadius: 8, background: 'rgba(96,165,250,.1)', border: '1px solid rgba(96,165,250,.2)', color: '#60a5fa', cursor: 'pointer' }}
-            >
-              🔍 Diagnóstico
-            </button>
-            <button
-              onClick={() => {
-                if (!confirm('¿Reparar datos GPS? Esto va a recalcular el club_id de jugadores y GPS basándose en usuarios.club_id.')) return
-                fetch('/api/gps/fix', { method: 'POST' }).then(r => r.json()).then(d => {
-                  if (d.error) { alert('Error: ' + d.error); return }
-                  alert(
-                    `✓ Reparación completada:\n` +
-                    `- GPS logs reclamables (via usuario): ${d.claimable}\n` +
-                    `- Jugadores con club_id incorrecto: ${d.jugadoresWrong}\n` +
-                    `- Jugadores actualizados: ${d.jugadoresFixed}\n` +
-                    `- GPS logs actualizados: ${d.gpsLogsFixed}\n` +
-                    `- Total GPS para tu club ahora: ${d.totalGpsForClub}`
-                  )
-                  loadHistory()
-                }).catch(e => alert('Error: ' + e))
-              }}
-              style={{ padding: '4px 10px', fontSize: 11, borderRadius: 8, background: 'rgba(34,197,94,.1)', border: '1px solid rgba(34,197,94,.2)', color: '#22c55e', cursor: 'pointer' }}
-            >
-              🔧 Reparar datos
-            </button>
-            <button
-              onClick={() => {
-                const fromStr = prompt('¿De qué club querés migrar los datos al club actual?\n\nClubs detectados con datos GPS:\n- 36 (134 registros)\n- 7 (14 registros)\n\nEscribí el número del club de origen:')
-                if (!fromStr) return
-                const fromClubId = Number(fromStr)
-                if (!fromClubId || isNaN(fromClubId)) { alert('Número inválido'); return }
-                if (!confirm(`⚠️ ATENCIÓN: Esto va a MOVER todos los datos del club ${fromClubId} (jugadores, GPS, wellness, entrenamientos, partidos, lesiones, sesiones) al club actual. Es irreversible. ¿Confirmás?`)) return
-                fetch('/api/gps/migrate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fromClubId }) })
-                  .then(r => r.json()).then(d => {
-                    if (d.error) { alert('Error: ' + d.error); return }
-                    alert(
-                      `✓ Migración completada de club ${d.fromClubId} → club ${d.toClubId}:\n` +
-                      `- Jugadores: ${d.jugadores}\n` +
-                      `- Usuarios: ${d.usuarios}\n` +
-                      `- GPS logs: ${d.gps}\n` +
-                      `- Wellness: ${d.wellness}\n` +
-                      `- Entrenamientos: ${d.entrenamientos}\n` +
-                      `- Partidos: ${d.partidos}\n` +
-                      `- Lesiones: ${d.lesiones}\n` +
-                      `- Sesiones: ${d.sesiones}`
-                    )
-                    loadHistory()
-                  }).catch(e => alert('Error: ' + e))
-              }}
-              style={{ padding: '4px 10px', fontSize: 11, borderRadius: 8, background: 'rgba(245,158,11,.1)', border: '1px solid rgba(245,158,11,.2)', color: '#f59e0b', cursor: 'pointer' }}
-            >
-              📦 Migrar de otro club
-            </button>
-          </div>
+          <button
+            onClick={() => loadHistory()}
+            disabled={loadingHistorial}
+            className="wp-button-secondary"
+            style={{ padding: '4px 12px', fontSize: 12, borderRadius: 8 }}
+          >
+            {loadingHistorial ? '...' : '🔄 Actualizar'}
+          </button>
         </div>
         
         {historial.length === 0 ? (
