@@ -134,6 +134,7 @@ export const SCHEMA_STATEMENTS = [
   `ALTER TABLE wellness_logs ADD COLUMN IF NOT EXISTS dolor_descripcion TEXT`,
   `ALTER TABLE gps_logs ADD COLUMN IF NOT EXISTS n_sprints INTEGER`,
   `ALTER TABLE gps_logs ADD COLUMN IF NOT EXISTS duracion_min NUMERIC(6,1)`,
+  `ALTER TABLE gps_logs ADD COLUMN IF NOT EXISTS metricas JSONB`,
   `ALTER TABLE sesiones_plan ADD COLUMN IF NOT EXISTS rival VARCHAR(100)`,
   `ALTER TABLE sesiones_plan ADD COLUMN IF NOT EXISTS rival_foto TEXT`,
   // ── Demo accounts & invite tokens ────────────────────────────────────────────

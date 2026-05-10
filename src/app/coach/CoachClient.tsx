@@ -6495,7 +6495,11 @@ function GpsPanel({ teamData }: { teamData: any }) {
       const r = await fetch('/api/gps/import', { method: 'POST', body, headers })
       const d = await r.json()
       if (r.ok && d.ok) {
-        alert(`Éxito: Se han guardado ${d.saved || 0} registros GPS.`)
+        if ((d.saved || 0) === 0) {
+          alert(`⚠️ Se procesó el archivo pero no se guardó ningún registro GPS.\n\nPosible causa: ningún jugador del archivo coincidió con el plantel.\nRevisá los nombres en el archivo vs. los del plantel.${d.unmatched?.length ? `\n\nSin match: ${d.unmatched.slice(0,5).join(', ')}` : ''}`)
+        } else {
+          alert(`Éxito: Se han guardado ${d.saved} registros GPS.`)
+        }
         setResult(d)
         setPreview(null)
         setFile(null)
