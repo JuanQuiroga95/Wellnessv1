@@ -6331,14 +6331,15 @@ function GpsPanel({ teamData }: { teamData: any }) {
         if (!r.ok) throw new Error('Error en el servidor')
         return r.json()
       })
-      .then(d => { 
+      .then(d => {
+        console.log('[GPS historial]', Array.isArray(d) ? `${d.length} entradas` : d)
         if (d.error) {
           setError('Error de historial: ' + d.error)
           setHistorial([])
         } else {
           setHistorial(Array.isArray(d) ? d : [])
         }
-        setLoadingHistorial(false) 
+        setLoadingHistorial(false)
       })
       .catch(err => {
         console.error('Error cargando historial:', err)
@@ -6498,11 +6499,16 @@ function GpsPanel({ teamData }: { teamData: any }) {
         if ((d.saved || 0) === 0) {
           alert(`⚠️ Se procesó el archivo pero no se guardó ningún registro GPS.\n\nPosible causa: ningún jugador del archivo coincidió con el plantel.\nRevisá los nombres en el archivo vs. los del plantel.${d.unmatched?.length ? `\n\nSin match: ${d.unmatched.slice(0,5).join(', ')}` : ''}`)
         } else {
-          alert(`Éxito: Se han guardado ${d.saved} registros GPS.`)
+          alert(`Éxito: Se han guardado ${d.saved} registros GPS para la fecha ${fecha} (${tipoSesion}).`)
         }
         setResult(d)
         setPreview(null)
         setFile(null)
+        // Refrescar banner "GPS ya cargado" para esta fecha
+        fetch(`/api/gps/sesiones?fecha=${fecha}`)
+          .then(r => r.json())
+          .then(sd => setExisting(sd.existing || []))
+          .catch(() => {})
         loadHistory()
       } else {
         setError(d.error || 'Error al importar')
