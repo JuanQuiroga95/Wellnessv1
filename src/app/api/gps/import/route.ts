@@ -280,9 +280,9 @@ export async function POST(req: NextRequest) {
     if (!confirm) {
       let alreadyExists = false
       if (clubId) {
-        const check = sesion_id 
-          ? await sql`SELECT 1 FROM gps_logs WHERE club_id = ${clubId} AND fecha = ${fecha}::date AND sesion_id = ${sesion_id} LIMIT 1`
-          : await sql`SELECT 1 FROM gps_logs WHERE club_id = ${clubId} AND fecha = ${fecha}::date AND sesion_id IS NULL AND tipo_sesion = ${tipo_sesion} LIMIT 1`
+        const check = sesion_id
+          ? await sql`SELECT 1 FROM gps_logs WHERE jugador_id IN (SELECT id FROM jugadores WHERE club_id = ${clubId}) AND fecha = ${fecha}::date AND sesion_id = ${sesion_id} LIMIT 1`
+          : await sql`SELECT 1 FROM gps_logs WHERE jugador_id IN (SELECT id FROM jugadores WHERE club_id = ${clubId}) AND fecha = ${fecha}::date AND sesion_id IS NULL AND tipo_sesion = ${tipo_sesion} LIMIT 1`
         alreadyExists = check.length > 0
       }
       return NextResponse.json({ 
@@ -335,32 +335,30 @@ export async function DELETE(req: NextRequest) {
     const clubId = s.clubId ? Number(s.clubId) : null
     if (!clubId) return NextResponse.json({ error: 'No club' }, { status: 400 })
 
-    const idsStr = searchParams.get('ids')
     const sid = (sesion_id === 'null' || sesion_id === 'undefined' || !sesion_id || sesion_id === '0') ? null : Number(sesion_id)
 
-    let res;
-    let deletedCount = 0;
-
-    if (idsStr && idsStr.trim().length > 0) {
-      const ids = idsStr.split(',').map(Number).filter(n => !isNaN(n) && n > 0)
-      if (ids.length > 0) {
-        const res = await sql`DELETE FROM gps_logs WHERE id = ANY(${ids}) AND jugador_id IN (SELECT id FROM jugadores WHERE club_id = ${clubId})`
-        deletedCount = res.count
-      }
+    // Use RETURNING id so deleted.length gives the actual count (Neon HTTP driver doesn't expose .count/.rowCount on plain DELETE)
+    let deleted: any[]
+    if (sid) {
+      deleted = await sql`
+        DELETE FROM gps_logs
+        WHERE fecha::date = ${fecha}::date
+          AND sesion_id = ${sid}
+          AND jugador_id IN (SELECT id FROM jugadores WHERE club_id = ${clubId})
+        RETURNING id
+      `
+    } else {
+      deleted = await sql`
+        DELETE FROM gps_logs
+        WHERE fecha::date = ${fecha}::date
+          AND tipo_sesion = ${tipo_sesion}
+          AND (sesion_id IS NULL OR sesion_id = 0)
+          AND jugador_id IN (SELECT id FROM jugadores WHERE club_id = ${clubId})
+        RETURNING id
+      `
     }
 
-    // Si no se borró nada por ID, o para asegurar limpieza por metadatos
-    if (deletedCount === 0) {
-      if (sid && sid > 0) {
-        const res = await sql`DELETE FROM gps_logs WHERE fecha::date = ${fecha}::date AND sesion_id = ${sid} AND jugador_id IN (SELECT id FROM jugadores WHERE club_id = ${clubId})`
-        deletedCount = res.count
-      } else {
-        const res = await sql`DELETE FROM gps_logs WHERE fecha::date = ${fecha}::date AND (sesion_id IS NULL OR sesion_id = 0) AND tipo_sesion = ${tipo_sesion} AND jugador_id IN (SELECT id FROM jugadores WHERE club_id = ${clubId})`
-        deletedCount = res.count
-      }
-    }
-
-    return NextResponse.json({ ok: true, count: deletedCount })
+    return NextResponse.json({ ok: true, count: deleted.length })
   } catch (err: any) {
     console.error('[GPS DELETE error]', err)
     return NextResponse.json({ error: String(err) }, { status: 500 })
