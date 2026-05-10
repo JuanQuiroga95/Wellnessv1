@@ -6340,9 +6340,10 @@ function GpsPanel({ teamData }: { teamData: any }) {
         }
         setLoadingHistorial(false) 
       })
-      .catch(err => { 
+      .catch(err => {
         console.error('Error cargando historial:', err)
-        setLoadingHistorial(false) 
+        setError('No se pudo cargar el historial GPS. Verificá la conexión o recargá la página.')
+        setLoadingHistorial(false)
       })
   }
 
@@ -6383,7 +6384,7 @@ function GpsPanel({ teamData }: { teamData: any }) {
         
         // Actualizar el historial global (con un mini delay para asegurar que la DB impactó)
         setTimeout(() => {
-          window.location.reload()
+          loadHistory()
         }, 300)
       } else {
         alert('Error al borrar: ' + (d.error || 'Error desconocido'))
@@ -6495,7 +6496,10 @@ function GpsPanel({ teamData }: { teamData: any }) {
       const d = await r.json()
       if (r.ok && d.ok) {
         alert(`Éxito: Se han guardado ${d.saved || 0} registros GPS.`)
-        window.location.reload()
+        setResult(d)
+        setPreview(null)
+        setFile(null)
+        loadHistory()
       } else {
         setError(d.error || 'Error al importar')
         alert('Error al guardar: ' + (d.error || 'Respuesta no válida del servidor'))
