@@ -13,16 +13,20 @@ export async function GET(req: NextRequest) {
     const sql = getDb()
     const clubId = s.clubId ? Number(s.clubId) : null
 
-    const results: any = { clubId, userId: s.userId }
+    const results: any = { clubId, userId: s.userId, clubIdType: typeof clubId }
 
     const total = await sql`SELECT COUNT(*)::int as n FROM gps_logs`
     results.totalGpsLogs = (total[0] as any)?.n ?? 0
 
     if (clubId) {
+      // Two variants of the same count — to test if the param binding has a type issue
       const byClub = await sql`SELECT COUNT(*)::int as n FROM gps_logs WHERE club_id = ${clubId}`
       results.gpsLogsByClubId = (byClub[0] as any)?.n ?? 0
 
-      const jugadores = await sql`SELECT COUNT(*)::int as n FROM jugadores WHERE club_id = ${clubId}`
+      const byClubCast = await sql`SELECT COUNT(*)::int as n FROM gps_logs WHERE club_id = ${clubId}::int`
+      results.gpsLogsByClubIdCast = (byClubCast[0] as any)?.n ?? 0
+
+      const jugadores = await sql`SELECT COUNT(*)::int as n FROM jugadores WHERE club_id = ${clubId}::int`
       results.jugadoresInClub = (jugadores[0] as any)?.n ?? 0
 
       const distribution = await sql`
@@ -39,7 +43,6 @@ export async function GET(req: NextRequest) {
       `
       results.distribution = distribution
 
-      // Last 10 records by created_at — tells us if the most recent inserts are in the DB
       const recent = await sql`
         SELECT id, club_id, jugador_id, fecha::text, tipo_sesion, sesion_id, created_at::text
         FROM gps_logs

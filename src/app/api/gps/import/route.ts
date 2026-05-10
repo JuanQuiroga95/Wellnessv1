@@ -352,14 +352,14 @@ export async function DELETE(req: NextRequest) {
 
     const sid = (sesion_id === 'null' || sesion_id === 'undefined' || !sesion_id || sesion_id === '0') ? null : Number(sesion_id)
 
-    // Simple, direct delete by club_id — no subqueries or array params that cause Neon driver issues
+    // Explicit ::int casts force the Neon HTTP driver param to be compared as integer
     let deleted: any[]
     if (sid) {
       deleted = await sql`
         DELETE FROM gps_logs
         WHERE fecha::date = ${fecha}::date
           AND sesion_id = ${sid}
-          AND club_id = ${clubId}
+          AND club_id = ${clubId}::int
         RETURNING id
       `
     } else {
@@ -368,7 +368,7 @@ export async function DELETE(req: NextRequest) {
         WHERE fecha::date = ${fecha}::date
           AND tipo_sesion = ${tipo_sesion}
           AND (sesion_id IS NULL OR sesion_id = 0)
-          AND club_id = ${clubId}
+          AND club_id = ${clubId}::int
         RETURNING id
       `
     }

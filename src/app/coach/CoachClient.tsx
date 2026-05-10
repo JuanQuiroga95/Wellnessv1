@@ -6863,12 +6863,13 @@ function GpsPanel({ teamData }: { teamData: any }) {
                 fetch('/api/gps/debug').then(r => r.json()).then(d => {
                   alert(
                     `=== ESTADO GPS ===\n` +
-                    `Club ID sesión: ${d.clubId}\n` +
-                    `GPS logs en TU club: ${d.gpsLogsByClubId}\n` +
+                    `Club ID sesión: ${d.clubId} (${d.clubIdType})\n` +
+                    `Sin cast: ${d.gpsLogsByClubId}\n` +
+                    `Con ::int cast: ${d.gpsLogsByClubIdCast}\n` +
                     `Total en DB: ${d.totalGpsLogs}\n\n` +
-                    `Distribución por club:\n` +
+                    `Distribución:\n` +
                     (d.distribution||[]).map((r: any) => `  gps_club=${r.gps_club_id} usr_club=${r.usuario_club_id} → ${r.n}`).join('\n') +
-                    `\n\nÚltimos 10 registros guardados (por ID):\n` +
+                    `\n\nÚltimos 10:\n` +
                     (d.recentRecords||[]).map((r: any) => `  id=${r.id} club=${r.club_id} jug=${r.jugador_id} ${r.fecha} ${r.tipo_sesion}`).join('\n')
                   )
                 }).catch(e => alert('Error: ' + e))

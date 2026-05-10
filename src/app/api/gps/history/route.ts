@@ -14,6 +14,8 @@ export async function GET(req: NextRequest) {
     const clubId = s.clubId ? Number(s.clubId) : null
     if (!clubId) return NextResponse.json([])
 
+    // Explicit ::int cast forces PostgreSQL to treat the parameter as integer
+    // regardless of how the Neon HTTP driver serializes it.
     const history = await sql`
       SELECT
         fecha::date::text as fecha,
@@ -23,7 +25,7 @@ export async function GET(req: NextRequest) {
         (SELECT titulo FROM sesiones_plan WHERE id = sesion_id LIMIT 1) as sesion_titulo,
         ARRAY_AGG(id)::int[] as ids
       FROM gps_logs
-      WHERE club_id = ${clubId}
+      WHERE club_id = ${clubId}::int
       GROUP BY 1, 2, 3
       ORDER BY fecha DESC, tipo_sesion DESC
       LIMIT 100
