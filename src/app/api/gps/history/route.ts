@@ -15,15 +15,18 @@ export async function GET(req: NextRequest) {
     if (!clubId) return NextResponse.json([])
 
     const history = await sql`
-      SELECT 
-        fecha::date::text as fecha, 
-        tipo_sesion, 
-        sesion_id, 
+      SELECT
+        fecha::date::text as fecha,
+        tipo_sesion,
+        sesion_id,
         COUNT(*)::int as n_jugadores,
         (SELECT titulo FROM sesiones_plan WHERE id = sesion_id LIMIT 1) as sesion_titulo,
         ARRAY_AGG(id)::int[] as ids
       FROM gps_logs
       WHERE club_id = ${clubId}
+         OR (club_id IS NULL AND jugador_id IN (
+               SELECT id FROM jugadores WHERE club_id = ${clubId}
+             ))
       GROUP BY 1, 2, 3
       ORDER BY fecha DESC, tipo_sesion DESC
       LIMIT 100
