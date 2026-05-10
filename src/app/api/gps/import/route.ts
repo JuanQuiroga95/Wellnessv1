@@ -344,7 +344,7 @@ export async function DELETE(req: NextRequest) {
         DELETE FROM gps_logs
         WHERE fecha::date = ${fecha}::date
           AND sesion_id = ${sid}
-          AND jugador_id IN (SELECT id FROM jugadores WHERE club_id = ${clubId})
+          AND (club_id = ${clubId} OR jugador_id IN (SELECT id FROM jugadores WHERE club_id = ${clubId}))
         RETURNING id
       `
     } else {
@@ -353,7 +353,7 @@ export async function DELETE(req: NextRequest) {
         WHERE fecha::date = ${fecha}::date
           AND tipo_sesion = ${tipo_sesion}
           AND (sesion_id IS NULL OR sesion_id = 0)
-          AND jugador_id IN (SELECT id FROM jugadores WHERE club_id = ${clubId})
+          AND (club_id = ${clubId} OR jugador_id IN (SELECT id FROM jugadores WHERE club_id = ${clubId}))
         RETURNING id
       `
     }

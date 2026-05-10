@@ -23,7 +23,8 @@ export async function GET(req: NextRequest) {
         (SELECT titulo FROM sesiones_plan WHERE id = sesion_id LIMIT 1) as sesion_titulo,
         ARRAY_AGG(id)::int[] as ids
       FROM gps_logs
-      WHERE jugador_id IN (SELECT id FROM jugadores WHERE club_id = ${clubId})
+      WHERE club_id = ${clubId}
+         OR jugador_id IN (SELECT id FROM jugadores WHERE club_id = ${clubId})
       GROUP BY 1, 2, 3
       ORDER BY fecha DESC, tipo_sesion DESC
       LIMIT 100

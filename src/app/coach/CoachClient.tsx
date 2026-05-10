@@ -6849,14 +6849,38 @@ function GpsPanel({ teamData }: { teamData: any }) {
             ⏳ ÚLTIMAS CARGAS
             {loadingHistorial && <span style={{ fontSize: 12, color: 'var(--fog)', fontFamily: 'DM Sans' }}>Cargando...</span>}
           </h3>
-          <button 
-            onClick={() => loadHistory()} 
-            disabled={loadingHistorial}
-            className="wp-button-secondary" 
-            style={{ padding: '4px 12px', fontSize: 12, borderRadius: 8 }}
-          >
-            {loadingHistorial ? '...' : '🔄 Actualizar'}
-          </button>
+          <div style={{ display: 'flex', gap: 6 }}>
+            <button
+              onClick={() => loadHistory()}
+              disabled={loadingHistorial}
+              className="wp-button-secondary"
+              style={{ padding: '4px 12px', fontSize: 12, borderRadius: 8 }}
+            >
+              {loadingHistorial ? '...' : '🔄 Actualizar'}
+            </button>
+            <button
+              onClick={() => {
+                fetch('/api/gps/debug').then(r => r.json()).then(d => {
+                  alert(
+                    `=== DIAGNÓSTICO GPS ===\n` +
+                    `Club ID sesión: ${d.clubId}\n` +
+                    `GPS logs totales en DB: ${d.totalGpsLogs}\n` +
+                    `GPS logs con club_id=${d.clubId}: ${d.gpsLogsByClubId}\n` +
+                    `Jugadores en club: ${d.jugadoresInClub}\n` +
+                    `GPS logs via jugadores: ${d.gpsLogsByJugadores}\n` +
+                    `GPS logs (OR ambos): ${d.gpsLogsByEither}\n` +
+                    `Historial actual (${(d.historyByEither||[]).length} grupos):\n` +
+                    (d.historyByEither||[]).map((h: any) => `  ${h.fecha} ${h.tipo_sesion} sesion_id=${h.sesion_id} n=${h.n} ids=${JSON.stringify(h.ids)}`).join('\n') +
+                    `\n\nÚltimos 10 registros raw:\n` +
+                    (d.rawRows||[]).slice(0,10).map((r: any) => `  id=${r.id} jugador=${r.jugador_id} club=${r.club_id} fecha=${r.fecha} tipo=${r.tipo_sesion}`).join('\n')
+                  )
+                }).catch(e => alert('Error debug: ' + e))
+              }}
+              style={{ padding: '4px 10px', fontSize: 11, borderRadius: 8, background: 'rgba(96,165,250,.1)', border: '1px solid rgba(96,165,250,.2)', color: '#60a5fa', cursor: 'pointer' }}
+            >
+              🔍 Diagnóstico
+            </button>
+          </div>
         </div>
         
         {historial.length === 0 ? (
