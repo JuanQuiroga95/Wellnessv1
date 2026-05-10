@@ -6897,6 +6897,34 @@ function GpsPanel({ teamData }: { teamData: any }) {
             >
               🔧 Reparar datos
             </button>
+            <button
+              onClick={() => {
+                const fromStr = prompt('¿De qué club querés migrar los datos al club actual?\n\nClubs detectados con datos GPS:\n- 36 (134 registros)\n- 7 (14 registros)\n\nEscribí el número del club de origen:')
+                if (!fromStr) return
+                const fromClubId = Number(fromStr)
+                if (!fromClubId || isNaN(fromClubId)) { alert('Número inválido'); return }
+                if (!confirm(`⚠️ ATENCIÓN: Esto va a MOVER todos los datos del club ${fromClubId} (jugadores, GPS, wellness, entrenamientos, partidos, lesiones, sesiones) al club actual. Es irreversible. ¿Confirmás?`)) return
+                fetch('/api/gps/migrate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fromClubId }) })
+                  .then(r => r.json()).then(d => {
+                    if (d.error) { alert('Error: ' + d.error); return }
+                    alert(
+                      `✓ Migración completada de club ${d.fromClubId} → club ${d.toClubId}:\n` +
+                      `- Jugadores: ${d.jugadores}\n` +
+                      `- Usuarios: ${d.usuarios}\n` +
+                      `- GPS logs: ${d.gps}\n` +
+                      `- Wellness: ${d.wellness}\n` +
+                      `- Entrenamientos: ${d.entrenamientos}\n` +
+                      `- Partidos: ${d.partidos}\n` +
+                      `- Lesiones: ${d.lesiones}\n` +
+                      `- Sesiones: ${d.sesiones}`
+                    )
+                    loadHistory()
+                  }).catch(e => alert('Error: ' + e))
+              }}
+              style={{ padding: '4px 10px', fontSize: 11, borderRadius: 8, background: 'rgba(245,158,11,.1)', border: '1px solid rgba(245,158,11,.2)', color: '#f59e0b', cursor: 'pointer' }}
+            >
+              📦 Migrar de otro club
+            </button>
           </div>
         </div>
         
