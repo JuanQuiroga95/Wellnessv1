@@ -25,16 +25,6 @@ export async function GET(req: NextRequest) {
       const jugadores = await sql`SELECT COUNT(*)::int as n FROM jugadores WHERE club_id = ${clubId}`
       results.jugadoresInClub = (jugadores[0] as any)?.n ?? 0
 
-      // GPS logs reachable via usuario.club_id chain (this is what /api/gps/fix will claim)
-      const viaUsuario = await sql`
-        SELECT COUNT(*)::int as n FROM gps_logs gl
-        INNER JOIN jugadores j ON j.id = gl.jugador_id
-        INNER JOIN usuarios u ON u.id = j.usuario_id
-        WHERE u.club_id = ${clubId}
-      `
-      results.gpsLogsViaUsuario = (viaUsuario[0] as any)?.n ?? 0
-
-      // Distribution: how are the 148 records distributed across clubs (via usuario)?
       const distribution = await sql`
         SELECT
           gl.club_id as gps_club_id,
@@ -48,6 +38,15 @@ export async function GET(req: NextRequest) {
         LIMIT 10
       `
       results.distribution = distribution
+
+      // Last 10 records by created_at — tells us if the most recent inserts are in the DB
+      const recent = await sql`
+        SELECT id, club_id, jugador_id, fecha::text, tipo_sesion, sesion_id, created_at::text
+        FROM gps_logs
+        ORDER BY id DESC
+        LIMIT 10
+      `
+      results.recentRecords = recent
     }
 
     return NextResponse.json(results)
