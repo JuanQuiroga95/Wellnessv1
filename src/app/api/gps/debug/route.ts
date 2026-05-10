@@ -15,48 +15,39 @@ export async function GET(req: NextRequest) {
 
     const results: any = { clubId, userId: s.userId }
 
-    // Count all gps_logs (no filter)
     const total = await sql`SELECT COUNT(*)::int as n FROM gps_logs`
     results.totalGpsLogs = (total[0] as any)?.n ?? 0
 
-    // Count gps_logs with club_id = clubId
     if (clubId) {
       const byClub = await sql`SELECT COUNT(*)::int as n FROM gps_logs WHERE club_id = ${clubId}`
       results.gpsLogsByClubId = (byClub[0] as any)?.n ?? 0
 
-      // Count jugadores in this club
       const jugadores = await sql`SELECT COUNT(*)::int as n FROM jugadores WHERE club_id = ${clubId}`
       results.jugadoresInClub = (jugadores[0] as any)?.n ?? 0
 
-      // Count gps_logs via jugadores subquery
-      const byJugadores = await sql`SELECT COUNT(*)::int as n FROM gps_logs WHERE jugador_id IN (SELECT id FROM jugadores WHERE club_id = ${clubId})`
-      results.gpsLogsByJugadores = (byJugadores[0] as any)?.n ?? 0
-
-      // Count with either condition
-      const byEither = await sql`SELECT COUNT(*)::int as n FROM gps_logs WHERE club_id = ${clubId} OR jugador_id IN (SELECT id FROM jugadores WHERE club_id = ${clubId})`
-      results.gpsLogsByEither = (byEither[0] as any)?.n ?? 0
-
-      // Raw rows (last 20, no grouping)
-      const rawRows = await sql`SELECT id, jugador_id, club_id, fecha::text, tipo_sesion, sesion_id, created_at::text FROM gps_logs ORDER BY id DESC LIMIT 20`
-      results.rawRows = rawRows
-
-      // History query result (current)
-      const history = await sql`
-        SELECT fecha::date::text as fecha, tipo_sesion, sesion_id, COUNT(*)::int as n, ARRAY_AGG(id)::int[] as ids
-        FROM gps_logs
-        WHERE jugador_id IN (SELECT id FROM jugadores WHERE club_id = ${clubId})
-        GROUP BY 1, 2, 3 ORDER BY fecha DESC LIMIT 20
+      // GPS logs reachable via usuario.club_id chain (this is what /api/gps/fix will claim)
+      const viaUsuario = await sql`
+        SELECT COUNT(*)::int as n FROM gps_logs gl
+        INNER JOIN jugadores j ON j.id = gl.jugador_id
+        INNER JOIN usuarios u ON u.id = j.usuario_id
+        WHERE u.club_id = ${clubId}
       `
-      results.historyByJugadores = history
+      results.gpsLogsViaUsuario = (viaUsuario[0] as any)?.n ?? 0
 
-      // History with club_id OR jugadores
-      const history2 = await sql`
-        SELECT fecha::date::text as fecha, tipo_sesion, sesion_id, COUNT(*)::int as n, ARRAY_AGG(id)::int[] as ids
-        FROM gps_logs
-        WHERE club_id = ${clubId} OR jugador_id IN (SELECT id FROM jugadores WHERE club_id = ${clubId})
-        GROUP BY 1, 2, 3 ORDER BY fecha DESC LIMIT 20
+      // Distribution: how are the 148 records distributed across clubs (via usuario)?
+      const distribution = await sql`
+        SELECT
+          gl.club_id as gps_club_id,
+          u.club_id as usuario_club_id,
+          COUNT(*)::int as n
+        FROM gps_logs gl
+        LEFT JOIN jugadores j ON j.id = gl.jugador_id
+        LEFT JOIN usuarios u ON u.id = j.usuario_id
+        GROUP BY gl.club_id, u.club_id
+        ORDER BY n DESC
+        LIMIT 10
       `
-      results.historyByEither = history2
+      results.distribution = distribution
     }
 
     return NextResponse.json(results)

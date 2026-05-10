@@ -6863,14 +6863,13 @@ function GpsPanel({ teamData }: { teamData: any }) {
                 fetch('/api/gps/debug').then(r => r.json()).then(d => {
                   alert(
                     `=== DIAGNÓSTICO GPS ===\n` +
-                    `Club ID sesión: ${d.clubId}\n` +
-                    `GPS logs totales en DB: ${d.totalGpsLogs}\n` +
+                    `Club ID: ${d.clubId} · User ID: ${d.userId}\n` +
+                    `GPS logs totales: ${d.totalGpsLogs}\n` +
                     `GPS logs con club_id=${d.clubId}: ${d.gpsLogsByClubId}\n` +
-                    `Jugadores en club: ${d.jugadoresInClub}\n` +
-                    `GPS logs via jugadores: ${d.gpsLogsByJugadores}\n` +
-                    `GPS logs (OR ambos): ${d.gpsLogsByEither}\n` +
-                    `Historial (${(d.historyByEither||[]).length} grupos):\n` +
-                    (d.historyByEither||[]).map((h: any) => `  ${h.fecha} ${h.tipo_sesion} n=${h.n}`).join('\n')
+                    `Jugadores con club_id=${d.clubId}: ${d.jugadoresInClub}\n` +
+                    `GPS logs reclamables (via usuario): ${d.gpsLogsViaUsuario}\n\n` +
+                    `Distribución gps_log.club_id / usuario.club_id:\n` +
+                    (d.distribution||[]).map((r: any) => `  gps_club=${r.gps_club_id} usr_club=${r.usuario_club_id} → ${r.n} logs`).join('\n')
                   )
                 }).catch(e => alert('Error debug: ' + e))
               }}
@@ -6880,10 +6879,17 @@ function GpsPanel({ teamData }: { teamData: any }) {
             </button>
             <button
               onClick={() => {
-                if (!confirm('¿Reparar datos GPS? Esto va a vincular los registros huérfanos al club actual.')) return
+                if (!confirm('¿Reparar datos GPS? Esto va a recalcular el club_id de jugadores y GPS basándose en usuarios.club_id.')) return
                 fetch('/api/gps/fix', { method: 'POST' }).then(r => r.json()).then(d => {
                   if (d.error) { alert('Error: ' + d.error); return }
-                  alert(`✓ Reparación completada:\n- Jugadores actualizados: ${d.jugadoresFixed}\n- GPS logs vinculados: ${d.gpsLogsFixed}\n- Total GPS para tu club ahora: ${d.totalGpsForClub}`)
+                  alert(
+                    `✓ Reparación completada:\n` +
+                    `- GPS logs reclamables (via usuario): ${d.claimable}\n` +
+                    `- Jugadores con club_id incorrecto: ${d.jugadoresWrong}\n` +
+                    `- Jugadores actualizados: ${d.jugadoresFixed}\n` +
+                    `- GPS logs actualizados: ${d.gpsLogsFixed}\n` +
+                    `- Total GPS para tu club ahora: ${d.totalGpsForClub}`
+                  )
                   loadHistory()
                 }).catch(e => alert('Error: ' + e))
               }}
