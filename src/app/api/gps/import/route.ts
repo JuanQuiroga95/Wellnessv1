@@ -298,9 +298,9 @@ export async function POST(req: NextRequest) {
       const sid = (sesion_id === 0 || sesion_id === '0') ? null : sesion_id
       
       if (sid) {
-        await sql`DELETE FROM gps_logs WHERE fecha = ${fecha}::date AND sesion_id = ${sid} AND jugador_id IN (SELECT id FROM jugadores WHERE club_id = ${clubId})`
+        await sql`DELETE FROM gps_logs WHERE fecha = ${fecha}::date AND sesion_id = ${sid} AND club_id = ${clubId}`
       } else {
-        await sql`DELETE FROM gps_logs WHERE fecha = ${fecha}::date AND (sesion_id IS NULL OR sesion_id = 0) AND tipo_sesion = ${tipo_sesion} AND jugador_id IN (SELECT id FROM jugadores WHERE club_id = ${clubId})`
+        await sql`DELETE FROM gps_logs WHERE fecha = ${fecha}::date AND (sesion_id IS NULL OR sesion_id = 0) AND tipo_sesion = ${tipo_sesion} AND club_id = ${clubId}`
       }
       
       for (const m of matched) {
@@ -337,20 +337,25 @@ export async function DELETE(req: NextRequest) {
 
     const sid = (sesion_id === 'null' || sesion_id === 'undefined' || !sesion_id || sesion_id === '0') ? null : Number(sesion_id)
 
-    // Materialize jugador IDs first to avoid Neon driver issues with OR+subquery parameter binding
-    const jugadoresList = await sql`SELECT id FROM jugadores WHERE club_id = ${clubId}`
-    const jugadorIds = jugadoresList.map((j: any) => j.id as number)
-
-    // Use RETURNING id so deleted.length gives the actual count (Neon HTTP driver doesn't expose .count/.rowCount on plain DELETE)
+    // Simple, direct delete by club_id — no subqueries or array params that cause Neon driver issues
     let deleted: any[]
     if (sid) {
-      deleted = jugadorIds.length > 0
-        ? await sql`DELETE FROM gps_logs WHERE fecha::date = ${fecha}::date AND sesion_id = ${sid} AND (club_id = ${clubId} OR jugador_id = ANY(${jugadorIds})) RETURNING id`
-        : await sql`DELETE FROM gps_logs WHERE fecha::date = ${fecha}::date AND sesion_id = ${sid} AND club_id = ${clubId} RETURNING id`
+      deleted = await sql`
+        DELETE FROM gps_logs
+        WHERE fecha::date = ${fecha}::date
+          AND sesion_id = ${sid}
+          AND club_id = ${clubId}
+        RETURNING id
+      `
     } else {
-      deleted = jugadorIds.length > 0
-        ? await sql`DELETE FROM gps_logs WHERE fecha::date = ${fecha}::date AND tipo_sesion = ${tipo_sesion} AND (sesion_id IS NULL OR sesion_id = 0) AND (club_id = ${clubId} OR jugador_id = ANY(${jugadorIds})) RETURNING id`
-        : await sql`DELETE FROM gps_logs WHERE fecha::date = ${fecha}::date AND tipo_sesion = ${tipo_sesion} AND (sesion_id IS NULL OR sesion_id = 0) AND club_id = ${clubId} RETURNING id`
+      deleted = await sql`
+        DELETE FROM gps_logs
+        WHERE fecha::date = ${fecha}::date
+          AND tipo_sesion = ${tipo_sesion}
+          AND (sesion_id IS NULL OR sesion_id = 0)
+          AND club_id = ${clubId}
+        RETURNING id
+      `
     }
 
     return NextResponse.json({ ok: true, count: deleted.length })

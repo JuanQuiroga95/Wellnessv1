@@ -14,13 +14,6 @@ export async function GET(req: NextRequest) {
     const clubId = s.clubId ? Number(s.clubId) : null
     if (!clubId) return NextResponse.json([])
 
-    // Step 1: get all jugador IDs for this club
-    const jugadoresList = await sql`SELECT id FROM jugadores WHERE club_id = ${clubId}`
-    const jugadorIds = jugadoresList.map((j: any) => j.id)
-
-    if (jugadorIds.length === 0) return NextResponse.json([])
-
-    // Step 2: query GPS logs for those specific jugadores (avoids any OR + subquery issues)
     const history = await sql`
       SELECT
         fecha::date::text as fecha,
@@ -30,8 +23,7 @@ export async function GET(req: NextRequest) {
         (SELECT titulo FROM sesiones_plan WHERE id = sesion_id LIMIT 1) as sesion_titulo,
         ARRAY_AGG(id)::int[] as ids
       FROM gps_logs
-      WHERE jugador_id = ANY(${jugadorIds})
-         OR club_id = ${clubId}
+      WHERE club_id = ${clubId}
       GROUP BY 1, 2, 3
       ORDER BY fecha DESC, tipo_sesion DESC
       LIMIT 100
