@@ -67,12 +67,18 @@ const METRIC_COL_MAP: Array<[string, string]> = [
   ['velocidad maxima','max_velocity'],['max velocity','max_velocity'],['vitesse max','max_velocity'],
   ['max speed','max_velocity'],['peak velocity','max_velocity'],['peak speed','max_velocity'],
   ['top speed','max_velocity'],['vmax','max_velocity'],
+  ['maximum velocity','max_velocity'],['maximum speed','max_velocity'],
+  ['velocity max','max_velocity'],['speed max','max_velocity'],
+  ['max vel','max_velocity'],['vel max','max_velocity'],
+  ['velocidad max','max_velocity'],['vel maxima','max_velocity'],['vel. max','max_velocity'],
   ['duracion','duracion_min'],['duration','duracion_min'],['time','duracion_min'],['tiempo','duracion_min'],
 ]
 
 // Finds the best metric key for a given column header
 function mapHeaderToMetric(header: string): string | null {
-  const h = header.toLowerCase().trim()
+  const h = (header || '').toLowerCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .trim()
   for (const [pattern, key] of METRIC_COL_MAP) {
     if (h === pattern || h.includes(pattern)) return key
   }
