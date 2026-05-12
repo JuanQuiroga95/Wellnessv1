@@ -84,7 +84,8 @@ export default function AnalyticsPanel() {
         analytics: {
           wellnessWeekly: ar.wellnessWeekly || [],
           rpeWeekly: ar.rpeWeekly || [],
-        }
+        },
+        loadAnalysis: ar.loadAnalysis || []
       })
     } catch(e) { console.error(e) }
     finally { setLoading(false) }

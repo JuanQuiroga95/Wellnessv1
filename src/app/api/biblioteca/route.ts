@@ -5,6 +5,24 @@ import { getSessionFromRequest } from '@/lib/auth'
 function isAdmin(s:any){return s?.rol==='admin'||s?.rol==='master_admin'}
 
 async function ensureCols(sql: any) {
+  try {
+    await sql`CREATE TABLE IF NOT EXISTS biblioteca_tareas (
+      id SERIAL PRIMARY KEY,
+      admin_id INTEGER,
+      nombre VARCHAR(200) NOT NULL,
+      ventana VARCHAR(100),
+      subtarea VARCHAR(100),
+      jugadores INTEGER,
+      series INTEGER,
+      minutos INTEGER,
+      pausa INTEGER,
+      largo INTEGER,
+      ancho INTEGER,
+      descripcion TEXT,
+      veces_usada INTEGER DEFAULT 1,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )`
+  } catch {}
   try { await sql`ALTER TABLE biblioteca_tareas ADD COLUMN IF NOT EXISTS intensidad INTEGER` } catch {}
   try { await sql`ALTER TABLE biblioteca_tareas ADD COLUMN IF NOT EXISTS objetivo VARCHAR(50)` } catch {}
   try { await sql`ALTER TABLE biblioteca_tareas ADD COLUMN IF NOT EXISTS imagen TEXT` } catch {}
