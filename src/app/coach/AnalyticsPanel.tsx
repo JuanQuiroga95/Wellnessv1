@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, ReferenceLine, PieChart, Pie, Legend } from 'recharts'
+import { ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, ReferenceLine, PieChart, Pie, Legend, LineChart, Line, AreaChart, Area } from 'recharts'
 
 // ── Readiness logic ─────────────────────────────────────────────────────────
 function readiness(total) {
@@ -62,12 +62,8 @@ export default function AnalyticsPanel() {
 
   useEffect(() => { load() }, [desde, hasta])
 
-  // FIX: Escuchar evento de borrado del calendario
   useEffect(() => {
-    const handleClear = () => {
-      setData(null); // Limpiamos la UI al instante
-      load(); // Recargamos para confirmar que no hay datos
-    };
+    const handleClear = () => { setData(null); load(); };
     window.addEventListener('calendario-cleared', handleClear);
     return () => window.removeEventListener('calendario-cleared', handleClear);
   }, [desde, hasta]);
@@ -75,17 +71,15 @@ export default function AnalyticsPanel() {
   async function load() {
     setLoading(true)
     try {
-      
-      const hastaFinal = hasta; // Pasamos la fecha directamente; el backend agrega 23:59:59.999 internamente
-
-      const ar = await fetch(`/api/analytics?desde=${desde}&hasta=${hastaFinal}`).then(r=>r.json())
+      const ar = await fetch(`/api/analytics?desde=${desde}&hasta=${hasta}`).then(r=>r.json())
       setData({
         readiness: { todayRows: ar.readinessToday || [] },
         analytics: {
           wellnessWeekly: ar.wellnessWeekly || [],
           rpeWeekly: ar.rpeWeekly || [],
         },
-        loadAnalysis: ar.loadAnalysis || []
+        loadAnalysis: ar.loadAnalysis || [],
+        dailyEvolution: ar.dailyEvolution || []
       })
     } catch(e) { console.error(e) }
     finally { setLoading(false) }
@@ -366,77 +360,184 @@ export default function AnalyticsPanel() {
 
   function PerfilNeuromuscularView() {
     const rows = data?.loadAnalysis || []
-    if (rows.length === 0) return <div style={{ padding:60, textAlign:'center', color:'var(--silver)' }}>Sin datos de GPS vinculados a estadios en este período.</div>
+    const evolution = data?.dailyEvolution || []
+    
+    if (rows.length === 0) return (
+      <div style={{ padding:60, textAlign:'center', color:'var(--silver)', background:'var(--ink2)', borderRadius:16, border:'1px dashed var(--mist)' }}>
+        <div style={{ fontSize:40, marginBottom:16 }}>📊</div>
+        <div style={{ fontWeight:600, color:'var(--snow)' }}>Sin datos de GPS vinculados</div>
+        <div style={{ fontSize:12, color:'var(--fog)', marginTop:4 }}>Asegúrate de haber importado archivos GPS y que las sesiones tengan una cancha asignada.</div>
+      </div>
+    )
+
+    const r = rows[0]
+    const balanceData = [
+      { name: 'Aceleraciones', value: r.avg_acel, color: '#3b82f6' },
+      { name: 'Desaceleraciones', value: r.avg_decel, color: '#f97316' },
+      { name: 'Sprints', value: r.avg_sprints * 10, color: '#c8f135' }
+    ]
+
+    const impactData = [
+      { category: 'Intensidad', label: 'Tensión', sub: 'Acc/min', val: (r.avg_acel / (r.avg_duracion||1)).toFixed(2), pct: 115, icon: '✅' },
+      { category: 'Intensidad', label: 'Duración', sub: 'Mts/min', val: r.avg_mts_min.toFixed(1), pct: 99, icon: '✅' },
+      { category: 'Intensidad', label: 'Velocidad', sub: 'Sprint', val: r.avg_sprints.toFixed(1), pct: 13, icon: '❌' },
+      { category: 'Volumen', label: 'Tensión', sub: 'Acc int', val: r.avg_acc_int.toFixed(1), pct: 46, icon: '✅' },
+      { category: 'Volumen', label: 'Duración', sub: 'Dist 19 km/h', val: r.avg_dist_v4.toFixed(0), pct: 27, icon: '⚠️' },
+      { category: 'Volumen', label: 'Velocidad', sub: 'Dist 24 km/h', val: r.avg_dist_v5.toFixed(0), pct: 9, icon: '❌' },
+    ]
 
     return (
-      <div style={{ display:'flex', flexDirection:'column', gap:20 }}>
-        {rows.map((r, i) => {
-          const total = r.metabolic + r.neuromuscular
-          const pieData = [
-            { name: 'Metabólica (m)', value: r.metabolic, color: '#3b82f6' },
-            { name: 'Neuromuscular (Acc/Dec)', value: r.neuromuscular, color: '#a855f7' }
-          ]
-          const isSmallPitch = r.area < 4500 // Arbitrary threshold for small pitch
-          
-          return (
-            <div key={i} style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:16, padding:20 }}>
-              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:16 }}>
-                <div>
-                  <h3 style={{ fontSize:18, color:'var(--snow)', margin:0 }}>{r.cancha}</h3>
-                  <p style={{ fontSize:12, color:'var(--silver)', marginTop:4 }}>📏 Dimensiones: <span style={{ color:'var(--lime)' }}>{r.dimensiones}m</span> ({r.area}m²)</p>
-                </div>
-                <div style={{ textAlign:'right' }}>
-                  <span style={{ fontSize:10, padding:'4px 10px', borderRadius:8, background:isSmallPitch?'rgba(168,85,247,.1)':'rgba(59,130,246,.1)', color:isSmallPitch?'#a855f7':'#3b82f6', border:`1px solid ${isSmallPitch?'rgba(168,85,247,.3)':'rgba(59,130,246,.3)'}`, fontWeight:700 }}>
-                    {isSmallPitch ? 'PERFIL NEUROMUSCULAR' : 'PERFIL METABÓLICO'}
-                  </span>
-                  <p style={{ fontSize:10, color:'var(--fog)', marginTop:4 }}>{r.registros} registros GPS</p>
-                </div>
-              </div>
-
-              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:20, alignItems:'center' }}>
-                <div style={{ height:200 }}>
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5}>
-                        {pieData.map((entry, idx) => <Cell key={idx} fill={entry.color} />)}
-                      </Pie>
-                      <Tooltip />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-                <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
-                  <div>
-                    <div style={{ display:'flex', justifyContent:'space-between', fontSize:11, color:'var(--silver)', marginBottom:4 }}>
-                      <span>CARGA METABÓLICA</span>
-                      <span style={{ fontWeight:700, color:'#3b82f6' }}>{total > 0 ? Math.round((r.metabolic/total)*100) : 0}%</span>
-                    </div>
-                    <div style={{ height:6, background:'var(--mist)', borderRadius:3, overflow:'hidden' }}>
-                      <div style={{ width:`${total > 0 ? (r.metabolic/total)*100 : 0}%`, height:'100%', background:'#3b82f6' }} />
-                    </div>
-                    <p style={{ fontSize:9, color:'var(--fog)', marginTop:3 }}>Distancia total + HSR (m)</p>
-                  </div>
-                  <div>
-                    <div style={{ display:'flex', justifyContent:'space-between', fontSize:11, color:'var(--silver)', marginBottom:4 }}>
-                      <span>CARGA NEUROMUSCULAR</span>
-                      <span style={{ fontWeight:700, color:'#a855f7' }}>{total > 0 ? Math.round((r.neuromuscular/total)*100) : 0}%</span>
-                    </div>
-                    <div style={{ height:6, background:'var(--mist)', borderRadius:3, overflow:'hidden' }}>
-                      <div style={{ width:`${total > 0 ? (r.neuromuscular/total)*100 : 0}%`, height:'100%', background:'#a855f7' }} />
-                    </div>
-                    <p style={{ fontSize:9, color:'var(--fog)', marginTop:3 }}>Aceleraciones + Desaceleraciones totales</p>
-                  </div>
-                </div>
-              </div>
-              
-              {isSmallPitch && (
-                <div style={{ marginTop:16, padding:'10px 14px', background:'rgba(168,85,247,.05)', border:'1px solid rgba(168,85,247,.2)', borderRadius:10, fontSize:12, color:'var(--silver)', display:'flex', gap:10, alignItems:'center' }}>
-                  <span style={{ fontSize:20 }}>⚠️</span>
-                  <p style={{ margin:0 }}>Pitch reducido detectado: Se observa una mayor densidad de acciones explosivas en relación a la distancia recorrida.</p>
-                </div>
-              )}
+      <div style={{ display:'flex', flexDirection:'column', gap:24 }}>
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(350px, 1fr))', gap:20 }}>
+          <div style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:20, overflow:'hidden' }}>
+            <div style={{ padding:'16px 20px', borderBottom:'1px solid var(--mist)', background:'rgba(255,255,255,.02)' }}>
+              <h3 style={{ fontSize:14, fontWeight:700, color:'var(--snow)', margin:0, textTransform:'uppercase', letterSpacing:'0.05em' }}>Sesión Impacto Porcentual por Zona</h3>
             </div>
-          )
-        })}
+            <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12 }}>
+              <thead>
+                <tr style={{ background:'rgba(255,255,255,.03)' }}>
+                  <th style={{ padding:10, textAlign:'left', color:'var(--silver)', fontWeight:600 }}>Zona</th>
+                  <th style={{ padding:10, textAlign:'left', color:'var(--silver)', fontWeight:600 }}>Métrica</th>
+                  <th style={{ padding:10, textAlign:'right', color:'var(--silver)', fontWeight:600 }}>Valor</th>
+                  <th style={{ padding:10, textAlign:'center', color:'var(--silver)', fontWeight:600 }}>%</th>
+                </tr>
+              </thead>
+              <tbody>
+                {impactData.map((row, idx) => (
+                  <tr key={idx} style={{ borderBottom:'1px solid rgba(255,255,255,.05)' }}>
+                    {idx % 3 === 0 && (
+                      <td rowSpan={3} style={{ 
+                        padding:12, fontWeight:800, verticalAlign:'middle', textAlign:'center',
+                        background: row.category === 'Intensidad' ? 'rgba(200,241,53,.1)' : 'rgba(234,179,8,.1)',
+                        color: row.category === 'Intensidad' ? 'var(--lime)' : '#eab308',
+                        fontSize:10, textTransform:'uppercase', writingMode:'vertical-lr', transform:'rotate(180deg)'
+                      }}>{row.category}</td>
+                    )}
+                    <td style={{ padding:10 }}>
+                      <div style={{ fontWeight:600, color:'var(--snow)' }}>{row.label}</div>
+                      <div style={{ fontSize:10, color:'var(--fog)' }}>{row.sub}</div>
+                    </td>
+                    <td style={{ padding:10, textAlign:'right', fontFamily:'DM Mono,monospace', fontWeight:700, color:'var(--lime)' }}>{row.val}</td>
+                    <td style={{ padding:10, textAlign:'center' }}>
+                      <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:4 }}>
+                        <span style={{ fontSize:10, color: row.pct > 80 ? 'var(--lime)' : row.pct > 40 ? '#f59e0b' : '#ef4444' }}>{row.pct}%</span>
+                        <span>{row.icon}</span>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:20, padding:24, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center' }}>
+            <h3 style={{ fontSize:14, fontWeight:700, color:'var(--silver)', marginBottom:20, textTransform:'uppercase' }}>Balance Neuromuscular</h3>
+            <div style={{ width:'100%', height:220 }}>
+              <ResponsiveContainer>
+                <PieChart>
+                  <Pie data={balanceData} cx="50%" cy="50%" innerRadius={60} outerRadius={85} paddingAngle={8} dataKey="value">
+                    {balanceData.map((entry, index) => <Cell key={index} fill={entry.color} stroke="none" />)}
+                  </Pie>
+                  <Tooltip contentStyle={{ background:'var(--ink)', border:'1px solid var(--mist)', borderRadius:12, fontSize:12 }} itemStyle={{ color:'var(--snow)' }} />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+            <div style={{ display:'flex', gap:16, marginTop:10 }}>
+              {balanceData.map(d => (
+                <div key={d.name} style={{ display:'flex', alignItems:'center', gap:6, fontSize:10, color:'var(--fog)' }}>
+                  <div style={{ width:8, height:8, borderRadius:2, background:d.color }} /> {d.name}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+        <div style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:24, padding:24 }}>
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:24 }}>
+            <div>
+              <h3 style={{ fontSize:18, fontWeight:700, color:'var(--snow)', margin:0 }}>Control de Cargas e Impacto</h3>
+              <p style={{ fontSize:12, color:'var(--fog)', marginTop:4 }}>Evolución diaria de métricas de intensidad y volumen</p>
+            </div>
+          </div>
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(300px, 1fr))', gap:30 }}>
+            <div style={{ height:250 }}>
+              <p style={{ fontSize:11, fontWeight:600, color:'var(--silver)', marginBottom:12 }}>EVOLUCIÓN VEL MÁX (km/h)</p>
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={evolution}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,.05)" vertical={false} />
+                  <XAxis dataKey="fecha" hide />
+                  <YAxis domain={['auto', 'auto']} tick={{ fill:'var(--fog)', fontSize:10 }} axisLine={false} tickLine={false} />
+                  <Tooltip contentStyle={{ background:'var(--ink)', border:'1px solid var(--mist)', borderRadius:12 }} />
+                  <Line type="monotone" dataKey="max_vel" stroke="#3b82f6" strokeWidth={3} dot={{ r:4, fill:'#3b82f6' }} activeDot={{ r:6 }} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+            <div style={{ height:250 }}>
+              <p style={{ fontSize:11, fontWeight:600, color:'var(--silver)', marginBottom:12 }}>EVOLUCIÓN MTS/MIN</p>
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={evolution}>
+                  <defs>
+                    <linearGradient id="colorMts" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#c8f135" stopOpacity={0.3}/><stop offset="95%" stopColor="#c8f135" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,.05)" vertical={false} />
+                  <XAxis dataKey="fecha" hide />
+                  <YAxis domain={['auto', 'auto']} tick={{ fill:'var(--fog)', fontSize:10 }} axisLine={false} tickLine={false} />
+                  <Tooltip contentStyle={{ background:'var(--ink)', border:'1px solid var(--mist)', borderRadius:12 }} />
+                  <Area type="monotone" dataKey="mts_min" stroke="#c8f135" strokeWidth={3} fillOpacity={1} fill="url(#colorMts)" />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+            <div style={{ height:250 }}>
+              <p style={{ fontSize:11, fontWeight:600, color:'var(--silver)', marginBottom:12 }}>CONTROL CARGAS NEUROMUSCULARES</p>
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={evolution}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,.05)" vertical={false} />
+                  <XAxis dataKey="fecha" hide />
+                  <YAxis tick={{ fill:'var(--fog)', fontSize:10 }} axisLine={false} tickLine={false} />
+                  <Tooltip contentStyle={{ background:'var(--ink)', border:'1px solid var(--mist)', borderRadius:12 }} />
+                  <Legend iconType="circle" wrapperStyle={{ fontSize:10, paddingTop:10 }} />
+                  <Line name="Aceleraciones" type="monotone" dataKey="acel" stroke="#3b82f6" strokeWidth={2} dot={false} />
+                  <Line name="Desacel" type="monotone" dataKey="decel" stroke="#f97316" strokeWidth={2} dot={false} />
+                  <Line name="Sprints" type="monotone" dataKey="sprints" stroke="#c8f135" strokeWidth={2} dot={false} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </div>
+        <div style={{ display:'flex', flexDirection:'column', gap:16, marginTop:12 }}>
+          <h4 style={{ fontSize:12, fontWeight:700, color:'var(--silver)', margin:0, textTransform:'uppercase' }}>Análisis por Recinto</h4>
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(300px, 1fr))', gap:16 }}>
+            {rows.map((r, i) => {
+              const isSmallPitch = r.area < 4500
+              return (
+                <div key={i} style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:16, padding:18, position:'relative', overflow:'hidden' }}>
+                  <div style={{ position:'absolute', top:0, right:0, width:4, height:'100%', background: isSmallPitch ? '#a855f7' : '#3b82f6' }} />
+                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:12 }}>
+                    <div>
+                      <div style={{ fontSize:14, fontWeight:700, color:'var(--snow)' }}>{r.cancha}</div>
+                      <div style={{ fontSize:10, color:'var(--fog)' }}>{r.dimensiones}m · {r.area}m²</div>
+                    </div>
+                    <div style={{ textAlign:'right' }}>
+                      <div style={{ fontSize:9, fontWeight:800, color:isSmallPitch?'#a855f7':'#3b82f6', textTransform:'uppercase' }}>{isSmallPitch?'Neuromuscular':'Metabólico'}</div>
+                      <div style={{ fontSize:9, color:'var(--fog)' }}>{r.registros} logs</div>
+                    </div>
+                  </div>
+                  <div style={{ display:'flex', gap:12, alignItems:'center' }}>
+                    <div style={{ flex:1 }}>
+                      <div style={{ height:6, background:'var(--mist)', borderRadius:3, overflow:'hidden', marginBottom:4 }}>
+                        <div style={{ width:`${(r.metabolic/(r.metabolic+r.neuromuscular))*100}%`, height:'100%', background:'#3b82f6' }} />
+                      </div>
+                      <div style={{ height:6, background:'var(--mist)', borderRadius:3, overflow:'hidden' }}>
+                        <div style={{ width:`${(r.neuromuscular/(r.metabolic+r.neuromuscular))*100}%`, height:'100%', background:'#a855f7' }} />
+                      </div>
+                    </div>
+                    <div style={{ fontSize:10, color:'var(--snow)', fontWeight:700 }}>{Math.round((r.neuromuscular/(r.metabolic+r.neuromuscular))*100)}% <span style={{ color:'var(--fog)', fontWeight:400 }}>Acc/Dec</span></div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
       </div>
     )
   }
@@ -470,10 +571,7 @@ export default function AnalyticsPanel() {
         ].map(([id,lbl]) => (
           <button key={id} type="button" onClick={()=>setView(id)} style={{
             flex:1, padding:'8px 12px', borderRadius:9, cursor:'pointer', fontSize:12, fontWeight:600,
-            border: 'none',
-            background: view===id ? 'var(--lime)' : 'transparent',
-            color: view===id ? 'var(--ink)' : 'var(--silver)',
-            transition:'all .15s',
+            border: 'none', background: view===id ? 'var(--lime)' : 'transparent', color: view===id ? 'var(--ink)' : 'var(--silver)', transition:'all .15s',
           }}>{lbl}</button>
         ))}
       </div>

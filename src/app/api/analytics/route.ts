@@ -84,13 +84,20 @@ export async function GET(req: NextRequest) {
         AND (${isMaster}::boolean OR (u.club_id=${clubId} AND j.club_id=${clubId}))
       ORDER BY j.id, w.fecha DESC NULLS LAST`
 
-    // Análisis de carga: Neuromuscular vs Metabólica x Estadio
+    // Análisis de carga: Neuromuscular vs Metabólica x Estadio + métricas detalladas
     const loadAnalysis = await sql`
       SELECT c.nombre AS cancha_nombre, c.largo_m, c.ancho_m,
              AVG(g.dist_total) AS avg_dist_total,
              AVG(COALESCE(g.dist_hir,0)) AS avg_dist_hir,
+             AVG(COALESCE(g.dist_v4,0)) AS avg_dist_v4,
+             AVG(COALESCE(g.dist_v5,0)) AS avg_dist_v5,
              AVG(COALESCE(g.acc2,0) + COALESCE(g.acc3,0)) AS avg_acel_total,
              AVG(COALESCE(g.dec2,0) + COALESCE(g.dec3,0)) AS avg_decel_total,
+             AVG(COALESCE(g.acc3,0)) AS avg_acc_int,
+             AVG(COALESCE(g.n_sprints,0)) AS avg_sprints,
+             AVG(COALESCE(g.max_velocity,0)) AS avg_max_vel,
+             AVG(COALESCE(g.dist_per_min,0)) AS avg_mts_min,
+             AVG(COALESCE(g.duracion_min,0)) AS avg_duracion,
              COUNT(g.id)::int AS registros
       FROM gps_logs g
       JOIN sesiones_plan s ON s.id = g.sesion_id
@@ -99,6 +106,21 @@ export async function GET(req: NextRequest) {
         AND (${isMaster}::boolean OR s.club_id = ${clubId})
       GROUP BY c.id, c.nombre, c.largo_m, c.ancho_m
       ORDER BY registros DESC`
+
+    // Evolución diaria para gráficos de línea (Image 3)
+    const dailyEvolution = await sql`
+      SELECT g.fecha::text,
+             AVG(g.max_velocity) AS max_vel,
+             AVG(g.dist_per_min) AS mts_min,
+             AVG(g.acc2 + g.acc3) AS acel,
+             AVG(g.dec2 + g.dec3) AS decel,
+             AVG(g.n_sprints) AS sprints
+      FROM gps_logs g
+      JOIN sesiones_plan s ON s.id = g.sesion_id
+      WHERE g.fecha >= ${fDesde}::date AND g.fecha <= ${fHasta}::timestamp
+        AND (${isMaster}::boolean OR s.club_id = ${clubId})
+      GROUP BY g.fecha
+      ORDER BY g.fecha ASC`
 
     return NextResponse.json({
       wellnessWeekly: wellnessWeekly.map(r => ({ ...r, semana:String(r.semana||''), avg_fatiga:Number(r.avg_fatiga)||0, avg_sueno:Number(r.avg_sueno)||0, avg_dolor:Number(r.avg_dolor)||0, avg_estres:Number(r.avg_estres)||0, avg_animo:Number(r.avg_animo)||0, total_wellness:Number(r.total_wellness)||0 })),
@@ -110,7 +132,24 @@ export async function GET(req: NextRequest) {
         area: Number(r.largo_m) * Number(r.ancho_m),
         metabolic: Number(r.avg_dist_total) + Number(r.avg_dist_hir),
         neuromuscular: Number(r.avg_acel_total) + Number(r.avg_decel_total),
+        avg_dist_v4: Number(r.avg_dist_v4),
+        avg_dist_v5: Number(r.avg_dist_v5),
+        avg_acc_int: Number(r.avg_acc_int),
+        avg_sprints: Number(r.avg_sprints),
+        avg_max_vel: Number(r.avg_max_vel),
+        avg_mts_min: Number(r.avg_mts_min),
+        avg_duracion: Number(r.avg_duracion),
+        avg_acel: Number(r.avg_acel_total),
+        avg_decel: Number(r.avg_decel_total),
         registros: r.registros
+      })),
+      dailyEvolution: dailyEvolution.map(r => ({
+        fecha: r.fecha,
+        max_vel: Number(r.max_vel),
+        mts_min: Number(r.mts_min),
+        acel: Number(r.acel),
+        decel: Number(r.decel),
+        sprints: Number(r.sprints)
       }))
     })
   } catch (err) {
