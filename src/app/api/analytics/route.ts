@@ -122,6 +122,15 @@ export async function GET(req: NextRequest) {
       GROUP BY g.fecha
       ORDER BY g.fecha ASC`
 
+    // Contar logs sin cancha asignada para avisar al usuario
+    const missingCourts = await sql`
+      SELECT COUNT(g.id)::int AS count
+      FROM gps_logs g
+      LEFT JOIN sesiones_plan s ON s.id = g.sesion_id
+      WHERE (g.sesion_id IS NULL OR s.cancha_id IS NULL)
+        AND g.fecha >= ${fDesde}::date AND g.fecha <= ${fHasta}::timestamp
+        AND (${isMaster}::boolean OR g.club_id = ${clubId})`
+
     return NextResponse.json({
       wellnessWeekly: wellnessWeekly.map(r => ({ ...r, semana:String(r.semana||''), avg_fatiga:Number(r.avg_fatiga)||0, avg_sueno:Number(r.avg_sueno)||0, avg_dolor:Number(r.avg_dolor)||0, avg_estres:Number(r.avg_estres)||0, avg_animo:Number(r.avg_animo)||0, total_wellness:Number(r.total_wellness)||0 })),
       rpeWeekly: rpeWeekly.map(r => ({ ...r, semana:String(r.semana||''), avg_rpe:Number(r.avg_rpe)||0, avg_duracion:Number(r.avg_duracion)||0 })),
@@ -150,7 +159,8 @@ export async function GET(req: NextRequest) {
         acel: Number(r.acel),
         decel: Number(r.decel),
         sprints: Number(r.sprints)
-      }))
+      })),
+      missingCourts: missingCourts[0]?.count || 0
     })
   } catch (err) {
     console.error('[Analytics GET error]', err)
