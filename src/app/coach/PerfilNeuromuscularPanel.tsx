@@ -57,7 +57,7 @@ export default function PerfilNeuromuscularPanel() {
                 onClick={() => setShowPartidosDropdown(!showPartidosDropdown)}
                 style={{ background:'var(--ink3)', border:'1px solid var(--fog)', borderRadius:8, padding:'6px 10px', fontSize:12, color:'var(--silver)', cursor:'pointer', minWidth: 160, display: 'flex', justifyContent: 'space-between', alignItems: 'center', height: 32 }}
               >
-                <span>{partidosBase.length === 0 ? 'Selecciona (Max 3)' : `${partidosBase.length} partido(s)`}</span>
+                <span>{partidosBase.length === 0 ? 'Selecciona (Max 5)' : `${partidosBase.length} partido(s)`}</span>
                 <span style={{ fontSize: 10 }}>▼</span>
               </div>
               
@@ -67,7 +67,7 @@ export default function PerfilNeuromuscularPanel() {
                   <div style={{ position: 'absolute', top: 38, left: 0, background: 'var(--ink2)', border: '1px solid var(--fog)', borderRadius: 8, zIndex: 50, width: 250, maxHeight: 300, overflowY: 'auto', boxShadow: '0 4px 12px rgba(0,0,0,0.5)' }}>
                     {(data?.partidosDisponibles || []).map((p: any) => {
                       const isSelected = partidosBase.includes(p.id);
-                      const disabled = !isSelected && partidosBase.length >= 3;
+                      const disabled = !isSelected && partidosBase.length >= 5;
                       return (
                         <div 
                           key={p.id}
@@ -96,7 +96,7 @@ export default function PerfilNeuromuscularPanel() {
                   title="Limpiar selección"
                 >✕</button>
               )}
-              <div style={{ position: 'absolute', top: -8, right: partidosBase.length > 0 ? 20 : -8, background: '#3b82f6', color: 'white', fontSize: 9, borderRadius: 10, padding: '2px 6px', fontWeight: 'bold' }}>{partidosBase.length}/3</div>
+              <div style={{ position: 'absolute', top: -8, right: partidosBase.length > 0 ? 20 : -8, background: '#3b82f6', color: 'white', fontSize: 9, borderRadius: 10, padding: '2px 6px', fontWeight: 'bold' }}>{partidosBase.length}/5</div>
             </div>
           </div>
           <div style={{ width: 1, height: 24, background: 'var(--mist)', margin: '0 8px' }}></div>
