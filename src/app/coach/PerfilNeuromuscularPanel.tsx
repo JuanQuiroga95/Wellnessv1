@@ -12,6 +12,9 @@ export default function PerfilNeuromuscularPanel() {
   const [hasta, setHasta] = useState(todayStr)
   const [partidosBase, setPartidosBase] = useState<number[]>([])
   const [showPartidosDropdown, setShowPartidosDropdown] = useState(false)
+  const [selectedMD, setSelectedMD] = useState('MD')
+  
+  const MD_OPTIONS = ['MD+1', 'MD+2', 'MD-4', 'MD-3', 'MD-2', 'MD-1', 'MD']
 
   useEffect(() => { load() }, [desde, hasta, partidosBase])
 
@@ -134,10 +137,51 @@ export default function PerfilNeuromuscularPanel() {
             </div>
           ) : (
             <>
-              <div style={{ display:'flex', flexDirection:'column', gap:20 }}>
-                {( () => {
-                  const r = rows[0] || {}
-                  
+              <div style={{ display:'flex', gap:24, alignItems:'flex-start' }}>
+                
+                {/* SIDEBAR */}
+                <div style={{ width: 150, display: 'flex', flexDirection: 'column', gap: 6, flexShrink: 0, marginTop: 4 }}>
+                  <div style={{ fontSize: 10, color: 'var(--silver)', fontFamily: 'DM Mono,monospace', marginBottom: 8, paddingLeft: 8 }}>TIPO DE SESIÓN</div>
+                  {MD_OPTIONS.map(md => {
+                    const isActive = selectedMD === md;
+                    return (
+                      <button
+                        key={md}
+                        onClick={() => setSelectedMD(md)}
+                        style={{
+                          background: isActive ? 'var(--ink3)' : 'transparent',
+                          color: isActive ? 'var(--snow)' : 'var(--fog)',
+                          border: isActive ? '1px solid var(--mist)' : '1px solid transparent',
+                          padding: '10px 14px',
+                          borderRadius: 10,
+                          textAlign: 'left',
+                          cursor: 'pointer',
+                          fontWeight: isActive ? 700 : 500,
+                          fontSize: 13,
+                          transition: 'all 0.2s',
+                          boxShadow: isActive ? '0 2px 8px rgba(0,0,0,0.2)' : 'none'
+                        }}
+                      >
+                        {md === 'MD' ? 'MD (SESIÓN ACTUAL)' : md}
+                      </button>
+                    )
+                  })}
+                </div>
+
+                {/* MAIN CONTENT */}
+                <div style={{ flex: 1, display:'flex', flexDirection:'column', gap:20 }}>
+                  {( () => {
+                    const r = rows.find((row: any) => row.md_label === selectedMD);
+                    if (!r) {
+                      return (
+                        <div style={{ padding: 60, textAlign: 'center', color: 'var(--silver)', background: 'var(--ink2)', borderRadius: 20, border: '1px dashed var(--mist)', flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                          <div style={{ fontSize: 32, marginBottom: 16 }}>📭</div>
+                          <div style={{ fontWeight: 600, color: 'var(--snow)', fontSize: 15 }}>Sin datos para {selectedMD === 'MD' ? 'MD (SESIÓN ACTUAL)' : selectedMD}</div>
+                          <div style={{ fontSize: 12, color: 'var(--fog)', marginTop: 8 }}>No hay registros GPS etiquetados como "{selectedMD}" en este rango de fechas.</div>
+                        </div>
+                      )
+                    }
+                    
                   // Valores base calculados dinámicamente o 0
                   const p = data?.mdPromedio;
                   const base_dist_total = p ? p.avg_dist_total : 0;
@@ -482,6 +526,7 @@ export default function PerfilNeuromuscularPanel() {
                     </div>
                   )
                 })()}
+              </div>
               </div>
 
               {/* Evolution Charts */}

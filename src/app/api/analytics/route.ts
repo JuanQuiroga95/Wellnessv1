@@ -86,7 +86,8 @@ export async function GET(req: NextRequest) {
 
     // Análisis de carga: Neuromuscular vs Metabólica x Estadio + métricas detalladas
     const loadAnalysis = await sql`
-      SELECT c.nombre AS cancha_nombre, c.largo_m, c.ancho_m,
+      SELECT s.titulo AS md_label,
+             MAX(c.nombre) AS cancha_nombre, MAX(c.largo_m) AS largo_m, MAX(c.ancho_m) AS ancho_m,
              AVG(g.dist_total) AS avg_dist_total,
              AVG(COALESCE(g.dist_hir,0)) AS avg_dist_hir,
              AVG(COALESCE(g.dist_v4,0)) AS avg_dist_v4,
@@ -101,10 +102,10 @@ export async function GET(req: NextRequest) {
              COUNT(g.id)::int AS registros
       FROM gps_logs g
       JOIN sesiones_plan s ON s.id = g.sesion_id
-      JOIN canchas c ON c.id = s.cancha_id
+      LEFT JOIN canchas c ON c.id = s.cancha_id
       WHERE g.fecha >= ${fDesde}::date AND g.fecha <= ${fHasta}::timestamp
         AND (${isMaster}::boolean OR s.club_id = ${clubId})
-      GROUP BY c.id, c.nombre, c.largo_m, c.ancho_m
+      GROUP BY s.titulo
       ORDER BY registros DESC`
 
     // Evolución diaria para gráficos de línea (Image 3)
@@ -196,6 +197,7 @@ export async function GET(req: NextRequest) {
       rpeWeekly: rpeWeekly.map(r => ({ ...r, semana:String(r.semana||''), avg_rpe:Number(r.avg_rpe)||0, avg_duracion:Number(r.avg_duracion)||0 })),
       readinessToday: readinessToday.map(r => ({ jugador_id:Number(r.jugador_id), nombre:String(r.nombre||''), posicion:String(r.posicion||''), foto_url:r.foto_url?String(r.foto_url):null, fecha:r.fecha?String(r.fecha):null, fatiga:Number(r.fatiga)||0, calidad_sueno:Number(r.calidad_sueno)||0, dolor_muscular:Number(r.dolor_muscular)||0, nivel_estres:Number(r.nivel_estres)||0, estado_animo:Number(r.estado_animo)||0, total_wellness:Number(r.total_wellness)||0 })),
       loadAnalysis: loadAnalysis.map(r => ({
+        md_label: String(r.md_label || 'MD'),
         cancha: r.cancha_nombre,
         dimensiones: `${r.largo_m}x${r.ancho_m}`,
         area: Number(r.largo_m) * Number(r.ancho_m),
