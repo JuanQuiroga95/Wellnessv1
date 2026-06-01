@@ -11,6 +11,7 @@ export default function PerfilNeuromuscularPanel() {
   const [desde, setDesde] = useState(defaultDesde)
   const [hasta, setHasta] = useState(todayStr)
   const [partidosBase, setPartidosBase] = useState<number[]>([])
+  const [showPartidosDropdown, setShowPartidosDropdown] = useState(false)
 
   useEffect(() => { load() }, [desde, hasta, partidosBase])
 
@@ -52,20 +53,42 @@ export default function PerfilNeuromuscularPanel() {
           <div style={{ display:'flex', alignItems:'center', gap:6 }}>
             <label style={{ fontSize:10, color:'var(--silver)', fontFamily:'DM Mono,monospace' }}>PARTIDOS BASE (MD PROM)</label>
             <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 4 }}>
-              <select
-                multiple
-                value={partidosBase.map(String)}
-                onChange={(e) => {
-                  const vals = Array.from(e.target.selectedOptions, o => parseInt(o.value)).filter(v => !isNaN(v))
-                  if (vals.length <= 3) setPartidosBase(vals)
-                }}
-                style={{ background:'var(--ink3)', border:'1px solid var(--fog)', borderRadius:8, padding:'6px 10px', fontSize:12, color:'var(--silver)', outline:'none', height: 32, minWidth: 160 }}
+              <div 
+                onClick={() => setShowPartidosDropdown(!showPartidosDropdown)}
+                style={{ background:'var(--ink3)', border:'1px solid var(--fog)', borderRadius:8, padding:'6px 10px', fontSize:12, color:'var(--silver)', cursor:'pointer', minWidth: 160, display: 'flex', justifyContent: 'space-between', alignItems: 'center', height: 32 }}
               >
-                <option value="" disabled style={{ color: 'var(--fog)' }}>{partidosBase.length === 0 ? 'Ninguno seleccionado' : 'Selecciona (Max 3)'}</option>
-                {(data?.partidosDisponibles || []).map((p: any) => (
-                  <option key={p.id} value={p.id}>{p.fecha} - {p.rival || p.titulo || 'Partido'}</option>
-                ))}
-              </select>
+                <span>{partidosBase.length === 0 ? 'Selecciona (Max 3)' : `${partidosBase.length} partido(s)`}</span>
+                <span style={{ fontSize: 10 }}>▼</span>
+              </div>
+              
+              {showPartidosDropdown && (
+                <>
+                  <div onClick={() => setShowPartidosDropdown(false)} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 40 }}></div>
+                  <div style={{ position: 'absolute', top: 38, left: 0, background: 'var(--ink2)', border: '1px solid var(--fog)', borderRadius: 8, zIndex: 50, width: 250, maxHeight: 300, overflowY: 'auto', boxShadow: '0 4px 12px rgba(0,0,0,0.5)' }}>
+                    {(data?.partidosDisponibles || []).map((p: any) => {
+                      const isSelected = partidosBase.includes(p.id);
+                      const disabled = !isSelected && partidosBase.length >= 3;
+                      return (
+                        <div 
+                          key={p.id}
+                          onClick={() => {
+                            if (isSelected) {
+                              setPartidosBase(prev => prev.filter(id => id !== p.id));
+                            } else if (!disabled) {
+                              setPartidosBase(prev => [...prev, p.id]);
+                            }
+                          }}
+                          style={{ padding: '8px 12px', cursor: disabled ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 8, borderBottom: '1px solid rgba(255,255,255,0.05)', background: isSelected ? 'rgba(56,189,248,0.1)' : 'transparent', opacity: disabled ? 0.5 : 1 }}
+                        >
+                          <input type="checkbox" checked={isSelected} readOnly style={{ cursor: disabled ? 'not-allowed' : 'pointer' }} />
+                          <span style={{ color: isSelected ? '#38bdf8' : 'var(--silver)', fontSize: 11, fontWeight: isSelected ? 'bold' : 'normal' }}>{p.fecha} - {p.rival || p.titulo || 'Partido'}</span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </>
+              )}
+
               {partidosBase.length > 0 && (
                 <button 
                   onClick={() => setPartidosBase([])}
