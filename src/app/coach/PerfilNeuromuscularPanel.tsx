@@ -10,8 +10,9 @@ export default function PerfilNeuromuscularPanel() {
   const defaultDesde = (() => { const d = new Date(); d.setDate(d.getDate()-28); return d.toISOString().split('T')[0] })()
   const [desde, setDesde] = useState(defaultDesde)
   const [hasta, setHasta] = useState(todayStr)
+  const [partidosBase, setPartidosBase] = useState<number[]>([])
 
-  useEffect(() => { load() }, [desde, hasta])
+  useEffect(() => { load() }, [desde, hasta, partidosBase])
 
   useEffect(() => {
     const handleClear = () => { setData(null); load(); };
@@ -22,12 +23,15 @@ export default function PerfilNeuromuscularPanel() {
   async function load() {
     setLoading(true)
     try {
-      const ar = await fetch(`/api/analytics?desde=${desde}&hasta=${hasta}`).then(r=>r.json())
+      const qs = `?desde=${desde}&hasta=${hasta}&partidos_base=${partidosBase.join(',')}`
+      const ar = await fetch(`/api/analytics${qs}`).then(r=>r.json())
       setData({
         loadAnalysis: ar.loadAnalysis || [],
         dailyEvolution: ar.dailyEvolution || [],
         missingCourts: ar.missingCourts || 0,
-        weeklyGps: ar.weeklyGps || []
+        weeklyGps: ar.weeklyGps || [],
+        partidosDisponibles: ar.partidosDisponibles || [],
+        mdPromedio: ar.mdPromedio || null
       })
     } catch(e) { console.error(e) }
     finally { setLoading(false) }
@@ -45,6 +49,26 @@ export default function PerfilNeuromuscularPanel() {
           <p style={{ fontSize:12, color:'var(--silver)', marginTop:2 }}>Balance Neuromuscular · Control de Cargas</p>
         </div>
         <div style={{ display:'flex', gap:8, alignItems:'center', flexWrap:'wrap' }}>
+          <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+            <label style={{ fontSize:10, color:'var(--silver)', fontFamily:'DM Mono,monospace' }}>PARTIDOS BASE (MD PROM)</label>
+            <div style={{ position: 'relative' }}>
+              <select
+                multiple
+                value={partidosBase.map(String)}
+                onChange={(e) => {
+                  const vals = Array.from(e.target.selectedOptions, o => parseInt(o.value))
+                  if (vals.length <= 3) setPartidosBase(vals)
+                }}
+                style={{ background:'var(--ink3)', border:'1px solid var(--fog)', borderRadius:8, padding:'6px 10px', fontSize:12, color:'var(--silver)', outline:'none', height: 32, minWidth: 150 }}
+              >
+                {(data?.partidosDisponibles || []).map((p: any) => (
+                  <option key={p.id} value={p.id}>{p.fecha} - {p.rival || p.titulo || 'Partido'}</option>
+                ))}
+              </select>
+              <div style={{ position: 'absolute', top: -8, right: -8, background: '#3b82f6', color: 'white', fontSize: 9, borderRadius: 10, padding: '2px 6px', fontWeight: 'bold' }}>{partidosBase.length}/3</div>
+            </div>
+          </div>
+          <div style={{ width: 1, height: 24, background: 'var(--mist)', margin: '0 8px' }}></div>
           <div style={{ display:'flex', alignItems:'center', gap:6 }}>
             <label style={{ fontSize:10, color:'var(--silver)', fontFamily:'DM Mono,monospace' }}>DESDE</label>
             <input type="date" value={desde} onChange={e=>setDesde(e.target.value)} style={{ background:'var(--ink3)', border:'1px solid var(--fog)', borderRadius:8, padding:'6px 10px', fontSize:12, color:'var(--silver)', outline:'none' }} />
@@ -82,196 +106,184 @@ export default function PerfilNeuromuscularPanel() {
               <div style={{ display:'flex', flexDirection:'column', gap:20 }}>
                 {( () => {
                   const r = rows[0] || {}
-                  // Valores base del Excel "GPS APP"
-                  const MD_PROMEDIO = {
-                    acc_per_min: 3,         
-                    mts_min: 85,            
-                    sprints: 14,            
-                    acc_int_tot: 75,        
-                    dist_v4: 500,           
-                    dist_v5: 150,           
-                    dist_total: 10000,
-                    acel: 25,
-                    decel: 30,
-                    vel_max: 30,
-                    max_acc: 6,
-                    max_dec: 7
-                  }
+                  
+                  // Valores base calculados dinámicamente o 0
+                  const p = data?.mdPromedio;
+                  const base_dist_total = p ? p.avg_dist_total : 0;
+                  const base_dist_v4 = p ? p.avg_dist_v4 : 0;
+                  const base_dist_v5 = p ? p.avg_dist_v5 : 0;
+                  const base_acc_int_tot = p ? p.avg_acc_int : 0;
+                  const base_acel = p ? p.avg_acel : 0;
+                  const base_decel = p ? p.avg_decel : 0;
+                  
+                  const base_mts_min = p ? p.avg_mts_min : 0;
+                  const base_acc_per_min = p && p.avg_duracion ? (p.avg_acc_int / p.avg_duracion) : 0;
+                  const base_vel_max = p ? p.avg_max_vel : 0;
+                  const base_sprints = p ? p.avg_sprints : 0;
+                  const base_max_acc = 0; // Sin datos aún
+                  const base_max_dec = 0; // Sin datos aún
 
-                  const val_acc_per_min = r.avg_duracion ? (r.avg_acc_int / r.avg_duracion) : 0;
-                  const val_mts_min = r.avg_mts_min || 0;
-                  const val_sprints = r.avg_sprints || 0;
-                  const val_acc_int_tot = r.avg_acc_int || 0;
-                  const val_dist_v4 = r.avg_dist_v4 || 0;
-                  const val_dist_v5 = 0; // No hay datos de Dist Sprint cargados
+                  // Valores de la sesión
                   const val_dist_total = r.avg_dist_total || 0;
+                  const val_dist_v4 = r.avg_dist_v4 || 0;
+                  const val_dist_v5 = r.avg_dist_v5 || 0;
+                  const val_acc_int_tot = r.avg_acc_int || 0;
                   const val_acel = r.avg_acel || 0;
                   const val_decel = r.avg_decel || 0;
+
+                  const val_mts_min = r.avg_mts_min || 0;
+                  const val_acc_per_min = r.avg_duracion ? (r.avg_acc_int / r.avg_duracion) : 0;
                   const val_vel_max = r.avg_max_vel || 0;
-                  const val_max_acc = 0; // No hay datos
-                  const val_max_dec = 0; // No hay datos
+                  const val_sprints = r.avg_sprints || 0;
+                  const val_max_acc = 0;
+                  const val_max_dec = 0;
 
-                  const calcPct = (val: number, base: number) => base ? Math.round((val / base) * 100) : 0;
-                  const getIcon = (pct: number) => pct >= 85 ? '✅' : pct >= 60 ? '⚠️' : '❌'
-
-                  const volumenData = [
-                    { label: 'DT (m)', base: MD_PROMEDIO.dist_total, val: val_dist_total },
-                    { label: 'HSR (m)', base: MD_PROMEDIO.dist_v4, val: val_dist_v4 },
-                    { label: 'Dist Sprint', base: MD_PROMEDIO.dist_v5, val: val_dist_v5 },
-                    { label: 'Acc Int Tot', base: MD_PROMEDIO.acc_int_tot, val: val_acc_int_tot },
-                    { label: 'ACC', base: MD_PROMEDIO.acel, val: val_acel },
-                    { label: 'DEC', base: MD_PROMEDIO.decel, val: val_decel }
-                  ]
-
-                  const intensidadData = [
-                    { label: 'Mts/min', base: MD_PROMEDIO.mts_min, val: val_mts_min },
-                    { label: 'Acc Int/min', base: MD_PROMEDIO.acc_per_min, val: val_acc_per_min },
-                    { label: 'Vel Max', base: MD_PROMEDIO.vel_max, val: val_vel_max },
-                    { label: 'Sprint (n)', base: MD_PROMEDIO.sprints, val: val_sprints },
-                    { label: 'Max ACC', base: MD_PROMEDIO.max_acc, val: val_max_acc },
-                    { label: 'Max DEC', base: MD_PROMEDIO.max_dec, val: val_max_dec }
-                  ]
-
-                  const pct_acc_per_min = calcPct(val_acc_per_min, MD_PROMEDIO.acc_per_min);
-                  const pct_mts_min = calcPct(val_mts_min, MD_PROMEDIO.mts_min);
-                  const pct_sprints = calcPct(val_sprints, MD_PROMEDIO.sprints);
-                  const pct_acc_int_tot = calcPct(val_acc_int_tot, MD_PROMEDIO.acc_int_tot);
-                  const pct_dist_v4 = calcPct(val_dist_v4, MD_PROMEDIO.dist_v4);
-                  const pct_dist_v5 = calcPct(val_dist_v5, MD_PROMEDIO.dist_v5);
-
-                  const impactData = [
-                    { category: 'Intensidad', label: 'Tensión', sub: 'Acc Int/min', base: MD_PROMEDIO.acc_per_min.toFixed(1), val: val_acc_per_min.toFixed(2), pct: pct_acc_per_min, icon: getIcon(pct_acc_per_min) },
-                    { category: 'Intensidad', label: 'Duración', sub: 'Mts/min', base: MD_PROMEDIO.mts_min.toFixed(0), val: val_mts_min.toFixed(1), pct: pct_mts_min, icon: getIcon(pct_mts_min) },
-                    { category: 'Intensidad', label: 'Velocidad', sub: 'Sprint (n)', base: MD_PROMEDIO.sprints.toFixed(0), val: val_sprints.toFixed(1), pct: pct_sprints, icon: getIcon(pct_sprints) },
-                    { category: 'Volumen', label: 'Tensión', sub: 'Acc Int Tot', base: MD_PROMEDIO.acc_int_tot.toFixed(0), val: val_acc_int_tot.toFixed(1), pct: pct_acc_int_tot, icon: getIcon(pct_acc_int_tot) },
-                    { category: 'Volumen', label: 'Duración', sub: 'HSR (m)', base: MD_PROMEDIO.dist_v4.toFixed(0), val: val_dist_v4.toFixed(0), pct: pct_dist_v4, icon: getIcon(pct_dist_v4) },
-                    { category: 'Volumen', label: 'Velocidad', sub: 'Dist Sprint', base: MD_PROMEDIO.dist_v5.toFixed(0), val: val_dist_v5.toFixed(0), pct: pct_dist_v5, icon: getIcon(pct_dist_v5) },
-                  ]
+                  const renderPct = (val: number, base: number) => {
+                    if (!base) return <td style={{ border: '1px solid black', padding: 6, fontWeight: 'bold', color: 'black', background: '#f8fafc' }}>0%</td>;
+                    const pct = Math.round((val / base) * 100);
+                    const color = pct >= 85 ? '#385d22' : pct >= 60 ? '#b45309' : '#b91c1c';
+                    const bg = pct >= 85 ? '#e2efda' : pct >= 60 ? '#fef3c7' : '#fee2e2';
+                    return <td style={{ border: '1px solid black', padding: 6, fontWeight: 'bold', color, background: bg }}>{pct}%</td>
+                  }
 
                   return (
-                    <>
-                      {/* Excel Data Card */}
-                      <div style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:20, overflow:'hidden' }}>
-                        <div style={{ padding:'16px 20px', borderBottom:'1px solid var(--mist)', background:'rgba(255,255,255,.02)', display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap: 'wrap', gap: 12 }}>
-                          <h3 style={{ fontSize:14, fontWeight:700, color:'var(--snow)', margin:0, textTransform:'uppercase', letterSpacing:'0.05em' }}>Análisis de Sesión</h3>
-                          {r.cancha && (
-                            <div style={{ fontSize:12, color:'var(--silver)', fontWeight:600 }}>
-                              Cancha: <span style={{ color:'var(--snow)' }}>{r.cancha}</span> {r.dimensiones ? `(${r.dimensiones}m)` : ''}
-                            </div>
-                          )}
-                        </div>
-                        <div style={{ padding:20, display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(400px, 1fr))', gap:30 }}>
+                    <div style={{ background: '#ffffff', borderRadius: 12, padding: 16, overflowX: 'auto', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                        <div style={{ color: 'black', fontWeight: 'bold', fontSize: 16 }}>Análisis de Sesión (Formato Excel)</div>
+                        {r.cancha && (
+                          <div style={{ fontSize:12, color:'#475569', fontWeight:600 }}>
+                            Cancha: <span style={{ color:'black' }}>{r.cancha}</span> {r.dimensiones ? `(${r.dimensiones}m)` : ''}
+                          </div>
+                        )}
+                      </div>
+                      
+                      <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'center', fontFamily: 'Arial, sans-serif', fontSize: 12, minWidth: 600 }}>
+                        <tbody>
+                          {/* ======================= MD PROMEDIO ======================= */}
+                          <tr>
+                            <td colSpan={6} style={{ color: '#00b0f0', fontWeight: 'bold', fontSize: 14, padding: 8, border: '2px solid #00b0f0', borderRadius: '8px 8px 0 0', textTransform: 'uppercase' }}>MD PROMEDIO</td>
+                          </tr>
+                          <tr>
+                            <td colSpan={6} style={{ background: '#9bc2e6', color: 'black', fontWeight: 'bold', padding: 6, border: '1px solid black', textTransform: 'uppercase' }}>VOLUMEN</td>
+                          </tr>
+                          <tr style={{ background: 'white', color: 'black', fontWeight: 'bold' }}>
+                            <td style={{ border: '1px solid black', padding: 6 }}>DT (m)</td>
+                            <td style={{ border: '1px solid black', padding: 6 }}>HSR (m)</td>
+                            <td style={{ border: '1px solid black', padding: 6 }}>Dist Sprint</td>
+                            <td style={{ border: '1px solid black', padding: 6 }}>Acc Int Tot</td>
+                            <td style={{ border: '1px solid black', padding: 6 }}>ACC</td>
+                            <td style={{ border: '1px solid black', padding: 6 }}>DEC</td>
+                          </tr>
+                          <tr style={{ background: 'white', color: 'black' }}>
+                            <td style={{ border: '1px solid black', padding: 6 }}>{base_dist_total.toFixed(0)}</td>
+                            <td style={{ border: '1px solid black', padding: 6 }}>{base_dist_v4.toFixed(0)}</td>
+                            <td style={{ border: '1px solid black', padding: 6 }}>{base_dist_v5.toFixed(0)}</td>
+                            <td style={{ border: '1px solid black', padding: 6 }}>{base_acc_int_tot.toFixed(0)}</td>
+                            <td style={{ border: '1px solid black', padding: 6 }}>{base_acel.toFixed(0)}</td>
+                            <td style={{ border: '1px solid black', padding: 6 }}>{base_decel.toFixed(0)}</td>
+                          </tr>
+                          <tr style={{ background: '#e2efda', color: '#385d22', fontWeight: 'bold' }}>
+                            <td style={{ border: '1px solid black', padding: 6 }}>100%</td>
+                            <td style={{ border: '1px solid black', padding: 6 }}>100%</td>
+                            <td style={{ border: '1px solid black', padding: 6 }}>100%</td>
+                            <td style={{ border: '1px solid black', padding: 6 }}>100%</td>
+                            <td style={{ border: '1px solid black', padding: 6 }}>100%</td>
+                            <td style={{ border: '1px solid black', padding: 6 }}>100%</td>
+                          </tr>
                           
-                          {/* VOLUMEN */}
-                          <div style={{ overflowX: 'auto' }}>
-                            <h4 style={{ fontSize:12, fontWeight:800, color:'#eab308', marginBottom:12, textTransform:'uppercase' }}>Volumen</h4>
-                            <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12, textAlign:'center', minWidth: 400 }}>
-                              <thead>
-                                <tr style={{ color:'var(--fog)', borderBottom:'1px solid rgba(255,255,255,.05)' }}>
-                                  <th style={{ padding:'8px 4px', fontWeight:600, textAlign:'left' }}>Métrica</th>
-                                  {volumenData.map(d => <th key={d.label} style={{ padding:'8px 4px', fontWeight:600 }}>{d.label}</th>)}
-                                </tr>
-                              </thead>
-                              <tbody>
-                                <tr style={{ color:'var(--silver)', borderBottom:'1px solid rgba(255,255,255,.02)' }}>
-                                  <td style={{ padding:'8px 4px', fontWeight:700, textAlign:'left' }}>MD Prom.</td>
-                                  {volumenData.map(d => <td key={d.label} style={{ padding:'8px 4px', fontFamily:'DM Mono,monospace' }}>{d.base}</td>)}
-                                </tr>
-                                <tr style={{ color:'var(--snow)', borderBottom:'1px solid rgba(255,255,255,.02)' }}>
-                                  <td style={{ padding:'8px 4px', fontWeight:700, textAlign:'left' }}>MD</td>
-                                  {volumenData.map(d => <td key={d.label} style={{ padding:'8px 4px', fontFamily:'DM Mono,monospace' }}>{typeof d.val === 'number' && !Number.isInteger(d.val) ? d.val.toFixed(1) : d.val}</td>)}
-                                </tr>
-                                <tr>
-                                  <td style={{ padding:'8px 4px', fontWeight:700, textAlign:'left', color:'var(--silver)' }}>%</td>
-                                  {volumenData.map(d => {
-                                    const pct = calcPct(d.val, d.base);
-                                    const color = pct >= 85 ? 'var(--lime)' : pct >= 60 ? '#f59e0b' : '#ef4444';
-                                    return <td key={d.label} style={{ padding:'8px 4px', fontWeight:800, color }}>{pct}%</td>
-                                  })}
-                                </tr>
-                              </tbody>
-                            </table>
-                          </div>
+                          <tr>
+                            <td colSpan={6} style={{ background: '#f4b084', color: 'black', fontWeight: 'bold', padding: 6, border: '1px solid black', textTransform: 'uppercase' }}>INTENSIDAD</td>
+                          </tr>
+                          <tr style={{ background: 'white', color: 'black', fontWeight: 'bold' }}>
+                            <td style={{ border: '1px solid black', padding: 6 }}>Mts/min</td>
+                            <td style={{ border: '1px solid black', padding: 6 }}>Acc Int/min</td>
+                            <td style={{ border: '1px solid black', padding: 6 }}>Vel Max</td>
+                            <td style={{ border: '1px solid black', padding: 6 }}>Sprint (n)</td>
+                            <td style={{ border: '1px solid black', padding: 6 }}>Max ACC</td>
+                            <td style={{ border: '1px solid black', padding: 6 }}>Max DEC</td>
+                          </tr>
+                          <tr style={{ background: 'white', color: 'black' }}>
+                            <td style={{ border: '1px solid black', padding: 6 }}>{base_mts_min.toFixed(0)}</td>
+                            <td style={{ border: '1px solid black', padding: 6 }}>{base_acc_per_min.toFixed(1)}</td>
+                            <td style={{ border: '1px solid black', padding: 6 }}>{base_vel_max.toFixed(1)}</td>
+                            <td style={{ border: '1px solid black', padding: 6 }}>{base_sprints.toFixed(1)}</td>
+                            <td style={{ border: '1px solid black', padding: 6 }}>{base_max_acc.toFixed(0)}</td>
+                            <td style={{ border: '1px solid black', padding: 6 }}>{base_max_dec.toFixed(0)}</td>
+                          </tr>
+                          <tr style={{ background: '#e2efda', color: '#385d22', fontWeight: 'bold' }}>
+                            <td style={{ border: '1px solid black', padding: 6 }}>100%</td>
+                            <td style={{ border: '1px solid black', padding: 6 }}>100%</td>
+                            <td style={{ border: '1px solid black', padding: 6 }}>100%</td>
+                            <td style={{ border: '1px solid black', padding: 6 }}>100%</td>
+                            <td style={{ border: '1px solid black', padding: 6 }}>100%</td>
+                            <td style={{ border: '1px solid black', padding: 6 }}>100%</td>
+                          </tr>
+                          
+                          {/* ======================= ESPACIO ======================= */}
+                          <tr><td colSpan={6} style={{ height: 20, borderLeft: '1px solid white', borderRight: '1px solid white' }}></td></tr>
 
-                          {/* INTENSIDAD */}
-                          <div style={{ overflowX: 'auto' }}>
-                            <h4 style={{ fontSize:12, fontWeight:800, color:'var(--lime)', marginBottom:12, textTransform:'uppercase' }}>Intensidad</h4>
-                            <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12, textAlign:'center', minWidth: 400 }}>
-                              <thead>
-                                <tr style={{ color:'var(--fog)', borderBottom:'1px solid rgba(255,255,255,.05)' }}>
-                                  <th style={{ padding:'8px 4px', fontWeight:600, textAlign:'left' }}>Métrica</th>
-                                  {intensidadData.map(d => <th key={d.label} style={{ padding:'8px 4px', fontWeight:600 }}>{d.label}</th>)}
-                                </tr>
-                              </thead>
-                              <tbody>
-                                <tr style={{ color:'var(--silver)', borderBottom:'1px solid rgba(255,255,255,.02)' }}>
-                                  <td style={{ padding:'8px 4px', fontWeight:700, textAlign:'left' }}>MD Prom.</td>
-                                  {intensidadData.map(d => <td key={d.label} style={{ padding:'8px 4px', fontFamily:'DM Mono,monospace' }}>{d.base}</td>)}
-                                </tr>
-                                <tr style={{ color:'var(--snow)', borderBottom:'1px solid rgba(255,255,255,.02)' }}>
-                                  <td style={{ padding:'8px 4px', fontWeight:700, textAlign:'left' }}>MD</td>
-                                  {intensidadData.map(d => <td key={d.label} style={{ padding:'8px 4px', fontFamily:'DM Mono,monospace' }}>{typeof d.val === 'number' && !Number.isInteger(d.val) ? d.val.toFixed(1) : d.val}</td>)}
-                                </tr>
-                                <tr>
-                                  <td style={{ padding:'8px 4px', fontWeight:700, textAlign:'left', color:'var(--silver)' }}>%</td>
-                                  {intensidadData.map(d => {
-                                    const pct = calcPct(d.val, d.base);
-                                    const color = pct >= 85 ? 'var(--lime)' : pct >= 60 ? '#f59e0b' : '#ef4444';
-                                    return <td key={d.label} style={{ padding:'8px 4px', fontWeight:800, color }}>{pct}%</td>
-                                  })}
-                                </tr>
-                              </tbody>
-                            </table>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Impact Table */}
-                      <div style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:20, overflow:'hidden' }}>
-                        <div style={{ padding:'16px 20px', borderBottom:'1px solid var(--mist)', background:'rgba(255,255,255,.02)' }}>
-                          <h3 style={{ fontSize:14, fontWeight:700, color:'var(--snow)', margin:0, textTransform:'uppercase', letterSpacing:'0.05em' }}>Sesión Impacto Porcentual por Zona</h3>
-                        </div>
-                        <div style={{ overflowX: 'auto' }}>
-                          <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12, minWidth: 500 }}>
-                            <thead>
-                              <tr style={{ background:'rgba(255,255,255,.03)' }}>
-                                <th style={{ padding:10, textAlign:'left', color:'var(--silver)', fontWeight:600 }}>Zona</th>
-                                <th style={{ padding:10, textAlign:'left', color:'var(--silver)', fontWeight:600 }}>Métrica</th>
-                                <th style={{ padding:10, textAlign:'right', color:'var(--silver)', fontWeight:600 }}>MD Prom.</th>
-                                <th style={{ padding:10, textAlign:'right', color:'var(--silver)', fontWeight:600 }}>MD</th>
-                                <th style={{ padding:10, textAlign:'center', color:'var(--silver)', fontWeight:600 }}>%</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {impactData.map((row, idx) => (
-                                <tr key={idx} style={{ borderBottom:'1px solid rgba(255,255,255,.05)' }}>
-                                  {idx % 3 === 0 && (
-                                    <td rowSpan={3} style={{ 
-                                      padding:12, fontWeight:800, verticalAlign:'middle', textAlign:'center',
-                                      background: row.category === 'Intensidad' ? 'rgba(200,241,53,.1)' : 'rgba(234,179,8,.1)',
-                                      color: row.category === 'Intensidad' ? 'var(--lime)' : '#eab308',
-                                      fontSize:10, textTransform:'uppercase', writingMode:'vertical-lr', transform:'rotate(180deg)'
-                                    }}>{row.category}</td>
-                                  )}
-                                  <td style={{ padding:10 }}>
-                                    <div style={{ fontWeight:600, color:'var(--snow)' }}>{row.label}</div>
-                                    <div style={{ fontSize:10, color:'var(--fog)' }}>{row.sub}</div>
-                                  </td>
-                                  <td style={{ padding:10, textAlign:'right', fontFamily:'DM Mono,monospace', fontWeight:500, color:'var(--silver)' }}>{row.base}</td>
-                                  <td style={{ padding:10, textAlign:'right', fontFamily:'DM Mono,monospace', fontWeight:700, color:'var(--lime)' }}>{row.val}</td>
-                                  <td style={{ padding:10, textAlign:'center' }}>
-                                    <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:4 }}>
-                                      <span style={{ fontSize:10, color: row.pct >= 85 ? 'var(--lime)' : row.pct >= 60 ? '#f59e0b' : '#ef4444' }}>{row.pct}%</span>
-                                      <span>{row.icon}</span>
-                                    </div>
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      </div>
-                    </>
+                          {/* ======================= MD (SESION ACTUAL) ======================= */}
+                          <tr>
+                            <td colSpan={6} style={{ color: 'black', fontWeight: 'bold', fontSize: 14, padding: 8, border: '2px solid black', borderRadius: '8px 8px 0 0' }}>MD</td>
+                          </tr>
+                          <tr>
+                            <td colSpan={6} style={{ background: '#9bc2e6', color: 'black', fontWeight: 'bold', padding: 6, border: '1px solid black' }}>VOLUMEN</td>
+                          </tr>
+                          <tr style={{ background: 'white', color: 'black', fontWeight: 'bold' }}>
+                            <td style={{ border: '1px solid black', padding: 6 }}>DT (m)</td>
+                            <td style={{ border: '1px solid black', padding: 6 }}>HSR (m)</td>
+                            <td style={{ border: '1px solid black', padding: 6 }}>Dist Sprint</td>
+                            <td style={{ border: '1px solid black', padding: 6 }}>Acc Int Tot</td>
+                            <td style={{ border: '1px solid black', padding: 6 }}>ACC</td>
+                            <td style={{ border: '1px solid black', padding: 6 }}>DEC</td>
+                          </tr>
+                          <tr style={{ background: 'white', color: 'black' }}>
+                            <td style={{ border: '1px solid black', padding: 6 }}>{val_dist_total.toFixed(0)}</td>
+                            <td style={{ border: '1px solid black', padding: 6 }}>{val_dist_v4.toFixed(0)}</td>
+                            <td style={{ border: '1px solid black', padding: 6 }}>{val_dist_v5.toFixed(0)}</td>
+                            <td style={{ border: '1px solid black', padding: 6 }}>{val_acc_int_tot.toFixed(0)}</td>
+                            <td style={{ border: '1px solid black', padding: 6 }}>{val_acel.toFixed(0)}</td>
+                            <td style={{ border: '1px solid black', padding: 6 }}>{val_decel.toFixed(0)}</td>
+                          </tr>
+                          <tr>
+                            {renderPct(val_dist_total, base_dist_total)}
+                            {renderPct(val_dist_v4, base_dist_v4)}
+                            {renderPct(val_dist_v5, base_dist_v5)}
+                            {renderPct(val_acc_int_tot, base_acc_int_tot)}
+                            {renderPct(val_acel, base_acel)}
+                            {renderPct(val_decel, base_decel)}
+                          </tr>
+                          
+                          <tr>
+                            <td colSpan={6} style={{ background: '#f4b084', color: 'black', fontWeight: 'bold', padding: 6, border: '1px solid black' }}>INTENSIDAD</td>
+                          </tr>
+                          <tr style={{ background: 'white', color: 'black', fontWeight: 'bold' }}>
+                            <td style={{ border: '1px solid black', padding: 6 }}>Mts/min</td>
+                            <td style={{ border: '1px solid black', padding: 6 }}>Acc Int/min</td>
+                            <td style={{ border: '1px solid black', padding: 6 }}>Vel Max</td>
+                            <td style={{ border: '1px solid black', padding: 6 }}>Sprint (n)</td>
+                            <td style={{ border: '1px solid black', padding: 6 }}>Max ACC</td>
+                            <td style={{ border: '1px solid black', padding: 6 }}>Max DEC</td>
+                          </tr>
+                          <tr style={{ background: 'white', color: 'black' }}>
+                            <td style={{ border: '1px solid black', padding: 6 }}>{val_mts_min.toFixed(0)}</td>
+                            <td style={{ border: '1px solid black', padding: 6 }}>{val_acc_per_min.toFixed(1)}</td>
+                            <td style={{ border: '1px solid black', padding: 6 }}>{val_vel_max.toFixed(1)}</td>
+                            <td style={{ border: '1px solid black', padding: 6 }}>{val_sprints.toFixed(1)}</td>
+                            <td style={{ border: '1px solid black', padding: 6 }}>{val_max_acc.toFixed(0)}</td>
+                            <td style={{ border: '1px solid black', padding: 6 }}>{val_max_dec.toFixed(0)}</td>
+                          </tr>
+                          <tr>
+                            {renderPct(val_mts_min, base_mts_min)}
+                            {renderPct(val_acc_per_min, base_acc_per_min)}
+                            {renderPct(val_vel_max, base_vel_max)}
+                            {renderPct(val_sprints, base_sprints)}
+                            {renderPct(val_max_acc, base_max_acc)}
+                            {renderPct(val_max_dec, base_max_dec)}
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
                   )
                 })()}
               </div>

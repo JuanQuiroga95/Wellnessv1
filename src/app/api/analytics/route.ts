@@ -145,6 +145,52 @@ export async function GET(req: NextRequest) {
         AND g.fecha >= ${fDesde}::date AND g.fecha <= ${fHasta}::timestamp
         AND (${isMaster}::boolean OR g.club_id = ${clubId})`
 
+    // Partidos disponibles para seleccionar como MD PROMEDIO
+    const partidosDisponibles = await sql`
+      SELECT id, fecha::text, titulo, rival
+      FROM sesiones_plan
+      WHERE (objetivo ILIKE '%Partido%' OR tipo ILIKE '%partido%')
+        AND (${isMaster}::boolean OR club_id = ${clubId})
+      ORDER BY fecha DESC LIMIT 30`
+
+    // Cálculo dinámico de MD Promedio si se envían IDs de partidos_base
+    let mdPromedio = null;
+    const pBase = searchParams.get('partidos_base');
+    if (pBase) {
+      const ids = pBase.split(',').map(n => Number(n)).filter(n => !isNaN(n));
+      if (ids.length > 0) {
+        const res = await sql`
+          SELECT 
+            AVG(dist_total) AS avg_dist_total,
+            AVG(COALESCE(dist_v4,0)) AS avg_dist_v4,
+            AVG(COALESCE(dist_v5,0)) AS avg_dist_v5,
+            AVG(COALESCE(acc2,0) + COALESCE(acc3,0)) AS avg_acel,
+            AVG(COALESCE(dec2,0) + COALESCE(dec3,0)) AS avg_decel,
+            AVG(COALESCE(acc3,0)) AS avg_acc_int,
+            AVG(COALESCE(n_sprints,0)) AS avg_sprints,
+            AVG(COALESCE(max_velocity,0)) AS avg_max_vel,
+            AVG(COALESCE(dist_per_min,0)) AS avg_mts_min,
+            AVG(COALESCE(duracion_min,0)) AS avg_duracion
+          FROM gps_logs
+          WHERE sesion_id = ANY(${ids}::int[])`
+        
+        if (res.length > 0 && res[0].avg_dist_total != null) {
+          mdPromedio = {
+            avg_dist_total: Number(res[0].avg_dist_total),
+            avg_dist_v4: Number(res[0].avg_dist_v4),
+            avg_dist_v5: Number(res[0].avg_dist_v5),
+            avg_acel: Number(res[0].avg_acel),
+            avg_decel: Number(res[0].avg_decel),
+            avg_acc_int: Number(res[0].avg_acc_int),
+            avg_sprints: Number(res[0].avg_sprints),
+            avg_max_vel: Number(res[0].avg_max_vel),
+            avg_mts_min: Number(res[0].avg_mts_min),
+            avg_duracion: Number(res[0].avg_duracion)
+          }
+        }
+      }
+    }
+
     return NextResponse.json({
       wellnessWeekly: wellnessWeekly.map(r => ({ ...r, semana:String(r.semana||''), avg_fatiga:Number(r.avg_fatiga)||0, avg_sueno:Number(r.avg_sueno)||0, avg_dolor:Number(r.avg_dolor)||0, avg_estres:Number(r.avg_estres)||0, avg_animo:Number(r.avg_animo)||0, total_wellness:Number(r.total_wellness)||0 })),
       rpeWeekly: rpeWeekly.map(r => ({ ...r, semana:String(r.semana||''), avg_rpe:Number(r.avg_rpe)||0, avg_duracion:Number(r.avg_duracion)||0 })),
@@ -181,7 +227,11 @@ export async function GET(req: NextRequest) {
         decel: Number(r.decel),
         sprints: Number(r.sprints)
       })),
-      missingCourts: missingCourts[0]?.count || 0
+      missingCourts: missingCourts[0]?.count || 0,
+      partidosDisponibles: partidosDisponibles.map(p => ({
+        id: p.id, fecha: p.fecha, titulo: p.titulo, rival: p.rival
+      })),
+      mdPromedio
     })
   } catch (err) {
     console.error('[Analytics GET error]', err)
