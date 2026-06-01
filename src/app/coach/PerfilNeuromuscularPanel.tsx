@@ -51,21 +51,29 @@ export default function PerfilNeuromuscularPanel() {
         <div style={{ display:'flex', gap:8, alignItems:'center', flexWrap:'wrap' }}>
           <div style={{ display:'flex', alignItems:'center', gap:6 }}>
             <label style={{ fontSize:10, color:'var(--silver)', fontFamily:'DM Mono,monospace' }}>PARTIDOS BASE (MD PROM)</label>
-            <div style={{ position: 'relative' }}>
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 4 }}>
               <select
                 multiple
                 value={partidosBase.map(String)}
                 onChange={(e) => {
-                  const vals = Array.from(e.target.selectedOptions, o => parseInt(o.value))
+                  const vals = Array.from(e.target.selectedOptions, o => parseInt(o.value)).filter(v => !isNaN(v))
                   if (vals.length <= 3) setPartidosBase(vals)
                 }}
-                style={{ background:'var(--ink3)', border:'1px solid var(--fog)', borderRadius:8, padding:'6px 10px', fontSize:12, color:'var(--silver)', outline:'none', height: 32, minWidth: 150 }}
+                style={{ background:'var(--ink3)', border:'1px solid var(--fog)', borderRadius:8, padding:'6px 10px', fontSize:12, color:'var(--silver)', outline:'none', height: 32, minWidth: 160 }}
               >
+                <option value="" disabled style={{ color: 'var(--fog)' }}>{partidosBase.length === 0 ? 'Ninguno seleccionado' : 'Selecciona (Max 3)'}</option>
                 {(data?.partidosDisponibles || []).map((p: any) => (
                   <option key={p.id} value={p.id}>{p.fecha} - {p.rival || p.titulo || 'Partido'}</option>
                 ))}
               </select>
-              <div style={{ position: 'absolute', top: -8, right: -8, background: '#3b82f6', color: 'white', fontSize: 9, borderRadius: 10, padding: '2px 6px', fontWeight: 'bold' }}>{partidosBase.length}/3</div>
+              {partidosBase.length > 0 && (
+                <button 
+                  onClick={() => setPartidosBase([])}
+                  style={{ background: 'rgba(239,68,68,0.1)', color: '#ef4444', border: 'none', borderRadius: 6, width: 24, height: 24, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                  title="Limpiar selección"
+                >✕</button>
+              )}
+              <div style={{ position: 'absolute', top: -8, right: partidosBase.length > 0 ? 20 : -8, background: '#3b82f6', color: 'white', fontSize: 9, borderRadius: 10, padding: '2px 6px', fontWeight: 'bold' }}>{partidosBase.length}/3</div>
             </div>
           </div>
           <div style={{ width: 1, height: 24, background: 'var(--mist)', margin: '0 8px' }}></div>
@@ -139,269 +147,315 @@ export default function PerfilNeuromuscularPanel() {
                   const val_max_dec = 0;
 
                   const renderPct = (val: number, base: number) => {
-                    if (!base) return <td style={{ border: '1px solid black', padding: 6, fontWeight: 'bold', color: 'black', background: '#f8fafc' }}>0%</td>;
+                    if (!base) return <td style={{ padding: '10px 6px', fontWeight: 'bold', color: 'var(--fog)', fontSize: 11 }}>0%</td>;
                     const pct = Math.round((val / base) * 100);
-                    const color = pct >= 85 ? '#385d22' : pct >= 60 ? '#b45309' : '#b91c1c';
-                    const bg = pct >= 85 ? '#e2efda' : pct >= 60 ? '#fef3c7' : '#fee2e2';
-                    return <td style={{ border: '1px solid black', padding: 6, fontWeight: 'bold', color, background: bg }}>{pct}%</td>
+                    const color = pct >= 85 ? 'var(--lime)' : pct >= 60 ? '#f59e0b' : '#ef4444';
+                    return <td style={{ padding: '10px 6px', fontWeight: 'bold', color, fontSize: 13 }}>{pct}%</td>
                   }
 
+                  const renderPctBadge = (val: number, base: number) => {
+                    if (!base) return <span style={{ padding: '4px 8px', borderRadius: 4, background: 'rgba(255,255,255,0.05)', color: 'var(--fog)', fontSize: 11, fontWeight: 'bold' }}>0%</span>;
+                    const pct = Math.round((val / base) * 100);
+                    const color = pct >= 85 ? 'var(--lime)' : pct >= 60 ? '#f59e0b' : '#ef4444';
+                    const bg = pct >= 85 ? 'rgba(200,241,53,0.1)' : pct >= 60 ? 'rgba(245,158,11,0.1)' : 'rgba(239,68,68,0.1)';
+                    return <span style={{ padding: '4px 8px', borderRadius: 4, background: bg, color, fontSize: 11, fontWeight: 'bold' }}>{pct}%</span>
+                  }
+
+                  const thStyle = { color: 'var(--silver)', fontSize: 10, fontWeight: 600, padding: '12px 6px', textTransform: 'uppercase' as any, borderBottom: '1px solid rgba(255,255,255,0.05)' };
+                  const tdStyle = { color: 'var(--snow)', fontSize: 13, fontWeight: 600, padding: '12px 6px', fontFamily: 'DM Mono, monospace', borderBottom: '1px solid rgba(255,255,255,0.02)' };
+
                   return (
-                    <div style={{ background: '#ffffff', borderRadius: 12, padding: 16, overflowX: 'auto', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                        <div style={{ color: 'black', fontWeight: 'bold', fontSize: 16 }}>Análisis de Sesión (Formato Excel)</div>
+                    <div style={{ background: 'var(--ink2)', borderRadius: 20, padding: 24, border: '1px solid var(--mist)', display: 'flex', flexDirection: 'column', gap: 32 }}>
+                      
+                      {/* HEADER */}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div>
+                          <h3 style={{ color: 'var(--snow)', fontWeight: 700, fontSize: 16, margin: 0, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Impacto de Sesión</h3>
+                          <p style={{ color: 'var(--silver)', fontSize: 12, margin: '4px 0 0 0' }}>Análisis comparativo vs MD Promedio</p>
+                        </div>
                         {r.cancha && (
-                          <div style={{ fontSize:12, color:'#475569', fontWeight:600 }}>
-                            Cancha: <span style={{ color:'black' }}>{r.cancha}</span> {r.dimensiones ? `(${r.dimensiones}m)` : ''}
+                          <div style={{ background: 'rgba(255,255,255,0.05)', padding: '6px 12px', borderRadius: 20, fontSize: 11, color: 'var(--silver)' }}>
+                            Cancha: <span style={{ color: 'var(--snow)', fontWeight: 600 }}>{r.cancha}</span> {r.dimensiones ? `(${r.dimensiones}m)` : ''}
                           </div>
                         )}
                       </div>
-                      
-                      <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'center', fontFamily: 'Arial, sans-serif', fontSize: 12, minWidth: 600 }}>
-                        <tbody>
-                          {/* ======================= MD PROMEDIO ======================= */}
-                          <tr>
-                            <td colSpan={6} style={{ color: '#00b0f0', fontWeight: 'bold', fontSize: 14, padding: 8, border: '2px solid #00b0f0', borderRadius: '8px 8px 0 0', textTransform: 'uppercase' }}>MD PROMEDIO</td>
-                          </tr>
-                          <tr>
-                            <td colSpan={6} style={{ background: '#9bc2e6', color: 'black', fontWeight: 'bold', padding: 6, border: '1px solid black', textTransform: 'uppercase' }}>VOLUMEN</td>
-                          </tr>
-                          <tr style={{ background: 'white', color: 'black', fontWeight: 'bold' }}>
-                            <td style={{ border: '1px solid black', padding: 6 }}>DT (m)</td>
-                            <td style={{ border: '1px solid black', padding: 6 }}>HSR (m)</td>
-                            <td style={{ border: '1px solid black', padding: 6 }}>Dist Sprint</td>
-                            <td style={{ border: '1px solid black', padding: 6 }}>Acc Int Tot</td>
-                            <td style={{ border: '1px solid black', padding: 6 }}>ACC</td>
-                            <td style={{ border: '1px solid black', padding: 6 }}>DEC</td>
-                          </tr>
-                          <tr style={{ background: 'white', color: 'black' }}>
-                            <td style={{ border: '1px solid black', padding: 6 }}>{base_dist_total.toFixed(0)}</td>
-                            <td style={{ border: '1px solid black', padding: 6 }}>{base_dist_v4.toFixed(0)}</td>
-                            <td style={{ border: '1px solid black', padding: 6 }}>{base_dist_v5.toFixed(0)}</td>
-                            <td style={{ border: '1px solid black', padding: 6 }}>{base_acc_int_tot.toFixed(0)}</td>
-                            <td style={{ border: '1px solid black', padding: 6 }}>{base_acel.toFixed(0)}</td>
-                            <td style={{ border: '1px solid black', padding: 6 }}>{base_decel.toFixed(0)}</td>
-                          </tr>
-                          <tr style={{ background: '#e2efda', color: '#385d22', fontWeight: 'bold' }}>
-                            <td style={{ border: '1px solid black', padding: 6 }}>100%</td>
-                            <td style={{ border: '1px solid black', padding: 6 }}>100%</td>
-                            <td style={{ border: '1px solid black', padding: 6 }}>100%</td>
-                            <td style={{ border: '1px solid black', padding: 6 }}>100%</td>
-                            <td style={{ border: '1px solid black', padding: 6 }}>100%</td>
-                            <td style={{ border: '1px solid black', padding: 6 }}>100%</td>
-                          </tr>
-                          
-                          <tr>
-                            <td colSpan={6} style={{ background: '#f4b084', color: 'black', fontWeight: 'bold', padding: 6, border: '1px solid black', textTransform: 'uppercase' }}>INTENSIDAD</td>
-                          </tr>
-                          <tr style={{ background: 'white', color: 'black', fontWeight: 'bold' }}>
-                            <td style={{ border: '1px solid black', padding: 6 }}>Mts/min</td>
-                            <td style={{ border: '1px solid black', padding: 6 }}>Acc Int/min</td>
-                            <td style={{ border: '1px solid black', padding: 6 }}>Vel Max</td>
-                            <td style={{ border: '1px solid black', padding: 6 }}>Sprint (n)</td>
-                            <td style={{ border: '1px solid black', padding: 6 }}>Max ACC</td>
-                            <td style={{ border: '1px solid black', padding: 6 }}>Max DEC</td>
-                          </tr>
-                          <tr style={{ background: 'white', color: 'black' }}>
-                            <td style={{ border: '1px solid black', padding: 6 }}>{base_mts_min.toFixed(0)}</td>
-                            <td style={{ border: '1px solid black', padding: 6 }}>{base_acc_per_min.toFixed(1)}</td>
-                            <td style={{ border: '1px solid black', padding: 6 }}>{base_vel_max.toFixed(1)}</td>
-                            <td style={{ border: '1px solid black', padding: 6 }}>{base_sprints.toFixed(1)}</td>
-                            <td style={{ border: '1px solid black', padding: 6 }}>{base_max_acc.toFixed(0)}</td>
-                            <td style={{ border: '1px solid black', padding: 6 }}>{base_max_dec.toFixed(0)}</td>
-                          </tr>
-                          <tr style={{ background: '#e2efda', color: '#385d22', fontWeight: 'bold' }}>
-                            <td style={{ border: '1px solid black', padding: 6 }}>100%</td>
-                            <td style={{ border: '1px solid black', padding: 6 }}>100%</td>
-                            <td style={{ border: '1px solid black', padding: 6 }}>100%</td>
-                            <td style={{ border: '1px solid black', padding: 6 }}>100%</td>
-                            <td style={{ border: '1px solid black', padding: 6 }}>100%</td>
-                            <td style={{ border: '1px solid black', padding: 6 }}>100%</td>
-                          </tr>
-                          
-                          {/* ======================= ESPACIO ======================= */}
-                          <tr><td colSpan={6} style={{ height: 20, borderLeft: '1px solid white', borderRight: '1px solid white' }}></td></tr>
 
-                          {/* ======================= MD (SESION ACTUAL) ======================= */}
-                          <tr>
-                            <td colSpan={6} style={{ color: 'black', fontWeight: 'bold', fontSize: 14, padding: 8, border: '2px solid black', borderRadius: '8px 8px 0 0' }}>MD</td>
-                          </tr>
-                          <tr>
-                            <td colSpan={6} style={{ background: '#9bc2e6', color: 'black', fontWeight: 'bold', padding: 6, border: '1px solid black' }}>VOLUMEN</td>
-                          </tr>
-                          <tr style={{ background: 'white', color: 'black', fontWeight: 'bold' }}>
-                            <td style={{ border: '1px solid black', padding: 6 }}>DT (m)</td>
-                            <td style={{ border: '1px solid black', padding: 6 }}>HSR (m)</td>
-                            <td style={{ border: '1px solid black', padding: 6 }}>Dist Sprint</td>
-                            <td style={{ border: '1px solid black', padding: 6 }}>Acc Int Tot</td>
-                            <td style={{ border: '1px solid black', padding: 6 }}>ACC</td>
-                            <td style={{ border: '1px solid black', padding: 6 }}>DEC</td>
-                          </tr>
-                          <tr style={{ background: 'white', color: 'black' }}>
-                            <td style={{ border: '1px solid black', padding: 6 }}>{val_dist_total.toFixed(0)}</td>
-                            <td style={{ border: '1px solid black', padding: 6 }}>{val_dist_v4.toFixed(0)}</td>
-                            <td style={{ border: '1px solid black', padding: 6 }}>{val_dist_v5.toFixed(0)}</td>
-                            <td style={{ border: '1px solid black', padding: 6 }}>{val_acc_int_tot.toFixed(0)}</td>
-                            <td style={{ border: '1px solid black', padding: 6 }}>{val_acel.toFixed(0)}</td>
-                            <td style={{ border: '1px solid black', padding: 6 }}>{val_decel.toFixed(0)}</td>
-                          </tr>
-                          <tr>
-                            {renderPct(val_dist_total, base_dist_total)}
-                            {renderPct(val_dist_v4, base_dist_v4)}
-                            {renderPct(val_dist_v5, base_dist_v5)}
-                            {renderPct(val_acc_int_tot, base_acc_int_tot)}
-                            {renderPct(val_acel, base_acel)}
-                            {renderPct(val_decel, base_decel)}
-                          </tr>
-                          
-                          <tr>
-                            <td colSpan={6} style={{ background: '#f4b084', color: 'black', fontWeight: 'bold', padding: 6, border: '1px solid black' }}>INTENSIDAD</td>
-                          </tr>
-                          <tr style={{ background: 'white', color: 'black', fontWeight: 'bold' }}>
-                            <td style={{ border: '1px solid black', padding: 6 }}>Mts/min</td>
-                            <td style={{ border: '1px solid black', padding: 6 }}>Acc Int/min</td>
-                            <td style={{ border: '1px solid black', padding: 6 }}>Vel Max</td>
-                            <td style={{ border: '1px solid black', padding: 6 }}>Sprint (n)</td>
-                            <td style={{ border: '1px solid black', padding: 6 }}>Max ACC</td>
-                            <td style={{ border: '1px solid black', padding: 6 }}>Max DEC</td>
-                          </tr>
-                          <tr style={{ background: 'white', color: 'black' }}>
-                            <td style={{ border: '1px solid black', padding: 6 }}>{val_mts_min.toFixed(0)}</td>
-                            <td style={{ border: '1px solid black', padding: 6 }}>{val_acc_per_min.toFixed(1)}</td>
-                            <td style={{ border: '1px solid black', padding: 6 }}>{val_vel_max.toFixed(1)}</td>
-                            <td style={{ border: '1px solid black', padding: 6 }}>{val_sprints.toFixed(1)}</td>
-                            <td style={{ border: '1px solid black', padding: 6 }}>{val_max_acc.toFixed(0)}</td>
-                            <td style={{ border: '1px solid black', padding: 6 }}>{val_max_dec.toFixed(0)}</td>
-                          </tr>
-                          <tr>
-                            {renderPct(val_mts_min, base_mts_min)}
-                            {renderPct(val_acc_per_min, base_acc_per_min)}
-                            {renderPct(val_vel_max, base_vel_max)}
-                            {renderPct(val_sprints, base_sprints)}
-                            {renderPct(val_max_acc, base_max_acc)}
-                            {renderPct(val_max_dec, base_max_dec)}
-                          </tr>
-                          {/* ======================= ESPACIO ======================= */}
-                          <tr><td colSpan={6} style={{ height: 20, borderLeft: '1px solid white', borderRight: '1px solid white' }}></td></tr>
+                      {/* MD PROMEDIO */}
+                      <div>
+                        <div style={{ background: 'rgba(56,189,248,0.1)', border: '1px solid rgba(56,189,248,0.2)', padding: '8px 16px', borderRadius: '8px 8px 0 0', display: 'flex', gap: 8, alignItems: 'center' }}>
+                          <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#38bdf8' }}></div>
+                          <h4 style={{ color: '#38bdf8', fontSize: 13, margin: 0, fontWeight: 700, letterSpacing: '0.05em' }}>MD PROMEDIO (BASE)</h4>
+                        </div>
+                        
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: 16, background: 'rgba(0,0,0,0.2)', padding: 16, borderRadius: '0 0 8px 8px', border: '1px solid rgba(255,255,255,0.05)', borderTop: 'none' }}>
+                          <div>
+                            <h5 style={{ color: 'var(--silver)', fontSize: 11, margin: '0 0 12px 0', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Volumen</h5>
+                            <table style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse' }}>
+                              <thead>
+                                <tr>
+                                  <th style={thStyle}>DT (m)</th><th style={thStyle}>HSR (m)</th><th style={thStyle}>Dist Sprint</th>
+                                  <th style={thStyle}>Acc Int Tot</th><th style={thStyle}>ACC</th><th style={thStyle}>DEC</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                <tr>
+                                  <td style={tdStyle}>{base_dist_total.toFixed(0)}</td><td style={tdStyle}>{base_dist_v4.toFixed(0)}</td><td style={tdStyle}>{base_dist_v5.toFixed(0)}</td>
+                                  <td style={tdStyle}>{base_acc_int_tot.toFixed(0)}</td><td style={tdStyle}>{base_acel.toFixed(0)}</td><td style={tdStyle}>{base_decel.toFixed(0)}</td>
+                                </tr>
+                                <tr>
+                                  <td style={{...tdStyle, color:'var(--silver)', border: 'none'}} colSpan={6}><span style={{ color:'var(--lime)', fontSize:11 }}>100% de referencia</span></td>
+                                </tr>
+                              </tbody>
+                            </table>
+                          </div>
+                          <div>
+                            <h5 style={{ color: 'var(--silver)', fontSize: 11, margin: '0 0 12px 0', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Intensidad</h5>
+                            <table style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse' }}>
+                              <thead>
+                                <tr>
+                                  <th style={thStyle}>Mts/min</th><th style={thStyle}>Acc Int/min</th><th style={thStyle}>Vel Max</th>
+                                  <th style={thStyle}>Sprint (n)</th><th style={thStyle}>Max ACC</th><th style={thStyle}>Max DEC</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                <tr>
+                                  <td style={tdStyle}>{base_mts_min.toFixed(0)}</td><td style={tdStyle}>{base_acc_per_min.toFixed(1)}</td><td style={tdStyle}>{base_vel_max.toFixed(1)}</td>
+                                  <td style={tdStyle}>{base_sprints.toFixed(1)}</td><td style={tdStyle}>{base_max_acc.toFixed(0)}</td><td style={tdStyle}>{base_max_dec.toFixed(0)}</td>
+                                </tr>
+                                <tr>
+                                  <td style={{...tdStyle, color:'var(--silver)', border: 'none'}} colSpan={6}><span style={{ color:'var(--lime)', fontSize:11 }}>100% de referencia</span></td>
+                                </tr>
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      </div>
 
-                          {/* ======================= PORCENTAJES Y GRAFICO ======================= */}
-                          <tr style={{ background: 'white', color: 'black', fontWeight: 'bold' }}>
-                            <td colSpan={3} style={{ border: '1px solid black', padding: 6, textAlign: 'left' }}>% Promedio Volumen</td>
-                            <td colSpan={3} style={{ border: '1px solid black', padding: 6 }}>
-                              {(() => {
-                                const p1 = base_acc_int_tot ? Math.round((val_acc_int_tot/base_acc_int_tot)*100) : 0;
-                                const p2 = base_dist_v4 ? Math.round((val_dist_v4/base_dist_v4)*100) : 0;
-                                const p3 = base_dist_v5 ? Math.round((val_dist_v5/base_dist_v5)*100) : 0;
-                                return Math.round((p1 + p2 + p3) / 3) || 0;
-                              })()}%
-                            </td>
-                          </tr>
-                          <tr style={{ background: 'white', color: 'black', fontWeight: 'bold' }}>
-                            <td colSpan={3} style={{ border: '1px solid black', padding: 6, textAlign: 'left' }}>% Promedio Intensidad</td>
-                            <td colSpan={3} style={{ border: '1px solid black', padding: 6 }}>
-                              {(() => {
-                                const p1 = base_acc_per_min ? Math.round((val_acc_per_min/base_acc_per_min)*100) : 0;
-                                const p2 = base_mts_min ? Math.round((val_mts_min/base_mts_min)*100) : 0;
-                                const p3 = base_sprints ? Math.round((val_sprints/base_sprints)*100) : 0;
-                                return Math.round((p1 + p2 + p3) / 3) || 0;
-                              })()}%
-                            </td>
-                          </tr>
-                          <tr>
-                            <td colSpan={6} style={{ border: '1px solid black', padding: 20 }}>
-                              <h4 style={{ textAlign: 'center', color: 'black', fontWeight: 'normal', margin: '0 0 20px 0' }}>Impacto de la sesión</h4>
-                              <div style={{ height: 250, width: '100%' }}>
-                                <ResponsiveContainer>
-                                  <BarChart 
-                                    data={[{
-                                      name: 'Impacto', 
-                                      "% Promedio Volumen": (() => {
-                                        const p1 = base_acc_int_tot ? Math.round((val_acc_int_tot/base_acc_int_tot)*100) : 0;
-                                        const p2 = base_dist_v4 ? Math.round((val_dist_v4/base_dist_v4)*100) : 0;
-                                        const p3 = base_dist_v5 ? Math.round((val_dist_v5/base_dist_v5)*100) : 0;
-                                        return Math.round((p1 + p2 + p3) / 3) || 0;
-                                      })(),
-                                      "% Promedio Intensidad": (() => {
-                                        const p1 = base_acc_per_min ? Math.round((val_acc_per_min/base_acc_per_min)*100) : 0;
-                                        const p2 = base_mts_min ? Math.round((val_mts_min/base_mts_min)*100) : 0;
-                                        const p3 = base_sprints ? Math.round((val_sprints/base_sprints)*100) : 0;
-                                        return Math.round((p1 + p2 + p3) / 3) || 0;
-                                      })()
-                                    }]} 
-                                    margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
-                                  >
-                                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                                    <XAxis dataKey="name" hide />
-                                    <YAxis domain={[0, 100]} tickFormatter={(val) => (val/100).toFixed(1).replace('.',',')} />
-                                    <Tooltip formatter={(value) => `${value}%`} />
-                                    <Legend verticalAlign="bottom" height={36} />
-                                    <Bar dataKey="% Promedio Volumen" fill="#4472c4" />
-                                    <Bar dataKey="% Promedio Intensidad" fill="#ed7d31" />
-                                  </BarChart>
-                                </ResponsiveContainer>
+                      {/* MD (SESION ACTUAL) */}
+                      <div>
+                        <div style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', padding: '8px 16px', borderRadius: '8px 8px 0 0', display: 'flex', gap: 8, alignItems: 'center' }}>
+                          <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--snow)' }}></div>
+                          <h4 style={{ color: 'var(--snow)', fontSize: 13, margin: 0, fontWeight: 700, letterSpacing: '0.05em' }}>MD (SESIÓN ACTUAL)</h4>
+                        </div>
+                        
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: 16, background: 'rgba(0,0,0,0.2)', padding: 16, borderRadius: '0 0 8px 8px', border: '1px solid rgba(255,255,255,0.05)', borderTop: 'none' }}>
+                          <div>
+                            <h5 style={{ color: 'var(--silver)', fontSize: 11, margin: '0 0 12px 0', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Volumen</h5>
+                            <table style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse' }}>
+                              <thead>
+                                <tr>
+                                  <th style={thStyle}>DT (m)</th><th style={thStyle}>HSR (m)</th><th style={thStyle}>Dist Sprint</th>
+                                  <th style={thStyle}>Acc Int Tot</th><th style={thStyle}>ACC</th><th style={thStyle}>DEC</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                <tr>
+                                  <td style={tdStyle}>{val_dist_total.toFixed(0)}</td><td style={tdStyle}>{val_dist_v4.toFixed(0)}</td><td style={tdStyle}>{val_dist_v5.toFixed(0)}</td>
+                                  <td style={tdStyle}>{val_acc_int_tot.toFixed(0)}</td><td style={tdStyle}>{val_acel.toFixed(0)}</td><td style={tdStyle}>{val_decel.toFixed(0)}</td>
+                                </tr>
+                                <tr>
+                                  {renderPct(val_dist_total, base_dist_total)}
+                                  {renderPct(val_dist_v4, base_dist_v4)}
+                                  {renderPct(val_dist_v5, base_dist_v5)}
+                                  {renderPct(val_acc_int_tot, base_acc_int_tot)}
+                                  {renderPct(val_acel, base_acel)}
+                                  {renderPct(val_decel, base_decel)}
+                                </tr>
+                              </tbody>
+                            </table>
+                          </div>
+                          <div>
+                            <h5 style={{ color: 'var(--silver)', fontSize: 11, margin: '0 0 12px 0', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Intensidad</h5>
+                            <table style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse' }}>
+                              <thead>
+                                <tr>
+                                  <th style={thStyle}>Mts/min</th><th style={thStyle}>Acc Int/min</th><th style={thStyle}>Vel Max</th>
+                                  <th style={thStyle}>Sprint (n)</th><th style={thStyle}>Max ACC</th><th style={thStyle}>Max DEC</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                <tr>
+                                  <td style={tdStyle}>{val_mts_min.toFixed(0)}</td><td style={tdStyle}>{val_acc_per_min.toFixed(1)}</td><td style={tdStyle}>{val_vel_max.toFixed(1)}</td>
+                                  <td style={tdStyle}>{val_sprints.toFixed(1)}</td><td style={tdStyle}>{val_max_acc.toFixed(0)}</td><td style={tdStyle}>{val_max_dec.toFixed(0)}</td>
+                                </tr>
+                                <tr>
+                                  {renderPct(val_mts_min, base_mts_min)}
+                                  {renderPct(val_acc_per_min, base_acc_per_min)}
+                                  {renderPct(val_vel_max, base_vel_max)}
+                                  {renderPct(val_sprints, base_sprints)}
+                                  {renderPct(val_max_acc, base_max_acc)}
+                                  {renderPct(val_max_dec, base_max_dec)}
+                                </tr>
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div style={{ height: 1, background: 'rgba(255,255,255,0.05)' }}></div>
+
+                      {/* GRÁFICOS Y PROMEDIOS */}
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: 32 }}>
+                        <div>
+                          <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: 12, padding: 16, border: '1px solid rgba(255,255,255,0.05)' }}>
+                            <h4 style={{ color: 'var(--snow)', fontSize: 12, margin: '0 0 16px 0', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Impacto Global (Promedios)</h4>
+                            
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 24 }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 16px', background: 'rgba(0,0,0,0.2)', borderRadius: 8 }}>
+                                <span style={{ color: 'var(--silver)', fontSize: 12, fontWeight: 600 }}>% Promedio Volumen</span>
+                                {renderPctBadge(
+                                  Math.round((val_acc_int_tot/base_acc_int_tot)*100 || 0) + 
+                                  Math.round((val_dist_v4/base_dist_v4)*100 || 0) + 
+                                  Math.round((val_dist_v5/base_dist_v5)*100 || 0), 300
+                                )}
                               </div>
-                            </td>
-                          </tr>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 16px', background: 'rgba(0,0,0,0.2)', borderRadius: 8 }}>
+                                <span style={{ color: 'var(--silver)', fontSize: 12, fontWeight: 600 }}>% Promedio Intensidad</span>
+                                {renderPctBadge(
+                                  Math.round((val_acc_per_min/base_acc_per_min)*100 || 0) + 
+                                  Math.round((val_mts_min/base_mts_min)*100 || 0) + 
+                                  Math.round((val_sprints/base_sprints)*100 || 0), 300
+                                )}
+                              </div>
+                            </div>
 
-                          {/* ======================= IMPACTO DE LA SESION PORCENTUAL ======================= */}
-                          <tr><td colSpan={6} style={{ height: 20, borderLeft: '1px solid white', borderRight: '1px solid white' }}></td></tr>
-                          <tr>
-                            <td colSpan={6} style={{ background: 'white', color: 'black', fontWeight: 'bold', padding: 8, border: '1px solid black' }}>IMPACTO DE LA SESIÓN PORCENTUAL</td>
-                          </tr>
-                          
-                          {(() => {
-                            const pct_acc_int_tot = base_acc_int_tot ? Math.round((val_acc_int_tot/base_acc_int_tot)*100) : 0;
-                            const pct_dist_v4 = base_dist_v4 ? Math.round((val_dist_v4/base_dist_v4)*100) : 0;
-                            const pct_dist_v5 = base_dist_v5 ? Math.round((val_dist_v5/base_dist_v5)*100) : 0;
-                            
-                            const pct_acc_per_min = base_acc_per_min ? Math.round((val_acc_per_min/base_acc_per_min)*100) : 0;
-                            const pct_mts_min = base_mts_min ? Math.round((val_mts_min/base_mts_min)*100) : 0;
-                            const pct_sprints = base_sprints ? Math.round((val_sprints/base_sprints)*100) : 0;
-                            
-                            const getBg = (pct: number) => pct >= 85 ? '#92d050' : pct >= 65 ? '#ffc000' : '#ff0000';
-                            const getColor = (pct: number) => pct >= 85 ? 'black' : pct >= 65 ? 'black' : 'white';
+                            <div style={{ height: 200, width: '100%' }}>
+                              <ResponsiveContainer>
+                                <BarChart 
+                                  data={[{
+                                    name: 'Impacto', 
+                                    "% Promedio Volumen": (() => {
+                                      const p1 = base_acc_int_tot ? Math.round((val_acc_int_tot/base_acc_int_tot)*100) : 0;
+                                      const p2 = base_dist_v4 ? Math.round((val_dist_v4/base_dist_v4)*100) : 0;
+                                      const p3 = base_dist_v5 ? Math.round((val_dist_v5/base_dist_v5)*100) : 0;
+                                      return Math.round((p1 + p2 + p3) / 3) || 0;
+                                    })(),
+                                    "% Promedio Intensidad": (() => {
+                                      const p1 = base_acc_per_min ? Math.round((val_acc_per_min/base_acc_per_min)*100) : 0;
+                                      const p2 = base_mts_min ? Math.round((val_mts_min/base_mts_min)*100) : 0;
+                                      const p3 = base_sprints ? Math.round((val_sprints/base_sprints)*100) : 0;
+                                      return Math.round((p1 + p2 + p3) / 3) || 0;
+                                    })()
+                                  }]} 
+                                  margin={{ top: 20, right: 10, left: -20, bottom: 5 }}
+                                >
+                                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(255,255,255,0.05)" />
+                                  <XAxis dataKey="name" hide />
+                                  <YAxis domain={[0, 100]} tick={{ fill: 'var(--fog)', fontSize: 10 }} tickFormatter={(val) => `${val}%`} axisLine={false} tickLine={false} />
+                                  <Tooltip cursor={{ fill: 'rgba(255,255,255,0.02)' }} contentStyle={{ background: 'var(--ink)', border: '1px solid var(--mist)', borderRadius: 12, color: 'var(--snow)' }} />
+                                  <Legend verticalAlign="bottom" height={36} wrapperStyle={{ fontSize: 11, color: 'var(--silver)' }} />
+                                  <Bar dataKey="% Promedio Volumen" fill="#3b82f6" radius={[4,4,0,0]} barSize={40} />
+                                  <Bar dataKey="% Promedio Intensidad" fill="#f97316" radius={[4,4,0,0]} barSize={40} />
+                                </BarChart>
+                              </ResponsiveContainer>
+                            </div>
+                          </div>
+                        </div>
 
-                            return (
-                              <>
-                                {/* VOLUMEN */}
-                                <tr style={{ background: 'white', color: 'black', fontWeight: 'bold' }}>
-                                  <td rowSpan={3} style={{ border: '1px solid black', padding: 6, verticalAlign: 'middle', width: '25%' }}>VOLUMEN</td>
-                                  <td colSpan={2} style={{ border: '1px solid black', padding: 6, background: '#ff0000', color: 'white' }}>Tensión</td>
-                                  <td colSpan={2} style={{ border: '1px solid black', padding: 6, background: '#ff0000', color: 'white' }}>Acc Int Tot</td>
-                                  <td style={{ border: '1px solid black', padding: 6, background: getBg(pct_acc_int_tot), color: getColor(pct_acc_int_tot) }}>{pct_acc_int_tot}%</td>
-                                </tr>
-                                <tr style={{ background: 'white', color: 'black', fontWeight: 'bold' }}>
-                                  <td colSpan={2} style={{ border: '1px solid black', padding: 6, background: '#a9d08e', color: 'black' }}>Duración</td>
-                                  <td colSpan={2} style={{ border: '1px solid black', padding: 6, background: '#a9d08e', color: 'black' }}>HSR (m)</td>
-                                  <td style={{ border: '1px solid black', padding: 6, background: getBg(pct_dist_v4), color: getColor(pct_dist_v4) }}>{pct_dist_v4}%</td>
-                                </tr>
-                                <tr style={{ background: 'white', color: 'black', fontWeight: 'bold' }}>
-                                  <td colSpan={2} style={{ border: '1px solid black', padding: 6, background: '#548235', color: 'white' }}>Velocidad</td>
-                                  <td colSpan={2} style={{ border: '1px solid black', padding: 6, background: '#548235', color: 'white' }}>Dist Sprint</td>
-                                  <td style={{ border: '1px solid black', padding: 6, background: getBg(pct_dist_v5), color: getColor(pct_dist_v5) }}>{pct_dist_v5}%</td>
-                                </tr>
-                                {/* INTENSIDAD */}
-                                <tr style={{ background: 'white', color: 'black', fontWeight: 'bold' }}>
-                                  <td rowSpan={3} style={{ border: '1px solid black', padding: 6, verticalAlign: 'middle' }}>INTENSIDAD</td>
-                                  <td colSpan={2} style={{ border: '1px solid black', padding: 6, background: '#ff0000', color: 'white' }}>Tensión</td>
-                                  <td colSpan={2} style={{ border: '1px solid black', padding: 6, background: '#ff0000', color: 'white' }}>Acc Int/min</td>
-                                  <td style={{ border: '1px solid black', padding: 6, background: getBg(pct_acc_per_min), color: getColor(pct_acc_per_min) }}>{pct_acc_per_min}%</td>
-                                </tr>
-                                <tr style={{ background: 'white', color: 'black', fontWeight: 'bold' }}>
-                                  <td colSpan={2} style={{ border: '1px solid black', padding: 6, background: '#a9d08e', color: 'black' }}>Duración</td>
-                                  <td colSpan={2} style={{ border: '1px solid black', padding: 6, background: '#a9d08e', color: 'black' }}>Mts/min</td>
-                                  <td style={{ border: '1px solid black', padding: 6, background: getBg(pct_mts_min), color: getColor(pct_mts_min) }}>{pct_mts_min}%</td>
-                                </tr>
-                                <tr style={{ background: 'white', color: 'black', fontWeight: 'bold' }}>
-                                  <td colSpan={2} style={{ border: '1px solid black', padding: 6, background: '#548235', color: 'white' }}>Velocidad</td>
-                                  <td colSpan={2} style={{ border: '1px solid black', padding: 6, background: '#548235', color: 'white' }}>Sprint (n)</td>
-                                  <td style={{ border: '1px solid black', padding: 6, background: getBg(pct_sprints), color: getColor(pct_sprints) }}>{pct_sprints}%</td>
-                                </tr>
-                              </>
-                            )
-                          })()}
-                        </tbody>
-                      </table>
+                        {/* IMPACTO DE LA SESION PORCENTUAL TABLE */}
+                        <div>
+                          <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: 12, padding: 16, border: '1px solid rgba(255,255,255,0.05)', height: '100%' }}>
+                            <h4 style={{ color: 'var(--snow)', fontSize: 12, margin: '0 0 16px 0', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Impacto Porcentual Detallado</h4>
+                            
+                            {(() => {
+                              const pct_acc_int_tot = base_acc_int_tot ? Math.round((val_acc_int_tot/base_acc_int_tot)*100) : 0;
+                              const pct_dist_v4 = base_dist_v4 ? Math.round((val_dist_v4/base_dist_v4)*100) : 0;
+                              const pct_dist_v5 = base_dist_v5 ? Math.round((val_dist_v5/base_dist_v5)*100) : 0;
+                              
+                              const pct_acc_per_min = base_acc_per_min ? Math.round((val_acc_per_min/base_acc_per_min)*100) : 0;
+                              const pct_mts_min = base_mts_min ? Math.round((val_mts_min/base_mts_min)*100) : 0;
+                              const pct_sprints = base_sprints ? Math.round((val_sprints/base_sprints)*100) : 0;
+
+                              const rowStyle = { borderBottom: '1px solid rgba(255,255,255,0.03)' };
+                              const catStyle = { color: 'var(--silver)', fontSize: 10, fontWeight: 700, padding: 12, textTransform: 'uppercase' as any };
+                              
+                              return (
+                                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                                  <tbody>
+                                    {/* VOLUMEN */}
+                                    <tr style={rowStyle}>
+                                      <td rowSpan={3} style={{ ...catStyle, verticalAlign: 'middle', borderRight: '1px solid rgba(255,255,255,0.05)' }}>Volumen</td>
+                                      <td style={{ padding: '10px 12px' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                          <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#ef4444' }}></div>
+                                          <div>
+                                            <div style={{ color: 'var(--snow)', fontSize: 12, fontWeight: 600 }}>Tensión</div>
+                                            <div style={{ color: 'var(--fog)', fontSize: 10 }}>Acc Int Tot</div>
+                                          </div>
+                                        </div>
+                                      </td>
+                                      <td style={{ textAlign: 'right', padding: '10px 12px' }}>{renderPctBadge(val_acc_int_tot, base_acc_int_tot)}</td>
+                                    </tr>
+                                    <tr style={rowStyle}>
+                                      <td style={{ padding: '10px 12px' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                          <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#a3e635' }}></div>
+                                          <div>
+                                            <div style={{ color: 'var(--snow)', fontSize: 12, fontWeight: 600 }}>Duración</div>
+                                            <div style={{ color: 'var(--fog)', fontSize: 10 }}>HSR (m)</div>
+                                          </div>
+                                        </div>
+                                      </td>
+                                      <td style={{ textAlign: 'right', padding: '10px 12px' }}>{renderPctBadge(val_dist_v4, base_dist_v4)}</td>
+                                    </tr>
+                                    <tr style={rowStyle}>
+                                      <td style={{ padding: '10px 12px' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                          <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#22c55e' }}></div>
+                                          <div>
+                                            <div style={{ color: 'var(--snow)', fontSize: 12, fontWeight: 600 }}>Velocidad</div>
+                                            <div style={{ color: 'var(--fog)', fontSize: 10 }}>Dist Sprint</div>
+                                          </div>
+                                        </div>
+                                      </td>
+                                      <td style={{ textAlign: 'right', padding: '10px 12px' }}>{renderPctBadge(val_dist_v5, base_dist_v5)}</td>
+                                    </tr>
+                                    {/* INTENSIDAD */}
+                                    <tr style={rowStyle}>
+                                      <td rowSpan={3} style={{ ...catStyle, verticalAlign: 'middle', borderRight: '1px solid rgba(255,255,255,0.05)', paddingTop: 20 }}>Intensidad</td>
+                                      <td style={{ padding: '10px 12px', paddingTop: 20 }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                          <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#ef4444' }}></div>
+                                          <div>
+                                            <div style={{ color: 'var(--snow)', fontSize: 12, fontWeight: 600 }}>Tensión</div>
+                                            <div style={{ color: 'var(--fog)', fontSize: 10 }}>Acc Int/min</div>
+                                          </div>
+                                        </div>
+                                      </td>
+                                      <td style={{ textAlign: 'right', padding: '10px 12px', paddingTop: 20 }}>{renderPctBadge(val_acc_per_min, base_acc_per_min)}</td>
+                                    </tr>
+                                    <tr style={rowStyle}>
+                                      <td style={{ padding: '10px 12px' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                          <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#a3e635' }}></div>
+                                          <div>
+                                            <div style={{ color: 'var(--snow)', fontSize: 12, fontWeight: 600 }}>Duración</div>
+                                            <div style={{ color: 'var(--fog)', fontSize: 10 }}>Mts/min</div>
+                                          </div>
+                                        </div>
+                                      </td>
+                                      <td style={{ textAlign: 'right', padding: '10px 12px' }}>{renderPctBadge(val_mts_min, base_mts_min)}</td>
+                                    </tr>
+                                    <tr>
+                                      <td style={{ padding: '10px 12px' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                          <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#22c55e' }}></div>
+                                          <div>
+                                            <div style={{ color: 'var(--snow)', fontSize: 12, fontWeight: 600 }}>Velocidad</div>
+                                            <div style={{ color: 'var(--fog)', fontSize: 10 }}>Sprint (n)</div>
+                                          </div>
+                                        </div>
+                                      </td>
+                                      <td style={{ textAlign: 'right', padding: '10px 12px' }}>{renderPctBadge(val_sprints, base_sprints)}</td>
+                                    </tr>
+                                  </tbody>
+                                </table>
+                              )
+                            })()}
+                          </div>
+                        </div>
+                      </div>
+
                     </div>
                   )
                 })()}
