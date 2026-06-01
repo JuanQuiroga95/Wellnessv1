@@ -32,7 +32,6 @@ export async function GET(req: NextRequest) {
     const clubId = s.clubId ? Number(s.clubId) : null
     const isMaster = s.rol === 'master_admin' && !s.clubId
     const sql = getDb()
-
     if (!isMaster && !clubId) return NextResponse.json([])
 
     // Wellness semanal: recuperamos TODAS tus métricas de promedio
@@ -101,10 +100,10 @@ export async function GET(req: NextRequest) {
              AVG(COALESCE(g.duracion_min,0)) AS avg_duracion,
              COUNT(g.id)::int AS registros
       FROM gps_logs g
-      JOIN sesiones_plan s ON s.id = g.sesion_id
+      LEFT JOIN sesiones_plan s ON s.id = g.sesion_id
       LEFT JOIN canchas c ON c.id = s.cancha_id
       WHERE g.fecha >= ${fDesde}::date AND g.fecha <= ${fHasta}::timestamp
-        AND (${isMaster}::boolean OR s.club_id = ${clubId})
+        AND (${isMaster}::boolean OR g.club_id = ${clubId})
       GROUP BY s.titulo
       ORDER BY registros DESC`
 
@@ -118,9 +117,9 @@ export async function GET(req: NextRequest) {
              AVG(g.dec2 + g.dec3) AS decel,
              AVG(g.n_sprints) AS sprints
       FROM gps_logs g
-      JOIN sesiones_plan s ON s.id = g.sesion_id
+      LEFT JOIN sesiones_plan s ON s.id = g.sesion_id
       WHERE g.fecha >= ${fDesde}::date AND g.fecha <= ${fHasta}::timestamp
-        AND (${isMaster}::boolean OR s.club_id = ${clubId})
+        AND (${isMaster}::boolean OR g.club_id = ${clubId})
       GROUP BY g.fecha, s.objetivo
       ORDER BY g.fecha ASC`
 
@@ -131,9 +130,9 @@ export async function GET(req: NextRequest) {
              AVG(g.dec2 + g.dec3) AS decel,
              AVG(g.n_sprints) AS sprints
       FROM gps_logs g
-      JOIN sesiones_plan s ON s.id = g.sesion_id
+      LEFT JOIN sesiones_plan s ON s.id = g.sesion_id
       WHERE g.fecha >= ${fDesde}::date AND g.fecha <= ${fHasta}::timestamp
-        AND (${isMaster}::boolean OR s.club_id = ${clubId})
+        AND (${isMaster}::boolean OR g.club_id = ${clubId})
       GROUP BY DATE_TRUNC('week', g.fecha)
       ORDER BY semana ASC`
 
