@@ -9,6 +9,7 @@ import WellnessTrend from '@/components/charts/WellnessTrend'
 import { buildACWRHistory, buildDailyDetail } from '@/lib/acwr'
 import EvaluacionesPanelFull from './EvaluacionesPanel'
 import AnalyticsPanel from './AnalyticsPanel'
+import PerfilNeuromuscularPanel from './PerfilNeuromuscularPanel'
 import EnfermeriaPanel from './EnfermeriaPanel'
 import TacticalBoard, { TacticalPreview } from './TacticalBoard'
 import CanchasPanel from './CanchasPanel'
@@ -86,7 +87,7 @@ function compressImage(dataUrl: string, maxSize = 400, quality = 0.7): Promise<s
   })
 }
 
-const TABS = [{id:'team',label:'Equipo'},{id:'calendario',label:'📅 Calendario'},{id:'analytics',label:'Analytics'},{id:'minutos',label:'Minutaje'},{id:'control-carga-calc',label:'🏋️ Ctrl. Carga Calc'},{id:'control-carga-gps',label:'📡 Ctrl. Carga GPS'},{id:'acumulado',label:'📈 Acumulado Ind.'},{id:'cambio-carga',label:'Cambio de Carga'},{id:'expo-ai',label:'⚡ Expo. AI'},{id:'evaluaciones',label:'📋 Evaluaciones'},{id:'comparativa',label:'⚖️ Comparativa'},{id:'lesiones',label:'🏥 Enfermería'},{id:'gps',label:'📡 GPS'},{id:'vinculaciones',label:'🔗 ACWR'},{id:'canchas',label:'🏟️ Estadios'},{id:'players',label:'Jugadores'},{id:'biblioteca',label:'📚 Biblioteca'},{id:'manual',label:'📖 Manual'}]
+const TABS = [{id:'team',label:'Equipo'},{id:'calendario',label:'📅 Calendario'},{id:'analytics',label:'Analytics'},{id:'neuromuscular',label:'Neuromuscular'},{id:'minutos',label:'Minutaje'},{id:'control-carga-calc',label:'🏋️ Ctrl. Carga Calc'},{id:'control-carga-gps',label:'📡 Ctrl. Carga GPS'},{id:'acumulado',label:'📈 Acumulado Ind.'},{id:'cambio-carga',label:'Cambio de Carga'},{id:'expo-ai',label:'⚡ Expo. AI'},{id:'evaluaciones',label:'📋 Evaluaciones'},{id:'comparativa',label:'⚖️ Comparativa'},{id:'lesiones',label:'🏥 Enfermería'},{id:'gps',label:'📡 GPS'},{id:'vinculaciones',label:'🔗 ACWR'},{id:'canchas',label:'🏟️ Estadios'},{id:'players',label:'Jugadores'},{id:'biblioteca',label:'📚 Biblioteca'},{id:'manual',label:'📖 Manual'}]
 
 const SIDEBAR_GROUPS = [
   { label:'General', icon:'🏠', items:[
@@ -103,8 +104,9 @@ const SIDEBAR_GROUPS = [
   ]},
   { label:'Análisis', icon:'🔍', items:[
     {id:'analytics',label:'Analytics',icon:'📊'},
-    {id:'minutos',label:'Minutaje',icon:'⏱️'},
     {id:'expo-ai',label:'Expo. AI',icon:'⚡'},
+    {id:'neuromuscular',label:'Neuromuscular',icon:'🧠'},
+    {id:'minutos',label:'Minutaje',icon:'⏱️'},
     {id:'comparativa',label:'Comparativa',icon:'⚖️'},
     {id:'gps',label:'GPS',icon:'🛰️'},
     {id:'vinculaciones',label:'ACWR',icon:'🔗'},
@@ -446,6 +448,7 @@ export default function CoachClient({ session, teamData, today }) {
         )}
 
         {tab==='analytics' && <AnalyticsPanel />}
+        {tab==='neuromuscular' && <PerfilNeuromuscularPanel />}
         {tab==='calendario' && <CalendarioPanel teamData={teamData} />}
         {tab==='minutos' && <MinutosPanel teamData={teamData} />}
         {tab==='carga-externa' && <CargaExternaPanel />}
