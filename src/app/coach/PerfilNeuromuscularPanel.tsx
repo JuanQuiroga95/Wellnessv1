@@ -90,20 +90,49 @@ export default function PerfilNeuromuscularPanel() {
                       <tr style={{ background:'rgba(255,255,255,.03)' }}>
                         <th style={{ padding:10, textAlign:'left', color:'var(--silver)', fontWeight:600 }}>Zona</th>
                         <th style={{ padding:10, textAlign:'left', color:'var(--silver)', fontWeight:600 }}>Métrica</th>
-                        <th style={{ padding:10, textAlign:'right', color:'var(--silver)', fontWeight:600 }}>Valor</th>
+                        <th style={{ padding:10, textAlign:'right', color:'var(--silver)', fontWeight:600 }}>MD Prom.</th>
+                        <th style={{ padding:10, textAlign:'right', color:'var(--silver)', fontWeight:600 }}>MD</th>
                         <th style={{ padding:10, textAlign:'center', color:'var(--silver)', fontWeight:600 }}>%</th>
                       </tr>
                     </thead>
                     <tbody>
                       {( () => {
-                        const r = rows[0]
+                        const r = rows[0] || {}
+                        // Valores base del Excel "GPS APP"
+                        const MD_PROMEDIO = {
+                          acc_per_min: 3,         // Intensidad > Tensión
+                          mts_min: 85,            // Intensidad > Duración
+                          sprints: 14,            // Intensidad > Velocidad
+                          acc_int_tot: 75,        // Volumen > Tensión
+                          dist_v4: 500,           // Volumen > Duración (HSR)
+                          dist_v5: 150            // Volumen > Velocidad (Dist Sprint)
+                        }
+
+                        // Calcular valores actuales de la sesión (MD)
+                        const val_acc_per_min = r.avg_duracion ? (r.avg_acc_int / r.avg_duracion) : 0;
+                        const val_mts_min = r.avg_mts_min || 0;
+                        const val_sprints = r.avg_sprints || 0;
+                        const val_acc_int_tot = r.avg_acc_int || 0;
+                        const val_dist_v4 = r.avg_dist_v4 || 0;
+                        const val_dist_v5 = r.avg_dist_v5 || 0;
+
+                        // Calcular porcentajes
+                        const pct_acc_per_min = MD_PROMEDIO.acc_per_min ? Math.round((val_acc_per_min / MD_PROMEDIO.acc_per_min) * 100) : 0;
+                        const pct_mts_min = MD_PROMEDIO.mts_min ? Math.round((val_mts_min / MD_PROMEDIO.mts_min) * 100) : 0;
+                        const pct_sprints = MD_PROMEDIO.sprints ? Math.round((val_sprints / MD_PROMEDIO.sprints) * 100) : 0;
+                        const pct_acc_int_tot = MD_PROMEDIO.acc_int_tot ? Math.round((val_acc_int_tot / MD_PROMEDIO.acc_int_tot) * 100) : 0;
+                        const pct_dist_v4 = MD_PROMEDIO.dist_v4 ? Math.round((val_dist_v4 / MD_PROMEDIO.dist_v4) * 100) : 0;
+                        const pct_dist_v5 = MD_PROMEDIO.dist_v5 ? Math.round((val_dist_v5 / MD_PROMEDIO.dist_v5) * 100) : 0;
+
+                        const getIcon = (pct: number) => pct >= 85 ? '✅' : pct >= 60 ? '⚠️' : '❌'
+
                         const impactData = [
-                          { category: 'Intensidad', label: 'Tensión', sub: 'Acc/min', val: (r.avg_acel / (r.avg_duracion||1)).toFixed(2), pct: 115, icon: '✅' },
-                          { category: 'Intensidad', label: 'Duración', sub: 'Mts/min', val: r.avg_mts_min.toFixed(1), pct: 99, icon: '✅' },
-                          { category: 'Intensidad', label: 'Velocidad', sub: 'Sprint', val: r.avg_sprints.toFixed(1), pct: 13, icon: '❌' },
-                          { category: 'Volumen', label: 'Tensión', sub: 'Acc int', val: r.avg_acc_int.toFixed(1), pct: 46, icon: '✅' },
-                          { category: 'Volumen', label: 'Duración', sub: 'Dist 19 km/h', val: r.avg_dist_v4.toFixed(0), pct: 27, icon: '⚠️' },
-                          { category: 'Volumen', label: 'Velocidad', sub: 'Dist 24 km/h', val: r.avg_dist_v5.toFixed(0), pct: 9, icon: '❌' },
+                          { category: 'Intensidad', label: 'Tensión', sub: 'Acc Int/min', base: MD_PROMEDIO.acc_per_min.toFixed(1), val: val_acc_per_min.toFixed(2), pct: pct_acc_per_min, icon: getIcon(pct_acc_per_min) },
+                          { category: 'Intensidad', label: 'Duración', sub: 'Mts/min', base: MD_PROMEDIO.mts_min.toFixed(0), val: val_mts_min.toFixed(1), pct: pct_mts_min, icon: getIcon(pct_mts_min) },
+                          { category: 'Intensidad', label: 'Velocidad', sub: 'Sprint (n)', base: MD_PROMEDIO.sprints.toFixed(0), val: val_sprints.toFixed(1), pct: pct_sprints, icon: getIcon(pct_sprints) },
+                          { category: 'Volumen', label: 'Tensión', sub: 'Acc Int Tot', base: MD_PROMEDIO.acc_int_tot.toFixed(0), val: val_acc_int_tot.toFixed(1), pct: pct_acc_int_tot, icon: getIcon(pct_acc_int_tot) },
+                          { category: 'Volumen', label: 'Duración', sub: 'HSR (m)', base: MD_PROMEDIO.dist_v4.toFixed(0), val: val_dist_v4.toFixed(0), pct: pct_dist_v4, icon: getIcon(pct_dist_v4) },
+                          { category: 'Volumen', label: 'Velocidad', sub: 'Dist Sprint', base: MD_PROMEDIO.dist_v5.toFixed(0), val: val_dist_v5.toFixed(0), pct: pct_dist_v5, icon: getIcon(pct_dist_v5) },
                         ]
                         return impactData.map((row, idx) => (
                           <tr key={idx} style={{ borderBottom:'1px solid rgba(255,255,255,.05)' }}>
@@ -119,10 +148,11 @@ export default function PerfilNeuromuscularPanel() {
                               <div style={{ fontWeight:600, color:'var(--snow)' }}>{row.label}</div>
                               <div style={{ fontSize:10, color:'var(--fog)' }}>{row.sub}</div>
                             </td>
+                            <td style={{ padding:10, textAlign:'right', fontFamily:'DM Mono,monospace', fontWeight:500, color:'var(--silver)' }}>{row.base}</td>
                             <td style={{ padding:10, textAlign:'right', fontFamily:'DM Mono,monospace', fontWeight:700, color:'var(--lime)' }}>{row.val}</td>
                             <td style={{ padding:10, textAlign:'center' }}>
                               <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:4 }}>
-                                <span style={{ fontSize:10, color: row.pct > 80 ? 'var(--lime)' : row.pct > 40 ? '#f59e0b' : '#ef4444' }}>{row.pct}%</span>
+                                <span style={{ fontSize:10, color: row.pct >= 85 ? 'var(--lime)' : row.pct >= 60 ? '#f59e0b' : '#ef4444' }}>{row.pct}%</span>
                                 <span>{row.icon}</span>
                               </div>
                             </td>

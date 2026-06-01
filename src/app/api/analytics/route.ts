@@ -110,6 +110,7 @@ export async function GET(req: NextRequest) {
     // Evolución diaria para gráficos de línea (Image 3)
     const dailyEvolution = await sql`
       SELECT g.fecha::text,
+             s.objetivo,
              AVG(g.max_velocity) AS max_vel,
              AVG(g.dist_per_min) AS mts_min,
              AVG(g.acc2 + g.acc3) AS acel,
@@ -119,8 +120,21 @@ export async function GET(req: NextRequest) {
       JOIN sesiones_plan s ON s.id = g.sesion_id
       WHERE g.fecha >= ${fDesde}::date AND g.fecha <= ${fHasta}::timestamp
         AND (${isMaster}::boolean OR s.club_id = ${clubId})
-      GROUP BY g.fecha
+      GROUP BY g.fecha, s.objetivo
       ORDER BY g.fecha ASC`
+
+    // Balance neuromuscular semanal
+    const weeklyGps = await sql`
+      SELECT TO_CHAR(DATE_TRUNC('week', g.fecha), 'YYYY-MM-DD') AS semana,
+             AVG(g.acc2 + g.acc3) AS acel,
+             AVG(g.dec2 + g.dec3) AS decel,
+             AVG(g.n_sprints) AS sprints
+      FROM gps_logs g
+      JOIN sesiones_plan s ON s.id = g.sesion_id
+      WHERE g.fecha >= ${fDesde}::date AND g.fecha <= ${fHasta}::timestamp
+        AND (${isMaster}::boolean OR s.club_id = ${clubId})
+      GROUP BY DATE_TRUNC('week', g.fecha)
+      ORDER BY semana ASC`
 
     // Contar logs sin cancha asignada para avisar al usuario
     const missingCourts = await sql`
@@ -154,8 +168,15 @@ export async function GET(req: NextRequest) {
       })),
       dailyEvolution: dailyEvolution.map(r => ({
         fecha: r.fecha,
+        objetivo: r.objetivo,
         max_vel: Number(r.max_vel),
         mts_min: Number(r.mts_min),
+        acel: Number(r.acel),
+        decel: Number(r.decel),
+        sprints: Number(r.sprints)
+      })),
+      weeklyGps: weeklyGps.map(r => ({
+        semana: r.semana,
         acel: Number(r.acel),
         decel: Number(r.decel),
         sprints: Number(r.sprints)
