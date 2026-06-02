@@ -171,7 +171,8 @@ export default function PerfilNeuromuscularPanel() {
                 {/* MAIN CONTENT */}
                 <div style={{ flex: 1, display:'flex', flexDirection:'column', gap:20 }}>
                   {( () => {
-                    const r = rows.find((row: any) => row.md_label === selectedMD);
+                    const norm = (s: string) => (s||'').replace(/\s+/g, '').toUpperCase();
+                    const r = rows.find((row: any) => norm(row.md_label) === norm(selectedMD));
                     if (!r) {
                       return (
                         <div style={{ padding: 60, textAlign: 'center', color: 'var(--silver)', background: 'var(--ink2)', borderRadius: 20, border: '1px dashed var(--mist)', flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>

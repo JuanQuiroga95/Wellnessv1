@@ -85,7 +85,12 @@ export async function GET(req: NextRequest) {
 
     // Análisis de carga: Neuromuscular vs Metabólica x Estadio + métricas detalladas
     const loadAnalysis = await sql`
-      SELECT s.titulo AS md_label,
+      SELECT COALESCE(
+               s.titulo,
+               s.objetivo,
+               (SELECT COALESCE(s2.titulo, s2.objetivo) FROM sesiones_plan s2 WHERE s2.fecha = g.fecha::date AND s2.club_id = g.club_id AND (s2.titulo ILIKE 'MD%' OR s2.objetivo ILIKE 'MD%') LIMIT 1),
+               'MD'
+             ) AS md_label,
              MAX(c.nombre) AS cancha_nombre, MAX(c.largo_m) AS largo_m, MAX(c.ancho_m) AS ancho_m,
              AVG(g.dist_total) AS avg_dist_total,
              AVG(COALESCE(g.dist_hir,0)) AS avg_dist_hir,
@@ -104,7 +109,7 @@ export async function GET(req: NextRequest) {
       LEFT JOIN canchas c ON c.id = s.cancha_id
       WHERE g.fecha >= ${fDesde}::date AND g.fecha <= ${fHasta}::timestamp
         AND (${isMaster}::boolean OR g.club_id = ${clubId})
-      GROUP BY s.titulo
+      GROUP BY 1
       ORDER BY registros DESC`
 
     // Evolución diaria para gráficos de línea (Image 3)
