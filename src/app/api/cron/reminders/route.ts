@@ -2,8 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getDb } from '@/lib/db'
 import { Resend } from 'resend'
 
-// Usa onboarding@resend.dev para pruebas, o un email de tu dominio verificado
-const resend = new Resend(process.env.RESEND_API_KEY)
+// Instanciado dentro de la función GET para evitar errores de build en Vercel
 
 export async function GET(req: NextRequest) {
   // Validación de seguridad básica (se puede usar un header Authorization o un query param)
@@ -60,6 +59,7 @@ export async function GET(req: NextRequest) {
 
   // Enviar los emails
   const appUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://tu-plataforma.com'
+  const resend = new Resend(process.env.RESEND_API_KEY)
   
   const results = await Promise.all(players.map(async (p) => {
     try {
