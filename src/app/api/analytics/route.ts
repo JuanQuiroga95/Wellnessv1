@@ -102,14 +102,17 @@ export async function GET(req: NextRequest) {
                AVG(COALESCE(g.dec2,0) + COALESCE(g.dec3,0)) AS avg_decel_total,
                AVG(COALESCE(g.acc3,0)) AS avg_acc_int,
                AVG(COALESCE(g.n_sprints,0)) AS avg_sprints,
-               AVG(COALESCE(g.max_velocity,0)) AS avg_max_vel,
-               AVG(COALESCE(g.dist_per_min,0)) AS avg_mts_min,
-               AVG(COALESCE(g.duracion_min,0)) AS avg_duracion,
+               AVG(NULLIF(COALESCE(g.max_velocity,0), 0)) AS avg_max_vel,
+               AVG(NULLIF(COALESCE(g.dist_per_min,0), 0)) AS avg_mts_min,
+               AVG(NULLIF(COALESCE(g.duracion_min,0), 0)) AS avg_duracion,
                COUNT(g.id)::int AS registros
         FROM gps_logs g
+        JOIN jugadores j ON j.id = g.jugador_id
+        JOIN usuarios u ON u.id = j.usuario_id
         LEFT JOIN sesiones_plan s ON s.id = g.sesion_id
         LEFT JOIN canchas c ON c.id = s.cancha_id
         WHERE g.fecha >= ${fDesde}::date AND g.fecha <= ${fHasta}::timestamp
+          AND u.activo = true
           AND (${isMaster}::boolean OR g.club_id = ${clubId})
         GROUP BY 1, 2
       )
@@ -121,14 +124,17 @@ export async function GET(req: NextRequest) {
     const dailyEvolution = await sql`
       SELECT g.fecha::text,
              s.objetivo,
-             AVG(g.max_velocity) AS max_vel,
-             AVG(g.dist_per_min) AS mts_min,
+             AVG(NULLIF(g.max_velocity, 0)) AS max_vel,
+             AVG(NULLIF(g.dist_per_min, 0)) AS mts_min,
              AVG(g.acc2 + g.acc3) AS acel,
              AVG(g.dec2 + g.dec3) AS decel,
              AVG(g.n_sprints) AS sprints
       FROM gps_logs g
+      JOIN jugadores j ON j.id = g.jugador_id
+      JOIN usuarios u ON u.id = j.usuario_id
       LEFT JOIN sesiones_plan s ON s.id = g.sesion_id
       WHERE g.fecha >= ${fDesde}::date AND g.fecha <= ${fHasta}::timestamp
+        AND u.activo = true
         AND (${isMaster}::boolean OR g.club_id = ${clubId})
       GROUP BY g.fecha, s.objetivo
       ORDER BY g.fecha ASC`
@@ -140,8 +146,11 @@ export async function GET(req: NextRequest) {
              AVG(g.dec2 + g.dec3) AS decel,
              AVG(g.n_sprints) AS sprints
       FROM gps_logs g
+      JOIN jugadores j ON j.id = g.jugador_id
+      JOIN usuarios u ON u.id = j.usuario_id
       LEFT JOIN sesiones_plan s ON s.id = g.sesion_id
       WHERE g.fecha >= ${fDesde}::date AND g.fecha <= ${fHasta}::timestamp
+        AND u.activo = true
         AND (${isMaster}::boolean OR g.club_id = ${clubId})
       GROUP BY DATE_TRUNC('week', g.fecha)
       ORDER BY semana ASC`
@@ -178,11 +187,13 @@ export async function GET(req: NextRequest) {
             AVG(COALESCE(dec2,0) + COALESCE(dec3,0)) AS avg_decel,
             AVG(COALESCE(acc3,0)) AS avg_acc_int,
             AVG(COALESCE(n_sprints,0)) AS avg_sprints,
-            AVG(COALESCE(max_velocity,0)) AS avg_max_vel,
-            AVG(COALESCE(dist_per_min,0)) AS avg_mts_min,
+            AVG(NULLIF(COALESCE(max_velocity,0), 0)) AS avg_max_vel,
+            AVG(NULLIF(COALESCE(dist_per_min,0), 0)) AS avg_mts_min,
             AVG(COALESCE(duracion_min,0)) AS avg_duracion
-          FROM gps_logs
-          WHERE sesion_id = ANY(${ids}::int[])`
+          FROM gps_logs g
+          JOIN jugadores j ON j.id = g.jugador_id
+          JOIN usuarios u ON u.id = j.usuario_id
+          WHERE g.sesion_id = ANY(${ids}::int[]) AND u.activo = true`
         
         if (res.length > 0 && res[0].avg_dist_total != null) {
           mdPromedio = {
