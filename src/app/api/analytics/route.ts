@@ -85,32 +85,37 @@ export async function GET(req: NextRequest) {
 
     // Análisis de carga: Neuromuscular vs Metabólica x Estadio + métricas detalladas
     const loadAnalysis = await sql`
-      SELECT COALESCE(
-               s.titulo,
-               s.objetivo,
-               (SELECT COALESCE(s2.titulo, s2.objetivo) FROM sesiones_plan s2 WHERE s2.fecha = g.fecha::date AND s2.club_id = g.club_id AND (s2.titulo ILIKE 'MD%' OR s2.objetivo ILIKE 'MD%') LIMIT 1),
-               'MD'
-             ) AS md_label,
-             MAX(c.nombre) AS cancha_nombre, MAX(c.largo_m) AS largo_m, MAX(c.ancho_m) AS ancho_m,
-             AVG(g.dist_total) AS avg_dist_total,
-             AVG(COALESCE(g.dist_hir,0)) AS avg_dist_hir,
-             AVG(COALESCE(g.dist_v4,0)) AS avg_dist_v4,
-             AVG(COALESCE(g.dist_v5,0)) AS avg_dist_v5,
-             AVG(COALESCE(g.acc2,0) + COALESCE(g.acc3,0)) AS avg_acel_total,
-             AVG(COALESCE(g.dec2,0) + COALESCE(g.dec3,0)) AS avg_decel_total,
-             AVG(COALESCE(g.acc3,0)) AS avg_acc_int,
-             AVG(COALESCE(g.n_sprints,0)) AS avg_sprints,
-             AVG(COALESCE(g.max_velocity,0)) AS avg_max_vel,
-             AVG(COALESCE(g.dist_per_min,0)) AS avg_mts_min,
-             AVG(COALESCE(g.duracion_min,0)) AS avg_duracion,
-             COUNT(g.id)::int AS registros
-      FROM gps_logs g
-      LEFT JOIN sesiones_plan s ON s.id = g.sesion_id
-      LEFT JOIN canchas c ON c.id = s.cancha_id
-      WHERE g.fecha >= ${fDesde}::date AND g.fecha <= ${fHasta}::timestamp
-        AND (${isMaster}::boolean OR g.club_id = ${clubId})
-      GROUP BY 1
-      ORDER BY registros DESC`
+      WITH session_avgs AS (
+        SELECT COALESCE(
+                 s.titulo,
+                 s.objetivo,
+                 (SELECT COALESCE(s2.titulo, s2.objetivo) FROM sesiones_plan s2 WHERE s2.fecha = g.fecha::date AND s2.club_id = g.club_id AND (s2.titulo ILIKE 'MD%' OR s2.objetivo ILIKE 'MD%') LIMIT 1),
+                 'MD'
+               ) AS md_label,
+               g.fecha::date AS session_date,
+               MAX(c.nombre) AS cancha_nombre, MAX(c.largo_m) AS largo_m, MAX(c.ancho_m) AS ancho_m,
+               AVG(g.dist_total) AS avg_dist_total,
+               AVG(COALESCE(g.dist_hir,0)) AS avg_dist_hir,
+               AVG(COALESCE(g.dist_v4,0)) AS avg_dist_v4,
+               AVG(COALESCE(g.dist_v5,0)) AS avg_dist_v5,
+               AVG(COALESCE(g.acc2,0) + COALESCE(g.acc3,0)) AS avg_acel_total,
+               AVG(COALESCE(g.dec2,0) + COALESCE(g.dec3,0)) AS avg_decel_total,
+               AVG(COALESCE(g.acc3,0)) AS avg_acc_int,
+               AVG(COALESCE(g.n_sprints,0)) AS avg_sprints,
+               AVG(COALESCE(g.max_velocity,0)) AS avg_max_vel,
+               AVG(COALESCE(g.dist_per_min,0)) AS avg_mts_min,
+               AVG(COALESCE(g.duracion_min,0)) AS avg_duracion,
+               COUNT(g.id)::int AS registros
+        FROM gps_logs g
+        LEFT JOIN sesiones_plan s ON s.id = g.sesion_id
+        LEFT JOIN canchas c ON c.id = s.cancha_id
+        WHERE g.fecha >= ${fDesde}::date AND g.fecha <= ${fHasta}::timestamp
+          AND (${isMaster}::boolean OR g.club_id = ${clubId})
+        GROUP BY 1, 2
+      )
+      SELECT DISTINCT ON (md_label) *
+      FROM session_avgs
+      ORDER BY md_label, session_date DESC`
 
     // Evolución diaria para gráficos de línea (Image 3)
     const dailyEvolution = await sql`
