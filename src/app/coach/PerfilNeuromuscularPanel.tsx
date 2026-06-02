@@ -188,14 +188,15 @@ export default function PerfilNeuromuscularPanel() {
                   const base_dist_total = p ? p.avg_dist_total : 0;
                   const base_dist_v4 = p ? p.avg_dist_v4 : 0;
                   const base_dist_v5 = p ? p.avg_dist_v5 : 0;
-                  const base_acc_int_tot = p ? p.avg_acc_int : 0;
                   const base_acel = p ? p.avg_acel : 0;
                   const base_decel = p ? p.avg_decel : 0;
+                  const base_sprints = p ? p.avg_sprints : 0;
+                  
+                  const base_acc_int_tot = base_acel + base_decel + base_sprints;
                   
                   const base_mts_min = p ? p.avg_mts_min : 0;
-                  const base_acc_per_min = p && p.avg_duracion ? (p.avg_acc_int / p.avg_duracion) : 0;
+                  const base_acc_per_min = p && p.avg_duracion ? (base_acc_int_tot / p.avg_duracion) : 0;
                   const base_vel_max = p ? p.avg_max_vel : 0;
-                  const base_sprints = p ? p.avg_sprints : 0;
                   const base_max_acc = 0; // Sin datos aún
                   const base_max_dec = 0; // Sin datos aún
 
@@ -203,14 +204,15 @@ export default function PerfilNeuromuscularPanel() {
                   const val_dist_total = r.avg_dist_total || 0;
                   const val_dist_v4 = r.avg_dist_v4 || 0;
                   const val_dist_v5 = r.avg_dist_v5 || 0;
-                  const val_acc_int_tot = r.avg_acc_int || 0;
                   const val_acel = r.avg_acel || 0;
                   const val_decel = r.avg_decel || 0;
+                  const val_sprints = r.avg_sprints || 0;
+
+                  const val_acc_int_tot = val_acel + val_decel + val_sprints;
 
                   const val_mts_min = r.avg_mts_min || 0;
-                  const val_acc_per_min = r.avg_duracion ? (r.avg_acc_int / r.avg_duracion) : 0;
+                  const val_acc_per_min = r.avg_duracion ? (val_acc_int_tot / r.avg_duracion) : 0;
                   const val_vel_max = r.avg_max_vel || 0;
-                  const val_sprints = r.avg_sprints || 0;
                   const val_max_acc = 0;
                   const val_max_dec = 0;
 
@@ -261,7 +263,7 @@ export default function PerfilNeuromuscularPanel() {
                             <table style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse' }}>
                               <thead>
                                 <tr>
-                                  <th style={thStyle}>DT (m)</th><th style={thStyle}>HSR (m)</th><th style={thStyle}>Dist Sprint</th>
+                                  <th style={thStyle}>DT (m)</th><th style={thStyle}>HSR (m)</th><th style={thStyle}>VEL B6</th>
                                   <th style={thStyle}>Acc Int Tot</th><th style={thStyle}>ACC</th><th style={thStyle}>DEC</th>
                                 </tr>
                               </thead>
@@ -312,7 +314,7 @@ export default function PerfilNeuromuscularPanel() {
                             <table style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse' }}>
                               <thead>
                                 <tr>
-                                  <th style={thStyle}>DT (m)</th><th style={thStyle}>HSR (m)</th><th style={thStyle}>Dist Sprint</th>
+                                  <th style={thStyle}>DT (m)</th><th style={thStyle}>HSR (m)</th><th style={thStyle}>VEL B6</th>
                                   <th style={thStyle}>Acc Int Tot</th><th style={thStyle}>ACC</th><th style={thStyle}>DEC</th>
                                 </tr>
                               </thead>
@@ -472,7 +474,7 @@ export default function PerfilNeuromuscularPanel() {
                                           <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#22c55e' }}></div>
                                           <div>
                                             <div style={{ color: 'var(--snow)', fontSize: 12, fontWeight: 600 }}>Velocidad</div>
-                                            <div style={{ color: 'var(--fog)', fontSize: 10 }}>Dist Sprint</div>
+                                            <div style={{ color: 'var(--fog)', fontSize: 10 }}>VEL B6</div>
                                           </div>
                                         </div>
                                       </td>
