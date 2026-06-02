@@ -303,7 +303,7 @@ export default function PerfilNeuromuscularPanel() {
                       <div>
                         <div style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', padding: '8px 16px', borderRadius: '8px 8px 0 0', display: 'flex', gap: 8, alignItems: 'center' }}>
                           <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--snow)' }}></div>
-                          <h4 style={{ color: 'var(--snow)', fontSize: 13, margin: 0, fontWeight: 700, letterSpacing: '0.05em' }}>MD (SESIÓN ACTUAL)</h4>
+                          <h4 style={{ color: 'var(--snow)', fontSize: 13, margin: 0, fontWeight: 700, letterSpacing: '0.05em' }}>{selectedMD === 'MD' ? 'MD (SESIÓN ACTUAL)' : selectedMD}</h4>
                         </div>
                         
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: 16, background: 'rgba(0,0,0,0.2)', padding: 16, borderRadius: '0 0 8px 8px', border: '1px solid rgba(255,255,255,0.05)', borderTop: 'none' }}>

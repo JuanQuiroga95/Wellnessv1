@@ -207,6 +207,7 @@ export async function GET(req: NextRequest) {
         area: Number(r.largo_m) * Number(r.ancho_m),
         metabolic: Number(r.avg_dist_total) + Number(r.avg_dist_hir),
         neuromuscular: Number(r.avg_acel_total) + Number(r.avg_decel_total),
+        avg_dist_total: Number(r.avg_dist_total),
         avg_dist_v4: Number(r.avg_dist_v4),
         avg_dist_v5: Number(r.avg_dist_v5),
         avg_acc_int: Number(r.avg_acc_int),
