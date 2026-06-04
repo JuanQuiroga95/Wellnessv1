@@ -105,6 +105,7 @@ export async function GET(req: NextRequest) {
                AVG(NULLIF(COALESCE(g.max_velocity,0), 0)) AS avg_max_vel,
                AVG(NULLIF(COALESCE(g.dist_per_min,0), 0)) AS avg_mts_min,
                AVG(NULLIF(COALESCE(g.duracion_min,0), 0)) AS avg_duracion,
+               AVG(COALESCE(g.player_load,0)) AS avg_player_load,
                COUNT(g.id)::int AS registros
         FROM gps_logs g
         JOIN jugadores j ON j.id = g.jugador_id
@@ -181,6 +182,7 @@ export async function GET(req: NextRequest) {
         const res = await sql`
           SELECT 
             AVG(dist_total) AS avg_dist_total,
+            AVG(COALESCE(dist_hir,0)) AS avg_dist_hir,
             AVG(COALESCE(dist_v4,0)) AS avg_dist_v4,
             AVG(COALESCE(dist_v5,0)) AS avg_dist_v5,
             AVG(COALESCE(acc2,0) + COALESCE(acc3,0)) AS avg_acel,
@@ -189,7 +191,8 @@ export async function GET(req: NextRequest) {
             AVG(COALESCE(n_sprints,0)) AS avg_sprints,
             AVG(NULLIF(COALESCE(max_velocity,0), 0)) AS avg_max_vel,
             AVG(NULLIF(COALESCE(dist_per_min,0), 0)) AS avg_mts_min,
-            AVG(COALESCE(duracion_min,0)) AS avg_duracion
+            AVG(COALESCE(duracion_min,0)) AS avg_duracion,
+            AVG(COALESCE(player_load,0)) AS avg_player_load
           FROM gps_logs g
           JOIN jugadores j ON j.id = g.jugador_id
           JOIN usuarios u ON u.id = j.usuario_id
@@ -198,6 +201,7 @@ export async function GET(req: NextRequest) {
         if (res.length > 0 && res[0].avg_dist_total != null) {
           mdPromedio = {
             avg_dist_total: Number(res[0].avg_dist_total),
+            avg_dist_hir: Number(res[0].avg_dist_hir),
             avg_dist_v4: Number(res[0].avg_dist_v4),
             avg_dist_v5: Number(res[0].avg_dist_v5),
             avg_acel: Number(res[0].avg_acel),
@@ -206,7 +210,8 @@ export async function GET(req: NextRequest) {
             avg_sprints: Number(res[0].avg_sprints),
             avg_max_vel: Number(res[0].avg_max_vel),
             avg_mts_min: Number(res[0].avg_mts_min),
-            avg_duracion: Number(res[0].avg_duracion)
+            avg_duracion: Number(res[0].avg_duracion),
+            avg_player_load: Number(res[0].avg_player_load)
           }
         }
       }
@@ -224,6 +229,7 @@ export async function GET(req: NextRequest) {
         metabolic: Number(r.avg_dist_total) + Number(r.avg_dist_hir),
         neuromuscular: Number(r.avg_acel_total) + Number(r.avg_decel_total),
         avg_dist_total: Number(r.avg_dist_total),
+        avg_dist_hir: Number(r.avg_dist_hir),
         avg_dist_v4: Number(r.avg_dist_v4),
         avg_dist_v5: Number(r.avg_dist_v5),
         avg_acc_int: Number(r.avg_acc_int),
@@ -233,6 +239,7 @@ export async function GET(req: NextRequest) {
         avg_duracion: Number(r.avg_duracion),
         avg_acel: Number(r.avg_acel_total),
         avg_decel: Number(r.avg_decel_total),
+        avg_player_load: Number(r.avg_player_load),
         registros: r.registros
       })),
       dailyEvolution: dailyEvolution.map(r => ({

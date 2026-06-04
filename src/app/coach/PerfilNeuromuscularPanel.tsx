@@ -186,35 +186,53 @@ export default function PerfilNeuromuscularPanel() {
                   // Valores base calculados dinámicamente o 0
                   const p = data?.mdPromedio;
                   const base_dist_total = p ? p.avg_dist_total : 0;
+                  const base_dist_hir = p ? (p.avg_dist_hir || p.avg_dist_v4) : 0;
                   const base_dist_v4 = p ? p.avg_dist_v4 : 0;
                   const base_dist_v5 = p ? p.avg_dist_v5 : 0;
                   const base_acel = p ? p.avg_acel : 0;
                   const base_decel = p ? p.avg_decel : 0;
                   const base_sprints = p ? p.avg_sprints : 0;
+                  const base_player_load = p ? (p.avg_player_load || 0) : 0;
                   
                   const base_acc_int_tot = base_acel + base_decel + base_sprints;
                   
                   const base_mts_min = p ? p.avg_mts_min : 0;
-                  const base_acc_per_min = p && p.avg_duracion ? (base_acc_int_tot / p.avg_duracion) : 0;
+                  const base_duracion = p ? p.avg_duracion : 0;
+                  const base_acc_per_min = base_duracion ? (base_acc_int_tot / base_duracion) : 0;
                   const base_vel_max = p ? p.avg_max_vel : 0;
-                  const base_max_acc = 0; // Sin datos aún
-                  const base_max_dec = 0; // Sin datos aún
+                  const base_max_acc = 0;
+                  const base_max_dec = 0;
+                  // Intensidad derivada por minuto
+                  const base_hsr_per_min = base_duracion ? (base_dist_v4 / base_duracion) : 0;
+                  const base_sprint_dist_per_min = base_duracion ? (base_dist_v5 / base_duracion) : 0;
+                  const base_acc_per_min_solo = base_duracion ? (base_acel / base_duracion) : 0;
+                  const base_dec_per_min = base_duracion ? (base_decel / base_duracion) : 0;
+                  const base_pl_per_min = base_duracion ? (base_player_load / base_duracion) : 0;
 
                   // Valores de la sesión
                   const val_dist_total = r.avg_dist_total || 0;
+                  const val_dist_hir = r.avg_dist_hir || r.avg_dist_v4 || 0;
                   const val_dist_v4 = r.avg_dist_v4 || 0;
                   const val_dist_v5 = r.avg_dist_v5 || 0;
                   const val_acel = r.avg_acel || 0;
                   const val_decel = r.avg_decel || 0;
                   const val_sprints = r.avg_sprints || 0;
+                  const val_player_load = r.avg_player_load || 0;
 
                   const val_acc_int_tot = val_acel + val_decel + val_sprints;
 
                   const val_mts_min = r.avg_mts_min || 0;
-                  const val_acc_per_min = r.avg_duracion ? (val_acc_int_tot / r.avg_duracion) : 0;
+                  const val_duracion = r.avg_duracion || 0;
+                  const val_acc_per_min = val_duracion ? (val_acc_int_tot / val_duracion) : 0;
                   const val_vel_max = r.avg_max_vel || 0;
                   const val_max_acc = 0;
                   const val_max_dec = 0;
+                  // Intensidad derivada por minuto
+                  const val_hsr_per_min = val_duracion ? (val_dist_v4 / val_duracion) : 0;
+                  const val_sprint_dist_per_min = val_duracion ? (val_dist_v5 / val_duracion) : 0;
+                  const val_acc_per_min_solo = val_duracion ? (val_acel / val_duracion) : 0;
+                  const val_dec_per_min = val_duracion ? (val_decel / val_duracion) : 0;
+                  const val_pl_per_min = val_duracion ? (val_player_load / val_duracion) : 0;
 
                   const renderPct = (val: number, base: number) => {
                     if (!base) return <td style={{ padding: '10px 6px', fontWeight: 'bold', color: 'var(--fog)', fontSize: 11 }}>0%</td>;
@@ -229,6 +247,16 @@ export default function PerfilNeuromuscularPanel() {
                     const color = pct >= 85 ? 'var(--lime)' : pct >= 60 ? '#f59e0b' : '#ef4444';
                     const bg = pct >= 85 ? 'rgba(200,241,53,0.1)' : pct >= 60 ? 'rgba(245,158,11,0.1)' : 'rgba(239,68,68,0.1)';
                     return <span style={{ padding: '4px 8px', borderRadius: 4, background: bg, color, fontSize: 11, fontWeight: 'bold' }}>{pct}%</span>
+                  }
+
+                  // Badge con ✅ o ❌ según umbral 70%
+                  const renderPctBadgeWithIcon = (val: number, base: number) => {
+                    if (!base) return <span style={{ padding: '4px 8px', borderRadius: 4, background: 'rgba(255,255,255,0.05)', color: 'var(--fog)', fontSize: 11, fontWeight: 'bold' }}>0%</span>;
+                    const pct = Math.round((val / base) * 100);
+                    const icon = pct >= 70 ? '✅' : '❌';
+                    const color = pct >= 85 ? 'var(--lime)' : pct >= 60 ? '#f59e0b' : '#ef4444';
+                    const bg = pct >= 85 ? 'rgba(200,241,53,0.1)' : pct >= 60 ? 'rgba(245,158,11,0.1)' : 'rgba(239,68,68,0.1)';
+                    return <span style={{ padding: '4px 8px', borderRadius: 4, background: bg, color, fontSize: 11, fontWeight: 'bold' }}>{icon} {pct}%</span>
                   }
 
                   const thStyle = { color: 'var(--silver)', fontSize: 10, fontWeight: 600, padding: '12px 6px', textTransform: 'uppercase' as any, borderBottom: '1px solid rgba(255,255,255,0.05)' };
@@ -258,42 +286,46 @@ export default function PerfilNeuromuscularPanel() {
                         </div>
                         
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: 16, background: 'rgba(0,0,0,0.2)', padding: 16, borderRadius: '0 0 8px 8px', border: '1px solid rgba(255,255,255,0.05)', borderTop: 'none' }}>
-                          <div>
+                          <div style={{ overflowX: 'auto' }}>
                             <h5 style={{ color: 'var(--silver)', fontSize: 11, margin: '0 0 12px 0', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Volumen</h5>
                             <table style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse' }}>
                               <thead>
                                 <tr>
-                                  <th style={thStyle}>DT (m)</th><th style={thStyle}>HSR (m)</th><th style={thStyle}>VEL B6</th>
-                                  <th style={thStyle}>Acc Int Tot</th><th style={thStyle}>ACC</th><th style={thStyle}>DEC</th>
+                                  <th style={thStyle}>DT (m)</th><th style={thStyle}>HSR (m)</th><th style={thStyle}>Dist Sprint (m)</th>
+                                  <th style={thStyle}>Acc Int Tot</th><th style={thStyle}>ACC (n)</th><th style={thStyle}>DEC (n)</th>
+                                  <th style={thStyle}>Sprint (n)</th><th style={thStyle}>Player Load</th>
                                 </tr>
                               </thead>
                               <tbody>
                                 <tr>
                                   <td style={tdStyle}>{base_dist_total.toFixed(0)}</td><td style={tdStyle}>{base_dist_v4.toFixed(0)}</td><td style={tdStyle}>{base_dist_v5.toFixed(0)}</td>
                                   <td style={tdStyle}>{base_acc_int_tot.toFixed(0)}</td><td style={tdStyle}>{base_acel.toFixed(0)}</td><td style={tdStyle}>{base_decel.toFixed(0)}</td>
+                                  <td style={tdStyle}>{base_sprints.toFixed(0)}</td><td style={tdStyle}>{base_player_load.toFixed(0)}</td>
                                 </tr>
                                 <tr>
-                                  <td style={{...tdStyle, color:'var(--silver)', border: 'none'}} colSpan={6}><span style={{ color:'var(--lime)', fontSize:11 }}>100% de referencia</span></td>
+                                  <td style={{...tdStyle, color:'var(--silver)', border: 'none'}} colSpan={8}><span style={{ color:'var(--lime)', fontSize:11 }}>100% de referencia</span></td>
                                 </tr>
                               </tbody>
                             </table>
                           </div>
-                          <div>
+                          <div style={{ overflowX: 'auto' }}>
                             <h5 style={{ color: 'var(--silver)', fontSize: 11, margin: '0 0 12px 0', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Intensidad</h5>
                             <table style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse' }}>
                               <thead>
                                 <tr>
-                                  <th style={thStyle}>Mts/min</th><th style={thStyle}>Acc Int/min</th><th style={thStyle}>Vel Max</th>
-                                  <th style={thStyle}>Sprint (n)</th><th style={thStyle}>Max ACC</th><th style={thStyle}>Max DEC</th>
+                                  <th style={thStyle}>Mts/min</th><th style={thStyle}>HSR (m/min)</th><th style={thStyle}>Dist Sprint/min</th>
+                                  <th style={thStyle}>Acc Int/min</th><th style={thStyle}>ACC/min</th><th style={thStyle}>DEC/min</th>
+                                  <th style={thStyle}>Max ACC</th><th style={thStyle}>Max DEC</th><th style={thStyle}>Vel Max</th><th style={thStyle}>PL/min</th>
                                 </tr>
                               </thead>
                               <tbody>
                                 <tr>
-                                  <td style={tdStyle}>{base_mts_min.toFixed(0)}</td><td style={tdStyle}>{base_acc_per_min.toFixed(1)}</td><td style={tdStyle}>{base_vel_max.toFixed(1)}</td>
-                                  <td style={tdStyle}>{base_sprints.toFixed(1)}</td><td style={tdStyle}>{base_max_acc.toFixed(0)}</td><td style={tdStyle}>{base_max_dec.toFixed(0)}</td>
+                                  <td style={tdStyle}>{base_mts_min.toFixed(0)}</td><td style={tdStyle}>{base_hsr_per_min.toFixed(1)}</td><td style={tdStyle}>{base_sprint_dist_per_min.toFixed(1)}</td>
+                                  <td style={tdStyle}>{base_acc_per_min.toFixed(1)}</td><td style={tdStyle}>{base_acc_per_min_solo.toFixed(2)}</td><td style={tdStyle}>{base_dec_per_min.toFixed(2)}</td>
+                                  <td style={tdStyle}>{base_max_acc.toFixed(0)}</td><td style={tdStyle}>{base_max_dec.toFixed(0)}</td><td style={tdStyle}>{base_vel_max.toFixed(1)}</td><td style={tdStyle}>{base_pl_per_min.toFixed(1)}</td>
                                 </tr>
                                 <tr>
-                                  <td style={{...tdStyle, color:'var(--silver)', border: 'none'}} colSpan={6}><span style={{ color:'var(--lime)', fontSize:11 }}>100% de referencia</span></td>
+                                  <td style={{...tdStyle, color:'var(--silver)', border: 'none'}} colSpan={10}><span style={{ color:'var(--lime)', fontSize:11 }}>100% de referencia</span></td>
                                 </tr>
                               </tbody>
                             </table>
@@ -309,19 +341,21 @@ export default function PerfilNeuromuscularPanel() {
                         </div>
                         
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: 16, background: 'rgba(0,0,0,0.2)', padding: 16, borderRadius: '0 0 8px 8px', border: '1px solid rgba(255,255,255,0.05)', borderTop: 'none' }}>
-                          <div>
+                          <div style={{ overflowX: 'auto' }}>
                             <h5 style={{ color: 'var(--silver)', fontSize: 11, margin: '0 0 12px 0', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Volumen</h5>
                             <table style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse' }}>
                               <thead>
                                 <tr>
-                                  <th style={thStyle}>DT (m)</th><th style={thStyle}>HSR (m)</th><th style={thStyle}>VEL B6</th>
-                                  <th style={thStyle}>Acc Int Tot</th><th style={thStyle}>ACC</th><th style={thStyle}>DEC</th>
+                                  <th style={thStyle}>DT (m)</th><th style={thStyle}>HSR (m)</th><th style={thStyle}>Dist Sprint (m)</th>
+                                  <th style={thStyle}>Acc Int Tot</th><th style={thStyle}>ACC (n)</th><th style={thStyle}>DEC (n)</th>
+                                  <th style={thStyle}>Sprint (n)</th><th style={thStyle}>Player Load</th>
                                 </tr>
                               </thead>
                               <tbody>
                                 <tr>
                                   <td style={tdStyle}>{val_dist_total.toFixed(0)}</td><td style={tdStyle}>{val_dist_v4.toFixed(0)}</td><td style={tdStyle}>{val_dist_v5.toFixed(0)}</td>
                                   <td style={tdStyle}>{val_acc_int_tot.toFixed(0)}</td><td style={tdStyle}>{val_acel.toFixed(0)}</td><td style={tdStyle}>{val_decel.toFixed(0)}</td>
+                                  <td style={tdStyle}>{val_sprints.toFixed(0)}</td><td style={tdStyle}>{val_player_load.toFixed(0)}</td>
                                 </tr>
                                 <tr>
                                   {renderPct(val_dist_total, base_dist_total)}
@@ -330,31 +364,39 @@ export default function PerfilNeuromuscularPanel() {
                                   {renderPct(val_acc_int_tot, base_acc_int_tot)}
                                   {renderPct(val_acel, base_acel)}
                                   {renderPct(val_decel, base_decel)}
+                                  {renderPct(val_sprints, base_sprints)}
+                                  {renderPct(val_player_load, base_player_load)}
                                 </tr>
                               </tbody>
                             </table>
                           </div>
-                          <div>
+                          <div style={{ overflowX: 'auto' }}>
                             <h5 style={{ color: 'var(--silver)', fontSize: 11, margin: '0 0 12px 0', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Intensidad</h5>
                             <table style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse' }}>
                               <thead>
                                 <tr>
-                                  <th style={thStyle}>Mts/min</th><th style={thStyle}>Acc Int/min</th><th style={thStyle}>Vel Max</th>
-                                  <th style={thStyle}>Sprint (n)</th><th style={thStyle}>Max ACC</th><th style={thStyle}>Max DEC</th>
+                                  <th style={thStyle}>Mts/min</th><th style={thStyle}>HSR (m/min)</th><th style={thStyle}>Dist Sprint/min</th>
+                                  <th style={thStyle}>Acc Int/min</th><th style={thStyle}>ACC/min</th><th style={thStyle}>DEC/min</th>
+                                  <th style={thStyle}>Max ACC</th><th style={thStyle}>Max DEC</th><th style={thStyle}>Vel Max</th><th style={thStyle}>PL/min</th>
                                 </tr>
                               </thead>
                               <tbody>
                                 <tr>
-                                  <td style={tdStyle}>{val_mts_min.toFixed(0)}</td><td style={tdStyle}>{val_acc_per_min.toFixed(1)}</td><td style={tdStyle}>{val_vel_max.toFixed(1)}</td>
-                                  <td style={tdStyle}>{val_sprints.toFixed(1)}</td><td style={tdStyle}>{val_max_acc.toFixed(0)}</td><td style={tdStyle}>{val_max_dec.toFixed(0)}</td>
+                                  <td style={tdStyle}>{val_mts_min.toFixed(0)}</td><td style={tdStyle}>{val_hsr_per_min.toFixed(1)}</td><td style={tdStyle}>{val_sprint_dist_per_min.toFixed(1)}</td>
+                                  <td style={tdStyle}>{val_acc_per_min.toFixed(1)}</td><td style={tdStyle}>{val_acc_per_min_solo.toFixed(2)}</td><td style={tdStyle}>{val_dec_per_min.toFixed(2)}</td>
+                                  <td style={tdStyle}>{val_max_acc.toFixed(0)}</td><td style={tdStyle}>{val_max_dec.toFixed(0)}</td><td style={tdStyle}>{val_vel_max.toFixed(1)}</td><td style={tdStyle}>{val_pl_per_min.toFixed(1)}</td>
                                 </tr>
                                 <tr>
                                   {renderPct(val_mts_min, base_mts_min)}
+                                  {renderPct(val_hsr_per_min, base_hsr_per_min)}
+                                  {renderPct(val_sprint_dist_per_min, base_sprint_dist_per_min)}
                                   {renderPct(val_acc_per_min, base_acc_per_min)}
-                                  {renderPct(val_vel_max, base_vel_max)}
-                                  {renderPct(val_sprints, base_sprints)}
+                                  {renderPct(val_acc_per_min_solo, base_acc_per_min_solo)}
+                                  {renderPct(val_dec_per_min, base_dec_per_min)}
                                   {renderPct(val_max_acc, base_max_acc)}
                                   {renderPct(val_max_dec, base_max_dec)}
+                                  {renderPct(val_vel_max, base_vel_max)}
+                                  {renderPct(val_pl_per_min, base_pl_per_min)}
                                 </tr>
                               </tbody>
                             </table>
@@ -384,7 +426,7 @@ export default function PerfilNeuromuscularPanel() {
                                 {renderPctBadge(
                                   Math.round((val_acc_per_min/base_acc_per_min)*100 || 0) + 
                                   Math.round((val_mts_min/base_mts_min)*100 || 0) + 
-                                  Math.round((val_sprints/base_sprints)*100 || 0), 300
+                                  Math.round((val_sprint_dist_per_min/base_sprint_dist_per_min)*100 || 0), 300
                                 )}
                               </div>
                             </div>
@@ -403,7 +445,7 @@ export default function PerfilNeuromuscularPanel() {
                                     "% Promedio Intensidad": (() => {
                                       const p1 = base_acc_per_min ? Math.round((val_acc_per_min/base_acc_per_min)*100) : 0;
                                       const p2 = base_mts_min ? Math.round((val_mts_min/base_mts_min)*100) : 0;
-                                      const p3 = base_sprints ? Math.round((val_sprints/base_sprints)*100) : 0;
+                                      const p3 = base_sprint_dist_per_min ? Math.round((val_sprint_dist_per_min/base_sprint_dist_per_min)*100) : 0;
                                       return Math.round((p1 + p2 + p3) / 3) || 0;
                                     })()
                                   }]} 
@@ -425,99 +467,57 @@ export default function PerfilNeuromuscularPanel() {
                         {/* IMPACTO DE LA SESION PORCENTUAL TABLE */}
                         <div>
                           <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: 12, padding: 16, border: '1px solid rgba(255,255,255,0.05)', height: '100%' }}>
-                            <h4 style={{ color: 'var(--snow)', fontSize: 12, margin: '0 0 16px 0', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Impacto Porcentual Detallado</h4>
+                            <h4 style={{ color: 'var(--snow)', fontSize: 12, margin: '0 0 16px 0', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Impacto de la Sesión Porcentual</h4>
                             
                             {(() => {
-                              const pct_acc_int_tot = base_acc_int_tot ? Math.round((val_acc_int_tot/base_acc_int_tot)*100) : 0;
-                              const pct_dist_v4 = base_dist_v4 ? Math.round((val_dist_v4/base_dist_v4)*100) : 0;
-                              const pct_dist_v5 = base_dist_v5 ? Math.round((val_dist_v5/base_dist_v5)*100) : 0;
-                              
-                              const pct_acc_per_min = base_acc_per_min ? Math.round((val_acc_per_min/base_acc_per_min)*100) : 0;
-                              const pct_mts_min = base_mts_min ? Math.round((val_mts_min/base_mts_min)*100) : 0;
-                              const pct_sprints = base_sprints ? Math.round((val_sprints/base_sprints)*100) : 0;
-
                               const rowStyle = { borderBottom: '1px solid rgba(255,255,255,0.03)' };
                               const catStyle = { color: 'var(--silver)', fontSize: 10, fontWeight: 700, padding: 12, textTransform: 'uppercase' as any };
+
+                              // Filas de la tabla de impacto: cat | subcat | metrica | val | base | badge
+                              const impactRows = [
+                                { cat: 'VOLUMEN ABSOLUTO', rows: [
+                                  { sub: 'Duración', metric: 'HSR (m)', val: val_dist_v4, base: base_dist_v4 },
+                                  { sub: 'Velocidad', metric: 'Dist Sprint (m)', val: val_dist_v5, base: base_dist_v5 },
+                                  { sub: 'Tensión', metric: 'Acc Int Tot', val: val_acc_int_tot, base: base_acc_int_tot },
+                                ]},
+                                { cat: 'INTENSIDAD RELATIVA', rows: [
+                                  { sub: 'Duración', metric: 'Mts/min', val: val_mts_min, base: base_mts_min },
+                                  { sub: 'Velocidad', metric: 'Sprint (m/min)', val: val_sprint_dist_per_min, base: base_sprint_dist_per_min },
+                                  { sub: 'Tensión', metric: 'Acc/min', val: val_acc_per_min, base: base_acc_per_min },
+                                ]},
+                              ];
+
+                              const dotColors: Record<string, string> = { 'Tensión': '#ef4444', 'Duración': '#a3e635', 'Velocidad': '#22c55e' };
+                              const catBgs: Record<string, string> = { 'VOLUMEN ABSOLUTO': 'rgba(239,68,68,0.06)', 'INTENSIDAD RELATIVA': 'rgba(56,189,248,0.06)' };
                               
                               return (
                                 <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                                  <thead>
+                                    <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+                                      <th style={{ ...catStyle, width: '25%' }}></th>
+                                      <th style={{ ...catStyle, width: '25%' }}>Subcategoría</th>
+                                      <th style={{ ...catStyle, width: '25%' }}>Métrica</th>
+                                      <th style={{ ...catStyle, width: '25%', textAlign: 'right' }}>%</th>
+                                    </tr>
+                                  </thead>
                                   <tbody>
-                                    {/* VOLUMEN */}
-                                    <tr style={rowStyle}>
-                                      <td rowSpan={3} style={{ ...catStyle, verticalAlign: 'middle', borderRight: '1px solid rgba(255,255,255,0.05)' }}>Volumen</td>
-                                      <td style={{ padding: '10px 12px' }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                          <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#ef4444' }}></div>
-                                          <div>
-                                            <div style={{ color: 'var(--snow)', fontSize: 12, fontWeight: 600 }}>Tensión</div>
-                                            <div style={{ color: 'var(--fog)', fontSize: 10 }}>Acc Int Tot</div>
-                                          </div>
-                                        </div>
-                                      </td>
-                                      <td style={{ textAlign: 'right', padding: '10px 12px' }}>{renderPctBadge(val_acc_int_tot, base_acc_int_tot)}</td>
-                                    </tr>
-                                    <tr style={rowStyle}>
-                                      <td style={{ padding: '10px 12px' }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                          <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#a3e635' }}></div>
-                                          <div>
-                                            <div style={{ color: 'var(--snow)', fontSize: 12, fontWeight: 600 }}>Duración</div>
-                                            <div style={{ color: 'var(--fog)', fontSize: 10 }}>HSR (m)</div>
-                                          </div>
-                                        </div>
-                                      </td>
-                                      <td style={{ textAlign: 'right', padding: '10px 12px' }}>{renderPctBadge(val_dist_v4, base_dist_v4)}</td>
-                                    </tr>
-                                    <tr style={rowStyle}>
-                                      <td style={{ padding: '10px 12px' }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                          <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#22c55e' }}></div>
-                                          <div>
-                                            <div style={{ color: 'var(--snow)', fontSize: 12, fontWeight: 600 }}>Velocidad</div>
-                                            <div style={{ color: 'var(--fog)', fontSize: 10 }}>VEL B6</div>
-                                          </div>
-                                        </div>
-                                      </td>
-                                      <td style={{ textAlign: 'right', padding: '10px 12px' }}>{renderPctBadge(val_dist_v5, base_dist_v5)}</td>
-                                    </tr>
-                                    {/* INTENSIDAD */}
-                                    <tr style={rowStyle}>
-                                      <td rowSpan={3} style={{ ...catStyle, verticalAlign: 'middle', borderRight: '1px solid rgba(255,255,255,0.05)', paddingTop: 20 }}>Intensidad</td>
-                                      <td style={{ padding: '10px 12px', paddingTop: 20 }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                          <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#ef4444' }}></div>
-                                          <div>
-                                            <div style={{ color: 'var(--snow)', fontSize: 12, fontWeight: 600 }}>Tensión</div>
-                                            <div style={{ color: 'var(--fog)', fontSize: 10 }}>Acc Int/min</div>
-                                          </div>
-                                        </div>
-                                      </td>
-                                      <td style={{ textAlign: 'right', padding: '10px 12px', paddingTop: 20 }}>{renderPctBadge(val_acc_per_min, base_acc_per_min)}</td>
-                                    </tr>
-                                    <tr style={rowStyle}>
-                                      <td style={{ padding: '10px 12px' }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                          <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#a3e635' }}></div>
-                                          <div>
-                                            <div style={{ color: 'var(--snow)', fontSize: 12, fontWeight: 600 }}>Duración</div>
-                                            <div style={{ color: 'var(--fog)', fontSize: 10 }}>Mts/min</div>
-                                          </div>
-                                        </div>
-                                      </td>
-                                      <td style={{ textAlign: 'right', padding: '10px 12px' }}>{renderPctBadge(val_mts_min, base_mts_min)}</td>
-                                    </tr>
-                                    <tr>
-                                      <td style={{ padding: '10px 12px' }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                          <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#22c55e' }}></div>
-                                          <div>
-                                            <div style={{ color: 'var(--snow)', fontSize: 12, fontWeight: 600 }}>Velocidad</div>
-                                            <div style={{ color: 'var(--fog)', fontSize: 10 }}>Sprint (n)</div>
-                                          </div>
-                                        </div>
-                                      </td>
-                                      <td style={{ textAlign: 'right', padding: '10px 12px' }}>{renderPctBadge(val_sprints, base_sprints)}</td>
-                                    </tr>
+                                    {impactRows.map((group) => (
+                                      group.rows.map((row, idx) => (
+                                        <tr key={`${group.cat}-${idx}`} style={{ ...rowStyle, background: catBgs[group.cat] || 'transparent' }}>
+                                          {idx === 0 && (
+                                            <td rowSpan={group.rows.length} style={{ ...catStyle, verticalAlign: 'middle', borderRight: '1px solid rgba(255,255,255,0.05)', fontWeight: 800, fontSize: 10 }}>{group.cat}</td>
+                                          )}
+                                          <td style={{ padding: '10px 12px' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                              <div style={{ width: 8, height: 8, borderRadius: '50%', background: dotColors[row.sub] || '#666', flexShrink: 0 }}></div>
+                                              <span style={{ color: 'var(--snow)', fontSize: 12, fontWeight: 600 }}>{row.sub}</span>
+                                            </div>
+                                          </td>
+                                          <td style={{ padding: '10px 12px', color: 'var(--fog)', fontSize: 11 }}>{row.metric}</td>
+                                          <td style={{ textAlign: 'right', padding: '10px 12px' }}>{renderPctBadgeWithIcon(row.val, row.base)}</td>
+                                        </tr>
+                                      ))
+                                    ))}
                                   </tbody>
                                 </table>
                               )
