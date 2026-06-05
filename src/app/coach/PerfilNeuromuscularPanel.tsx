@@ -291,19 +291,19 @@ export default function PerfilNeuromuscularPanel() {
                             <table style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse' }}>
                               <thead>
                                 <tr>
-                                  <th style={thStyle}>DT (m)</th><th style={thStyle}>HSR (m)</th><th style={thStyle}>Dist Sprint (m)</th>
+                                  <th style={thStyle}>DT (m)</th><th style={thStyle}>HIR (m)</th><th style={thStyle}>HSR (m)</th><th style={thStyle}>Dist Sprint (m)</th>
                                   <th style={thStyle}>Acc Int Tot</th><th style={thStyle}>ACC (n)</th><th style={thStyle}>DEC (n)</th>
                                   <th style={thStyle}>Sprint (n)</th><th style={thStyle}>Player Load</th>
                                 </tr>
                               </thead>
                               <tbody>
                                 <tr>
-                                  <td style={tdStyle}>{base_dist_total.toFixed(0)}</td><td style={tdStyle}>{base_dist_v4.toFixed(0)}</td><td style={tdStyle}>{base_dist_v5.toFixed(0)}</td>
+                                  <td style={tdStyle}>{base_dist_total.toFixed(0)}</td><td style={tdStyle}>{base_dist_hir.toFixed(0)}</td><td style={tdStyle}>{base_dist_v4.toFixed(0)}</td><td style={tdStyle}>{base_dist_v5.toFixed(0)}</td>
                                   <td style={tdStyle}>{base_acc_int_tot.toFixed(0)}</td><td style={tdStyle}>{base_acel.toFixed(0)}</td><td style={tdStyle}>{base_decel.toFixed(0)}</td>
                                   <td style={tdStyle}>{base_sprints.toFixed(0)}</td><td style={tdStyle}>{base_player_load.toFixed(0)}</td>
                                 </tr>
                                 <tr>
-                                  <td style={{...tdStyle, color:'var(--silver)', border: 'none'}} colSpan={8}><span style={{ color:'var(--lime)', fontSize:11 }}>100% de referencia</span></td>
+                                  <td style={{...tdStyle, color:'var(--silver)', border: 'none'}} colSpan={9}><span style={{ color:'var(--lime)', fontSize:11 }}>100% de referencia</span></td>
                                 </tr>
                               </tbody>
                             </table>
@@ -346,19 +346,20 @@ export default function PerfilNeuromuscularPanel() {
                             <table style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse' }}>
                               <thead>
                                 <tr>
-                                  <th style={thStyle}>DT (m)</th><th style={thStyle}>HSR (m)</th><th style={thStyle}>Dist Sprint (m)</th>
+                                  <th style={thStyle}>DT (m)</th><th style={thStyle}>HIR (m)</th><th style={thStyle}>HSR (m)</th><th style={thStyle}>Dist Sprint (m)</th>
                                   <th style={thStyle}>Acc Int Tot</th><th style={thStyle}>ACC (n)</th><th style={thStyle}>DEC (n)</th>
                                   <th style={thStyle}>Sprint (n)</th><th style={thStyle}>Player Load</th>
                                 </tr>
                               </thead>
                               <tbody>
                                 <tr>
-                                  <td style={tdStyle}>{val_dist_total.toFixed(0)}</td><td style={tdStyle}>{val_dist_v4.toFixed(0)}</td><td style={tdStyle}>{val_dist_v5.toFixed(0)}</td>
+                                  <td style={tdStyle}>{val_dist_total.toFixed(0)}</td><td style={tdStyle}>{val_dist_hir.toFixed(0)}</td><td style={tdStyle}>{val_dist_v4.toFixed(0)}</td><td style={tdStyle}>{val_dist_v5.toFixed(0)}</td>
                                   <td style={tdStyle}>{val_acc_int_tot.toFixed(0)}</td><td style={tdStyle}>{val_acel.toFixed(0)}</td><td style={tdStyle}>{val_decel.toFixed(0)}</td>
                                   <td style={tdStyle}>{val_sprints.toFixed(0)}</td><td style={tdStyle}>{val_player_load.toFixed(0)}</td>
                                 </tr>
                                 <tr>
                                   {renderPct(val_dist_total, base_dist_total)}
+                                  {renderPct(val_dist_hir, base_dist_hir)}
                                   {renderPct(val_dist_v4, base_dist_v4)}
                                   {renderPct(val_dist_v5, base_dist_v5)}
                                   {renderPct(val_acc_int_tot, base_acc_int_tot)}

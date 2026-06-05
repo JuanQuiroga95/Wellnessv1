@@ -196,7 +196,9 @@ export async function GET(req: NextRequest) {
           FROM gps_logs g
           JOIN jugadores j ON j.id = g.jugador_id
           JOIN usuarios u ON u.id = j.usuario_id
-          WHERE g.sesion_id = ANY(${ids}::int[]) AND u.activo = true`
+          WHERE g.fecha IN (SELECT fecha FROM sesiones_plan WHERE id = ANY(${ids}::int[]))
+            AND (${isMaster}::boolean OR g.club_id = ${clubId})
+            AND u.activo = true`
         
         if (res.length > 0 && res[0].avg_dist_total != null) {
           mdPromedio = {
