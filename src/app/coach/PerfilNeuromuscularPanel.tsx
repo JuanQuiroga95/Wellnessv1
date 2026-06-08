@@ -70,7 +70,7 @@ export default function PerfilNeuromuscularPanel() {
                   <div style={{ position: 'absolute', top: 38, left: 0, background: 'var(--ink2)', border: '1px solid var(--fog)', borderRadius: 8, zIndex: 50, width: 250, maxHeight: 300, overflowY: 'auto', boxShadow: '0 4px 12px rgba(0,0,0,0.5)' }}>
                     {(data?.partidosDisponibles || []).map((p: any) => {
                       const isSelected = partidosBase.includes(p.id);
-                      const disabled = !isSelected && partidosBase.length >= 5;
+                      const disabled = (!isSelected && partidosBase.length >= 5) || !p.tiene_gps;
                       return (
                         <div 
                           key={p.id}
@@ -81,14 +81,14 @@ export default function PerfilNeuromuscularPanel() {
                               setPartidosBase(prev => [...prev, p.id]);
                             }
                           }}
-                          style={{ padding: '8px 12px', cursor: disabled ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 8, borderBottom: '1px solid rgba(255,255,255,0.05)', background: isSelected ? 'rgba(56,189,248,0.1)' : 'transparent', opacity: disabled ? 0.5 : 1 }}
+                          style={{ padding: '8px 12px', cursor: disabled ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 8, borderBottom: '1px solid rgba(255,255,255,0.05)', background: isSelected ? 'rgba(56,189,248,0.1)' : 'transparent', opacity: disabled ? 0.4 : 1 }}
                         >
-                          <input type="checkbox" checked={isSelected} readOnly style={{ cursor: disabled ? 'not-allowed' : 'pointer' }} />
-                          <span style={{ color: isSelected ? '#38bdf8' : 'var(--silver)', fontSize: 11, fontWeight: isSelected ? 'bold' : 'normal' }}>
+                          <input type="checkbox" checked={isSelected} readOnly disabled={disabled} style={{ cursor: disabled ? 'not-allowed' : 'pointer' }} />
+                          <span style={{ color: isSelected ? '#38bdf8' : 'var(--silver)', fontSize: 11, fontWeight: isSelected ? 'bold' : 'normal', flex: 1 }}>
                             {p.fecha} - {p.rival || p.titulo || 'Partido'}
-                            {!p.tiene_gps && <span style={{ color: '#f59e0b', fontSize: 9, marginLeft: 4 }} title="Sin datos GPS vinculados">⚠ sin GPS</span>}
-                            {p.tiene_gps && <span style={{ color: 'var(--lime)', fontSize: 9, marginLeft: 4 }}>● GPS</span>}
                           </span>
+                          {!p.tiene_gps && <span style={{ color: '#ef4444', fontSize: 9, marginLeft: 4, background: 'rgba(239,68,68,0.1)', padding: '2px 4px', borderRadius: 4 }} title="Debes subir un archivo GPS para este partido antes de poder seleccionarlo">⚠ SIN GPS</span>}
+                          {p.tiene_gps && <span style={{ color: 'var(--lime)', fontSize: 9, marginLeft: 4 }}>● GPS</span>}
                         </div>
                       )
                     })}
