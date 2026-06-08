@@ -46,7 +46,6 @@ export async function POST(req: NextRequest) {
 
     // Get club name — resolved after admin_clubs sync below
     let clubNombre: string | undefined
-    }
 
     // Ensure login tracking columns exist (safe migration — runs only if columns missing)
     try {
