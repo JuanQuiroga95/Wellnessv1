@@ -107,8 +107,9 @@ export async function DELETE(req: NextRequest) {
     // (in case jugadores.club_id is set but usuario was already gone)
     await sql`DELETE FROM jugadores WHERE club_id = ${id}`
 
-    // Step 6: delete coach/admin usuarios for this club
-    await sql`DELETE FROM usuarios WHERE club_id = ${id}`
+    // Step 6: Do NOT delete coach/admin usuarios. They might have other clubs or want to be reassigned.
+    // We just remove this club from their active club_id. The admin_clubs association is auto-deleted via ON DELETE CASCADE.
+    await sql`UPDATE usuarios SET club_id = NULL WHERE club_id = ${id}`
 
 
     // Step 8: delete the club itself
