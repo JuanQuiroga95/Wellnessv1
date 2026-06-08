@@ -84,7 +84,11 @@ export default function PerfilNeuromuscularPanel() {
                           style={{ padding: '8px 12px', cursor: disabled ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 8, borderBottom: '1px solid rgba(255,255,255,0.05)', background: isSelected ? 'rgba(56,189,248,0.1)' : 'transparent', opacity: disabled ? 0.5 : 1 }}
                         >
                           <input type="checkbox" checked={isSelected} readOnly style={{ cursor: disabled ? 'not-allowed' : 'pointer' }} />
-                          <span style={{ color: isSelected ? '#38bdf8' : 'var(--silver)', fontSize: 11, fontWeight: isSelected ? 'bold' : 'normal' }}>{p.fecha} - {p.rival || p.titulo || 'Partido'}</span>
+                          <span style={{ color: isSelected ? '#38bdf8' : 'var(--silver)', fontSize: 11, fontWeight: isSelected ? 'bold' : 'normal' }}>
+                            {p.fecha} - {p.rival || p.titulo || 'Partido'}
+                            {!p.tiene_gps && <span style={{ color: '#f59e0b', fontSize: 9, marginLeft: 4 }} title="Sin datos GPS vinculados">⚠ sin GPS</span>}
+                            {p.tiene_gps && <span style={{ color: 'var(--lime)', fontSize: 9, marginLeft: 4 }}>● GPS</span>}
+                          </span>
                         </div>
                       )
                     })}
@@ -280,9 +284,17 @@ export default function PerfilNeuromuscularPanel() {
 
                       {/* MD PROMEDIO */}
                       <div>
-                        <div style={{ background: 'rgba(56,189,248,0.1)', border: '1px solid rgba(56,189,248,0.2)', padding: '8px 16px', borderRadius: '8px 8px 0 0', display: 'flex', gap: 8, alignItems: 'center' }}>
-                          <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#38bdf8' }}></div>
-                          <h4 style={{ color: '#38bdf8', fontSize: 13, margin: 0, fontWeight: 700, letterSpacing: '0.05em' }}>MD PROMEDIO (BASE)</h4>
+                        <div style={{ background: 'rgba(56,189,248,0.1)', border: '1px solid rgba(56,189,248,0.2)', padding: '8px 16px', borderRadius: '8px 8px 0 0', display: 'flex', gap: 8, alignItems: 'center', justifyContent: 'space-between' }}>
+                          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                            <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#38bdf8' }}></div>
+                            <h4 style={{ color: '#38bdf8', fontSize: 13, margin: 0, fontWeight: 700, letterSpacing: '0.05em' }}>MD PROMEDIO (BASE)</h4>
+                          </div>
+                          {!p && partidosBase.length > 0 && (
+                            <span style={{ fontSize: 10, color: '#f59e0b', background: 'rgba(245,158,11,0.1)', padding: '3px 8px', borderRadius: 6 }}>⚠ Sin datos GPS en los partidos seleccionados</span>
+                          )}
+                          {!p && partidosBase.length === 0 && (
+                            <span style={{ fontSize: 10, color: 'var(--fog)', fontStyle: 'italic' }}>Seleccioná partidos base para calcular la referencia</span>
+                          )}
                         </div>
                         
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: 16, background: 'rgba(0,0,0,0.2)', padding: 16, borderRadius: '0 0 8px 8px', border: '1px solid rgba(255,255,255,0.05)', borderTop: 'none' }}>

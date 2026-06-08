@@ -166,19 +166,28 @@ export async function GET(req: NextRequest) {
         AND (${isMaster}::boolean OR g.club_id = ${clubId})`
 
     // Partidos disponibles para seleccionar como MD PROMEDIO
+    // Include GPS data availability for each match
     const partidosDisponibles = await sql`
-      SELECT id, fecha::text, titulo, rival
-      FROM sesiones_plan
-      WHERE (objetivo ILIKE '%Partido%' OR tipo ILIKE '%partido%')
-        AND (${isMaster}::boolean OR club_id = ${clubId})
-      ORDER BY fecha DESC LIMIT 30`
+      SELECT sp.id, sp.fecha::text, sp.titulo, sp.rival,
+             EXISTS(
+               SELECT 1 FROM gps_logs g 
+               WHERE (g.sesion_id = sp.id OR g.fecha::date = sp.fecha::date)
+                 AND (${isMaster}::boolean OR g.club_id = ${clubId})
+             ) AS tiene_gps
+      FROM sesiones_plan sp
+      WHERE (sp.objetivo ILIKE '%Partido%' OR sp.tipo ILIKE '%partido%')
+        AND (${isMaster}::boolean OR sp.club_id = ${clubId})
+      ORDER BY sp.fecha DESC LIMIT 30`
 
     // Cálculo dinámico de MD Promedio si se envían IDs de partidos_base
     let mdPromedio = null;
     const pBase = searchParams.get('partidos_base');
     if (pBase) {
-      const ids = pBase.split(',').map(n => Number(n)).filter(n => !isNaN(n));
+      const ids = pBase.split(',').map(n => Number(n)).filter(n => !isNaN(n) && n > 0);
       if (ids.length > 0) {
+        // Search GPS logs linked to the selected matches by:
+        // 1. Direct sesion_id link (GPS imported linked to that session)
+        // 2. Fecha match (GPS imported on the same date as the session)
         const res = await sql`
           SELECT 
             AVG(dist_total) AS avg_dist_total,
@@ -196,9 +205,14 @@ export async function GET(req: NextRequest) {
           FROM gps_logs g
           JOIN jugadores j ON j.id = g.jugador_id
           JOIN usuarios u ON u.id = j.usuario_id
-          WHERE g.fecha IN (SELECT fecha FROM sesiones_plan WHERE id = ANY(${ids}::int[]))
+          WHERE (
+            g.sesion_id = ANY(${ids}::int[])
+            OR g.fecha::date IN (SELECT fecha::date FROM sesiones_plan WHERE id = ANY(${ids}::int[]))
+          )
             AND (${isMaster}::boolean OR g.club_id = ${clubId})
             AND u.activo = true`
+
+        console.log('[Analytics] mdPromedio query - ids:', ids, 'result:', res[0])
         
         if (res.length > 0 && res[0].avg_dist_total != null) {
           mdPromedio = {
@@ -215,6 +229,8 @@ export async function GET(req: NextRequest) {
             avg_duracion: Number(res[0].avg_duracion),
             avg_player_load: Number(res[0].avg_player_load)
           }
+        } else {
+          console.log('[Analytics] mdPromedio: No GPS data found for selected matches', ids)
         }
       }
     }
@@ -261,7 +277,7 @@ export async function GET(req: NextRequest) {
       })),
       missingCourts: missingCourts[0]?.count || 0,
       partidosDisponibles: partidosDisponibles.map(p => ({
-        id: p.id, fecha: p.fecha, titulo: p.titulo, rival: p.rival
+        id: p.id, fecha: p.fecha, titulo: p.titulo, rival: p.rival, tiene_gps: !!p.tiene_gps
       })),
       mdPromedio
     })

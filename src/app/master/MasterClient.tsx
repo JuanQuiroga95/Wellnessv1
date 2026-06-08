@@ -672,13 +672,15 @@ function subscriptionBadge(days: number | null) {
 
 function CoachRow({ coach, clubs, last, onRefresh }) {
   const [open, setOpen] = useState(false)
-  const [clubId, setClubId] = useState(String(coach.club_id||''))
+  const coachClubIds = Array.isArray(coach.club_ids) ? coach.club_ids : (coach.club_id ? [coach.club_id] : [])
+  const [selectedClubs, setSelectedClubs] = useState<number[]>(coachClubIds)
   const [saving, setSaving] = useState(false)
   const [newPass, setNewPass] = useState('')
   const [showPass, setShowPass] = useState(false)
   const [currentPass, setCurrentPass] = useState(coach.password_plain || null)
   // Sync when coach data refreshes
   useEffect(() => { setCurrentPass(coach.password_plain || null) }, [coach.password_plain])
+  useEffect(() => { setSelectedClubs(Array.isArray(coach.club_ids) ? coach.club_ids : (coach.club_id ? [coach.club_id] : [])) }, [coach.club_ids, coach.club_id])
 
   const diasDesdeCreacion = daysSince(coach.created_at)
   const diasDesdeLogin = daysSince(coach.last_login)
@@ -686,7 +688,7 @@ function CoachRow({ coach, clubs, last, onRefresh }) {
 
   async function assignClub() {
     setSaving(true)
-    await fetch('/api/master/coaches',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:coach.id,club_id:clubId?Number(clubId):null})})
+    await fetch('/api/master/coaches',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:coach.id, club_ids: selectedClubs})})
     setSaving(false); onRefresh()
   }
 
@@ -733,18 +735,26 @@ function CoachRow({ coach, clubs, last, onRefresh }) {
           </span>
         </div>
         {/* Col 5: club */}
+        <div style={{ display:'flex', gap:4, flexWrap:'wrap', justifyContent:'flex-end' }}>
         {(() => {
-          const clubObj = clubs.find((c: any) => c.id === coach.club_id)
-          return coach.club_nombre
-            ? <span style={{ display:'flex', alignItems:'center', gap:6, fontSize:12, padding:'3px 10px 3px 6px', borderRadius:20, background:'rgba(96,165,250,.12)', color:'#93c5fd', border:'1px solid rgba(96,165,250,.25)', fontWeight:600, overflow:'hidden', justifySelf:'end', maxWidth:'100%' }}>
-                {clubObj?.logo_url
-                  ? <img src={clubObj.logo_url} style={{ width:20, height:20, objectFit:'contain', borderRadius:4, flexShrink:0 }} alt="" />
-                  : <span style={{ fontSize:13, flexShrink:0 }}>🏟️</span>
-                }
-                <span style={{ fontSize:12, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{coach.club_nombre}</span>
+          const cids = Array.isArray(coach.club_ids) ? coach.club_ids : (coach.club_id ? [coach.club_id] : [])
+          if (cids.length === 0) return <span style={{ fontSize:11, padding:'3px 10px', borderRadius:20, background:'rgba(245,158,11,.1)', color:'#fbbf24', border:'1px solid rgba(245,158,11,.25)', fontWeight:600, justifySelf:'end', whiteSpace:'nowrap' }}>⚠ Sin club</span>
+          return cids.map((cid, i) => {
+            const clubObj = clubs.find((c: any) => c.id === cid)
+            if (!clubObj) return null
+            if (i > 1) {
+              if (i === 2) return <span key="more" style={{ fontSize:11, color:'var(--fog)', padding:'2px 6px', background:'var(--ink3)', borderRadius:12 }}>+{cids.length - 2}</span>
+              return null
+            }
+            return (
+              <span key={cid} style={{ display:'flex', alignItems:'center', gap:6, fontSize:12, padding:'3px 10px 3px 6px', borderRadius:20, background:'rgba(96,165,250,.12)', color:'#93c5fd', border:'1px solid rgba(96,165,250,.25)', fontWeight:600, overflow:'hidden', maxWidth:'100%' }}>
+                {clubObj?.logo_url ? <img src={clubObj.logo_url} style={{ width:18, height:18, objectFit:'contain', borderRadius:4, flexShrink:0 }} alt="" /> : <span style={{ fontSize:12, flexShrink:0 }}>🏟️</span>}
+                <span style={{ fontSize:11, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{clubObj.nombre}</span>
               </span>
-            : <span style={{ fontSize:11, padding:'3px 10px', borderRadius:20, background:'rgba(245,158,11,.1)', color:'#fbbf24', border:'1px solid rgba(245,158,11,.25)', fontWeight:600, justifySelf:'end', whiteSpace:'nowrap' }}>⚠ Sin club</span>
+            )
+          })
         })()}
+        </div>
         {/* Col 6: chevron */}
         <span style={{ color:'var(--fog)', fontSize:14, transition:'transform .2s', display:'inline-block', transform:open?'rotate(90deg)':'none', justifySelf:'center' }}>›</span>
       </button>
@@ -783,16 +793,21 @@ function CoachRow({ coach, clubs, last, onRefresh }) {
 
             {/* Assign club */}
             <div>
-              <label style={{ display:'block', fontSize:10, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:6 }}>Asignar club</label>
-              <div style={{ display:'flex', gap:8 }}>
-                <select className="wp-input" value={clubId} onChange={e=>setClubId(e.target.value)} style={{ flex:1, padding:'8px 12px', fontSize:13, appearance:'none' }}>
-                  <option value="" style={{ background:'var(--ink2)' }}>— Sin club —</option>
-                  {clubs.map(c=><option key={c.id} value={c.id} style={{ background:'var(--ink2)' }}>{c.nombre}</option>)}
-                </select>
-                <button onClick={assignClub} disabled={saving} className="btn-lime" style={{ fontSize:12, padding:'8px 14px' }}>
-                  {saving?'...':'Guardar'}
-                </button>
+              <label style={{ display:'block', fontSize:10, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:6 }}>Clubes asignados</label>
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:6, marginBottom:10 }}>
+                {clubs.map(c=>(
+                  <label key={c.id} style={{ display:'flex', alignItems:'center', gap:6, fontSize:12, padding:'6px 8px', background:'var(--ink2)', borderRadius:6, cursor:'pointer' }}>
+                    <input type="checkbox" checked={selectedClubs.includes(c.id)} onChange={e => {
+                      if (e.target.checked) setSelectedClubs(prev => [...prev, c.id])
+                      else setSelectedClubs(prev => prev.filter(id => id !== c.id))
+                    }} style={{ accentColor:'var(--lime)' }} />
+                    <span style={{ color: selectedClubs.includes(c.id) ? 'var(--snow)' : 'var(--silver)' }}>{c.nombre}</span>
+                  </label>
+                ))}
               </div>
+              <button onClick={assignClub} disabled={saving} className="btn-lime" style={{ fontSize:12, padding:'8px 14px', width:'100%' }}>
+                {saving?'...':'Guardar asignación'}
+              </button>
             </div>
 
             {/* Password section */}
@@ -865,7 +880,8 @@ function NewClubForm({ onSuccess, onCancel }) {
 
 // ── New Coach Form ─────────────────────────────────────────────────────────────
 function NewCoachForm({ clubs, onSuccess, onCancel }) {
-  const [f, setF] = useState({ nombre:'', usuario:'', password:'', club_id:'' })
+  const [f, setF] = useState({ nombre:'', usuario:'', password:'' })
+  const [selectedClubs, setSelectedClubs] = useState<number[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const set = (k,v) => setF(p=>({...p,[k]:v}))
@@ -874,7 +890,7 @@ function NewCoachForm({ clubs, onSuccess, onCancel }) {
     if (!f.nombre||!f.usuario||!f.password) { setError('Nombre, usuario y contraseña son requeridos'); return }
     setLoading(true); setError('')
     try {
-      const res = await fetch('/api/master/coaches',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...f,club_id:f.club_id?Number(f.club_id):null})})
+      const res = await fetch('/api/master/coaches',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...f, club_ids: selectedClubs})})
       if (!res.ok) { const d=await res.json(); setError(d.error||'Error'); return }
       onSuccess()
     } catch { setError('Error de conexión') }
@@ -891,12 +907,19 @@ function NewCoachForm({ clubs, onSuccess, onCancel }) {
             <input className="wp-input" type={k==='password'?'password':'text'} value={f[k]} onChange={e=>set(k,e.target.value)} placeholder={ph} required />
           </div>
         ))}
-        <div>
-          <label style={{ display:'block', fontSize:10, fontWeight:600, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:5 }}>Club asignado</label>
-          <select className="wp-input" value={f.club_id} onChange={e=>set('club_id',e.target.value)} style={{ appearance:'none' }}>
-            <option value="" style={{ background:'var(--ink2)' }}>— Asignar después —</option>
-            {clubs.map(c=><option key={c.id} value={c.id} style={{ background:'var(--ink2)' }}>{c.nombre}</option>)}
-          </select>
+        <div style={{ gridColumn:'1 / -1' }}>
+          <label style={{ display:'block', fontSize:10, fontWeight:600, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:5 }}>Clubes asignados</label>
+          <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
+            {clubs.map(c=>(
+              <label key={c.id} style={{ display:'flex', alignItems:'center', gap:6, fontSize:12, padding:'6px 10px', background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:8, cursor:'pointer' }}>
+                <input type="checkbox" checked={selectedClubs.includes(c.id)} onChange={e => {
+                  if (e.target.checked) setSelectedClubs(prev => [...prev, c.id])
+                  else setSelectedClubs(prev => prev.filter(id => id !== c.id))
+                }} style={{ accentColor:'var(--lime)' }} />
+                <span style={{ color: selectedClubs.includes(c.id) ? 'var(--snow)' : 'var(--silver)' }}>{c.nombre}</span>
+              </label>
+            ))}
+          </div>
         </div>
       </div>
       {error && <p style={{ fontSize:12, color:'#f87171', marginBottom:10 }}>{error}</p>}

@@ -44,13 +44,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Usuario desactivado' }, { status: 403 })
     }
 
-    // Get club name
+    // Get club name — resolved after admin_clubs sync below
     let clubNombre: string | undefined
-    if (u.club_id) {
-      try {
-        const clubRows = await sql`SELECT nombre FROM clubs WHERE id = ${u.club_id} LIMIT 1`
-        clubNombre = (clubRows[0] as any)?.nombre
-      } catch { /* clubs table may not exist yet */ }
     }
 
     // Ensure login tracking columns exist (safe migration — runs only if columns missing)
@@ -64,13 +59,40 @@ export async function POST(req: NextRequest) {
       await sql`UPDATE usuarios SET last_login = NOW(), login_count = COALESCE(login_count, 0) + 1 WHERE id = ${u.id}`
     } catch {}
 
+    // For admins: ensure admin_clubs is in sync and pick active club
+    let activeClubId = u.club_id ?? undefined
+    if (u.rol === 'admin') {
+      try {
+        // If user has club_id but no admin_clubs row, create one (backfill)
+        if (u.club_id) {
+          await sql`INSERT INTO admin_clubs (admin_id, club_id) VALUES (${u.id}, ${u.club_id}) ON CONFLICT (admin_id, club_id) DO NOTHING`
+        }
+        // If user has no club_id but has admin_clubs entries, use the first one
+        if (!u.club_id) {
+          const firstClub = await sql`SELECT club_id FROM admin_clubs WHERE admin_id = ${u.id} ORDER BY created_at ASC LIMIT 1`
+          if (firstClub.length > 0) {
+            activeClubId = Number((firstClub[0] as any).club_id)
+            await sql`UPDATE usuarios SET club_id = ${activeClubId} WHERE id = ${u.id}`
+          }
+        }
+      } catch { /* admin_clubs table may not exist yet */ }
+    }
+
+    // Resolve club name from the active club
+    if (activeClubId) {
+      try {
+        const clubRows = await sql`SELECT nombre FROM clubs WHERE id = ${activeClubId} LIMIT 1`
+        clubNombre = (clubRows[0] as any)?.nombre
+      } catch { /* clubs table may not exist yet */ }
+    }
+
     const token = await createToken({
       userId: u.id,
       usuario: u.usuario,
       nombre: u.nombre,
       rol: u.rol,
       jugadorId: u.jugador_id ?? undefined,
-      clubId: u.club_id ?? undefined,
+      clubId: activeClubId,
       clubNombre,
     })
 

@@ -194,4 +194,19 @@ export const SCHEMA_STATEMENTS = [
   `UPDATE jugadores j SET club_id = u.club_id FROM usuarios u WHERE j.usuario_id = u.id AND j.club_id IS NULL AND u.club_id IS NOT NULL`,
   // Re-run GPS logs club_id backfill now that jugadores have club_id populated
   `UPDATE gps_logs SET club_id = (SELECT j.club_id FROM jugadores j WHERE j.id = gps_logs.jugador_id) WHERE club_id IS NULL AND jugador_id IS NOT NULL`,
+  // ── Multi-club coach support: admin_clubs junction table ──────────────────────
+  `CREATE TABLE IF NOT EXISTS admin_clubs (
+    id SERIAL PRIMARY KEY,
+    admin_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+    club_id INTEGER NOT NULL REFERENCES clubs(id) ON DELETE CASCADE,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(admin_id, club_id)
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_admin_clubs_admin ON admin_clubs(admin_id)`,
+  `CREATE INDEX IF NOT EXISTS idx_admin_clubs_club ON admin_clubs(club_id)`,
+  // Backfill: copy existing usuarios.club_id → admin_clubs for admins
+  `INSERT INTO admin_clubs (admin_id, club_id)
+   SELECT id, club_id FROM usuarios
+   WHERE rol = 'admin' AND club_id IS NOT NULL
+   ON CONFLICT (admin_id, club_id) DO NOTHING`,
 ]

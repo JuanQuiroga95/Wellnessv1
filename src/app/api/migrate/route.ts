@@ -316,6 +316,20 @@ export async function POST(req: NextRequest) {
     // ── RTP v2: JSONB checks + updated fase default ───────────────────────
     [`ALTER TABLE readaptacion_checks ADD COLUMN IF NOT EXISTS checks_data JSONB DEFAULT '{}'::jsonb`, 'readaptacion_checks.checks_data'],
     [`ALTER TABLE lesiones ALTER COLUMN fase SET DEFAULT 'F1 - Rec. Funcional'`, 'lesiones.fase default RTP v2'],
+    // ── Multi-club coach support ────────────────────────────────────────
+    [`CREATE TABLE IF NOT EXISTS admin_clubs (
+      id SERIAL PRIMARY KEY,
+      admin_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+      club_id INTEGER NOT NULL REFERENCES clubs(id) ON DELETE CASCADE,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      UNIQUE(admin_id, club_id)
+    )`, 'admin_clubs table'],
+    [`CREATE INDEX IF NOT EXISTS idx_admin_clubs_admin ON admin_clubs(admin_id)`, 'admin_clubs index admin'],
+    [`CREATE INDEX IF NOT EXISTS idx_admin_clubs_club ON admin_clubs(club_id)`, 'admin_clubs index club'],
+    [`INSERT INTO admin_clubs (admin_id, club_id)
+     SELECT id, club_id FROM usuarios
+     WHERE rol = 'admin' AND club_id IS NOT NULL
+     ON CONFLICT (admin_id, club_id) DO NOTHING`, 'admin_clubs backfill'],
   ]
   for (const [sql_str, label] of extra_migrations) {
     try {

@@ -1,7 +1,40 @@
 'use client'
 import { useRouter } from 'next/navigation'
+import { useState, useEffect } from 'react'
+
 export default function Topbar({ nombre, rol, activeTab, onTabChange, tabs, clubNombre = null }) {
   const router = useRouter()
+  const [clubs, setClubs] = useState<any[]>([])
+  const [switching, setSwitching] = useState(false)
+
+  useEffect(() => {
+    if (rol === 'admin' || rol === 'master_admin') {
+      fetch('/api/auth/my-clubs')
+        .then(r => r.json())
+        .then(d => { if (Array.isArray(d)) setClubs(d) })
+        .catch(() => {})
+    }
+  }, [rol])
+
+  async function switchClub(clubId: number) {
+    if (switching) return
+    setSwitching(true)
+    try {
+      const res = await fetch('/api/auth/switch-club', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ club_id: clubId })
+      })
+      if (res.ok) {
+        window.location.reload()
+      } else {
+        setSwitching(false)
+      }
+    } catch {
+      setSwitching(false)
+    }
+  }
+
   async function logout() { await fetch('/api/auth/logout', { method:'POST' }); router.push('/landing.html') }
   return (
     <header className="no-print" style={{ position:'sticky', top:0, zIndex:50, background:'rgba(8,8,8,0.92)', backdropFilter:'blur(12px)', borderBottom:'1px solid var(--mist)' }}>
@@ -12,11 +45,25 @@ export default function Topbar({ nombre, rol, activeTab, onTabChange, tabs, club
           </div>
           <span className="display" style={{ fontSize:20, color:'var(--snow)', letterSpacing:'0.05em' }}>W&P</span>
           <span style={{ fontFamily:'DM Mono,monospace', fontSize:10, color:'var(--silver)', marginLeft:4, textTransform:'uppercase', letterSpacing:'0.06em' }}>{rol==='master_admin'?'Master Admin':rol==='admin'?'Preparador':'Jugador'}</span>
-          {clubNombre && (
+          {clubs.length > 1 ? (
+            <select
+              disabled={switching}
+              onChange={(e) => switchClub(Number(e.target.value))}
+              style={{ fontFamily:'DM Mono,monospace', fontSize:10, color:'var(--lime)', background:'rgba(200,241,53,.08)', border:'1px solid rgba(200,241,53,.2)', borderRadius:6, padding:'2px 24px 2px 8px', marginLeft:4, cursor:'pointer', outline:'none' }}
+              value={clubs.find(c => c.is_active)?.id || ''}
+            >
+              <option value="" disabled style={{ background:'var(--ink)', color:'var(--fog)' }}>— Seleccionar club —</option>
+              {clubs.map(c => (
+                <option key={c.id} value={c.id} style={{ background:'var(--ink)', color:'var(--snow)' }}>
+                  🏟️ {c.nombre}
+                </option>
+              ))}
+            </select>
+          ) : clubNombre ? (
             <span style={{ fontFamily:'DM Mono,monospace', fontSize:10, color:'var(--lime)', background:'rgba(200,241,53,.08)', border:'1px solid rgba(200,241,53,.2)', borderRadius:6, padding:'2px 8px', marginLeft:4 }}>
               🏟️ {clubNombre}
             </span>
-          )}
+          ) : null}
         </div>
         <div style={{ display:'flex', alignItems:'center', gap:12 }}>
           <span style={{ fontSize:13, color:'var(--silver)' }}>{nombre}</span>
