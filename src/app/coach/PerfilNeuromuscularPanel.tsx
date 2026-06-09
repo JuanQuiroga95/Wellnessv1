@@ -202,16 +202,16 @@ export default function PerfilNeuromuscularPanel() {
                   
                   const base_mts_min = p ? p.avg_mts_min : 0;
                   const base_duracion = p ? p.avg_duracion : 0;
-                  const base_acc_per_min = base_duracion ? (base_acc_int_tot / base_duracion) : 0;
+                  const base_acc_int_per_min_calc = base_duracion ? (base_acc_int_tot / base_duracion) : 0;
                   const base_vel_max = p ? p.avg_max_vel : 0;
-                  const base_max_acc = 0;
-                  const base_max_dec = 0;
-                  // Intensidad derivada por minuto
-                  const base_hsr_per_min = base_duracion ? (base_dist_v4 / base_duracion) : 0;
-                  const base_sprint_dist_per_min = base_duracion ? (base_dist_v5 / base_duracion) : 0;
-                  const base_acc_per_min_solo = base_duracion ? (base_acel / base_duracion) : 0;
-                  const base_dec_per_min = base_duracion ? (base_decel / base_duracion) : 0;
+                  const base_max_acc = p ? p.avg_max_acc : 0;
+                  const base_max_dec = p ? p.avg_max_dec : 0;
+                  const base_hsr_per_min = p && p.avg_hsr_per_min ? p.avg_hsr_per_min : (base_duracion ? (base_dist_v4 / base_duracion) : 0);
+                  const base_sprint_dist_per_min = p && p.avg_sprint_dist_per_min ? p.avg_sprint_dist_per_min : (base_duracion ? (base_dist_v5 / base_duracion) : 0);
+                  const base_acc_per_min_solo = p && p.avg_acc_per_min_json ? p.avg_acc_per_min_json : (base_duracion ? (base_acel / base_duracion) : 0);
+                  const base_dec_per_min = p && p.avg_dec_per_min_json ? p.avg_dec_per_min_json : (base_duracion ? (base_decel / base_duracion) : 0);
                   const base_pl_per_min = base_duracion ? (base_player_load / base_duracion) : 0;
+                  const base_acc_per_min = p && p.avg_acc_int_per_min ? p.avg_acc_int_per_min : base_acc_int_per_min_calc;
 
                   // Valores de la sesión
                   const val_dist_total = r.avg_dist_total || 0;
@@ -227,16 +227,16 @@ export default function PerfilNeuromuscularPanel() {
 
                   const val_mts_min = r.avg_mts_min || 0;
                   const val_duracion = r.avg_duracion || 0;
-                  const val_acc_per_min = val_duracion ? (val_acc_int_tot / val_duracion) : 0;
+                  const val_acc_int_per_min_calc = val_duracion ? (val_acc_int_tot / val_duracion) : 0;
                   const val_vel_max = r.avg_max_vel || 0;
-                  const val_max_acc = 0;
-                  const val_max_dec = 0;
-                  // Intensidad derivada por minuto
-                  const val_hsr_per_min = val_duracion ? (val_dist_v4 / val_duracion) : 0;
-                  const val_sprint_dist_per_min = val_duracion ? (val_dist_v5 / val_duracion) : 0;
-                  const val_acc_per_min_solo = val_duracion ? (val_acel / val_duracion) : 0;
-                  const val_dec_per_min = val_duracion ? (val_decel / val_duracion) : 0;
+                  const val_max_acc = r.avg_max_acc || 0;
+                  const val_max_dec = r.avg_max_dec || 0;
+                  const val_hsr_per_min = r.avg_hsr_per_min ? r.avg_hsr_per_min : (val_duracion ? (val_dist_v4 / val_duracion) : 0);
+                  const val_sprint_dist_per_min = r.avg_sprint_dist_per_min ? r.avg_sprint_dist_per_min : (val_duracion ? (val_dist_v5 / val_duracion) : 0);
+                  const val_acc_per_min_solo = r.avg_acc_per_min_json ? r.avg_acc_per_min_json : (val_duracion ? (val_acel / val_duracion) : 0);
+                  const val_dec_per_min = r.avg_dec_per_min_json ? r.avg_dec_per_min_json : (val_duracion ? (val_decel / val_duracion) : 0);
                   const val_pl_per_min = val_duracion ? (val_player_load / val_duracion) : 0;
+                  const val_acc_per_min = r.avg_acc_int_per_min ? r.avg_acc_int_per_min : val_acc_int_per_min_calc;
 
                   const renderPct = (val: number, base: number) => {
                     if (!base) return <td style={{ padding: '10px 6px', fontWeight: 'bold', color: 'var(--fog)', fontSize: 11 }}>0%</td>;

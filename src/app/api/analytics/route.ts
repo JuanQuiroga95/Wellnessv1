@@ -106,6 +106,13 @@ export async function GET(req: NextRequest) {
                AVG(NULLIF(COALESCE(g.dist_per_min,0), 0)) AS avg_mts_min,
                AVG(NULLIF(COALESCE(g.duracion_min,0), 0)) AS avg_duracion,
                AVG(COALESCE(g.player_load,0)) AS avg_player_load,
+               AVG(COALESCE((g.metricas->>'max_acc')::numeric, 0)) AS avg_max_acc,
+               AVG(COALESCE((g.metricas->>'max_dec')::numeric, 0)) AS avg_max_dec,
+               AVG(COALESCE((g.metricas->>'hsr_per_min')::numeric, 0)) AS avg_hsr_per_min,
+               AVG(COALESCE((g.metricas->>'sprint_dist_per_min')::numeric, 0)) AS avg_sprint_dist_per_min,
+               AVG(COALESCE((g.metricas->>'acc_int_per_min')::numeric, 0)) AS avg_acc_int_per_min,
+               AVG(COALESCE((g.metricas->>'acc_per_min')::numeric, 0)) AS avg_acc_per_min_json,
+               AVG(COALESCE((g.metricas->>'dec_per_min')::numeric, 0)) AS avg_dec_per_min_json,
                COUNT(g.id)::int AS registros
         FROM gps_logs g
         JOIN jugadores j ON j.id = g.jugador_id
@@ -201,7 +208,14 @@ export async function GET(req: NextRequest) {
             AVG(NULLIF(COALESCE(max_velocity,0), 0)) AS avg_max_vel,
             AVG(NULLIF(COALESCE(dist_per_min,0), 0)) AS avg_mts_min,
             AVG(COALESCE(duracion_min,0)) AS avg_duracion,
-            AVG(COALESCE(player_load,0)) AS avg_player_load
+            AVG(COALESCE(player_load,0)) AS avg_player_load,
+            AVG(COALESCE((metricas->>'max_acc')::numeric, 0)) AS avg_max_acc,
+            AVG(COALESCE((metricas->>'max_dec')::numeric, 0)) AS avg_max_dec,
+            AVG(COALESCE((metricas->>'hsr_per_min')::numeric, 0)) AS avg_hsr_per_min,
+            AVG(COALESCE((metricas->>'sprint_dist_per_min')::numeric, 0)) AS avg_sprint_dist_per_min,
+            AVG(COALESCE((metricas->>'acc_int_per_min')::numeric, 0)) AS avg_acc_int_per_min,
+            AVG(COALESCE((metricas->>'acc_per_min')::numeric, 0)) AS avg_acc_per_min_json,
+            AVG(COALESCE((metricas->>'dec_per_min')::numeric, 0)) AS avg_dec_per_min_json
           FROM gps_logs g
           JOIN jugadores j ON j.id = g.jugador_id
           JOIN usuarios u ON u.id = j.usuario_id
@@ -227,7 +241,14 @@ export async function GET(req: NextRequest) {
             avg_max_vel: Number(res[0].avg_max_vel),
             avg_mts_min: Number(res[0].avg_mts_min),
             avg_duracion: Number(res[0].avg_duracion),
-            avg_player_load: Number(res[0].avg_player_load)
+            avg_player_load: Number(res[0].avg_player_load),
+            avg_max_acc: Number(res[0].avg_max_acc),
+            avg_max_dec: Number(res[0].avg_max_dec),
+            avg_hsr_per_min: Number(res[0].avg_hsr_per_min),
+            avg_sprint_dist_per_min: Number(res[0].avg_sprint_dist_per_min),
+            avg_acc_int_per_min: Number(res[0].avg_acc_int_per_min),
+            avg_acc_per_min_json: Number(res[0].avg_acc_per_min_json),
+            avg_dec_per_min_json: Number(res[0].avg_dec_per_min_json)
           }
         } else {
           console.log('[Analytics] mdPromedio: No GPS data found for selected matches', ids)
@@ -258,6 +279,13 @@ export async function GET(req: NextRequest) {
         avg_acel: Number(r.avg_acel_total),
         avg_decel: Number(r.avg_decel_total),
         avg_player_load: Number(r.avg_player_load),
+        avg_max_acc: Number(r.avg_max_acc),
+        avg_max_dec: Number(r.avg_max_dec),
+        avg_hsr_per_min: Number(r.avg_hsr_per_min),
+        avg_sprint_dist_per_min: Number(r.avg_sprint_dist_per_min),
+        avg_acc_int_per_min: Number(r.avg_acc_int_per_min),
+        avg_acc_per_min_json: Number(r.avg_acc_per_min_json),
+        avg_dec_per_min_json: Number(r.avg_dec_per_min_json),
         registros: r.registros
       })),
       dailyEvolution: dailyEvolution.map(r => ({

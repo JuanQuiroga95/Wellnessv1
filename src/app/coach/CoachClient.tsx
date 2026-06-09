@@ -50,6 +50,14 @@ const GPS_METRIC_META: Record<string, { label: string; unit: string; group: stri
   hr_z4:               { label: 'FC Zona 4',         unit: '%',      group: 'FC' },
   hr_z5:               { label: 'FC Zona 5',         unit: '%',      group: 'FC' },
   duracion_min:        { label: 'Duración',          unit: 'min',    group: 'Tiempo' },
+  // Métricas derivadas y neuromusculares
+  hsr_per_min:         { label: 'HSR/min',            unit: 'm/min',  group: 'Derivadas' },
+  sprint_dist_per_min: { label: 'Sprint/min',         unit: 'm/min',  group: 'Derivadas' },
+  acc_int_per_min:     { label: 'Acc Int/min',        unit: 'n/min',  group: 'Derivadas' },
+  acc_per_min:         { label: 'Acc/min',            unit: 'n/min',  group: 'Derivadas' },
+  dec_per_min:         { label: 'Dec/min',            unit: 'n/min',  group: 'Derivadas' },
+  max_acc:             { label: 'Máx. Acc',           unit: 'm/s²',  group: 'Máximos' },
+  max_dec:             { label: 'Máx. Dec',           unit: 'm/s²',  group: 'Máximos' },
 }
 
 // Order in which columns appear (known fields first, logical order)
@@ -66,6 +74,10 @@ function fmtGps(key: string, val: any): string {
   if (key === 'dist_per_min') return `${Math.round(n)}`
   if (key === 'player_load') return `${Math.round(n)}`
   if (key === 'metabolic_power' || key === 'avg_metabolic_power') return `${n.toFixed(1)}`
+  // Métricas derivadas (por minuto) — mostrar con 1-2 decimales
+  if (key === 'hsr_per_min' || key === 'sprint_dist_per_min') return `${n.toFixed(1)}`
+  if (key === 'acc_int_per_min' || key === 'acc_per_min' || key === 'dec_per_min') return `${n.toFixed(2)}`
+  if (key === 'max_acc' || key === 'max_dec') return `${n.toFixed(1)}`
   return `${Math.round(n)}`
 }
 
@@ -6532,16 +6544,17 @@ function GpsPanel({ teamData }: { teamData: any }) {
               const headers = [
                 'Nombre y Apellido','Tiempo (min)','Tot Dist (m)','Meterage Per Minute',
                 'Vel B4 Tot Dist (m)','High Speed Dist (m)','Vel B6 Tot Dist (m)',
-                'Número Sprint','Acc B2-3 Tot Effs','Decel B2-3 Tot Effs','Velocidad Máxima'
+                'Número Sprint','Acc B2-3 Tot Effs','Decel B2-3 Tot Effs','Velocidad Máxima',
+                'HSR (M/MIN)','DIST SPRINT/MIN','ACC INT/MIN','ACC/MIN','DEC/MIN','MAX ACC','MAX DEC'
               ]
               const rows = [
                 headers,
-                ['Juan Pérez',    90, 10500, 88, 2100, 520, 130, 12, 38, 32, 31],
-                ['Carlos López',  85,  9800, 82, 1950, 480, 115, 10, 34, 29, 29],
-                ['Miguel Torres', 90, 10200, 85, 2050, 495, 120, 11, 36, 31, 30],
+                ['Juan Pérez',    90, 10500, 88, 2100, 520, 130, 12, 38, 32, 31, 5.8, 1.4, 0.4, 0.4, 0.3, 3, 3],
+                ['Carlos López',  85,  9800, 82, 1950, 480, 115, 10, 34, 29, 29, 5.6, 1.3, 0.4, 0.4, 0.3, 3, 3],
+                ['Miguel Torres', 90, 10200, 85, 2050, 495, 120, 11, 36, 31, 30, 5.5, 1.3, 0.4, 0.4, 0.3, 3, 3],
               ]
               const ws = XLSX.utils.aoa_to_sheet(rows)
-              ws['!cols'] = [22,13,13,20,18,18,18,14,18,18,16].map(w => ({ wch: w }))
+              ws['!cols'] = [22,13,13,20,18,18,18,14,18,18,16,13,16,13,13,13,13,13].map(w => ({ wch: w }))
               const wb = XLSX.utils.book_new()
               XLSX.utils.book_append_sheet(wb, ws, 'GPS_DATOS')
               XLSX.writeFile(wb, 'GPS_PLANTILLA.xlsx')

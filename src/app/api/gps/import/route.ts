@@ -72,6 +72,15 @@ const METRIC_COL_MAP: Array<[string, string]> = [
   ['max vel','max_velocity'],['vel max','max_velocity'],
   ['velocidad max','max_velocity'],['vel maxima','max_velocity'],['vel. max','max_velocity'],
   ['duracion','duracion_min'],['duration','duracion_min'],['time','duracion_min'],['tiempo','duracion_min'],
+  
+  // METRICAS DERIVADAS Y MAXIMOS (Neuromuscular)
+  ['hsr (m/min)', 'hsr_per_min'], ['hsr per min', 'hsr_per_min'],
+  ['dist sprint/min', 'sprint_dist_per_min'], ['sprint dist per minute', 'sprint_dist_per_min'],
+  ['acc int/min', 'acc_int_per_min'],
+  ['acc/min', 'acc_per_min'],
+  ['dec/min', 'dec_per_min'],
+  ['max acc', 'max_acc'], ['maxima aceleracion', 'max_acc'],
+  ['max dec', 'max_dec'], ['maxima desaceleracion', 'max_dec'],
 ]
 
 // Finds the best metric key for a given column header
@@ -314,8 +323,8 @@ export async function POST(req: NextRequest) {
       for (const m of matched) {
         const met = m.metricas || {}
         try {
-          await sql`INSERT INTO gps_logs (jugador_id, club_id, fecha, sesion_id, tipo_sesion, dist_total, dist_hir, dist_v4, dist_v5, player_load, max_velocity, acc2, dec2, acc3, dec3, dist_per_min, n_sprints, metricas, fuente)
-                    VALUES (${m.jugador_id}, ${clubId}, ${fecha}, ${sid}, ${tipo_sesion}, ${met.dist_total||0}, ${met.dist_hir||0}, ${met.dist_v4||0}, ${met.dist_v5||0}, ${met.player_load||0}, ${met.max_velocity||0}, ${met.acc2||0}, ${met.dec2||0}, ${met.acc3||0}, ${met.dec3||0}, ${met.dist_per_min||0}, ${met.n_sprints||0}, ${JSON.stringify(met)}, ${pdfText?'pdf':'excel'})`
+          await sql`INSERT INTO gps_logs (jugador_id, club_id, fecha, sesion_id, tipo_sesion, dist_total, dist_hir, dist_v4, dist_v5, player_load, max_velocity, acc2, dec2, acc3, dec3, dist_per_min, n_sprints, duracion_min, metricas, fuente)
+                    VALUES (${m.jugador_id}, ${clubId}, ${fecha}, ${sid}, ${tipo_sesion}, ${met.dist_total||0}, ${met.dist_hir||0}, ${met.dist_v4||0}, ${met.dist_v5||0}, ${met.player_load||0}, ${met.max_velocity||0}, ${met.acc2||0}, ${met.dec2||0}, ${met.acc3||0}, ${met.dec3||0}, ${met.dist_per_min||0}, ${met.n_sprints||0}, ${met.duracion_min||null}, ${JSON.stringify(met)}, ${pdfText?'pdf':'excel'})`
         } catch (insertErr: any) {
           insertErrors.push(`${m.jugador_nombre || m.jugador_id}: ${insertErr.message || insertErr}`)
           console.error('[GPS INSERT error]', m.jugador_nombre, insertErr)
