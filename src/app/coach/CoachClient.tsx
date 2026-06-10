@@ -7141,13 +7141,13 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
               ))}
               <div style={{ display:'flex', gap:names.length>6?2:6, alignItems:'flex-end', height:BAR_H }}>
                 {names.map((name:string,ni:number)=>(
-                  <div key={ni} style={{ flex:1, display:'flex', gap:2, alignItems:'flex-end', height:BAR_H }}>
+                  <div key={ni} style={{ flex:1, display:'flex', gap:2, alignItems:'flex-end', justifyContent:'center', height:BAR_H }}>
                     {series.map((s,si)=>{
                       const val = (s.vals[ni] as any)?.val || 0
                       const h = Math.max((val/maxVal)*BAR_H, val>0?3:0)
                       return (
                         <div key={si} title={`${name} - ${s.label}: ${val}`}
-                          style={{ position:'relative', flex:1, maxWidth:18, minWidth:7, height:`${h}px`,
+                          style={{ position:'relative', width:'100%', maxWidth:18, minWidth:7, height:`${h}px`,
                             background: val>0 ? s.color : `${s.color}18`,
                             borderRadius:'3px 3px 0 0', overflow:'visible' }}>
                           {val>0 && h>=18 && (
@@ -7816,7 +7816,7 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
                                             const h = Math.max((val/maxBar)*BAR_H, val>0?4:2)
                                             return (
                                               <div key={bi} title={`${p.nombre}: ${val} ${b.label}`}
-                                                style={{ position:'relative', flex:1, maxWidth:20, height:`${h}px`,
+                                                style={{ position:'relative', width:'100%', maxWidth:20, height:`${h}px`,
                                                   background: val > 0 ? b.color : `${b.color}18`,
                                                   borderRadius:'3px 3px 0 0', minWidth:6,
                                                   transition:'height .3s', overflow:'visible' }}>
@@ -9183,7 +9183,7 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
                                   const h = Math.max((val/maxBar)*BAR_H, val>0?4:2)
                                   return (
                                     <div key={bi} title={`${md}: ${val}`}
-                                      style={{ position:'relative', flex:1, maxWidth:24, height:`${h}px`, background:val>0?b.color:`${b.color}18`, borderRadius:'3px 3px 0 0', minWidth:6 }}>
+                                      style={{ position:'relative', width:'100%', maxWidth:24, height:`${h}px`, background:val>0?b.color:`${b.color}18`, borderRadius:'3px 3px 0 0', minWidth:6 }}>
                                       {val>0 && h>=16 && <span style={{ position:'absolute', top:'50%', left:'50%', transform:'translate(-50%,-50%) rotate(-90deg)', fontSize:7, color:'#fff', fontFamily:'DM Mono,monospace', fontWeight:700, whiteSpace:'nowrap', textShadow:'0 1px 2px rgba(0,0,0,.9)' }}>{val}</span>}
                                     </div>
                                   )
@@ -9316,7 +9316,7 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
                                   const h = Math.max((val/maxBar)*BAR_H, val>0?4:2)
                                   return (
                                     <div key={bi} title={`${md}: ${val}`}
-                                      style={{ position:'relative', flex:1, maxWidth:24, height:`${h}px`, background:val>0?b.color:`${b.color}18`, borderRadius:'3px 3px 0 0', minWidth:6 }}>
+                                      style={{ position:'relative', width:'100%', maxWidth:24, height:`${h}px`, background:val>0?b.color:`${b.color}18`, borderRadius:'3px 3px 0 0', minWidth:6 }}>
                                       {val>0 && h>=16 && <span style={{ position:'absolute', top:'50%', left:'50%', transform:'translate(-50%,-50%) rotate(-90deg)', fontSize:7, color:'#fff', fontFamily:'DM Mono,monospace', fontWeight:700, whiteSpace:'nowrap', textShadow:'0 1px 2px rgba(0,0,0,.9)' }}>{val}</span>}
                                     </div>
                                   )
