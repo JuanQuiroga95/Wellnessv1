@@ -7139,7 +7139,7 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
               {[100,75,50,25,0].map((p,i)=>(
                 <div key={i} style={{ position:'absolute', left:0, right:0, top:`${(i/4)*BAR_H}px`, borderTop:'1px solid rgba(255,255,255,.05)' }}/>
               ))}
-              <div style={{ display:'flex', gap:names.length>6?2:6, alignItems:'flex-end', height:BAR_H }}>
+              <div style={{ display:'flex', alignItems:'flex-end', height:BAR_H }}>
                 {names.map((name:string,ni:number)=>(
                   <div key={ni} style={{ flex:1, display:'flex', gap:2, alignItems:'flex-end', justifyContent:'center', height:BAR_H }}>
                     {series.map((s,si)=>{
@@ -7180,7 +7180,7 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
                       <g key={`p-${i}`}>
                         <circle cx={`${pt.x}%`} cy={pt.y} r="5" fill={grupo.lineColor} stroke="#000" strokeWidth="1.5" />
                         {pt.v > 0 && (
-                          <text x={`${pt.x}%`} y={Math.max(pt.y-10, 12)} textAnchor="middle"
+                          <text x={`${pt.x}%`} y={pt.y} dy="-14" textAnchor="middle"
                             fill={grupo.lineColor} fontFamily="DM Mono,monospace" fontWeight="bold"
                             style={{ fontSize:`${BAR_H*0.09}px` }}>
                             {pt.v}
@@ -7193,7 +7193,7 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
               })()}
             </div>
             {/* X-axis labels */}
-            <div style={{ display:'flex', gap:names.length>6?2:6, marginTop:4 }}>
+            <div style={{ display:'flex', marginTop:4 }}>
               {names.map((name:string,ni:number)=>(
                 <div key={ni} style={{ flex:1, fontSize:9, color:existingMdLabels.has(name)?'var(--lime)':'var(--fog)', whiteSpace:'nowrap', overflow:'hidden', maxWidth:38, textOverflow:'ellipsis', textAlign:'center', fontWeight:existingMdLabels.has(name)?700:400 }}>{name}</div>
               ))}
@@ -7804,7 +7804,7 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
                                 ))}
 
                                 {/* Bars + labels per player */}
-                                <div style={{ position:'absolute', bottom:28, left:0, right:0, display:'flex', alignItems:'flex-end', gap:mdPlayers.length > 4 ? 4 : 8, padding:'0 4px' }}>
+                                <div style={{ position:'absolute', bottom:28, left:0, right:0, display:'flex', alignItems:'flex-end' }}>
                                   {mdPlayers.map((p:any, pi:number) => {
                                     const nameColor = POS_COLS[p.nombre] || '#888'
                                     return (
@@ -7851,7 +7851,7 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
                                           <g key={`p-${i}`}>
                                             <circle cx={`${pt.x}%`} cy={pt.y} r="5" fill={grp.line!.color} stroke="#000" strokeWidth="1.5" />
                                             {pt.v > 0 && (
-                                              <text x={`${pt.x}%`} y={Math.max(pt.y - 10, 14)} textAnchor="middle" fill={grp.line!.color} fontFamily="DM Mono, monospace" fontWeight="bold" style={{ fontSize: `${BAR_H * 0.08}px`, dominantBaseline:'auto' }}>
+                                              <text x={`${pt.x}%`} y={pt.y} dy="-14" textAnchor="middle" fill={grp.line!.color} fontFamily="DM Mono, monospace" fontWeight="bold" style={{ fontSize: `${BAR_H * 0.08}px` }}>
                                                 {pt.v}
                                               </text>
                                             )}
@@ -7863,7 +7863,7 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
                                 })()}
 
                                 {/* Player names on X axis */}
-                                <div style={{ position:'absolute', bottom:0, left:0, right:0, display:'flex', gap:mdPlayers.length > 4 ? 4 : 8, padding:'0 4px' }}>
+                                <div style={{ position:'absolute', bottom:0, left:0, right:0, display:'flex' }}>
                                   {mdPlayers.map((p:any, pi:number) => (
                                     <div key={pi} style={{ flex:1, textAlign:'center', minWidth:0 }}>
                                       <div style={{ fontSize:11, color: POS_COLS[p.nombre] || '#888', fontWeight:700,
@@ -9030,7 +9030,7 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
                                 {[0,25,50,75,100].map(p=>(
                                   <div key={p} style={{ position:'absolute', left:0, right:0, bottom:`${(p/100)*BAR_H+28}px`, borderTop:'1px solid rgba(255,255,255,.04)' }}/>
                                 ))}
-                                <div style={{ position:'absolute', bottom:28, left:0, right:0, display:'flex', alignItems:'flex-end', gap:8, padding:'0 4px' }}>
+                                <div style={{ position:'absolute', bottom:28, left:0, right:0, display:'flex', alignItems:'flex-end' }}>
                                   {[...mdPlayers].sort((a:any,b:any)=>(Number(b[grp.bars[0].key])||0)-(Number(a[grp.bars[0].key])||0)).map((p:any, pi:number)=>{
                                     const nameColor = POS_COLS[p.nombre]||'#888'
                                     return (
@@ -9041,7 +9041,7 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
                                             const h = Math.max((val/maxBar)*BAR_H, val>0?4:2)
                                             return (
                                               <div key={bi} title={`${p.nombre}: ${val} ${b.label}`}
-                                                style={{ position:'relative', flex:1, maxWidth:20, height:`${h}px`, background:val>0?b.color:`${b.color}18`, borderRadius:'3px 3px 0 0', minWidth:6, overflow:'visible' }}>
+                                                style={{ position:'relative', width:'100%', maxWidth:20, height:`${h}px`, background:val>0?b.color:`${b.color}18`, borderRadius:'3px 3px 0 0', minWidth:6, overflow:'visible' }}>
                                                 {val>0 && h>=16 && <span style={{ position:'absolute', top:'50%', left:'50%', transform:'translate(-50%,-50%) rotate(-90deg)', fontSize:8, color:'#fff', fontFamily:'DM Mono,monospace', fontWeight:700, whiteSpace:'nowrap', textShadow:'0 1px 2px rgba(0,0,0,.9)', pointerEvents:'none' }}>{val}</span>}
                                               </div>
                                             )
@@ -9067,7 +9067,7 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
                                           <g key={`p-${i}`}>
                                             <circle cx={`${pt.x}%`} cy={pt.y} r="5" fill={grp.line!.color} stroke="#000" strokeWidth="1.5" />
                                             {pt.v>0 && (
-                                              <text x={`${pt.x}%`} y={Math.max(pt.y-10, 14)} textAnchor="middle" fill={grp.line!.color} fontFamily="DM Mono, monospace" fontWeight="bold" style={{ fontSize:`${BAR_H*0.08}px`, dominantBaseline:'auto' }}>
+                                              <text x={`${pt.x}%`} y={pt.y} dy="-14" textAnchor="middle" fill={grp.line!.color} fontFamily="DM Mono, monospace" fontWeight="bold" style={{ fontSize:`${BAR_H*0.08}px` }}>
                                                 {pt.v}
                                               </text>
                                             )}
@@ -9077,7 +9077,7 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
                                     </svg>
                                   )
                                 })()}
-                                <div style={{ position:'absolute', bottom:0, left:0, right:0, display:'flex', gap:8, padding:'0 4px' }}>
+                                <div style={{ position:'absolute', bottom:0, left:0, right:0, display:'flex' }}>
                                   {mdPlayers.map((p:any,pi:number)=>(
                                     <div key={pi} style={{ flex:1, textAlign:'center', minWidth:0 }}>
                                       <div style={{ fontSize:11, color:POS_COLS[p.nombre]||'#888', fontWeight:700, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{p.nombre.split(' ')[0]}</div>
@@ -9174,7 +9174,7 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
                         {[0,25,50,75,100].map(p=>(
                           <div key={p} style={{ position:'absolute', left:0, right:0, bottom:`${(p/100)*BAR_H+20}px`, borderTop:'1px solid rgba(255,255,255,.04)' }}/>
                         ))}
-                        <div style={{ position:'absolute', bottom:20, left:0, right:0, display:'flex', alignItems:'flex-end', gap:6, padding:'0 4px' }}>
+                        <div style={{ position:'absolute', bottom:20, left:0, right:0, display:'flex', alignItems:'flex-end' }}>
                           {activeMds.map((md, mi) => (
                             <div key={md} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', minWidth:0 }}>
                               <div style={{ display:'flex', gap:2, alignItems:'flex-end', width:'100%', justifyContent:'center' }}>
@@ -9203,13 +9203,13 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
                               {allPts.map((pt,i)=>pt.y===null?null:(
                                 <g key={`p-${i}`}>
                                   <circle cx={`${pt.x}%`} cy={pt.y} r="4.5" fill={grp.line!.color} stroke="#000" strokeWidth="1.5" />
-                                  {pt.v>0 && <text x={`${pt.x}%`} y={Math.max(pt.y-8,12)} textAnchor="middle" fill={grp.line!.color} fontFamily="DM Mono,monospace" fontWeight="bold" style={{ fontSize:`${BAR_H*0.08}px` }}>{pt.v}</text>}
+                                  {pt.v>0 && <text x={`${pt.x}%`} y={pt.y} dy="-14" textAnchor="middle" fill={grp.line!.color} fontFamily="DM Mono,monospace" fontWeight="bold" style={{ fontSize:`${BAR_H*0.08}px` }}>{pt.v}</text>}
                                 </g>
                               ))}
                             </svg>
                           )
                         })()}
-                        <div style={{ position:'absolute', bottom:0, left:0, right:0, display:'flex', gap:6, padding:'0 4px' }}>
+                        <div style={{ position:'absolute', bottom:0, left:0, right:0, display:'flex' }}>
                           {activeMds.map(md=>(
                             <div key={md} style={{ flex:1, textAlign:'center', minWidth:0 }}>
                               <div style={{ fontSize:9, color:'#60a5fa', fontWeight:700, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{md}</div>
@@ -9307,7 +9307,7 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
                         {[0,25,50,75,100].map(p=>(
                           <div key={p} style={{ position:'absolute', left:0, right:0, bottom:`${(p/100)*BAR_H+20}px`, borderTop:'1px solid rgba(255,255,255,.04)' }}/>
                         ))}
-                        <div style={{ position:'absolute', bottom:20, left:0, right:0, display:'flex', alignItems:'flex-end', gap:6, padding:'0 4px' }}>
+                        <div style={{ position:'absolute', bottom:20, left:0, right:0, display:'flex', alignItems:'flex-end' }}>
                           {activeMds.map((md, mi) => (
                             <div key={md} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', minWidth:0 }}>
                               <div style={{ display:'flex', gap:2, alignItems:'flex-end', width:'100%', justifyContent:'center' }}>
@@ -9336,13 +9336,13 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
                               {allPts.map((pt,i)=>pt.y===null?null:(
                                 <g key={`p-${i}`}>
                                   <circle cx={`${pt.x}%`} cy={pt.y} r="4.5" fill={grp.line!.color} stroke="#000" strokeWidth="1.5" />
-                                  {pt.v>0 && <text x={`${pt.x}%`} y={Math.max(pt.y-8,12)} textAnchor="middle" fill={grp.line!.color} fontFamily="DM Mono,monospace" fontWeight="bold" style={{ fontSize:`${BAR_H*0.08}px` }}>{pt.v}</text>}
+                                  {pt.v>0 && <text x={`${pt.x}%`} y={pt.y} dy="-14" textAnchor="middle" fill={grp.line!.color} fontFamily="DM Mono,monospace" fontWeight="bold" style={{ fontSize:`${BAR_H*0.08}px` }}>{pt.v}</text>}
                                 </g>
                               ))}
                             </svg>
                           )
                         })()}
-                        <div style={{ position:'absolute', bottom:0, left:0, right:0, display:'flex', gap:6, padding:'0 4px' }}>
+                        <div style={{ position:'absolute', bottom:0, left:0, right:0, display:'flex' }}>
                           {activeMds.map(md=>(
                             <div key={md} style={{ flex:1, textAlign:'center', minWidth:0 }}>
                               <div style={{ fontSize:9, color:'#a78bfa', fontWeight:700, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{md}</div>
