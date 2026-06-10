@@ -7165,26 +7165,24 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
                 const W = 1000
                 // Use independent scale for the line so it doesn't get crushed by tall bars
                 const pts = lineVals.map((v, i) => ({
-                  x: n === 1 ? W/2 : (i / (n-1)) * W,
+                  x: ((i + 0.5) / n) * 100,
                   y: v > 0 ? (1 - v/maxLineVal) * BAR_H * 0.85 + BAR_H * 0.05 : null,
                   v,
                 }))
                 const validPts = pts.filter(p => p.y !== null) as {x:number,y:number,v:number}[]
                 return (
-                  <svg viewBox={`0 0 ${W} ${BAR_H}`} preserveAspectRatio="xMidYMid meet"
-                    style={{ position:'absolute', bottom:0, left:0, right:0, width:'100%', height:`${BAR_H}px`, overflow:'visible', pointerEvents:'none' }}>
-                    {validPts.length > 1 && (
-                      <polyline points={validPts.map(p=>`${p.x},${p.y}`).join(' ')}
-                        fill="none" stroke={grupo.lineColor} strokeWidth="2.5"
-                        strokeDasharray="10,6" vectorEffect="non-scaling-stroke"/>
-                    )}
+                  <svg style={{ position:'absolute', bottom:0, left:0, right:0, width:'100%', height:`${BAR_H}px`, overflow:'visible', pointerEvents:'none' }}>
+                    {validPts.length > 1 && validPts.map((pt, i) => i > 0 ? (
+                      <line key={`l-${i}`} x1={`${validPts[i-1].x}%`} y1={validPts[i-1].y!} x2={`${pt.x}%`} y2={pt.y!}
+                        stroke={grupo.lineColor} strokeWidth="2.5" strokeDasharray="10,6" />
+                    ) : null)}
                     {pts.map((pt, i) => pt.y === null ? null : (
-                      <g key={i}>
-                        <circle cx={pt.x} cy={pt.y} r="5" fill={grupo.lineColor} stroke="#000" strokeWidth="1.5" vectorEffect="non-scaling-stroke"/>
+                      <g key={`p-${i}`}>
+                        <circle cx={`${pt.x}%`} cy={pt.y} r="5" fill={grupo.lineColor} stroke="#000" strokeWidth="1.5" />
                         {pt.v > 0 && (
-                          <text x={pt.x} y={Math.max(pt.y-10, 12)} textAnchor="middle"
+                          <text x={`${pt.x}%`} y={Math.max(pt.y-10, 12)} textAnchor="middle"
                             fill={grupo.lineColor} fontFamily="DM Mono,monospace" fontWeight="bold"
-                            vectorEffect="non-scaling-stroke" style={{ fontSize:`${BAR_H*0.09}px` }}>
+                            style={{ fontSize:`${BAR_H*0.09}px` }}>
                             {pt.v}
                           </text>
                         )}
@@ -7835,44 +7833,25 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
                                 {/* Line overlay (m/min or RPE) — uses its OWN scale independent from bars */}
                                 {grp.line && mdPlayers.length >= 1 && (() => {
                                   const n = mdPlayers.length
-                                  const W = 1000
                                   const allPts = lineVals.map((v, i) => {
-                                    const xPct = n === 1 ? 0.5 : (i / (n - 1))
-                                    // Independent scale: map line values to 5%-90% of chart height
-                                    return { x: xPct * W, y: v > 0 ? (1 - (v / maxLine)) * BAR_H * 0.85 + BAR_H * 0.05 : null, v }
+                                    return { x: ((i + 0.5) / n) * 100, y: v > 0 ? (1 - (v / maxLine)) * BAR_H * 0.85 + BAR_H * 0.05 : null, v }
                                   })
                                   const validPts = allPts.filter(pt => pt.y !== null) as {x:number,y:number,v:number}[]
                                   return (
-                                    <svg viewBox={`0 0 ${W} ${BAR_H}`}
-                                      preserveAspectRatio="xMidYMid meet"
-                                      style={{ position:'absolute', bottom:28, left:0, right:0, width:'100%', height:`${BAR_H}px`, overflow:'visible', pointerEvents:'none' }}>
+                                    <svg style={{ position:'absolute', bottom:28, left:0, right:0, width:'100%', height:`${BAR_H}px`, overflow:'visible', pointerEvents:'none' }}>
                                       {/* Line connecting only players with data */}
-                                      {validPts.length > 1 && (
-                                        <polyline
-                                          points={validPts.map(pt => `${pt.x},${pt.y}`).join(' ')}
-                                          fill="none" stroke={grp.line.color} strokeWidth="2.5"
-                                          strokeDasharray="12,7"
-                                          vectorEffect="non-scaling-stroke"
-                                        />
-                                      )}
+                                      {validPts.length > 1 && validPts.map((pt, i) => i > 0 ? (
+                                        <line key={`l-${i}`} x1={`${validPts[i-1].x}%`} y1={validPts[i-1].y!} x2={`${pt.x}%`} y2={pt.y!}
+                                          stroke={grp.line.color} strokeWidth="2.5" strokeDasharray="12,7" />
+                                      ) : null)}
                                       {/* Dots and value labels — only for players with data */}
                                       {allPts.map((pt, i) => {
                                         if (pt.y === null) return null
                                         return (
-                                          <g key={i}>
-                                            <circle cx={pt.x} cy={pt.y} r="5" fill={grp.line!.color}
-                                              stroke="#000" strokeWidth="1.5"
-                                              vectorEffect="non-scaling-stroke"/>
+                                          <g key={`p-${i}`}>
+                                            <circle cx={`${pt.x}%`} cy={pt.y} r="5" fill={grp.line!.color} stroke="#000" strokeWidth="1.5" />
                                             {pt.v > 0 && (
-                                              <text
-                                                x={pt.x}
-                                                y={Math.max(pt.y - 10, 14)}
-                                                textAnchor="middle"
-                                                fill={grp.line!.color}
-                                                fontFamily="DM Mono, monospace"
-                                                fontWeight="bold"
-                                                vectorEffect="non-scaling-stroke"
-                                                style={{ fontSize: `${BAR_H * 0.08}px`, dominantBaseline:'auto' }}>
+                                              <text x={`${pt.x}%`} y={Math.max(pt.y - 10, 14)} textAnchor="middle" fill={grp.line!.color} fontFamily="DM Mono, monospace" fontWeight="bold" style={{ fontSize: `${BAR_H * 0.08}px`, dominantBaseline:'auto' }}>
                                                 {pt.v}
                                               </text>
                                             )}
@@ -9073,35 +9052,22 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
                                   })}
                                 </div>
                                 {grp.line && lineVals.length >= 1 && (() => {
-                                  const W = 1000
                                   // Independent scale: map to 5%-90% of chart height
-                                  const allPts = lineVals.map((v,i)=>({ x: n===1 ? W/2 : (i/(n-1))*W, y: v>0 ? (1-(v/maxLine))*BAR_H*0.85 + BAR_H*0.05 : null, v }))
+                                  const allPts = lineVals.map((v,i)=>({ x: ((i + 0.5) / n) * 100, y: v>0 ? (1-(v/maxLine))*BAR_H*0.85 + BAR_H*0.05 : null, v }))
                                   const validPts = allPts.filter(pt => pt.y !== null) as {x:number,y:number,v:number}[]
                                   return (
-                                    <svg viewBox={`0 0 ${W} ${BAR_H}`}
-                                      preserveAspectRatio="xMidYMid meet"
-                                      style={{ position:'absolute', bottom:28, left:0, right:0, width:'100%', height:`${BAR_H}px`, overflow:'visible', pointerEvents:'none' }}>
-                                      {validPts.length > 1 && (
-                                        <polyline
-                                          points={validPts.map(p=>`${p.x},${p.y}`).join(' ')}
-                                          fill="none" stroke={grp.line.color} strokeWidth="2.5"
-                                          strokeDasharray="12,7"
-                                          vectorEffect="non-scaling-stroke"
-                                        />
-                                      )}
+                                    <svg style={{ position:'absolute', bottom:28, left:0, right:0, width:'100%', height:`${BAR_H}px`, overflow:'visible', pointerEvents:'none' }}>
+                                      {validPts.length > 1 && validPts.map((pt, i) => i > 0 ? (
+                                        <line key={`l-${i}`} x1={`${validPts[i-1].x}%`} y1={validPts[i-1].y!} x2={`${pt.x}%`} y2={pt.y!}
+                                          stroke={grp.line.color} strokeWidth="2.5" strokeDasharray="12,7" />
+                                      ) : null)}
                                       {allPts.map((pt,i)=>{
                                         if (pt.y === null) return null
                                         return (
-                                          <g key={i}>
-                                            <circle cx={pt.x} cy={pt.y} r="5" fill={grp.line!.color}
-                                              stroke="#000" strokeWidth="1.5"
-                                              vectorEffect="non-scaling-stroke"/>
+                                          <g key={`p-${i}`}>
+                                            <circle cx={`${pt.x}%`} cy={pt.y} r="5" fill={grp.line!.color} stroke="#000" strokeWidth="1.5" />
                                             {pt.v>0 && (
-                                              <text x={pt.x} y={Math.max(pt.y-10, 14)}
-                                                textAnchor="middle" fill={grp.line!.color}
-                                                fontFamily="DM Mono, monospace" fontWeight="bold"
-                                                vectorEffect="non-scaling-stroke"
-                                                style={{ fontSize:`${BAR_H*0.08}px`, dominantBaseline:'auto' }}>
+                                              <text x={`${pt.x}%`} y={Math.max(pt.y-10, 14)} textAnchor="middle" fill={grp.line!.color} fontFamily="DM Mono, monospace" fontWeight="bold" style={{ fontSize:`${BAR_H*0.08}px`, dominantBaseline:'auto' }}>
                                                 {pt.v}
                                               </text>
                                             )}
@@ -9227,17 +9193,17 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
                           ))}
                         </div>
                         {grp.line && lineVals.length >= 1 && (() => {
-                          const W = 1000
-                          const allPts = lineVals.map((v,i)=>({ x: n===1?W/2:(i/(n-1))*W, y: v>0?(1-(v/maxLine))*BAR_H*0.85+BAR_H*0.05:null, v }))
+                          const allPts = lineVals.map((v,i)=>({ x: ((i + 0.5) / n) * 100, y: v>0?(1-(v/maxLine))*BAR_H*0.85+BAR_H*0.05:null, v }))
                           const validPts = allPts.filter(pt=>pt.y!==null) as {x:number,y:number,v:number}[]
                           return (
-                            <svg viewBox={`0 0 ${W} ${BAR_H}`} preserveAspectRatio="xMidYMid meet"
-                              style={{ position:'absolute', bottom:20, left:0, right:0, width:'100%', height:`${BAR_H}px`, overflow:'visible', pointerEvents:'none' }}>
-                              {validPts.length>1 && <polyline points={validPts.map(p=>`${p.x},${p.y}`).join(' ')} fill="none" stroke={grp.line.color} strokeWidth="2.5" strokeDasharray="12,7" vectorEffect="non-scaling-stroke"/>}
+                            <svg style={{ position:'absolute', bottom:20, left:0, right:0, width:'100%', height:`${BAR_H}px`, overflow:'visible', pointerEvents:'none' }}>
+                              {validPts.length>1 && validPts.map((pt, i) => i > 0 ? (
+                                <line key={`l-${i}`} x1={`${validPts[i-1].x}%`} y1={validPts[i-1].y!} x2={`${pt.x}%`} y2={pt.y!} stroke={grp.line.color} strokeWidth="2.5" strokeDasharray="12,7" />
+                              ) : null)}
                               {allPts.map((pt,i)=>pt.y===null?null:(
-                                <g key={i}>
-                                  <circle cx={pt.x} cy={pt.y} r="4.5" fill={grp.line!.color} stroke="#000" strokeWidth="1.5" vectorEffect="non-scaling-stroke"/>
-                                  {pt.v>0 && <text x={pt.x} y={Math.max(pt.y-8,12)} textAnchor="middle" fill={grp.line!.color} fontFamily="DM Mono,monospace" fontWeight="bold" vectorEffect="non-scaling-stroke" style={{ fontSize:`${BAR_H*0.08}px` }}>{pt.v}</text>}
+                                <g key={`p-${i}`}>
+                                  <circle cx={`${pt.x}%`} cy={pt.y} r="4.5" fill={grp.line!.color} stroke="#000" strokeWidth="1.5" />
+                                  {pt.v>0 && <text x={`${pt.x}%`} y={Math.max(pt.y-8,12)} textAnchor="middle" fill={grp.line!.color} fontFamily="DM Mono,monospace" fontWeight="bold" style={{ fontSize:`${BAR_H*0.08}px` }}>{pt.v}</text>}
                                 </g>
                               ))}
                             </svg>
@@ -9360,17 +9326,17 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
                           ))}
                         </div>
                         {grp.line && lineVals.length >= 1 && (() => {
-                          const W = 1000
-                          const allPts = lineVals.map((v,i)=>({ x: n===1?W/2:(i/(n-1))*W, y: v>0?(1-(v/maxLine))*BAR_H*0.85+BAR_H*0.05:null, v }))
+                          const allPts = lineVals.map((v,i)=>({ x: ((i + 0.5) / n) * 100, y: v>0?(1-(v/maxLine))*BAR_H*0.85+BAR_H*0.05:null, v }))
                           const validPts = allPts.filter(pt=>pt.y!==null) as {x:number,y:number,v:number}[]
                           return (
-                            <svg viewBox={`0 0 ${W} ${BAR_H}`} preserveAspectRatio="xMidYMid meet"
-                              style={{ position:'absolute', bottom:20, left:0, right:0, width:'100%', height:`${BAR_H}px`, overflow:'visible', pointerEvents:'none' }}>
-                              {validPts.length>1 && <polyline points={validPts.map(p=>`${p.x},${p.y}`).join(' ')} fill="none" stroke={grp.line.color} strokeWidth="2.5" strokeDasharray="12,7" vectorEffect="non-scaling-stroke"/>}
+                            <svg style={{ position:'absolute', bottom:20, left:0, right:0, width:'100%', height:`${BAR_H}px`, overflow:'visible', pointerEvents:'none' }}>
+                              {validPts.length>1 && validPts.map((pt, i) => i > 0 ? (
+                                <line key={`l-${i}`} x1={`${validPts[i-1].x}%`} y1={validPts[i-1].y!} x2={`${pt.x}%`} y2={pt.y!} stroke={grp.line.color} strokeWidth="2.5" strokeDasharray="12,7" />
+                              ) : null)}
                               {allPts.map((pt,i)=>pt.y===null?null:(
-                                <g key={i}>
-                                  <circle cx={pt.x} cy={pt.y} r="4.5" fill={grp.line!.color} stroke="#000" strokeWidth="1.5" vectorEffect="non-scaling-stroke"/>
-                                  {pt.v>0 && <text x={pt.x} y={Math.max(pt.y-8,12)} textAnchor="middle" fill={grp.line!.color} fontFamily="DM Mono,monospace" fontWeight="bold" vectorEffect="non-scaling-stroke" style={{ fontSize:`${BAR_H*0.08}px` }}>{pt.v}</text>}
+                                <g key={`p-${i}`}>
+                                  <circle cx={`${pt.x}%`} cy={pt.y} r="4.5" fill={grp.line!.color} stroke="#000" strokeWidth="1.5" />
+                                  {pt.v>0 && <text x={`${pt.x}%`} y={Math.max(pt.y-8,12)} textAnchor="middle" fill={grp.line!.color} fontFamily="DM Mono,monospace" fontWeight="bold" style={{ fontSize:`${BAR_H*0.08}px` }}>{pt.v}</text>}
                                 </g>
                               ))}
                             </svg>
