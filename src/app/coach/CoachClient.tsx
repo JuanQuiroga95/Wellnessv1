@@ -7180,7 +7180,7 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
                 const valid = pts.filter(p => p.y !== null) as {x:number,y:number}[]
                 if (valid.length < 2) return null
                 return (
-                  <svg style={{ position:'absolute', bottom:0, left:0, right:0, height:BAR_H, overflow:'visible', pointerEvents:'none' }}>
+                  <svg style={{ position:'absolute', bottom:0, left:0, right:0, width:'100%', height:BAR_H, overflow:'visible', pointerEvents:'none' }}>
                     {valid.map((pt, i) => i > 0 ? (
                       <line key={i} x1={`${valid[i-1].x}%`} y1={valid[i-1].y} x2={`${pt.x}%`} y2={pt.y}
                         stroke={grupo.lineColor} strokeWidth="2.5" strokeDasharray="10,6" />
@@ -7846,7 +7846,7 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
                                   const valid = pts.filter(p => p.y !== null) as {x:number,y:number}[]
                                   if (valid.length < 2) return null
                                   return (
-                                    <svg style={{ position:'absolute', bottom:28, left:0, right:0, height:BAR_H, overflow:'visible', pointerEvents:'none' }}>
+                                    <svg style={{ position:'absolute', bottom:28, left:0, right:0, width:'100%', height:BAR_H, overflow:'visible', pointerEvents:'none' }}>
                                       {valid.map((pt, i) => i > 0 ? (
                                         <line key={i} x1={`${valid[i-1].x}%`} y1={valid[i-1].y} x2={`${pt.x}%`} y2={pt.y}
                                           stroke={grp.line!.color} strokeWidth="2.5" strokeDasharray="12,7" />
@@ -9068,7 +9068,7 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
                                   const valid = pts.filter(p => p.y !== null) as {x:number,y:number}[]
                                   if (valid.length < 2) return null
                                   return (
-                                    <svg style={{ position:'absolute', bottom:28, left:0, right:0, height:BAR_H, overflow:'visible', pointerEvents:'none' }}>
+                                    <svg style={{ position:'absolute', bottom:28, left:0, right:0, width:'100%', height:BAR_H, overflow:'visible', pointerEvents:'none' }}>
                                       {valid.map((pt, i) => i > 0 ? (
                                         <line key={i} x1={`${valid[i-1].x}%`} y1={valid[i-1].y} x2={`${pt.x}%`} y2={pt.y}
                                           stroke={grp.line!.color} strokeWidth="2.5" strokeDasharray="12,7" />
