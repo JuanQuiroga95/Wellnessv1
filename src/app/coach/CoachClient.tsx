@@ -8309,10 +8309,7 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
       const d = await r.json()
       const avg = d?.teamAvgGps || {}
       const nr = [...partidoRefs]
-      nr[slotIdx] = { dist_total:avg.dist_total||0, dist_per_min:avg.dist_per_min||0, dist_hir:avg.dist_hir||0,
-        dist_v4:avg.dist_v4||0, dist_v5:avg.dist_v5||0, max_velocity:avg.max_velocity||0,
-        n_sprints:avg.n_sprints||0, player_load:avg.player_load||0,
-        acc2:avg.acc2||0, dec2:avg.dec2||0, acc3:avg.acc3||0, dec3:avg.dec3||0 }
+      nr[slotIdx] = { ...avg }
       setPartidoRefs(nr)
     } catch(e){}
   }
@@ -8453,6 +8450,36 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
     ...(availGpsKeys.has('n_sprints') ? [{
       title:'SPRINTS', color:'#ec4899',
       bars:[{key:'n_sprints',label:'Nº Sprints',color:'#ec4899'}],
+      line: null,
+    }] : []),
+    ...(availGpsKeys.has('hsr_per_min') || availGpsKeys.has('sprint_dist_per_min') ? [{
+      title:'INTENSIDAD / MIN', color:'#8b5cf6',
+      bars:[
+        ...(availGpsKeys.has('hsr_per_min') ? [{key:'hsr_per_min',label:'HSR/min',color:'#8b5cf6'}] : []),
+        ...(availGpsKeys.has('sprint_dist_per_min') ? [{key:'sprint_dist_per_min',label:'Sprint/min',color:'#c084fc'}] : []),
+      ],
+      line: null,
+    }] : []),
+    ...(availGpsKeys.has('acc_int_per_min') || availGpsKeys.has('acc_per_min') || availGpsKeys.has('dec_per_min') ? [{
+      title:'ACC/DEC POR MIN', color:'#0ea5e9',
+      bars:[
+        ...(availGpsKeys.has('acc_int_per_min') ? [{key:'acc_int_per_min',label:'Acc Int/min',color:'#0ea5e9'}] : []),
+        ...(availGpsKeys.has('acc_per_min') ? [{key:'acc_per_min',label:'Acc/min',color:'#38bdf8'}] : []),
+        ...(availGpsKeys.has('dec_per_min') ? [{key:'dec_per_min',label:'Dec/min',color:'#7dd3fc'}] : []),
+      ],
+      line: null,
+    }] : []),
+    ...(availGpsKeys.has('max_acc') || availGpsKeys.has('max_dec') ? [{
+      title:'MÁXIMOS ACC/DEC', color:'#f43f5e',
+      bars:[
+        ...(availGpsKeys.has('max_acc') ? [{key:'max_acc',label:'Máx. Acc',color:'#f43f5e'}] : []),
+        ...(availGpsKeys.has('max_dec') ? [{key:'max_dec',label:'Máx. Dec',color:'#fb7185'}] : []),
+      ],
+      line: null,
+    }] : []),
+    ...(availGpsKeys.has('duracion_min') ? [{
+      title:'TIEMPO', color:'#84cc16',
+      bars:[{key:'duracion_min',label:'Duración (min)',color:'#84cc16'}],
       line: null,
     }] : []),
   ]
