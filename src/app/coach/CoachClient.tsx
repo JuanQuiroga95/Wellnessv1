@@ -9004,11 +9004,13 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
                       </div>
                       <div style={{ display:'grid', gridTemplateColumns:'1fr', gap:14 }}>
                         {GPS_CHART_GROUPS.map(grp => {
-                          const allVals = mdPlayers.flatMap((p:any)=>grp.bars.map(b=>Number(p[b.key])||0))
+                          // Sort players ONCE — use this sorted list for bars, line, AND labels
+                          const sorted = [...mdPlayers].sort((a:any,b:any)=>(Number(b[grp.bars[0].key])||0)-(Number(a[grp.bars[0].key])||0))
+                          const allVals = sorted.flatMap((p:any)=>grp.bars.map(b=>Number(p[b.key])||0))
                           const maxBar = Math.max(...allVals, 1)
-                          const lineVals = grp.line ? mdPlayers.map((p:any)=>Number(p[grp.line!.key])||0) : []
+                          const lineVals = grp.line ? sorted.map((p:any)=>Number(p[grp.line!.key])||0) : []
                           const maxLine = Math.max(...lineVals, 1)
-                          const n = mdPlayers.length
+                          const n = sorted.length
 
                           return (
                             <div key={grp.title} style={{ background:'var(--ink2)', borderRadius:12, padding:14, border:`1px solid ${grp.color}30` }}>
@@ -9031,7 +9033,7 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
                                   <div key={p} style={{ position:'absolute', left:0, right:0, bottom:`${(p/100)*BAR_H+28}px`, borderTop:'1px solid rgba(255,255,255,.04)' }}/>
                                 ))}
                                 <div style={{ position:'absolute', bottom:28, left:0, right:0, display:'flex', alignItems:'flex-end' }}>
-                                  {[...mdPlayers].sort((a:any,b:any)=>(Number(b[grp.bars[0].key])||0)-(Number(a[grp.bars[0].key])||0)).map((p:any, pi:number)=>{
+                                  {sorted.map((p:any, pi:number)=>{
                                     const nameColor = POS_COLS[p.nombre]||'#888'
                                     return (
                                       <div key={pi} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', minWidth:0 }}>
@@ -9078,7 +9080,7 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
                                   )
                                 })()}
                                 <div style={{ position:'absolute', bottom:0, left:0, right:0, display:'flex' }}>
-                                  {mdPlayers.map((p:any,pi:number)=>(
+                                  {sorted.map((p:any,pi:number)=>(
                                     <div key={pi} style={{ flex:1, textAlign:'center', minWidth:0 }}>
                                       <div style={{ fontSize:11, color:POS_COLS[p.nombre]||'#888', fontWeight:700, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{p.nombre.split(' ')[0]}</div>
                                       <div style={{ fontSize:10, color:'var(--fog)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{(p.posicion||'').split(' ')[0]}</div>
