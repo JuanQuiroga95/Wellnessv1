@@ -7161,9 +7161,9 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
                       })}
                       {/* Inline dot + value label */}
                       {grupo.lineVar && lineV > 0 && (
-                        <div style={{ position:'absolute', left:'50%', bottom:dotBottom - 5, transform:'translateX(-50%)', zIndex:10, pointerEvents:'none' }}>
-                          <div style={{ width:10, height:10, borderRadius:'50%', background:grupo.lineColor, border:'1.5px solid #000', boxSizing:'border-box' }} />
-                          <span style={{ position:'absolute', bottom:'100%', left:'50%', transform:'translateX(-50%)', marginBottom:4, fontSize:BAR_H*0.09, fontFamily:'DM Mono,monospace', fontWeight:700, color:grupo.lineColor, whiteSpace:'nowrap', textShadow:'0 1px 3px rgba(0,0,0,.8)' }}>{lineV}</span>
+                        <div style={{ position:'absolute', left:'50%', bottom:dotBottom - 5, transform:'translateX(-50%)', zIndex:10, pointerEvents:'none', display:'flex', flexDirection:'column', alignItems:'center' }}>
+                          <span style={{ fontSize:BAR_H*0.09, fontFamily:'DM Mono,monospace', fontWeight:700, color:grupo.lineColor, whiteSpace:'nowrap', marginBottom:4, textShadow:'0 1px 3px rgba(0,0,0,.8)' }}>{lineV}</span>
+                          <div style={{ width:10, height:10, borderRadius:'50%', background:grupo.lineColor, border:'1.5px solid #000', boxSizing:'border-box', flexShrink:0 }} />
                         </div>
                       )}
                     </div>
@@ -7825,9 +7825,9 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
                                         </div>
                                         {/* Inline dot + value label */}
                                         {grp.line && lineVal > 0 && (
-                                          <div style={{ position:'absolute', left:'50%', bottom:dotBottom - 5, transform:'translateX(-50%)', zIndex:10, pointerEvents:'none' }}>
-                                            <div style={{ width:10, height:10, borderRadius:'50%', background:grp.line.color, border:'1.5px solid #000', boxSizing:'border-box' }} />
-                                            <span style={{ position:'absolute', bottom:'100%', left:'50%', transform:'translateX(-50%)', marginBottom:4, fontSize:BAR_H*0.08, fontFamily:'DM Mono,monospace', fontWeight:700, color:grp.line.color, whiteSpace:'nowrap', textShadow:'0 1px 3px rgba(0,0,0,.8)' }}>{lineVal}</span>
+                                          <div style={{ position:'absolute', left:'50%', bottom:dotBottom - 5, transform:'translateX(-50%)', zIndex:10, pointerEvents:'none', display:'flex', flexDirection:'column', alignItems:'center' }}>
+                                            <span style={{ fontSize:BAR_H*0.08, fontFamily:'DM Mono,monospace', fontWeight:700, color:grp.line.color, whiteSpace:'nowrap', marginBottom:4, textShadow:'0 1px 3px rgba(0,0,0,.8)' }}>{lineVal}</span>
+                                            <div style={{ width:10, height:10, borderRadius:'50%', background:grp.line.color, border:'1.5px solid #000', boxSizing:'border-box', flexShrink:0 }} />
                                           </div>
                                         )}
                                       </div>
@@ -9048,9 +9048,9 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
                                         </div>
                                         {/* Inline dot + value label — rendered INSIDE the column for guaranteed horizontal alignment */}
                                         {grp.line && lineVal > 0 && (
-                                          <div style={{ position:'absolute', left:'50%', bottom:dotBottom - 5, transform:'translateX(-50%)', zIndex:10, pointerEvents:'none' }}>
-                                            <div style={{ width:10, height:10, borderRadius:'50%', background:grp.line.color, border:'1.5px solid #000', boxSizing:'border-box' }} />
-                                            <span style={{ position:'absolute', bottom:'100%', left:'50%', transform:'translateX(-50%)', marginBottom:4, fontSize:BAR_H*0.08, fontFamily:'DM Mono,monospace', fontWeight:700, color:grp.line.color, whiteSpace:'nowrap', textShadow:'0 1px 3px rgba(0,0,0,.8)' }}>{lineVal}</span>
+                                          <div style={{ position:'absolute', left:'50%', bottom:dotBottom - 5, transform:'translateX(-50%)', zIndex:10, pointerEvents:'none', display:'flex', flexDirection:'column', alignItems:'center' }}>
+                                            <span style={{ fontSize:BAR_H*0.08, fontFamily:'DM Mono,monospace', fontWeight:700, color:grp.line.color, whiteSpace:'nowrap', marginBottom:4, textShadow:'0 1px 3px rgba(0,0,0,.8)' }}>{lineVal}</span>
+                                            <div style={{ width:10, height:10, borderRadius:'50%', background:grp.line.color, border:'1.5px solid #000', boxSizing:'border-box', flexShrink:0 }} />
                                           </div>
                                         )}
                                       </div>
