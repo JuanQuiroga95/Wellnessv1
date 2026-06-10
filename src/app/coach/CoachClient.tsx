@@ -7139,55 +7139,52 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
               {[100,75,50,25,0].map((p,i)=>(
                 <div key={i} style={{ position:'absolute', left:0, right:0, top:`${(i/4)*BAR_H}px`, borderTop:'1px solid rgba(255,255,255,.05)' }}/>
               ))}
-              <div style={{ display:'flex', alignItems:'flex-end', height:BAR_H }}>
-                {names.map((name:string,ni:number)=>(
-                  <div key={ni} style={{ flex:1, display:'flex', gap:2, alignItems:'flex-end', justifyContent:'center', height:BAR_H }}>
-                    {series.map((s,si)=>{
-                      const val = (s.vals[ni] as any)?.val || 0
-                      const h = Math.max((val/maxVal)*BAR_H, val>0?3:0)
-                      return (
-                        <div key={si} title={`${name} - ${s.label}: ${val}`}
-                          style={{ position:'relative', width:'100%', maxWidth:18, minWidth:7, height:`${h}px`,
-                            background: val>0 ? s.color : `${s.color}18`,
-                            borderRadius:'3px 3px 0 0', overflow:'visible' }}>
-                          {val>0 && h>=18 && (
-                            <span style={{ position:'absolute', top:'50%', left:'50%', transform:'translate(-50%,-50%) rotate(-90deg)', fontSize:8, color:'#fff', fontFamily:'DM Mono,monospace', fontWeight:700, whiteSpace:'nowrap', textShadow:'0 1px 2px rgba(0,0,0,.9)', pointerEvents:'none' }}>{val}</span>
-                          )}
+              <div style={{ display:'flex', height:BAR_H }}>
+                {names.map((name:string,ni:number)=>{
+                  const lineV = lineVals[ni] || 0
+                  const dotBottom = lineV > 0 ? (lineV/maxLineVal)*BAR_H*0.85 + BAR_H*0.05 : -999
+                  return (
+                    <div key={ni} style={{ flex:1, position:'relative', display:'flex', gap:2, alignItems:'flex-end', justifyContent:'center', height:BAR_H }}>
+                      {series.map((s,si)=>{
+                        const val = (s.vals[ni] as any)?.val || 0
+                        const h = Math.max((val/maxVal)*BAR_H, val>0?3:0)
+                        return (
+                          <div key={si} title={`${name} - ${s.label}: ${val}`}
+                            style={{ position:'relative', width:'100%', maxWidth:18, minWidth:7, height:`${h}px`,
+                              background: val>0 ? s.color : `${s.color}18`,
+                              borderRadius:'3px 3px 0 0', overflow:'visible' }}>
+                            {val>0 && h>=18 && (
+                              <span style={{ position:'absolute', top:'50%', left:'50%', transform:'translate(-50%,-50%) rotate(-90deg)', fontSize:8, color:'#fff', fontFamily:'DM Mono,monospace', fontWeight:700, whiteSpace:'nowrap', textShadow:'0 1px 2px rgba(0,0,0,.9)', pointerEvents:'none' }}>{val}</span>
+                            )}
+                          </div>
+                        )
+                      })}
+                      {/* Inline dot + value label */}
+                      {grupo.lineVar && lineV > 0 && (
+                        <div style={{ position:'absolute', left:'50%', bottom:dotBottom, transform:'translate(-50%, 50%)', zIndex:10, pointerEvents:'none', display:'flex', flexDirection:'column', alignItems:'center' }}>
+                          <span style={{ fontSize:BAR_H*0.09, fontFamily:'DM Mono,monospace', fontWeight:700, color:grupo.lineColor, whiteSpace:'nowrap', marginBottom:4, textShadow:'0 1px 3px rgba(0,0,0,.8)' }}>{lineV}</span>
+                          <div style={{ width:10, height:10, borderRadius:'50%', background:grupo.lineColor, border:'1.5px solid #000', boxSizing:'border-box', flexShrink:0 }} />
                         </div>
-                      )
-                    })}
-                  </div>
-                ))}
+                      )}
+                    </div>
+                  )
+                })}
               </div>
-              {/* Line overlay for lineVar (e.g. tiempo/min) — uses its OWN scale */}
-              {grupo.lineVar && lineVals.length > 0 && (() => {
+              {/* SVG: ONLY dashed connecting lines */}
+              {grupo.lineVar && lineVals.length >= 2 && (() => {
                 const n = names.length
-                const W = 1000
-                // Use independent scale for the line so it doesn't get crushed by tall bars
-                const pts = lineVals.map((v, i) => ({
-                  x: ((i + 0.5) / n) * 100,
-                  y: v > 0 ? (1 - v/maxLineVal) * BAR_H * 0.85 + BAR_H * 0.05 : null,
-                  v,
-                }))
-                const validPts = pts.filter(p => p.y !== null) as {x:number,y:number,v:number}[]
+                const pts = lineVals.map((v: number, i: number) => {
+                  const dotBottom = v > 0 ? (v/maxLineVal)*BAR_H*0.85 + BAR_H*0.05 : -1
+                  return { x: ((i + 0.5) / n) * 100, y: v > 0 ? BAR_H - dotBottom : null }
+                })
+                const valid = pts.filter(p => p.y !== null) as {x:number,y:number}[]
+                if (valid.length < 2) return null
                 return (
-                  <svg style={{ position:'absolute', bottom:0, left:0, right:0, width:'100%', height:`${BAR_H}px`, overflow:'visible', pointerEvents:'none' }}>
-                    {validPts.length > 1 && validPts.map((pt, i) => i > 0 ? (
-                      <line key={`l-${i}`} x1={`${validPts[i-1].x}%`} y1={validPts[i-1].y!} x2={`${pt.x}%`} y2={pt.y!}
+                  <svg style={{ position:'absolute', bottom:0, left:0, right:0, height:BAR_H, overflow:'visible', pointerEvents:'none' }}>
+                    {valid.map((pt, i) => i > 0 ? (
+                      <line key={i} x1={`${valid[i-1].x}%`} y1={valid[i-1].y} x2={`${pt.x}%`} y2={pt.y}
                         stroke={grupo.lineColor} strokeWidth="2.5" strokeDasharray="10,6" />
                     ) : null)}
-                    {pts.map((pt, i) => pt.y === null ? null : (
-                      <g key={`p-${i}`}>
-                        <circle cx={`${pt.x}%`} cy={pt.y} r="5" fill={grupo.lineColor} stroke="#000" strokeWidth="1.5" />
-                        {pt.v > 0 && (
-                          <text x={`${pt.x}%`} y={pt.y} dy="-14" textAnchor="middle"
-                            fill={grupo.lineColor} fontFamily="DM Mono,monospace" fontWeight="bold"
-                            style={{ fontSize:`${BAR_H*0.09}px` }}>
-                            {pt.v}
-                          </text>
-                        )}
-                      </g>
-                    ))}
                   </svg>
                 )
               })()}
@@ -7803,12 +7800,13 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
                                     borderTop:'1px solid rgba(255,255,255,.04)', pointerEvents:'none' }} />
                                 ))}
 
-                                {/* Bars + labels per player */}
-                                <div style={{ position:'absolute', bottom:28, left:0, right:0, display:'flex', alignItems:'flex-end' }}>
+                                {/* Bars + inline dots per player */}
+                                <div style={{ position:'absolute', bottom:28, left:0, right:0, height:BAR_H, display:'flex' }}>
                                   {mdPlayers.map((p:any, pi:number) => {
-                                    const nameColor = POS_COLS[p.nombre] || '#888'
+                                    const lineVal = grp.line ? Number(p[grp.line.key])||0 : 0
+                                    const dotBottom = lineVal > 0 ? (lineVal/maxLine)*BAR_H*0.85 + BAR_H*0.05 : -999
                                     return (
-                                      <div key={pi} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', minWidth:0 }}>
+                                      <div key={pi} style={{ flex:1, position:'relative', display:'flex', flexDirection:'column', justifyContent:'flex-end', alignItems:'center', minWidth:0 }}>
                                         {/* Grouped bars with values inside */}
                                         <div style={{ display:'flex', gap:2, alignItems:'flex-end', width:'100%', justifyContent:'center' }}>
                                           {grp.bars.map((b, bi) => {
@@ -7825,39 +7823,34 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
                                             )
                                           })}
                                         </div>
+                                        {/* Inline dot + value label */}
+                                        {grp.line && lineVal > 0 && (
+                                          <div style={{ position:'absolute', left:'50%', bottom:dotBottom, transform:'translate(-50%, 50%)', zIndex:10, pointerEvents:'none', display:'flex', flexDirection:'column', alignItems:'center' }}>
+                                            <span style={{ fontSize:BAR_H*0.08, fontFamily:'DM Mono,monospace', fontWeight:700, color:grp.line.color, whiteSpace:'nowrap', marginBottom:4, textShadow:'0 1px 3px rgba(0,0,0,.8)' }}>{lineVal}</span>
+                                            <div style={{ width:10, height:10, borderRadius:'50%', background:grp.line.color, border:'1.5px solid #000', boxSizing:'border-box', flexShrink:0 }} />
+                                          </div>
+                                        )}
                                       </div>
                                     )
                                   })}
                                 </div>
 
-                                {/* Line overlay (m/min or RPE) — uses its OWN scale independent from bars */}
-                                {grp.line && mdPlayers.length >= 1 && (() => {
-                                  const n = mdPlayers.length
-                                  const allPts = lineVals.map((v, i) => {
-                                    return { x: ((i + 0.5) / n) * 100, y: v > 0 ? (1 - (v / maxLine)) * BAR_H * 0.85 + BAR_H * 0.05 : null, v }
+                                {/* SVG: ONLY dashed connecting lines */}
+                                {grp.line && mdPlayers.length >= 2 && (() => {
+                                  const nP = mdPlayers.length
+                                  const pts = mdPlayers.map((p:any, i:number) => {
+                                    const v = Number(p[grp.line!.key])||0
+                                    const dotBottom = v > 0 ? (v/maxLine)*BAR_H*0.85 + BAR_H*0.05 : -1
+                                    return { x: ((i + 0.5) / nP) * 100, y: v > 0 ? BAR_H - dotBottom : null }
                                   })
-                                  const validPts = allPts.filter(pt => pt.y !== null) as {x:number,y:number,v:number}[]
+                                  const valid = pts.filter(p => p.y !== null) as {x:number,y:number}[]
+                                  if (valid.length < 2) return null
                                   return (
-                                    <svg style={{ position:'absolute', bottom:28, left:0, right:0, width:'100%', height:`${BAR_H}px`, overflow:'visible', pointerEvents:'none' }}>
-                                      {/* Line connecting only players with data */}
-                                      {validPts.length > 1 && validPts.map((pt, i) => i > 0 ? (
-                                        <line key={`l-${i}`} x1={`${validPts[i-1].x}%`} y1={validPts[i-1].y!} x2={`${pt.x}%`} y2={pt.y!}
-                                          stroke={grp.line.color} strokeWidth="2.5" strokeDasharray="12,7" />
+                                    <svg style={{ position:'absolute', bottom:28, left:0, right:0, height:BAR_H, overflow:'visible', pointerEvents:'none' }}>
+                                      {valid.map((pt, i) => i > 0 ? (
+                                        <line key={i} x1={`${valid[i-1].x}%`} y1={valid[i-1].y} x2={`${pt.x}%`} y2={pt.y}
+                                          stroke={grp.line!.color} strokeWidth="2.5" strokeDasharray="12,7" />
                                       ) : null)}
-                                      {/* Dots and value labels — only for players with data */}
-                                      {allPts.map((pt, i) => {
-                                        if (pt.y === null) return null
-                                        return (
-                                          <g key={`p-${i}`}>
-                                            <circle cx={`${pt.x}%`} cy={pt.y} r="5" fill={grp.line!.color} stroke="#000" strokeWidth="1.5" />
-                                            {pt.v > 0 && (
-                                              <text x={`${pt.x}%`} y={pt.y} dy="-14" textAnchor="middle" fill={grp.line!.color} fontFamily="DM Mono, monospace" fontWeight="bold" style={{ fontSize: `${BAR_H * 0.08}px` }}>
-                                                {pt.v}
-                                              </text>
-                                            )}
-                                          </g>
-                                        )
-                                      })}
                                     </svg>
                                   )
                                 })()}
@@ -9032,11 +9025,15 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
                                 {[0,25,50,75,100].map(p=>(
                                   <div key={p} style={{ position:'absolute', left:0, right:0, bottom:`${(p/100)*BAR_H+28}px`, borderTop:'1px solid rgba(255,255,255,.04)' }}/>
                                 ))}
-                                <div style={{ position:'absolute', bottom:28, left:0, right:0, display:'flex', alignItems:'flex-end' }}>
+                                {/* Bars + inline dots per player */}
+                                <div style={{ position:'absolute', bottom:28, left:0, right:0, height:BAR_H, display:'flex' }}>
                                   {sorted.map((p:any, pi:number)=>{
-                                    const nameColor = POS_COLS[p.nombre]||'#888'
+                                    const lineVal = grp.line ? Number(p[grp.line.key])||0 : 0
+                                    // bottom offset in px (from bottom of this container = bottom of bars area)
+                                    const dotBottom = lineVal > 0 ? (lineVal/maxLine)*BAR_H*0.85 + BAR_H*0.05 : -999
                                     return (
-                                      <div key={pi} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', minWidth:0 }}>
+                                      <div key={pi} style={{ flex:1, position:'relative', display:'flex', flexDirection:'column', justifyContent:'flex-end', alignItems:'center', minWidth:0 }}>
+                                        {/* Bar group */}
                                         <div style={{ display:'flex', gap:2, alignItems:'flex-end', width:'100%', justifyContent:'center' }}>
                                           {grp.bars.map((b,bi)=>{
                                             const val = Number(p[b.key])||0
@@ -9049,36 +9046,37 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
                                             )
                                           })}
                                         </div>
+                                        {/* Inline dot + value label — rendered INSIDE the column for guaranteed horizontal alignment */}
+                                        {grp.line && lineVal > 0 && (
+                                          <div style={{ position:'absolute', left:'50%', bottom:dotBottom, transform:'translate(-50%, 50%)', zIndex:10, pointerEvents:'none', display:'flex', flexDirection:'column', alignItems:'center' }}>
+                                            <span style={{ fontSize:BAR_H*0.08, fontFamily:'DM Mono,monospace', fontWeight:700, color:grp.line.color, whiteSpace:'nowrap', marginBottom:4, textShadow:'0 1px 3px rgba(0,0,0,.8)' }}>{lineVal}</span>
+                                            <div style={{ width:10, height:10, borderRadius:'50%', background:grp.line.color, border:'1.5px solid #000', boxSizing:'border-box', flexShrink:0 }} />
+                                          </div>
+                                        )}
                                       </div>
                                     )
                                   })}
                                 </div>
-                                {grp.line && lineVals.length >= 1 && (() => {
-                                  // Independent scale: map to 5%-90% of chart height
-                                  const allPts = lineVals.map((v,i)=>({ x: ((i + 0.5) / n) * 100, y: v>0 ? (1-(v/maxLine))*BAR_H*0.85 + BAR_H*0.05 : null, v }))
-                                  const validPts = allPts.filter(pt => pt.y !== null) as {x:number,y:number,v:number}[]
+                                {/* SVG: ONLY dashed connecting lines between dots (no dots/text — those are DOM elements above) */}
+                                {grp.line && n >= 2 && (() => {
+                                  const pts = sorted.map((p:any, i:number) => {
+                                    const v = Number(p[grp.line!.key])||0
+                                    // y from TOP of SVG = BAR_H - dotBottom
+                                    const dotBottom = v > 0 ? (v/maxLine)*BAR_H*0.85 + BAR_H*0.05 : -1
+                                    return { x: ((i + 0.5) / n) * 100, y: v > 0 ? BAR_H - dotBottom : null }
+                                  })
+                                  const valid = pts.filter(p => p.y !== null) as {x:number,y:number}[]
+                                  if (valid.length < 2) return null
                                   return (
-                                    <svg style={{ position:'absolute', bottom:28, left:0, right:0, width:'100%', height:`${BAR_H}px`, overflow:'visible', pointerEvents:'none' }}>
-                                      {validPts.length > 1 && validPts.map((pt, i) => i > 0 ? (
-                                        <line key={`l-${i}`} x1={`${validPts[i-1].x}%`} y1={validPts[i-1].y!} x2={`${pt.x}%`} y2={pt.y!}
-                                          stroke={grp.line.color} strokeWidth="2.5" strokeDasharray="12,7" />
+                                    <svg style={{ position:'absolute', bottom:28, left:0, right:0, height:BAR_H, overflow:'visible', pointerEvents:'none' }}>
+                                      {valid.map((pt, i) => i > 0 ? (
+                                        <line key={i} x1={`${valid[i-1].x}%`} y1={valid[i-1].y} x2={`${pt.x}%`} y2={pt.y}
+                                          stroke={grp.line!.color} strokeWidth="2.5" strokeDasharray="12,7" />
                                       ) : null)}
-                                      {allPts.map((pt,i)=>{
-                                        if (pt.y === null) return null
-                                        return (
-                                          <g key={`p-${i}`}>
-                                            <circle cx={`${pt.x}%`} cy={pt.y} r="5" fill={grp.line!.color} stroke="#000" strokeWidth="1.5" />
-                                            {pt.v>0 && (
-                                              <text x={`${pt.x}%`} y={pt.y} dy="-14" textAnchor="middle" fill={grp.line!.color} fontFamily="DM Mono, monospace" fontWeight="bold" style={{ fontSize:`${BAR_H*0.08}px` }}>
-                                                {pt.v}
-                                              </text>
-                                            )}
-                                          </g>
-                                        )
-                                      })}
                                     </svg>
                                   )
                                 })()}
+                                {/* X-axis labels */}
                                 <div style={{ position:'absolute', bottom:0, left:0, right:0, display:'flex' }}>
                                   {sorted.map((p:any,pi:number)=>(
                                     <div key={pi} style={{ flex:1, textAlign:'center', minWidth:0 }}>
