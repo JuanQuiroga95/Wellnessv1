@@ -36,7 +36,7 @@ function sumarMetricasBloques(ejercicios: any[]): Record<string, number> {
     }
 
     t.minActivo += series * minutos
-    t.minPausa  += series * pausa
+    t.minPausa  += Math.max(0, series - 1) * pausa
 
     const hasOverrides = Object.keys(ov).some(k => ov[k] !== undefined && ov[k] !== '')
 
@@ -225,7 +225,7 @@ export async function GET(req: NextRequest) {
       'Partido oficial': 10, 'Partido amistoso': 9, 'Partido de entrenamiento': 8,
       'Partido modificado': 7, 'Partido reducido': 7, 'Juego de posición': 6,
       'Juego de posesión': 6, 'Transiciones': 5, 'Rondo': 5, 'Trabajo analítico': 4,
-      'Gimnasio': 3, 'Activación en campo': 2, 'Activación en gimnasio': 2,
+      'Activación en campo': 2, 'Activación en gimnasio': 2,
     }
     const cePerSession: Record<string, any> = {}
     for (const ses of sesiones as any[]) {

@@ -72,6 +72,7 @@ function fmtGps(key: string, val: any): string {
   if (key.startsWith('dist_')) return `${Math.round(n)}m`
   if (key === 'max_velocity') return `${n}km/h`
   if (key === 'dist_per_min') return `${Math.round(n)}`
+  if (key === 'duracion_min') return `${Math.round(n)} min`
   if (key === 'player_load') return `${Math.round(n)}`
   if (key === 'metabolic_power' || key === 'avg_metabolic_power') return `${n.toFixed(1)}`
   // Métricas derivadas (por minuto) — mostrar con 1-2 decimales
@@ -1484,18 +1485,18 @@ function CambioCargaPanel() {
 const OBJETIVOS_FISICOS = ['Fuerza','Resistencia','Velocidad','Recuperación-Compensación','Recuperación','Competición']
 const OBJETIVOS_SECUNDARIOS = ['Táctico','Técnico','Técnico-Táctico']
 const TITULOS_SESION = ['MD+1','MD+2','MD+3','MD-4','MD-3','MD-2','MD-1','MD']
-const TAREAS_PRINCIPALES = ['Activación en campo','Activación en gimnasio','Gimnasio','Rondo','Trabajo analítico','Juego de posesión','Juego de posición','Transiciones','Partido reducido','Partido modificado','Partido de entrenamiento','Partido amistoso','Partido oficial']
+const TAREAS_PRINCIPALES = ['Activación en campo','Activación en gimnasio','Rondo','Trabajo analítico','Juego de posesión','Juego de posición','Transiciones','Partido reducido','Partido modificado','Partido de entrenamiento','Partido amistoso','Partido oficial']
 const SUBTAREAS: Record<string, string[]> = { 'Activación en campo': ['Circuito técnico','Circuito neuromuscular','Pliometría','Movilidad','Trabajo Preventivo'], 'Activación en gimnasio': ['Isométricos','Pliometría','Movilidad','Excéntricos','Estabilidad','Tracción y empuje','Trabajo Preventivo'], 'Rondo': ['Rondo 4v2','Rondo 5v2','Rondo 6v2','Rondo 8v2','Rondo 4v1+1','Rondo en movimiento','Rondo conservación','Rondo orientado','Rondo dos espacios'] }
-const TAREAS_CON_ESPACIO = ['Rondo','Trabajo analítico','Juego de posesión','Juego de posición','Partido reducido','Partido modificado','Partido de entrenamiento','Partido amistoso','Partido oficial']
-const TAREAS_CON_EQUIPO = ['Rondo','Trabajo analítico','Juego de posesión','Juego de posición','Partido reducido','Partido modificado','Partido de entrenamiento','Partido amistoso','Partido oficial']
+const TAREAS_CON_ESPACIO = ['Rondo','Trabajo analítico','Juego de posesión','Juego de posición','Transiciones','Partido reducido','Partido modificado','Partido de entrenamiento','Partido amistoso','Partido oficial']
+const TAREAS_CON_EQUIPO = ['Rondo','Trabajo analítico','Juego de posesión','Juego de posición','Transiciones','Partido reducido','Partido modificado','Partido de entrenamiento','Partido amistoso','Partido oficial']
 const TAREAS_PARTIDO_SIMPLE = ['Partido amistoso','Partido oficial','Partido de entrenamiento']
-const TAREAS_MOSTRAR_FORM = [...TAREAS_CON_ESPACIO, 'Activación en campo','Activación en gimnasio','Gimnasio']
+const TAREAS_MOSTRAR_FORM = [...TAREAS_CON_ESPACIO, 'Activación en campo','Activación en gimnasio']
 // NE default por tipo de tarea (Nivel de Especificidad 1-10)
 const NE_DEFAULT: Record<string, number> = {
   'Partido oficial': 10, 'Partido amistoso': 9, 'Partido de entrenamiento': 8,
   'Partido modificado': 7, 'Partido reducido': 7, 'Juego de posición': 6,
   'Juego de posesión': 6, 'Transiciones': 5, 'Rondo': 5, 'Trabajo analítico': 4,
-  'Gimnasio': 3, 'Activación en campo': 2, 'Activación en gimnasio': 2,
+  'Activación en campo': 2, 'Activación en gimnasio': 2,
 }
 const TIPO_COLORES = { entrenamiento:'#c8f135', partido:'#3b82f6', recuperacion:'#f59e0b', descanso:'#555' }
 const TIPO_ICONOS = { entrenamiento:'⚽', partido:'🏆', recuperacion:'🔄', descanso:'😴' }
@@ -2381,7 +2382,7 @@ function BloqueMetodologia({ bloque, index, onChange, onRemove, teamPlayers = []
           {(bloque.series && bloque.minutos) && (
             <div style={{ fontSize:10, color:'var(--lime)', fontFamily:'DM Mono,monospace', marginTop:4 }}>
               ⏱ Tiempo activo: {(Number(bloque.series)*Number(bloque.minutos))} min
-              {bloque.pausa ? ` + ${(Number(bloque.series)*Number(bloque.pausa))} min pausa = ${(Number(bloque.series)*(Number(bloque.minutos)+Number(bloque.pausa)))} min total` : ''}
+              {bloque.pausa ? ` + ${(Math.max(0, Number(bloque.series)-1)*Number(bloque.pausa))} min pausa = ${(Number(bloque.series)*Number(bloque.minutos) + Math.max(0, Number(bloque.series)-1)*Number(bloque.pausa))} min total` : ''}
             </div>
           )}
         </div>
@@ -2537,7 +2538,7 @@ function imprimirSesion(f: any, bloques: any[], teamPlayers: any[] = []) {
   let tiempoTrabajo = 0, tiempoDescanso = 0
   bloques.forEach(bl => {
     tiempoTrabajo += (Number(bl.series)||0) * (Number(bl.minutos)||0)
-    tiempoDescanso += (Number(bl.series)||0) * (Number(bl.pausa)||0)
+    tiempoDescanso += Math.max(0, (Number(bl.series)||0) - 1) * (Number(bl.pausa)||0)
   })
 
   const OBJCOLORS: Record<string,string> = { 'Fuerza':'#7c3aed','Resistencia':'#d97706','Activación':'#16a34a','Activación/Recuperación':'#16a34a','Velocidad':'#2563eb' }
@@ -2980,7 +2981,7 @@ function SesionEditor({ sesion, defaultFecha, rpeReal = 0, onSave, onDelete, onC
         bloques.forEach(bl => {
           const s = Number(bl.series)||0, m = Number(bl.minutos)||0, p = Number(bl.pausa)||0
           tiempoTrabajo += s * m
-          tiempoDescanso += s * p
+          tiempoDescanso += Math.max(0, s - 1) * p
         })
         const tiempoTotal = tiempoTrabajo + tiempoDescanso
         return tiempoTotal > 0 ? (

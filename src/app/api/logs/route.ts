@@ -12,7 +12,7 @@ const NE_TABLE: Record<string, number> = {
   'Partido modificado': 8, 'Partido reducido': 7, 'Juego de posición': 6,
   'Juego de posesión': 6, 'Transiciones': 7, 'Rondo': 5, 'Posesión reducida': 5,
   'Trabajo analítico': 2, 'Circuito técnico': 2, 'Circuito condicional': 1,
-  'Activación en campo': 1, 'Gimnasio': 0.4, 'Activación en gimnasio': 0.4,
+  'Activación en campo': 1, 'Activación en gimnasio': 0.4,
   'Trabajo preventivo': 0.4, 'Restauración': 0.2, 'Cualidades específicas': 0.8,
 }
 

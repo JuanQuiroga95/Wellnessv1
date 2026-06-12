@@ -50,14 +50,14 @@ const METRIC_COL_MAP: Array<[string, string]> = [
   ['distancia total m','dist_total'],
 
   // 3. ACEL / DECEL
-  ['acc b2-3 tot effs','acc3'],['acc b2-3 tot','acc3'],['acc b2-3','acc3'],
-  ['accelerations b2 3','acc3'],['accelerations b2','acc3'],['aceleraciones b2','acc3'],
-  ['acc b2','acc3'],['acc2 eff','acc3'],['acc 2','acc3'],['accel b2','acc3'],['acc 80 2','acc3'],
-  ['aceleraciones','acc3'],['accelerations','acc3'], // Ubico
-  ['decel b2-3 tot effs','dec3'],['decel b2-3 tot','dec3'],['decel b2-3','dec3'],
-  ['decelerations b2 3','dec3'],['decelerations b2','dec3'],['desaceleraciones b2','dec3'],
-  ['dec b2','dec3'],['dec2 eff','dec3'],['dec 2','dec3'],['decel b2','dec3'],['dec 80 2','dec3'],
-  ['desaceleraciones','dec3'],['decelerations','dec3'], // Ubico
+  ['acc b2-3 tot effs','acc2'],['acc b2-3 tot','acc2'],['acc b2-3','acc2'],
+  ['accelerations b2 3','acc2'],['accelerations b2','acc2'],['aceleraciones b2','acc2'],
+  ['acc b2','acc2'],['acc2 eff','acc2'],['acc 2','acc2'],['accel b2','acc2'],['acc 80 2','acc2'],
+  ['aceleraciones','acc2'],['accelerations','acc2'], // Ubico
+  ['decel b2-3 tot effs','dec2'],['decel b2-3 tot','dec2'],['decel b2-3','dec2'],
+  ['decelerations b2 3','dec2'],['decelerations b2','dec2'],['desaceleraciones b2','dec2'],
+  ['dec b2','dec2'],['dec2 eff','dec2'],['dec 2','dec2'],['decel b2','dec2'],['dec 80 2','dec2'],
+  ['desaceleraciones','dec2'],['decelerations','dec2'], // Ubico
   
   ['accel b1','acc1'],['decel b1','dec1'],
   ['accel b4','acc4'],['decel b4','dec4'],
@@ -102,27 +102,45 @@ async function matchPlayers(rows: any[], clubId: number | null) {
   
   const matched: any[] = []
   const unmatched: string[] = []
+  const usedIds = new Set<number>()  // Track already-matched DB player IDs to avoid duplicates
 
   for (const row of rows) {
     const rawName = row.name
     if (!rawName) continue
     
     const nRaw = normalizeName(rawName)
+    const nRawParts = nRaw.split(' ')
     
     // 1. Exact match (normalize both)
-    let p = dbPlayers.find(dp => normalizeName(dp.nombre) === nRaw)
+    let p = dbPlayers.find(dp => !usedIds.has(dp.id) && normalizeName(dp.nombre) === nRaw)
     let method = 'nombre'
 
-    // 2. Partial match (starts with or ends with)
+    // 2. First name + last name match (first word of each matches)
+    if (!p && nRawParts.length >= 2) {
+      p = dbPlayers.find(dp => {
+        if (usedIds.has(dp.id)) return false
+        const nDbParts = normalizeName(dp.nombre).split(' ')
+        if (nDbParts.length < 2) return false
+        // Match if first name and last name both appear
+        return nRawParts.includes(nDbParts[0]) && nRawParts.includes(nDbParts[nDbParts.length - 1])
+      })
+      method = 'primer_nombre'
+    }
+
+    // 3. Partial match (one includes the other) — skip very short names to avoid false matches
     if (!p) {
       p = dbPlayers.find(dp => {
+        if (usedIds.has(dp.id)) return false
         const nDb = normalizeName(dp.nombre)
+        // Require at least 4 chars to avoid matching 'al' inside 'alberto'
+        if (nDb.length < 4 && nRaw.length < 4) return false
         return nDb.includes(nRaw) || nRaw.includes(nDb)
       })
       method = 'parcial'
     }
 
     if (p) {
+      usedIds.add(p.id)  // Mark this DB player as used
       matched.push({
         jugador_id: p.id,
         jugador_nombre: p.nombre,

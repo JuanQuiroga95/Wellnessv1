@@ -97,7 +97,7 @@ export async function GET(req: NextRequest) {
     'Partido oficial':10,'Partido amistoso':9,'Partido de entrenamiento':8,
     'Partido modificado':7,'Partido reducido':7,'Juego de posición':6,
     'Juego de posesión':6,'Transiciones':5,'Rondo':5,'Trabajo analítico':4,
-    'Gimnasio':3,'Activación en campo':2,'Activación en gimnasio':2,
+    'Activación en campo':2,'Activación en gimnasio':2,
   }
   const sesionesParaUCE = clubId ? await sql`
     SELECT TO_CHAR(fecha, 'YYYY-MM-DD') AS fecha, ejercicios
