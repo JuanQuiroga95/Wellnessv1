@@ -6695,7 +6695,6 @@ function GpsPanel({ teamData }: { teamData: any }) {
         const sortedCols = [
           ...GPS_METRIC_ORDER.filter(k => allMetricKeys.includes(k)),
           ...allMetricKeys.filter(k => !GPS_METRIC_ORDER.includes(k)).sort(),
-          ...allMetricKeys.filter(k => !GPS_METRIC_ORDER.includes(k)).sort(),
         ]
         const validPlayers = preview.matched.filter((m: any) => !m.sin_datos)
 

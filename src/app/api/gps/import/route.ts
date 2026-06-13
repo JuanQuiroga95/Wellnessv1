@@ -14,20 +14,34 @@ function normStr(s: string): string {
 const normalizeName = normStr
 
 // ─── UNIVERSAL METRIC MAP (Catapult + UBICO + Wimu + Oliver) ───────────────
+// ORDER MATTERS: More specific patterns MUST come before generic ones.
+// e.g. 'hsr (m/min)' before 'm/min', 'dist sprint/min' before 'dist/min'
 const METRIC_COL_MAP: Array<[string, string]> = [
-  // 1. METRICAS ESPECIFICAS (Mecanismos de prioridad para evitar sobreescrituras)
-  // METROS POR MINUTO
+  // ── 0. METRICAS DERIVADAS (más específicas — deben ir PRIMERO) ──────────
+  // Estas contienen substrings como "m/min", "/min" que colisionarían con
+  // las genéricas si se evaluaran después.
+  ['hsr (m/min)', 'hsr_per_min'], ['hsr per min', 'hsr_per_min'],
+  ['hsr/min', 'hsr_per_min'], ['hsr m/min', 'hsr_per_min'],
+  ['dist sprint/min', 'sprint_dist_per_min'], ['sprint dist per minute', 'sprint_dist_per_min'],
+  ['sprint/min', 'sprint_dist_per_min'], ['sprint m/min', 'sprint_dist_per_min'],
+  ['acc int/min', 'acc_int_per_min'],
+  ['acc/min', 'acc_per_min'],
+  ['dec/min', 'dec_per_min'],
+  ['max acc', 'max_acc'], ['maxima aceleracion', 'max_acc'],
+  ['max dec', 'max_dec'], ['maxima desaceleracion', 'max_dec'],
+
+  // ── 1. METROS POR MINUTO (dist_per_min) ─────────────────────────────────
   ['meterage per minute','dist_per_min'],['meterage per min','dist_per_min'],
   ['distance per minute','dist_per_min'],['dist per min','dist_per_min'],['dist/min','dist_per_min'],
   ['metros por minuto','dist_per_min'],['metres par minute','dist_per_min'],
-  ['m/min','dist_per_min'], // Ubico/Wimu
-  
-  // HIGH SPEED RUNNING
+  ['m/min','dist_per_min'], // Ubico/Wimu — ahora seguro porque hsr/sprint ya se matchearon
+
+  // ── 2. HIGH SPEED RUNNING ───────────────────────────────────────────────
   ['high speed running','dist_hir'],['high speed dist','dist_hir'],['high speed distance','dist_hir'],
   ['high speed','dist_hir'],['hsr','dist_hir'],['high intensity running','dist_hir'],
   ['alta intensidad','dist_hir'],['course haute intensite','dist_hir'],['haute intensite','dist_hir'],
-  
-  // VELOCIDAD BANDAS
+
+  // ── 3. VELOCIDAD BANDAS ─────────────────────────────────────────────────
   ['vel b4 tot dist','dist_v4'],['vel b4 tot','dist_v4'],['vel b4','dist_v4'],
   ['velocity band 4','dist_v4'],['v4 dist','dist_v4'],['banda 4','dist_v4'],
   ['15-20','dist_v4'],['15 20','dist_v4'],
@@ -35,21 +49,21 @@ const METRIC_COL_MAP: Array<[string, string]> = [
   ['vel b5 tot dist','dist_v5'],['vel b5 tot','dist_v5'],['vel b5','dist_v5'],
   ['velocity band 6','dist_v5'],['velocity band 5','dist_v5'],
   ['v6 dist','dist_v5'],['v5 dist','dist_v5'],
-  
-  // SPRINTS
+
+  // ── 4. SPRINTS ──────────────────────────────────────────────────────────
   ['sprint distance','dist_v5'],['sprint dist','dist_v5'],['distancia sprint','dist_v5'],
   ['banda 6','dist_v5'],['banda 5','dist_v5'],['>20','dist_v5'],['> 20','dist_v5'], // Ubico
   ['number of sprints','n_sprints'],['number sprints','n_sprints'],['num sprints','n_sprints'],
   ['numero sprints','n_sprints'],['numero de sprints','n_sprints'],['sprints','n_sprints'],
   ['numero sprint','n_sprints'],['número sprint','n_sprints'],['numero de sprint','n_sprints'],
 
-  // 2. DISTANCIA TOTAL (Variantes específicas primero)
+  // ── 5. DISTANCIA TOTAL ──────────────────────────────────────────────────
   ['total distance','dist_total'],['total dist','dist_total'],['tot dist','dist_total'],
   ['distancia total','dist_total'],['distance totale','dist_total'],['dist totale','dist_total'],
   ['tot dist m','dist_total'],['total distance m','dist_total'],['total dist m','dist_total'],
   ['distancia total m','dist_total'],
 
-  // 3. ACEL / DECEL
+  // ── 6. ACEL / DECEL ─────────────────────────────────────────────────────
   ['acc b2-3 tot effs','acc2'],['acc b2-3 tot','acc2'],['acc b2-3','acc2'],
   ['accelerations b2 3','acc2'],['accelerations b2','acc2'],['aceleraciones b2','acc2'],
   ['acc b2','acc2'],['acc2 eff','acc2'],['acc 2','acc2'],['accel b2','acc2'],['acc 80 2','acc2'],
@@ -58,11 +72,11 @@ const METRIC_COL_MAP: Array<[string, string]> = [
   ['decelerations b2 3','dec2'],['decelerations b2','dec2'],['desaceleraciones b2','dec2'],
   ['dec b2','dec2'],['dec2 eff','dec2'],['dec 2','dec2'],['decel b2','dec2'],['dec 80 2','dec2'],
   ['desaceleraciones','dec2'],['decelerations','dec2'], // Ubico
-  
+
   ['accel b1','acc1'],['decel b1','dec1'],
   ['accel b4','acc4'],['decel b4','dec4'],
 
-  // 4. PLAYER LOAD & OTRAS
+  // ── 7. PLAYER LOAD & OTRAS ─────────────────────────────────────────────
   ['player load','player_load'],['load','player_load'],['charge','player_load'],
   ['velocidad maxima','max_velocity'],['max velocity','max_velocity'],['vitesse max','max_velocity'],
   ['max speed','max_velocity'],['peak velocity','max_velocity'],['peak speed','max_velocity'],
@@ -72,24 +86,33 @@ const METRIC_COL_MAP: Array<[string, string]> = [
   ['max vel','max_velocity'],['vel max','max_velocity'],
   ['velocidad max','max_velocity'],['vel maxima','max_velocity'],['vel. max','max_velocity'],
   ['duracion','duracion_min'],['duration','duracion_min'],['time','duracion_min'],['tiempo','duracion_min'],
-  
-  // METRICAS DERIVADAS Y MAXIMOS (Neuromuscular)
-  ['hsr (m/min)', 'hsr_per_min'], ['hsr per min', 'hsr_per_min'],
-  ['dist sprint/min', 'sprint_dist_per_min'], ['sprint dist per minute', 'sprint_dist_per_min'],
-  ['acc int/min', 'acc_int_per_min'],
-  ['acc/min', 'acc_per_min'],
-  ['dec/min', 'dec_per_min'],
-  ['max acc', 'max_acc'], ['maxima aceleracion', 'max_acc'],
-  ['max dec', 'max_dec'], ['maxima desaceleracion', 'max_dec'],
 ]
 
-// Finds the best metric key for a given column header
+// Finds the best metric key for a given column header.
+// Two-pass: exact match first, then substring match with safeguards for short patterns.
 function mapHeaderToMetric(header: string): string | null {
   const h = (header || '').toLowerCase()
     .normalize('NFD').replace(/[̀-ͯ]/g, '')
     .trim()
+  if (!h) return null
+
+  // Pass 1: exact match (highest priority)
   for (const [pattern, key] of METRIC_COL_MAP) {
-    if (h === pattern || h.includes(pattern)) return key
+    if (h === pattern) return key
+  }
+
+  // Pass 2: substring match — but for short patterns (≤4 chars like "hsr", "load")
+  // require the pattern to appear as a whole word, not as a substring of a larger word.
+  for (const [pattern, key] of METRIC_COL_MAP) {
+    if (h.includes(pattern)) {
+      if (pattern.length <= 4) {
+        // Check word boundary: pattern must not be part of a larger word
+        const re = new RegExp(`(?:^|[^a-z])${pattern.replace(/[.*+?^${}()|[\]\\\/]/g, '\\$&')}(?:$|[^a-z])`)
+        if (re.test(h)) return key
+      } else {
+        return key
+      }
+    }
   }
   return null
 }
@@ -115,16 +138,31 @@ async function matchPlayers(rows: any[], clubId: number | null) {
     let p = dbPlayers.find(dp => !usedIds.has(dp.id) && normalizeName(dp.nombre) === nRaw)
     let method = 'nombre'
 
-    // 2. First name + last name match (first word of each matches)
+    // 2. First name + last name match (words from each match, in any order)
     if (!p && nRawParts.length >= 2) {
       p = dbPlayers.find(dp => {
         if (usedIds.has(dp.id)) return false
         const nDbParts = normalizeName(dp.nombre).split(' ')
         if (nDbParts.length < 2) return false
-        // Match if first name and last name both appear
-        return nRawParts.includes(nDbParts[0]) && nRawParts.includes(nDbParts[nDbParts.length - 1])
+        // Match if first name and last name both appear (handles reversed order too)
+        const rawHasDbFirst = nRawParts.includes(nDbParts[0])
+        const rawHasDbLast  = nRawParts.includes(nDbParts[nDbParts.length - 1])
+        const dbHasRawFirst = nDbParts.includes(nRawParts[0])
+        const dbHasRawLast  = nDbParts.includes(nRawParts[nRawParts.length - 1])
+        return (rawHasDbFirst && rawHasDbLast) || (dbHasRawFirst && dbHasRawLast)
       })
       method = 'primer_nombre'
+    }
+
+    // 2.5 Last name only match (Catapult may use just "Rubio" but DB has "Alberto Rubio")
+    if (!p && nRawParts.length === 1 && nRaw.length >= 4) {
+      p = dbPlayers.find(dp => {
+        if (usedIds.has(dp.id)) return false
+        const nDbParts = normalizeName(dp.nombre).split(' ')
+        // Match if the single raw name equals the last word of the DB name
+        return nDbParts.length >= 2 && nDbParts[nDbParts.length - 1] === nRaw
+      })
+      method = 'apellido'
     }
 
     // 3. Partial match (one includes the other) — skip very short names to avoid false matches
@@ -132,8 +170,8 @@ async function matchPlayers(rows: any[], clubId: number | null) {
       p = dbPlayers.find(dp => {
         if (usedIds.has(dp.id)) return false
         const nDb = normalizeName(dp.nombre)
-        // Require at least 4 chars to avoid matching 'al' inside 'alberto'
-        if (nDb.length < 4 && nRaw.length < 4) return false
+        // Require at least 4 chars on BOTH sides to avoid matching 'al' inside 'alberto'
+        if (nDb.length < 4 || nRaw.length < 4) return false
         return nDb.includes(nRaw) || nRaw.includes(nDb)
       })
       method = 'parcial'
