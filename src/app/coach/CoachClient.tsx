@@ -1941,6 +1941,25 @@ function CalendarioPanel({ teamData }) {
                 })()}
                 {s.rpe_objetivo && <p style={{ fontSize:12, color:'var(--lime)', fontFamily:'DM Mono,monospace', marginTop:2 }}>RPE objetivo: {s.rpe_objetivo}</p>}
                 {s.hora_inicio && <p style={{ fontSize:12, color:'var(--fog)' }}>🕐 {s.hora_inicio.slice(0,5)}{s.hora_fin?` – ${s.hora_fin.slice(0,5)}`:''}</p>}
+                
+                {/* ── TIEMPOS DE SESION ── */}
+                {(() => {
+                  let tTrabajo = 0, tDescanso = 0
+                  ;(s.ejercicios||[]).forEach((bl:any) => {
+                    tTrabajo += (Number(bl.series)||0) * (Number(bl.minutos)||0)
+                    tDescanso += Math.max(0, (Number(bl.series)||0) - 1) * (Number(bl.pausa)||0)
+                  })
+                  if (tTrabajo+tDescanso === 0) return null
+                  return (
+                    <div style={{ display:'flex', gap:16, marginTop:10, background:'var(--ink2)', padding:'10px 14px', borderRadius:10, border:'1px solid var(--mist)' }}>
+                      <div><div style={{ fontSize:9, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.05em' }}>Tiempo Total</div><div style={{ fontSize:16, fontWeight:700, color:'var(--lime)', fontFamily:'DM Mono,monospace' }}>{tTrabajo+tDescanso} min</div></div>
+                      <div style={{ width:1, background:'var(--mist)' }}></div>
+                      <div><div style={{ fontSize:9, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.05em' }}>Trabajo</div><div style={{ fontSize:16, fontWeight:700, color:'var(--snow)', fontFamily:'DM Mono,monospace' }}>{tTrabajo} min</div></div>
+                      <div style={{ width:1, background:'var(--mist)' }}></div>
+                      <div><div style={{ fontSize:9, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.05em' }}>Descanso</div><div style={{ fontSize:16, fontWeight:700, color:'#f59e0b', fontFamily:'DM Mono,monospace' }}>{tDescanso} min</div></div>
+                    </div>
+                  )
+                })()}
                 {s.ejercicios?.length>0 && (
                   <div style={{ marginTop:8 }}>
                     <p style={{ fontSize:10, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:6 }}>Tareas ({s.ejercicios.length})</p>
@@ -1993,6 +2012,41 @@ function CalendarioPanel({ teamData }) {
                         <div style={{ marginTop:8, padding:'8px 10px', background:'rgba(200,241,53,.06)', border:'1px solid rgba(200,241,53,.2)', borderRadius:8, fontFamily:'DM Mono,monospace', display:'flex', gap:16, alignItems:'center' }}>
                           <div><span style={{ fontSize:9, color:'var(--silver)', textTransform:'uppercase' }}>CE TOTAL </span><span style={{ fontSize:13, fontWeight:700, color:'#c8f135' }}>{ceTotal}</span></div>
                           {rpeParaUCE > 0 && <div><span style={{ fontSize:9, color:'var(--silver)', textTransform:'uppercase' }}>UCE TOTAL </span><span style={{ fontSize:13, fontWeight:700, color:'#f59e0b' }}>{Math.round(ceTotal*rpeParaUCE)}</span><span style={{ fontSize:8, color:'var(--fog)', marginLeft:3 }}>{rpeEsReal ? '(RPE real)' : '(RPE obj)'}</span></div>}
+                        </div>
+                      )
+                    })()}
+                    
+                    {/* Carga Total Absoluta de la Sesión (GPS Calc) */}
+                    {(() => {
+                      const metricKeys = ['distTotal','distSprint','distMP','distAcel','distDecel','nSprints','nAcel','nDecel']
+                      const metricLabels = ['Dist. total','Sprint >21km/h','Alta pot. >20W/kg','Acel. >2m/s²','Decel. >-2m/s²','Nº sprints','Nº acel. >3m/s²','Nº decel. >-3m/s²']
+                      const metricUnits = ['m','m','m','m','m','','','']
+                      const totals: Record<string,number> = {}
+                      metricKeys.forEach(k => { totals[k] = 0 })
+                      let hasCarga = false
+                      s.ejercicios.forEach((bl:any) => {
+                        if (!bl.ventana || !TAREAS_CON_ESPACIO.includes(bl.ventana)) return
+                        const jugN = getJugadoresBloque(bl, TAREAS_CON_EQUIPO.includes(bl.ventana))
+                        const calc = calcularDistancias(jugN, Number(bl.largo), Number(bl.ancho), Number(bl.series), Number(bl.minutos))
+                        if (!calc) return
+                        hasCarga = true
+                        metricKeys.forEach(k => {
+                          const manual = bl.manualMetrics?.[k]
+                          totals[k] += manual !== undefined && manual !== '' ? parseFloat(manual) : calc[k]
+                        })
+                      })
+                      if (!hasCarga) return null
+                      return (
+                        <div style={{ marginTop:12, background:'rgba(59,130,246,.06)', border:'1px solid rgba(59,130,246,.2)', borderRadius:10, padding:'12px 14px' }}>
+                          <strong style={{ fontSize:10, color:'#3b82f6', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:8 }}>📊 Carga absoluta simulada (GPS Calc)</strong>
+                          <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:6 }}>
+                            {metricKeys.map((k,i) => (
+                              <div key={k} style={{ textAlign:'center', background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:6, padding:'6px' }}>
+                                <div style={{ fontSize:8, color:'var(--silver)', marginBottom:2, lineHeight:1.2 }}>{metricLabels[i]}</div>
+                                <div style={{ fontSize:13, fontWeight:700, color:'#60a5fa', fontFamily:'DM Mono,monospace' }}>{Math.round(totals[k])}<span style={{ fontSize:9, color:'var(--fog)' }}>{metricUnits[i]}</span></div>
+                              </div>
+                            ))}
+                          </div>
                         </div>
                       )
                     })()}

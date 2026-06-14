@@ -138,31 +138,33 @@ async function matchPlayers(rows: any[], clubId: number | null) {
     let p = dbPlayers.find(dp => !usedIds.has(dp.id) && normalizeName(dp.nombre) === nRaw)
     let method = 'nombre'
 
-    // 2. First name + last name match (words from each match, in any order)
-    if (!p && nRawParts.length >= 2) {
-      p = dbPlayers.find(dp => {
+    // 2. Fallback: match by last word (last name) and first initial
+    if (!p && nRawParts.length >= 1) {
+      const rawLastName = nRawParts[nRawParts.length - 1]
+      // Find players whose last name matches the raw last name
+      const candidates = dbPlayers.filter(dp => {
         if (usedIds.has(dp.id)) return false
         const nDbParts = normalizeName(dp.nombre).split(' ')
-        if (nDbParts.length < 2) return false
-        // Match if first name and last name both appear (handles reversed order too)
-        const rawHasDbFirst = nRawParts.includes(nDbParts[0])
-        const rawHasDbLast  = nRawParts.includes(nDbParts[nDbParts.length - 1])
-        const dbHasRawFirst = nDbParts.includes(nRawParts[0])
-        const dbHasRawLast  = nDbParts.includes(nRawParts[nRawParts.length - 1])
-        return (rawHasDbFirst && rawHasDbLast) || (dbHasRawFirst && dbHasRawLast)
+        // Check if the last word of DB name matches the raw last name (must be >= 3 chars to be safe)
+        return rawLastName.length >= 3 && nDbParts[nDbParts.length - 1] === rawLastName
       })
-      method = 'primer_nombre'
-    }
 
-    // 2.5 Last name only match (Catapult may use just "Rubio" but DB has "Alberto Rubio")
-    if (!p && nRawParts.length === 1 && nRaw.length >= 4) {
-      p = dbPlayers.find(dp => {
-        if (usedIds.has(dp.id)) return false
-        const nDbParts = normalizeName(dp.nombre).split(' ')
-        // Match if the single raw name equals the last word of the DB name
-        return nDbParts.length >= 2 && nDbParts[nDbParts.length - 1] === nRaw
-      })
-      method = 'apellido'
+      if (candidates.length === 1) {
+        // If exactly one match, we found it!
+        p = candidates[0]
+        method = 'apellido_unico'
+      } else if (candidates.length > 1 && nRawParts.length >= 2) {
+        // If multiple matches, disambiguate using first initial
+        const rawFirstInitial = nRawParts[0][0]
+        const best = candidates.find(dp => {
+          const nDbParts = normalizeName(dp.nombre).split(' ')
+          return nDbParts[0].startsWith(rawFirstInitial)
+        })
+        if (best) {
+          p = best
+          method = 'apellido_inicial'
+        }
+      }
     }
 
     // 3. Partial match (one includes the other) — skip very short names to avoid false matches
