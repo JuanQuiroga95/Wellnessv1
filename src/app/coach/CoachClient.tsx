@@ -1501,6 +1501,41 @@ const NE_DEFAULT: Record<string, number> = {
 const TIPO_COLORES = { entrenamiento:'#c8f135', partido:'#3b82f6', recuperacion:'#f59e0b', descanso:'#555' }
 const TIPO_ICONOS = { entrenamiento:'⚽', partido:'🏆', recuperacion:'🔄', descanso:'😴' }
 
+// Helper: normaliza subtareas (retrocompat string → array)
+function getSubtareasArr(bl: any): string[] {
+  if (Array.isArray(bl.subtareas) && bl.subtareas.length > 0) return bl.subtareas
+  if (typeof bl.subtarea === 'string' && bl.subtarea) return [bl.subtarea]
+  return []
+}
+function getSubtareasDisplay(bl: any): string {
+  return getSubtareasArr(bl).join(', ')
+}
+
+// Helper: calcula tiempo agrupando tareas simultáneas (Math.max en vez de suma)
+function calcTiempoConSimultaneas(bloques: any[]): { tiempoTrabajo: number; tiempoDescanso: number } {
+  let tiempoTrabajo = 0, tiempoDescanso = 0
+  let i = 0
+  while (i < bloques.length) {
+    const bl = bloques[i]
+    const s = Number(bl.series) || 0, m = Number(bl.minutos) || 0, p = Number(bl.pausa) || 0
+    let groupTrabajo = s * m
+    let groupDescanso = Math.max(0, s - 1) * p
+    // Agrupar tareas simultáneas consecutivas
+    let j = i + 1
+    while (j < bloques.length && bloques[j].simultanea) {
+      const blj = bloques[j]
+      const sj = Number(blj.series) || 0, mj = Number(blj.minutos) || 0, pj = Number(blj.pausa) || 0
+      groupTrabajo = Math.max(groupTrabajo, sj * mj)
+      groupDescanso = Math.max(groupDescanso, Math.max(0, sj - 1) * pj)
+      j++
+    }
+    tiempoTrabajo += groupTrabajo
+    tiempoDescanso += groupDescanso
+    i = j
+  }
+  return { tiempoTrabajo, tiempoDescanso }
+}
+
 function horasEntre(fechaA: string, horaA: string|null, fechaB: string, horaB: string|null): number|null {
   if (!fechaA || !fechaB) return null
   const dtA = new Date(`${fechaA}T${horaA||'20:00'}:00`)
@@ -1881,7 +1916,7 @@ function CalendarioPanel({ teamData }) {
                           <div style={{ marginTop:6 }}>
                             {s.ejercicios.map((bl:any,i:number)=>(
                               <div key={i} style={{ fontSize:10, color:'var(--silver)', padding:'2px 0', borderTop:'1px solid var(--mist)', display:'flex', gap:8 }}>
-                                <span style={{ fontWeight:600, color:'var(--snow)' }}>{bl.ventana||`Tarea ${i+1}`}{bl.subtarea ? ` · ${bl.subtarea}` : ''}</span>
+                                <span style={{ fontWeight:600, color:'var(--snow)' }}>{bl.ventana||`Tarea ${i+1}`}{getSubtareasDisplay(bl) ? ` · ${getSubtareasDisplay(bl)}` : ''}</span>
                                 {bl.series && bl.minutos && <span>{bl.series}×{bl.minutos}min</span>}
                               </div>
                             ))}
@@ -1944,11 +1979,7 @@ function CalendarioPanel({ teamData }) {
                 
                 {/* ── TIEMPOS DE SESION ── */}
                 {(() => {
-                  let tTrabajo = 0, tDescanso = 0
-                  ;(s.ejercicios||[]).forEach((bl:any) => {
-                    tTrabajo += (Number(bl.series)||0) * (Number(bl.minutos)||0)
-                    tDescanso += Math.max(0, (Number(bl.series)||0) - 1) * (Number(bl.pausa)||0)
-                  })
+                  const { tiempoTrabajo: tTrabajo, tiempoDescanso: tDescanso } = calcTiempoConSimultaneas(s.ejercicios||[])
                   if (tTrabajo+tDescanso === 0) return null
                   return (
                     <div style={{ display:'flex', gap:16, marginTop:10, background:'var(--ink2)', padding:'10px 14px', borderRadius:10, border:'1px solid var(--mist)' }}>
@@ -1966,7 +1997,7 @@ function CalendarioPanel({ teamData }) {
                     {s.ejercicios.map((bl:any,i:number)=>(
                       <div key={i} style={{ background:'var(--ink2)', borderRadius:8, padding:'8px 10px', marginBottom:6 }}>
                         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:bl.descripcion||bl.imagen?4:0 }}>
-                          <span style={{ fontSize:12, fontWeight:700, color:'var(--lime)' }}>Tarea {i+1}{bl.ventana?` · ${bl.ventana}`:''}{ bl.subtarea ? ` › ${bl.subtarea}` : ''}</span>
+                          <span style={{ fontSize:12, fontWeight:700, color:'var(--lime)' }}>Tarea {i+1}{bl.ventana?` · ${bl.ventana}`:''}{getSubtareasDisplay(bl) ? ` › ${getSubtareasDisplay(bl)}` : ''}{bl.simultanea ? ' ⏱' : ''}</span>
                           <span style={{ fontSize:11, color:'var(--silver)', fontFamily:'DM Mono,monospace' }}>
                             {[bl.series&&`${bl.series}×${bl.minutos}min`, bl.jugadores&&`${bl.jugadores}jug`, (bl.largo&&bl.ancho)&&`${bl.largo}×${bl.ancho}m`].filter(Boolean).join(' · ')}
                           </span>
@@ -2122,9 +2153,10 @@ function CalendarioPanel({ teamData }) {
                       try { imagenComprimida = await compressImage(bl.imagen, 300, 0.7) } catch {}
                     }
                     return {
-                      nombre: bl.ventana + (bl.subtarea ? ` › ${bl.subtarea}` : ''),
+                      nombre: bl.ventana + (getSubtareasDisplay(bl) ? ` › ${getSubtareasDisplay(bl)}` : ''),
                       ventana: bl.ventana,
-                      subtarea: bl.subtarea || null,
+                      subtareas: getSubtareasArr(bl),
+                      subtarea: getSubtareasDisplay(bl) || null,
                       jugadores: jug || null,
                       series: Number(bl.series) || null,
                       minutos: Number(bl.minutos) || null,
@@ -2342,9 +2374,19 @@ function BloqueMetodologia({ bloque, index, onChange, onRemove, teamPlayers = []
         <button onClick={onRemove} style={{ background:'rgba(239,68,68,.1)', border:'1px solid rgba(239,68,68,.25)', borderRadius:6, color:'#f87171', cursor:'pointer', padding:'2px 8px', fontSize:11 }}>✕</button>
       </div>
 
+      {/* Checkbox simultánea (solo a partir de la 2da tarea) */}
+      {index > 0 && (
+        <label style={{ display:'flex', alignItems:'center', gap:6, marginBottom:8, cursor:'pointer', fontSize:10, color: bloque.simultanea ? 'var(--lime)' : 'var(--fog)' }}>
+          <input type="checkbox" checked={!!bloque.simultanea} onChange={e => onChange('simultanea', e.target.checked)}
+            style={{ accentColor:'var(--lime)', width:14, height:14 }} />
+          <span style={{ fontWeight:600, textTransform:'uppercase', letterSpacing:'0.04em' }}>⏱ Simultánea con tarea anterior</span>
+          {bloque.simultanea && <span style={{ fontSize:8, padding:'1px 6px', borderRadius:4, background:'rgba(200,241,53,.15)', color:'var(--lime)', border:'1px solid rgba(200,241,53,.3)' }}>No suma tiempo extra</span>}
+        </label>
+      )}
+
       <div style={{ marginBottom:8 }}>
         <label style={{ fontSize:9, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:3 }}>Tarea</label>
-        <select className="wp-input" value={bloque.ventana||''} onChange={e=>{ onChange('ventana',e.target.value); onChange('subtarea','') }} style={{ padding:'5px 8px', fontSize:12, appearance:'none', width:'100%' }}>
+        <select className="wp-input" value={bloque.ventana||''} onChange={e=>{ onChange('ventana',e.target.value); onChange('subtareas',[]); onChange('subtarea','') }} style={{ padding:'5px 8px', fontSize:12, appearance:'none', width:'100%' }}>
           <option value="">— Seleccionar —</option>
           {TAREAS_PRINCIPALES.map(t=><option key={t} value={t} style={{ background:'var(--ink2)' }}>{t}</option>)}
         </select>
@@ -2367,11 +2409,27 @@ function BloqueMetodologia({ bloque, index, onChange, onRemove, teamPlayers = []
 
       {bloque.ventana && SUBTAREAS[bloque.ventana] && (
         <div style={{ marginBottom:8 }}>
-          <label style={{ fontSize:9, fontWeight:700, color:'var(--lime)', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:3 }}>↳ Sub-tarea</label>
-          <select className="wp-input" value={bloque.subtarea||''} onChange={e=>onChange('subtarea',e.target.value)} style={{ padding:'5px 8px', fontSize:12, appearance:'none', width:'100%', border:'1px solid rgba(200,241,53,.3)' }}>
-            <option value="">— Seleccionar —</option>
-            {SUBTAREAS[bloque.ventana].map(s=><option key={s} value={s} style={{ background:'var(--ink2)' }}>{s}</option>)}
-          </select>
+          <label style={{ fontSize:9, fontWeight:700, color:'var(--lime)', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:5 }}>↳ Sub-tareas <span style={{ fontWeight:400, color:'var(--fog)', textTransform:'none' }}>(podés elegir varias)</span></label>
+          <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
+            {SUBTAREAS[bloque.ventana].map(s => {
+              const selected = getSubtareasArr(bloque).includes(s)
+              return (
+                <button key={s} type="button" onClick={() => {
+                  const current = getSubtareasArr(bloque)
+                  const updated = selected ? current.filter(x => x !== s) : [...current, s]
+                  onChange('subtareas', updated)
+                  onChange('subtarea', updated.join(', '))
+                }}
+                style={{
+                  padding:'4px 10px', fontSize:11, borderRadius:20, cursor:'pointer',
+                  fontWeight: selected ? 700 : 500, transition:'all .15s ease',
+                  background: selected ? 'rgba(200,241,53,.2)' : 'rgba(255,255,255,.04)',
+                  border: selected ? '1px solid rgba(200,241,53,.5)' : '1px solid rgba(255,255,255,.1)',
+                  color: selected ? '#c8f135' : 'var(--silver)',
+                }}>{selected ? '✓ ' : ''}{s}</button>
+              )
+            })}
+          </div>
         </div>
       )}
 
@@ -2589,11 +2647,7 @@ function imprimirSesion(f: any, bloques: any[], teamPlayers: any[] = []) {
     })
   })
 
-  let tiempoTrabajo = 0, tiempoDescanso = 0
-  bloques.forEach(bl => {
-    tiempoTrabajo += (Number(bl.series)||0) * (Number(bl.minutos)||0)
-    tiempoDescanso += Math.max(0, (Number(bl.series)||0) - 1) * (Number(bl.pausa)||0)
-  })
+  const { tiempoTrabajo, tiempoDescanso } = calcTiempoConSimultaneas(bloques)
 
   const OBJCOLORS: Record<string,string> = { 'Fuerza':'#7c3aed','Resistencia':'#d97706','Activación':'#16a34a','Activación/Recuperación':'#16a34a','Velocidad':'#2563eb' }
 
@@ -2638,7 +2692,7 @@ function imprimirSesion(f: any, bloques: any[], teamPlayers: any[] = []) {
     return `
     <div style="border:1px solid #ddd;border-radius:8px;padding:12px;margin-bottom:10px;page-break-inside:avoid">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-        <strong style="font-size:13px;color:#111">Tarea ${i+1}${bl.ventana ? ` — ${bl.ventana}` : ''}${bl.subtarea ? ` › ${bl.subtarea}` : ''}</strong>
+        <strong style="font-size:13px;color:#111">Tarea ${i+1}${bl.ventana ? ` — ${bl.ventana}` : ''}${getSubtareasDisplay(bl) ? ` › ${getSubtareasDisplay(bl)}` : ''}${bl.simultanea ? ' <span style="font-size:10px;color:#16a34a;background:#f0fdf4;padding:1px 6px;border-radius:4px">⏱ Simultánea</span>' : ''}</strong>
         <span style="font-size:11px;color:#555">${[bl.series&&`${bl.series} bloques`,bl.minutos&&`${bl.minutos} min/bl`,bl.pausa&&`pausa ${bl.pausa} min`,bl.largo&&bl.ancho&&`${bl.largo}×${bl.ancho}m`,jugN&&`${jugN} jug.`].filter(Boolean).join(' · ')}</span>
       </div>
       ${equiposHtml}
@@ -2716,11 +2770,12 @@ function SesionEditor({ sesion, defaultFecha, rpeReal = 0, onSave, onDelete, onC
   const [saveError, setSaveError] = useState('')
   const set = (k,v) => setF(p=>({...p,[k]:v}))
 
-  function addBloque() { setBloques(b=>[...b, { ventana:'', subtarea:'', jugadores:'', series:'', minutos:'', pausa:'', largo:'', ancho:'', descripcion:'', imagen:'', atacantes:'', defensores:'', comodines:'' }]) }
+  function addBloque() { setBloques(b=>[...b, { ventana:'', subtareas:[], subtarea:'', jugadores:'', series:'', minutos:'', pausa:'', largo:'', ancho:'', descripcion:'', imagen:'', atacantes:'', defensores:'', comodines:'', simultanea:false }]) }
   function addBloqueFromBiblioteca(t: any) {
     const newBloque = {
       ventana: t.ventana || '',
-      subtarea: t.subtarea || '',
+      subtareas: Array.isArray(t.subtareas) ? t.subtareas : (t.subtarea ? [t.subtarea] : []),
+      subtarea: Array.isArray(t.subtareas) ? t.subtareas.join(', ') : (t.subtarea || ''),
       jugadores: t.jugadores ? String(t.jugadores) : '',
       series: t.series ? String(t.series) : '',
       minutos: t.minutos ? String(t.minutos) : '',
@@ -3031,12 +3086,7 @@ function SesionEditor({ sesion, defaultFecha, rpeReal = 0, onSave, onDelete, onC
 
       {/* Resumen de tiempo total de sesión */}
       {bloques.length > 0 && (() => {
-        let tiempoTrabajo = 0, tiempoDescanso = 0
-        bloques.forEach(bl => {
-          const s = Number(bl.series)||0, m = Number(bl.minutos)||0, p = Number(bl.pausa)||0
-          tiempoTrabajo += s * m
-          tiempoDescanso += Math.max(0, s - 1) * p
-        })
+        const { tiempoTrabajo, tiempoDescanso } = calcTiempoConSimultaneas(bloques)
         const tiempoTotal = tiempoTrabajo + tiempoDescanso
         return tiempoTotal > 0 ? (
           <div style={{ background:'rgba(200,241,53,.06)', border:'1px solid rgba(200,241,53,.2)', borderRadius:10, padding:'12px 16px', marginBottom:16 }}>
@@ -10881,7 +10931,7 @@ function BibliotecaPanel() {
             <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap', marginBottom:6 }}>
               <span style={{ fontWeight:700, color:'var(--snow)', fontSize:14 }}>{t.nombre}</span>
               {t.ventana && <span style={{ fontSize:10, padding:'2px 8px', borderRadius:6, background:'rgba(200,241,53,.12)', color:'var(--lime)', fontWeight:600 }}>{t.ventana}</span>}
-              {t.subtarea && <span style={{ fontSize:10, padding:'2px 8px', borderRadius:6, background:'rgba(200,241,53,.06)', color:'var(--silver)' }}>↳ {t.subtarea}</span>}
+              {getSubtareasDisplay(t) && <span style={{ fontSize:10, padding:'2px 8px', borderRadius:6, background:'rgba(200,241,53,.06)', color:'var(--silver)' }}>↳ {getSubtareasDisplay(t)}</span>}
               {t.intensidad != null && (
                 <span title={`Intensidad ${t.intensidad} (1=más intensa, 4=menos intensa)`} style={{ display:'inline-flex', alignItems:'center', justifyContent:'center', width:20, height:20, borderRadius:'50%', background: t.intensidad<=1?'#ef4444':t.intensidad<=2?'#f97316':t.intensidad<=3?'#eab308':'#22c55e', color:'#fff', fontSize:10, fontWeight:900, fontFamily:'DM Mono,monospace', flexShrink:0 }}>
                   {t.intensidad}
