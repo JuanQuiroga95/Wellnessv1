@@ -1485,18 +1485,18 @@ function CambioCargaPanel() {
 const OBJETIVOS_FISICOS = ['Fuerza','Resistencia','Velocidad','Recuperación-Compensación','Recuperación','Competición']
 const OBJETIVOS_SECUNDARIOS = ['Táctico','Técnico','Técnico-Táctico']
 const TITULOS_SESION = ['MD+1','MD+2','MD+3','MD-4','MD-3','MD-2','MD-1','MD']
-const TAREAS_PRINCIPALES = ['Activación en campo','Activación en gimnasio','Rondo','Trabajo analítico','Juego de posesión','Juego de posición','Transiciones','Partido reducido','Partido modificado','Partido de entrenamiento','Partido amistoso','Partido oficial']
+const TAREAS_PRINCIPALES = ['Activación en campo','Activación en gimnasio','Fuerza Estructural','Rueda de Pases','Rondo','Trabajo analítico','Juego de posesión','Juego de posición','Transiciones','Partido reducido','Partido modificado','Partido de entrenamiento','Partido amistoso','Partido oficial']
 const SUBTAREAS: Record<string, string[]> = { 'Activación en campo': ['Circuito técnico','Circuito neuromuscular','Pliometría','Movilidad','Trabajo Preventivo'], 'Activación en gimnasio': ['Isométricos','Pliometría','Movilidad','Excéntricos','Estabilidad','Tracción y empuje','Trabajo Preventivo'], 'Rondo': ['Rondo 4v2','Rondo 5v2','Rondo 6v2','Rondo 8v2','Rondo 4v1+1','Rondo en movimiento','Rondo conservación','Rondo orientado','Rondo dos espacios'] }
-const TAREAS_CON_ESPACIO = ['Rondo','Trabajo analítico','Juego de posesión','Juego de posición','Transiciones','Partido reducido','Partido modificado','Partido de entrenamiento','Partido amistoso','Partido oficial']
-const TAREAS_CON_EQUIPO = ['Rondo','Trabajo analítico','Juego de posesión','Juego de posición','Transiciones','Partido reducido','Partido modificado','Partido de entrenamiento','Partido amistoso','Partido oficial']
+const TAREAS_CON_ESPACIO = ['Rueda de Pases','Rondo','Trabajo analítico','Juego de posesión','Juego de posición','Transiciones','Partido reducido','Partido modificado','Partido de entrenamiento','Partido amistoso','Partido oficial']
+const TAREAS_CON_EQUIPO = ['Rueda de Pases','Rondo','Trabajo analítico','Juego de posesión','Juego de posición','Transiciones','Partido reducido','Partido modificado','Partido de entrenamiento','Partido amistoso','Partido oficial']
 const TAREAS_PARTIDO_SIMPLE = ['Partido amistoso','Partido oficial','Partido de entrenamiento']
-const TAREAS_MOSTRAR_FORM = [...TAREAS_CON_ESPACIO, 'Activación en campo','Activación en gimnasio']
+const TAREAS_MOSTRAR_FORM = [...TAREAS_CON_ESPACIO, 'Activación en campo','Activación en gimnasio','Fuerza Estructural']
 // NE default por tipo de tarea (Nivel de Especificidad 1-10)
 const NE_DEFAULT: Record<string, number> = {
   'Partido oficial': 10, 'Partido amistoso': 9, 'Partido de entrenamiento': 8,
   'Partido modificado': 7, 'Partido reducido': 7, 'Juego de posición': 6,
-  'Juego de posesión': 6, 'Transiciones': 5, 'Rondo': 5, 'Trabajo analítico': 4,
-  'Activación en campo': 2, 'Activación en gimnasio': 2,
+  'Juego de posesión': 6, 'Transiciones': 5, 'Rondo': 5, 'Rueda de Pases': 5, 'Trabajo analítico': 4,
+  'Activación en campo': 2, 'Activación en gimnasio': 2, 'Fuerza Estructural': 1
 }
 const TIPO_COLORES = { entrenamiento:'#c8f135', partido:'#3b82f6', recuperacion:'#f59e0b', descanso:'#555' }
 const TIPO_ICONOS = { entrenamiento:'⚽', partido:'🏆', recuperacion:'🔄', descanso:'😴' }
@@ -2002,6 +2002,24 @@ function CalendarioPanel({ teamData }) {
                             {[bl.series&&`${bl.series}×${bl.minutos}min`, bl.jugadores&&`${bl.jugadores}jug`, (bl.largo&&bl.ancho)&&`${bl.largo}×${bl.ancho}m`].filter(Boolean).join(' · ')}
                           </span>
                         </div>
+                        {bl.rutinaGym && bl.rutinaGym.length > 0 && (
+                          <div style={{ marginTop:6, marginBottom:bl.descripcion?6:0, padding:'6px 8px', background:'rgba(255,255,255,.03)', borderRadius:6, border:'1px solid rgba(255,255,255,.05)' }}>
+                            <div style={{ display:'grid', gridTemplateColumns:'2fr 1fr 1fr 1fr', gap:4, borderBottom:'1px solid rgba(255,255,255,.1)', paddingBottom:4, marginBottom:4 }}>
+                              <span style={{ fontSize:9, fontWeight:700, color:'var(--lime)', textTransform:'uppercase' }}>Ejercicio</span>
+                              <span style={{ fontSize:9, fontWeight:700, color:'var(--silver)', textTransform:'uppercase' }}>Series</span>
+                              <span style={{ fontSize:9, fontWeight:700, color:'var(--silver)', textTransform:'uppercase' }}>Reps</span>
+                              <span style={{ fontSize:9, fontWeight:700, color:'var(--silver)', textTransform:'uppercase' }}>Carga</span>
+                            </div>
+                            {bl.rutinaGym.map((r:any,rIdx:number) => (
+                              <div key={rIdx} style={{ display:'grid', gridTemplateColumns:'2fr 1fr 1fr 1fr', gap:4, fontSize:11, color:'var(--snow)', marginBottom:2 }}>
+                                <span>{r.ejercicio}</span>
+                                <span style={{ color:'var(--fog)' }}>{r.series}</span>
+                                <span style={{ color:'var(--fog)' }}>{r.repeticiones}</span>
+                                <span style={{ color:'var(--fog)' }}>{r.peso}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                         {bl.descripcion && <p style={{ fontSize:11, color:'var(--silver)', lineHeight:1.5, margin:0 }}>{bl.descripcion}</p>}
                         {bl.imagen && <img src={bl.imagen} style={{ marginTop:6, maxWidth:'100%', maxHeight:120, borderRadius:6, objectFit:'contain' }} />}
                         {/* CE inline in card */}
@@ -2270,7 +2288,7 @@ function getJugadoresBloque(bl: any, esConEquipo: boolean): number {
   const atacantes = Number(bl.atacantes) || 0
   const defensores = Number(bl.defensores) || 0
   const comodines = Number(bl.comodines) || 0
-  const autoTotal = atacantes + defensores + comodines
+  const autoTotal = atacantes + defensores + (bl.comodines_fuera ? 0 : comodines)
   if (autoTotal > 0) return autoTotal
   if (esConEquipo) return Object.values(bl.equipos||{}).flat().length || Number(bl.jugadores) || 0
   return Number(bl.jugadores) || 0
@@ -2311,11 +2329,11 @@ function BloqueMetodologia({ bloque, index, onChange, onRemove, teamPlayers = []
   const jugadoresEquipos = Object.values(equipos).flat() as number[]
   const totalJugadoresEquipos = jugadoresEquipos.length
 
-  // Auto total from atacantes + defensores + comodines
+  // Auto total from atacantes + defensores + comodines (ignoring comodines if they are "por fuera")
   const atacantes = Number(bloque.atacantes) || 0
   const defensores = Number(bloque.defensores) || 0
   const comodines = Number(bloque.comodines) || 0
-  const autoTotal = atacantes + defensores + comodines
+  const autoTotal = atacantes + defensores + (bloque.comodines_fuera ? 0 : comodines)
 
   // For partido types: prefer auto-total > manual jugadores > team selector
   const calcJugadores = autoTotal > 0 ? autoTotal : (Number(bloque.jugadores) || (esConEquipo ? totalJugadoresEquipos : 0))
@@ -2462,8 +2480,13 @@ function BloqueMetodologia({ bloque, index, onChange, onRemove, teamPlayers = []
             <div><label style={{ fontSize:9, fontWeight:700, color:'#3b82f6', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:2 }}>Defensores</label>{inp('defensores','Nº','number')}</div>
             <div><label style={{ fontSize:9, fontWeight:700, color:'#a855f7', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:2 }}>Comodines</label>{inp('comodines','Nº','number')}</div>
           </div>
+          <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:8 }}>
+            <label style={{ display:'flex', alignItems:'center', gap:4, fontSize:10, color:'var(--silver)', cursor:'pointer' }}>
+              <input type="checkbox" checked={!!bloque.comodines_fuera} onChange={e => onChange('comodines_fuera', e.target.checked)} />
+              Comodines juegan por fuera (no cuentan en densidad)
+            </label>
+          </div>
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:6, marginBottom:6 }}>
-            {/* Jugadores: mostrar siempre — incluso para tipos con equipo (partido amistoso/oficial/entrenamiento) */}
             <div><label style={{ fontSize:9, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:2 }}>
                 Total jugadores
                 {autoTotal > 0 && <span style={{ marginLeft:6, fontSize:8, padding:'1px 5px', borderRadius:3, background:'rgba(200,241,53,.15)', color:'var(--lime)', border:'1px solid rgba(200,241,53,.3)' }}>Auto: {autoTotal}</span>}
@@ -2476,7 +2499,7 @@ function BloqueMetodologia({ bloque, index, onChange, onRemove, teamPlayers = []
               {autoTotal > 0
                 ? <div className="wp-input" style={{ padding:'5px 8px', fontSize:12, fontFamily:'DM Mono,monospace', color:'var(--lime)', background:'rgba(200,241,53,.06)', border:'1px solid rgba(200,241,53,.3)', borderRadius:6, display:'flex', alignItems:'center', gap:6 }}>
                     <span style={{ fontWeight:700 }}>{autoTotal}</span>
-                    <span style={{ fontSize:9, color:'var(--silver)' }}>({atacantes}A + {defensores}D + {comodines}C)</span>
+                    <span style={{ fontSize:9, color:'var(--silver)' }}>({atacantes}A + {defensores}D {bloque.comodines_fuera ? `+ (${comodines}C fuera)` : `+ ${comodines}C`})</span>
                   </div>
                 : inp('jugadores','Nº jugadores','number')
               }
@@ -2534,8 +2557,29 @@ function BloqueMetodologia({ bloque, index, onChange, onRemove, teamPlayers = []
         </div>
       )}
 
+      {(bloque.ventana === 'Activación en gimnasio' || bloque.ventana === 'Fuerza Estructural') && (
+        <div style={{ marginBottom: 12, padding:'10px', background:'rgba(255,255,255,.02)', borderRadius:8, border:'1px dashed rgba(255,255,255,.1)' }}>
+          <label style={{ fontSize:10, fontWeight:700, color:'var(--lime)', textTransform:'uppercase', letterSpacing:'0.06em', display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
+            <span>Rutina de Ejercicios</span>
+            <button type="button" onClick={() => onChange('rutinaGym', [...(bloque.rutinaGym || []), { ejercicio: '', series: '', repeticiones: '', peso: '' }])} style={{ background:'rgba(200,241,53,.15)', border:'1px solid rgba(200,241,53,.3)', borderRadius:4, padding:'4px 10px', color:'var(--lime)', fontSize:9, cursor:'pointer' }}>+ Añadir Ejercicio</button>
+          </label>
+          {(bloque.rutinaGym || []).map((r: any, rIdx: number) => (
+            <div key={rIdx} style={{ display:'flex', gap:6, marginBottom:6, alignItems:'center' }}>
+              <input type="text" placeholder="Ejercicio (ej. Sentadilla)" value={r.ejercicio} onChange={(e) => { const newR = [...(bloque.rutinaGym||[])]; newR[rIdx].ejercicio = e.target.value; onChange('rutinaGym', newR) }} style={{ padding:'4px 8px', fontSize:11, borderRadius:4, border:'1px solid rgba(255,255,255,.1)', background:'var(--ink3)', color:'var(--snow)', flex:2, minWidth:0 }} />
+              <input type="text" placeholder="Series" value={r.series} onChange={(e) => { const newR = [...(bloque.rutinaGym||[])]; newR[rIdx].series = e.target.value; onChange('rutinaGym', newR) }} style={{ padding:'4px 8px', fontSize:11, borderRadius:4, border:'1px solid rgba(255,255,255,.1)', background:'var(--ink3)', color:'var(--snow)', flex:1, minWidth:0 }} />
+              <input type="text" placeholder="Reps" value={r.repeticiones} onChange={(e) => { const newR = [...(bloque.rutinaGym||[])]; newR[rIdx].repeticiones = e.target.value; onChange('rutinaGym', newR) }} style={{ padding:'4px 8px', fontSize:11, borderRadius:4, border:'1px solid rgba(255,255,255,.1)', background:'var(--ink3)', color:'var(--snow)', flex:1, minWidth:0 }} />
+              <input type="text" placeholder="Carga" value={r.peso} onChange={(e) => { const newR = [...(bloque.rutinaGym||[])]; newR[rIdx].peso = e.target.value; onChange('rutinaGym', newR) }} style={{ padding:'4px 8px', fontSize:11, borderRadius:4, border:'1px solid rgba(255,255,255,.1)', background:'var(--ink3)', color:'var(--snow)', flex:1, minWidth:0 }} />
+              <button type="button" onClick={() => { const newR = [...(bloque.rutinaGym||[])]; newR.splice(rIdx, 1); onChange('rutinaGym', newR) }} style={{ background:'transparent', border:'none', color:'#ef4444', cursor:'pointer', padding:4, fontSize:12, flexShrink:0 }}>✕</button>
+            </div>
+          ))}
+          {(!bloque.rutinaGym || bloque.rutinaGym.length === 0) && (
+            <div style={{ fontSize:10, color:'var(--fog)', fontStyle:'italic', padding:'8px 0', textAlign:'center' }}>Sin ejercicios en la rutina. Añade uno para comenzar.</div>
+          )}
+        </div>
+      )}
+
       <div style={{ marginBottom:8 }}>
-        <label style={{ fontSize:9, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:2 }}>Descripción</label>
+        <label style={{ fontSize:9, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:2 }}>Descripción / Notas adicionales</label>
         <textarea className="wp-input" value={bloque.descripcion||''} onChange={e=>onChange('descripcion',e.target.value)} rows={2} placeholder="Descripción de la tarea..." style={{ padding:'6px 8px', fontSize:12, resize:'vertical', fontFamily:'inherit', width:'100%' }} />
       </div>
 
@@ -2696,6 +2740,28 @@ function imprimirSesion(f: any, bloques: any[], teamPlayers: any[] = []) {
         <span style="font-size:11px;color:#555">${[bl.series&&`${bl.series} bloques`,bl.minutos&&`${bl.minutos} min/bl`,bl.pausa&&`pausa ${bl.pausa} min`,bl.largo&&bl.ancho&&`${bl.largo}×${bl.ancho}m`,jugN&&`${jugN} jug.`].filter(Boolean).join(' · ')}</span>
       </div>
       ${equiposHtml}
+      ${(bl.rutinaGym && bl.rutinaGym.length > 0) ? `
+        <table style="width:100%; border-collapse:collapse; margin-top:6px; margin-bottom:${bl.descripcion?6:0}px; font-size:10px;">
+          <thead>
+            <tr style="background:#f3f4f6; color:#374151; text-transform:uppercase; text-align:left;">
+              <th style="padding:4px 6px; border:1px solid #e5e7eb;">Ejercicio</th>
+              <th style="padding:4px 6px; border:1px solid #e5e7eb;">Series</th>
+              <th style="padding:4px 6px; border:1px solid #e5e7eb;">Reps</th>
+              <th style="padding:4px 6px; border:1px solid #e5e7eb;">Carga</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${bl.rutinaGym.map((r:any) => `
+              <tr style="border-bottom:1px solid #e5e7eb; color:#4b5563;">
+                <td style="padding:4px 6px; border-left:1px solid #e5e7eb; border-right:1px solid #e5e7eb;">${r.ejercicio}</td>
+                <td style="padding:4px 6px; border-right:1px solid #e5e7eb;">${r.series}</td>
+                <td style="padding:4px 6px; border-right:1px solid #e5e7eb;">${r.repeticiones}</td>
+                <td style="padding:4px 6px; border-right:1px solid #e5e7eb;">${r.peso}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      ` : ''}
       ${bl.descripcion ? `<p style="font-size:11px;color:#333;margin:4px 0">${bl.descripcion}</p>` : ''}
       ${calcHtml}
       ${imgHtml}
@@ -2770,7 +2836,7 @@ function SesionEditor({ sesion, defaultFecha, rpeReal = 0, onSave, onDelete, onC
   const [saveError, setSaveError] = useState('')
   const set = (k,v) => setF(p=>({...p,[k]:v}))
 
-  function addBloque() { setBloques(b=>[...b, { ventana:'', subtareas:[], subtarea:'', jugadores:'', series:'', minutos:'', pausa:'', largo:'', ancho:'', descripcion:'', imagen:'', atacantes:'', defensores:'', comodines:'', simultanea:false }]) }
+  function addBloque() { setBloques(b=>[...b, { ventana:'', subtareas:[], subtarea:'', jugadores:'', series:'', minutos:'', pausa:'', largo:'', ancho:'', descripcion:'', imagen:'', atacantes:'', defensores:'', comodines:'', comodines_fuera:false, simultanea:false, rutinaGym:[] }]) }
   function addBloqueFromBiblioteca(t: any) {
     const newBloque = {
       ventana: t.ventana || '',
@@ -2785,7 +2851,8 @@ function SesionEditor({ sesion, defaultFecha, rpeReal = 0, onSave, onDelete, onC
       descripcion: t.descripcion || t.nombre || '',
       imagen: t.diagram_preview || t.imagen || '',
       tactical_diagram: t.tactical_diagram || '',
-      atacantes: '', defensores: '', comodines: '',
+      atacantes: '', defensores: '', comodines: '', comodines_fuera: false,
+      rutinaGym: t.rutinaGym || [],
     }
     setBloques(prev => [...prev, newBloque])
     // Increment usage counter in background
@@ -10962,8 +11029,8 @@ function BibliotecaPanel() {
             </button>
           </div>
         )}
-        {/* Imagen + descripción en la parte inferior */}
-        {(t.imagen || t.descripcion) && (
+        {/* Imagen, descripción y rutina en la parte inferior */}
+        {(t.imagen || t.descripcion || (t.rutinaGym && t.rutinaGym.length > 0)) && (
           <div style={{ display:'flex', gap:12, alignItems:'flex-start', marginTop:8 }}>
             {t.imagen && (
               <img
@@ -10972,11 +11039,31 @@ function BibliotecaPanel() {
                 style={{ width:240, height:160, objectFit:'contain', borderRadius:8, background:'var(--ink3)', border:'1px solid var(--mist)', flexShrink:0 }}
               />
             )}
-            {t.descripcion && (
-              <div style={{ fontSize:11, color:'var(--fog)', background:'var(--ink3)', borderRadius:8, padding:'6px 10px', borderLeft:'2px solid rgba(200,241,53,.2)', flex:1, alignSelf:'stretch', display:'flex', alignItems:'center' }}>
-                {t.descripcion}
-              </div>
-            )}
+            <div style={{ flex:1, display:'flex', flexDirection:'column', gap:8 }}>
+              {t.rutinaGym && t.rutinaGym.length > 0 && (
+                <div style={{ background:'var(--ink3)', borderRadius:8, padding:'8px 12px', border:'1px solid rgba(255,255,255,.05)' }}>
+                  <div style={{ display:'grid', gridTemplateColumns:'2fr 1fr 1fr 1fr', gap:4, borderBottom:'1px solid rgba(255,255,255,.1)', paddingBottom:4, marginBottom:4 }}>
+                    <span style={{ fontSize:9, fontWeight:700, color:'var(--lime)', textTransform:'uppercase' }}>Ejercicio</span>
+                    <span style={{ fontSize:9, fontWeight:700, color:'var(--silver)', textTransform:'uppercase' }}>Series</span>
+                    <span style={{ fontSize:9, fontWeight:700, color:'var(--silver)', textTransform:'uppercase' }}>Reps</span>
+                    <span style={{ fontSize:9, fontWeight:700, color:'var(--silver)', textTransform:'uppercase' }}>Carga</span>
+                  </div>
+                  {t.rutinaGym.map((r:any,rIdx:number) => (
+                    <div key={rIdx} style={{ display:'grid', gridTemplateColumns:'2fr 1fr 1fr 1fr', gap:4, fontSize:11, color:'var(--snow)', marginBottom:2 }}>
+                      <span>{r.ejercicio}</span>
+                      <span style={{ color:'var(--fog)' }}>{r.series}</span>
+                      <span style={{ color:'var(--fog)' }}>{r.repeticiones}</span>
+                      <span style={{ color:'var(--fog)' }}>{r.peso}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {t.descripcion && (
+                <div style={{ fontSize:11, color:'var(--fog)', background:'var(--ink3)', borderRadius:8, padding:'6px 10px', borderLeft:'2px solid rgba(200,241,53,.2)' }}>
+                  {t.descripcion}
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>
