@@ -1541,6 +1541,12 @@ function getSesionStyle(s: any, withWidth = true) {
       style: { display:'flex', alignItems:'center', justifyContent:'center', gap:4, fontSize:11, padding:'4px 10px', borderRadius:6, background:'rgba(200,241,53,.15)', color:'var(--lime)', border:'1px solid rgba(200,241,53,.3)', fontWeight:800, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', cursor:'pointer', ...w }
     }
   }
+  if (s.tipo === 'partido' || s.titulo === 'MD') {
+    return {
+      className: 'pulse-energy-red',
+      style: { display:'flex', alignItems:'center', justifyContent:'center', gap:4, fontSize:11, padding:'4px 10px', borderRadius:6, background:'rgba(239,68,68,.15)', color:'#f87171', border:'1px solid rgba(239,68,68,.3)', fontWeight:800, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', cursor:'pointer', ...w }
+    }
+  }
   if ((s.titulo||'').startsWith('MD')) {
     return {
       className: 'pulse-energy-blue',
@@ -1931,11 +1937,18 @@ function CalendarioPanel({ teamData }) {
                     {ses.length===0 && parts.length===0 && (
                       <span style={{ fontSize:12, color:'var(--fog)' }}>Sin eventos</span>
                     )}
-                    {ses.map(s=>(
-                      <button key={s.id} onClick={()=>{setEditSesion(s);setShowEditor(true)}} style={{ fontSize:12, padding:'4px 10px', borderRadius:8, background:`${TIPO_COLORES[s.tipo]||'#888'}20`, color:TIPO_COLORES[s.tipo]||'#888', border:`1px solid ${TIPO_COLORES[s.tipo]||'#888'}44`, cursor:'pointer' }}>
-                        {s.tipo==='partido' && s.rival_foto ? <img src={s.rival_foto} style={{ width:14, height:14, objectFit:'contain', borderRadius:2, verticalAlign:'middle', marginRight:4 }} alt="" /> : TIPO_ICONOS[s.tipo]+' '}{s.tipo==='partido' && s.rival ? `vs ${s.rival}` : (s.titulo||s.tipo)}{s.hora_inicio?` · ${s.hora_inicio.slice(0,5)}`:''}
+                    {ses.map(s=>{
+                      const sProps = getSesionStyle(s, false)
+                      return (
+                      <button key={s.id} onClick={()=>{setEditSesion(s);setShowEditor(true)}} className={sProps.className} style={{...sProps.style, fontSize:12, padding:'6px 12px'}}>
+                        {s.tipo==='partido' && s.rival_foto ? <img src={s.rival_foto} style={{ width:14, height:14, objectFit:'contain', borderRadius:2, verticalAlign:'middle', marginRight:4 }} alt="" /> : null}
+                        {s.tipo==='partido'
+                          ? <span>{TIPO_ICONOS[s.tipo]} {s.rival ? `vs ${s.rival}` : formatMD(s.titulo||'Partido', s.tipo)}</span>
+                          : <span>{s.tipo !== 'descanso' && !((s.titulo||s.tipo).startsWith('MD')) ? TIPO_ICONOS[s.tipo] + ' ' : null}{formatMD(s.titulo||s.tipo, s.tipo)}</span>
+                        }
+                        {s.hora_inicio?` · ${s.hora_inicio.slice(0,5)}`:''}
                       </button>
-                    ))}
+                    )})}
                     {parts.map((p,i)=>(
                       <span key={i} style={{ fontSize:12, padding:'4px 10px', borderRadius:8, background:'rgba(59,130,246,.15)', color:'#60a5fa', border:'1px solid rgba(59,130,246,.3)' }}>
                         🏆 {p.rival||'Partido'} · {p.tipo_partido}
