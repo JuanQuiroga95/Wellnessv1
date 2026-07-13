@@ -8458,7 +8458,7 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
 
       {/* ══ CUADRO 6: CONTROL DE INTENSIDAD RELATIVA (CALC) ══════════════════════════════════ */}
       {(() => {
-        const trainingMds = mdCols.filter(md => md !== 'MD' && existingMdLabels.has(md) && (Number(perSession[md]?.minActivo) > 0 || Number(perSessionTeamAvg[md]?.minActivo) > 0))
+        const trainingMds = mdCols.filter(md => existingMdLabels.has(md) && (Number(perSession[md]?.minActivo) > 0 || Number(perSessionTeamAvg[md]?.minActivo) > 0))
         if (!trainingMds.length) return (
           <div style={{ background:'var(--ink2)', border:'1px solid rgba(168,85,247,.2)', borderRadius:16, padding:'20px', textAlign:'center', marginBottom:8 }}>
             <p style={{ fontSize:11, fontWeight:700, color:'#a855f7', textTransform:'uppercase', letterSpacing:'0.08em' }}>CUADRO 6 — CONTROL DE INTENSIDAD RELATIVA (/ MINUTO)</p>
@@ -8489,7 +8489,7 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
         const maxSpr = Math.max(...rows.map(r=>r.sprintMin), 1)
         const maxNSpr = Math.max(...rows.map(r=>r.nSprintMin), 1)
         const maxAD = Math.max(...rows.map(r=>r.acelDecelMin), 1)
-        const BAR_H = 100
+        const BAR_H = 120
 
         return (
           <div style={{ background:'var(--ink2)', border:'1px solid rgba(168,85,247,.2)', borderRadius:16, overflow:'hidden', marginBottom:8, pageBreakBefore:'always', breakBefore:'page' }}>
@@ -8539,7 +8539,7 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
                     <div style={{ display:'flex', alignItems:'flex-end', justifyContent:'center', height:BAR_H, gap:4, position:'relative' }}>
                       {rows.map((r,i) => {
                         const v = grp.val(r)
-                        const h = Math.max((v/grp.max)*BAR_H, v>0?4:0)
+                        const h = Math.max((v/grp.max)*(BAR_H - 24), v>0?4:0)
                         return (
                           <div key={r.md} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'flex-end' }}>
                             {v>0 && <span style={{ fontSize:8, fontFamily:'DM Mono,monospace', color:grp.color, marginBottom:2 }}>{v.toFixed(grp.dec)}</span>}
@@ -9955,7 +9955,7 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
 
       {/* ══ CUADRO 6: CONTROL DE INTENSIDAD RELATIVA ══════════════════════════════════ */}
       {gpsReal.length > 0 && (() => {
-        const trainingMds = mdCols.filter(md => md !== 'MD' && existingMdLabels.has(md) && (gpsPerMD[md]||[]).length > 0)
+        const trainingMds = mdCols.filter(md => existingMdLabels.has(md) && (gpsPerMD[md]||[]).length > 0)
         const activeMds = trainingMds.filter((md:string) => {
           const avg = mdTeamAvg(md)
           const dTotal = avg.dist_total || avg.distTotal || 0
@@ -9995,7 +9995,7 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
         const maxSpr = Math.max(...rows.map(r=>r.sprintMin), 1)
         const maxNSpr = Math.max(...rows.map(r=>r.nSprintMin), 1)
         const maxAD = Math.max(...rows.map(r=>r.acelDecelMin), 1)
-        const BAR_H = 100
+        const BAR_H = 120
 
         return (
           <div style={{ background:'var(--ink2)', border:'1px solid rgba(168,85,247,.2)', borderRadius:16, overflow:'hidden', marginBottom:8, pageBreakBefore:'always', breakBefore:'page' }}>
@@ -10045,7 +10045,7 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
                     <div style={{ display:'flex', alignItems:'flex-end', justifyContent:'center', height:BAR_H, gap:4, position:'relative' }}>
                       {rows.map((r,i) => {
                         const v = grp.val(r)
-                        const h = Math.max((v/grp.max)*BAR_H, v>0?4:0)
+                        const h = Math.max((v/grp.max)*(BAR_H - 24), v>0?4:0)
                         return (
                           <div key={r.md} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'flex-end' }}>
                             {v>0 && <span style={{ fontSize:8, fontFamily:'DM Mono,monospace', color:grp.color, marginBottom:2 }}>{v.toFixed(grp.dec)}</span>}
