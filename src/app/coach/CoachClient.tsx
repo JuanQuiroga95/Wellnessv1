@@ -571,7 +571,12 @@ function PlayerRow({ player:p, last, onOpen, isInjured }) {
 function PlayerDetail({ player:p, logs, wellness, loading, onBack, ciclo, onCicloChange, onRefreshData }: any) {
   const col = p.lesion?'#ef4444':(SC[p.acwr?.status]||'#555')
   const [acwrMetric, setAcwrMetric] = useState<'ua'|'uce'>('ua')
-  const lastW = wellness[0]
+  
+  // Optimistic wellness state
+  const [localWellness, setLocalWellness] = useState(wellness)
+  useEffect(() => { setLocalWellness(wellness) }, [wellness])
+  
+  const lastW = localWellness[0]
 
   // ── Ausencias ──────────────────────────────────────────────────────────────
   const [ausencias, setAusencias] = useState<any[]>([])
@@ -834,6 +839,9 @@ function PlayerDetail({ player:p, logs, wellness, loading, onBack, ciclo, onCicl
             <p style={{ fontSize:11, fontWeight:600, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', margin:0 }}>Último Wellness · <span style={{ color:'var(--fog)', fontWeight:400, fontFamily:'DM Mono,monospace' }}>{lastW.fecha}</span></p>
             <button onClick={async () => {
               if (confirm('¿Eliminar registro de wellness de esta fecha?')) {
+                // Optimistic UI update
+                setLocalWellness((prev: any) => prev.filter((w: any) => w.fecha !== lastW.fecha));
+                
                 await fetch(`/api/wellness?jugador_id=${p.jugador_id}&fecha=${lastW.fecha}`, { method: 'DELETE' });
                 if (onRefreshData) onRefreshData();
               }
