@@ -2400,7 +2400,7 @@ function calcularDistancias(jugadores: number, largo: number, ancho: number, ser
   return { distTotal, distSprint, distMP, distAcel, distDecel, nSprints, nAcel, nDecel, nAcel3, nDecel3, densidad, tiempoTotal }
 }
 
-function BloqueMetodologia({ bloque, index, onChange, onRemove, teamPlayers = [] }) {
+function BloqueMetodologia({ bloque, index, onChange, onRemove, onMoveUp, onMoveDown, teamPlayers = [], isFirst, isLast }) {
   const [imgPreview, setImgPreview] = useState<string|null>(bloque.imagen || null)
   const [equipos, setEquipos] = useState<Record<number, number[]>>(bloque.equipos || {})
   const [manualMetrics, setManualMetrics] = useState<Record<string,string>>(bloque.manualMetrics || {})
@@ -2474,7 +2474,11 @@ function BloqueMetodologia({ bloque, index, onChange, onRemove, teamPlayers = []
     <div style={{ background:'var(--ink3)', border:'1px solid rgba(200,241,53,.15)', borderRadius:12, padding:14, marginBottom:10 }}>
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10 }}>
         <span style={{ fontSize:11, fontWeight:700, color:'var(--lime)', textTransform:'uppercase', letterSpacing:'0.06em' }}>Tarea {index+1}</span>
-        <button onClick={onRemove} style={{ background:'rgba(239,68,68,.1)', border:'1px solid rgba(239,68,68,.25)', borderRadius:6, color:'#f87171', cursor:'pointer', padding:'2px 8px', fontSize:11 }}>✕</button>
+        <div style={{ display:'flex', gap:6 }}>
+          {!isFirst && <button onClick={onMoveUp} style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:6, color:'var(--silver)', cursor:'pointer', padding:'2px 8px', fontSize:11 }}>↑</button>}
+          {!isLast && <button onClick={onMoveDown} style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:6, color:'var(--silver)', cursor:'pointer', padding:'2px 8px', fontSize:11 }}>↓</button>}
+          <button onClick={onRemove} style={{ background:'rgba(239,68,68,.1)', border:'1px solid rgba(239,68,68,.25)', borderRadius:6, color:'#f87171', cursor:'pointer', padding:'2px 8px', fontSize:11 }}>✕</button>
+        </div>
       </div>
 
       {/* Checkbox simultánea (solo a partir de la 2da tarea) */}
@@ -2945,6 +2949,14 @@ function SesionEditor({ sesion, defaultFecha, rpeReal = 0, onSave, onDelete, onC
   }
   function updateBloque(i,k,v) { setBloques(b=>b.map((bl,idx)=>idx===i?{...bl,[k]:v}:bl)) }
   function removeBloque(i) { setBloques(b=>b.filter((_,idx)=>idx!==i)) }
+  function moveBloqueUp(i) {
+    if (i === 0) return
+    setBloques(b => { const c=[...b]; const t=c[i]; c[i]=c[i-1]; c[i-1]=t; return c })
+  }
+  function moveBloqueDown(i) {
+    if (i === bloques.length - 1) return
+    setBloques(b => { const c=[...b]; const t=c[i]; c[i]=c[i+1]; c[i+1]=t; return c })
+  }
 
   const [showBiblioteca, setShowBiblioteca] = useState(false)
   const [biblioTareas, setBiblioTareas] = useState<any[]>([])
@@ -3157,7 +3169,18 @@ function SesionEditor({ sesion, defaultFecha, rpeReal = 0, onSave, onDelete, onC
 
         {bloques.length === 0 && !showBiblioteca && <p style={{ fontSize:12, color:'var(--fog)', padding:'8px 0' }}>Sin tareas. Usá "+ Tarea" para crear desde cero o "🎨 Mis Tareas" para elegir una guardada.</p>}
         {bloques.map((bl,i)=>(
-          <BloqueMetodologia key={i} bloque={bl} index={i} onChange={(k,v)=>updateBloque(i,k,v)} onRemove={()=>removeBloque(i)} teamPlayers={teamPlayers} />
+          <BloqueMetodologia 
+            key={bl.id || i} 
+            bloque={bl} 
+            index={i} 
+            onChange={(k,v)=>updateBloque(i,k,v)} 
+            onRemove={()=>removeBloque(i)} 
+            onMoveUp={()=>moveBloqueUp(i)}
+            onMoveDown={()=>moveBloqueDown(i)}
+            isFirst={i === 0}
+            isLast={i === bloques.length - 1}
+            teamPlayers={teamPlayers} 
+          />
         ))}
         {/* Botón + Tarea abajo — para no tener que scrollear al header */}
         {bloques.length > 0 && (
@@ -7623,6 +7646,55 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
               </tbody>
             </table>`
 
+            // ══ CUADRO 6: CONTROL DE INTENSIDAD RELATIVA (CALC PDF) ══
+            const c6_trainingMds = mdCols.filter(md => existingMdLabels.has(md) && (Number(perSession[md]?.minActivo) > 0 || Number(perSessionTeamAvg[md]?.minActivo) > 0))
+            let c6 = ''
+            let charts3 = ''
+            if (c6_trainingMds.length > 0) {
+              const rows = c6_trainingMds.map(md => {
+                const m = perSession[md] || {}
+                const mt = perSessionTeamAvg[md] || {}
+                const dTotal = Number(m.distTotal)||Number(mt.distTotal)||0
+                const dPerMin = Number(m.distPerMin)||Number(mt.distPerMin)||0
+                const activeMin = (dTotal>0 && dPerMin>0) ? (dTotal/dPerMin) : (Number(m.minActivo)||Number(mt.minActivo)||1)
+                
+                const metMin = dPerMin > 0 ? dPerMin : (dTotal/activeMin)
+                const sprintMin = (Number(m.distSprint)||Number(mt.distSprint)||0)/activeMin
+                const nSprintMin = (Number(m.nSprints)||Number(mt.nSprints)||0)/activeMin
+                const acelDecelMin = ((Number(m.nAcel)||Number(mt.nAcel)||0) + (Number(m.nDecel)||Number(mt.nDecel)||0))/activeMin
+                
+                return { name: md, md, activeMin, metMin, sprintMin, nSprintMin, acelDecelMin }
+              })
+              
+              c6 = `<table style="width:100%;border-collapse:collapse;margin-bottom:12px;">
+                <thead><tr>
+                  <th style="${thL('#555')}">MD</th>
+                  <th style="${thS('#84cc16')}">Tiempo (min)</th>
+                  <th style="${thS('#60a5fa')}">Met/min</th>
+                  <th style="${thS('#f59e0b')}">D.Spr/min</th>
+                  <th style="${thS('#ec4899')}">Spr/min</th>
+                  <th style="${thS('#34d399')}">Acel+Dec/min</th>
+                </tr></thead>
+                <tbody>
+                  ${rows.map((r,i)=>`<tr style="background:${i%2===0?'#fff':'#fafafa'};">
+                    <td style="${tdL('#111',true)}">${r.md}</td>
+                    <td style="${tdS('#84cc16',true)}">${r.activeMin>0?r.activeMin.toFixed(1):'-'}</td>
+                    <td style="${tdS('#60a5fa',r.metMin>0)}">${r.metMin>0?r.metMin.toFixed(1):'-'}</td>
+                    <td style="${tdS('#f59e0b',r.sprintMin>0)}">${r.sprintMin>0?r.sprintMin.toFixed(2):'-'}</td>
+                    <td style="${tdS('#ec4899',r.nSprintMin>0)}">${r.nSprintMin>0?r.nSprintMin.toFixed(3):'-'}</td>
+                    <td style="${tdS('#34d399',r.acelDecelMin>0)}">${r.acelDecelMin>0?r.acelDecelMin.toFixed(2):'-'}</td>
+                  </tr>`).join('')}
+                </tbody>
+              </table>`
+              
+              charts3 = [
+                mkChartBlock('Metros / min','#60a5fa',mkBars(rows as any,[{key:'metMin',label:'Met/min',color:'#60a5fa'}]),[{label:'Met/min',color:'#60a5fa'}]),
+                mkChartBlock('Dist. Sprint / min','#f59e0b',mkBars(rows as any,[{key:'sprintMin',label:'D.Spr/min',color:'#f59e0b'}]),[{label:'D.Spr/min',color:'#f59e0b'}]),
+                mkChartBlock('Sprints / min','#ec4899',mkBars(rows as any,[{key:'nSprintMin',label:'Spr/min',color:'#ec4899'}]),[{label:'Spr/min',color:'#ec4899'}]),
+                mkChartBlock('Acel+Decel / min','#34d399',mkBars(rows as any,[{key:'acelDecelMin',label:'A+D/min',color:'#34d399'}]),[{label:'A+D/min',color:'#34d399'}]),
+              ].join('')
+            }
+
             // Cuadro 4: % sobre partido
             const hasRef = Object.keys(refMedia).length > 0
             const pct = (val:number, key:string) => { const r=refMedia[key]; if(!r) return null; return Math.round((val/r)*100) }
@@ -7704,6 +7776,11 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
                 <h2 style="color:#f59e0b;border-bottom:2px solid #fde68a;">📊 GRÁFICOS CARGA CALCULADA POR MD</h2>
                 <div class="grid3">${charts2}</div>
               </div>
+              ${c6 ? `<div class="sec pb">
+                <h2 style="color:#a855f7;border-bottom:2px solid #c084fc;">CUADRO 6 — CONTROL DE INTENSIDAD RELATIVA (/ MINUTO)</h2>
+                ${c6}
+                <div class="grid3" style="margin-top:16px;">${charts3}</div>
+              </div>` : ''}
             </body></html>`
             win.document.write(html); win.document.close()
           }} style={{ fontSize:11, padding:'8px 14px', borderRadius:8, background:'rgba(200,241,53,.1)', color:'var(--lime)', border:'1px solid rgba(200,241,53,.3)', cursor:'pointer' }}>🖨️ PDF</button>
@@ -9147,6 +9224,64 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
             })
             ranking += '</div>'
 
+            // ══ CUADRO 6: CONTROL DE INTENSIDAD RELATIVA (GPS PDF) ══
+            const c6_trainingMds = mdCols.filter(md => existingMdLabels.has(md) && (gpsPerMD[md]||[]).length > 0)
+            let c6 = ''
+            let charts3 = ''
+            if (c6_trainingMds.length > 0) {
+              const rows = c6_trainingMds.map((md:string) => {
+                const avg = mdTeamAvg(md)
+                const dTotal = avg.dist_total || avg.distTotal || 0
+                const dPerMin = avg.dist_per_min || avg.distPerMin || 0
+                const activeMin = (dTotal > 0 && dPerMin > 0) ? (dTotal / dPerMin) : (avg.duracion_min || avg.minActivo || 1)
+                
+                const dSprint = avg.dist_v5 || avg.dist_hir || avg.distSprint || 0
+                const nSprint = avg.n_sprints || avg.nSprintsGps || avg.nSprints || 0
+                const accel = avg.acc_total || avg.acc2 || avg.nAcel || 0
+                const decel = avg.dec_total || avg.dec2 || avg.nDecel || 0
+
+                return {
+                  name: md,
+                  md,
+                  activeMin,
+                  metMin: dPerMin > 0 ? dPerMin : (dTotal / activeMin),
+                  sprintMin: dSprint / activeMin,
+                  nSprintMin: nSprint / activeMin,
+                  acelDecelMin: (accel + decel) / activeMin
+                }
+              }).filter(r => r.activeMin > 0)
+              
+              if (rows.length > 0) {
+                c6 = `<table style="width:100%;border-collapse:collapse;margin-bottom:12px;">
+                  <thead><tr>
+                    <th style="${thL('#555')}">MD</th>
+                    <th style="${thS('#84cc16')}">Tiempo (min)</th>
+                    <th style="${thS('#60a5fa')}">Met/min</th>
+                    <th style="${thS('#f59e0b')}">D.Spr/min</th>
+                    <th style="${thS('#ec4899')}">Spr/min</th>
+                    <th style="${thS('#34d399')}">Acel+Dec/min</th>
+                  </tr></thead>
+                  <tbody>
+                    ${rows.map((r,i)=>`<tr style="background:${i%2===0?'#fff':'#fafafa'};">
+                      <td style="${tdL('#111',true)}">${r.md}</td>
+                      <td style="${tdS('#84cc16',true)}">${r.activeMin>0?r.activeMin.toFixed(1):'-'}</td>
+                      <td style="${tdS('#60a5fa',r.metMin>0)}">${r.metMin>0?r.metMin.toFixed(1):'-'}</td>
+                      <td style="${tdS('#f59e0b',r.sprintMin>0)}">${r.sprintMin>0?r.sprintMin.toFixed(2):'-'}</td>
+                      <td style="${tdS('#ec4899',r.nSprintMin>0)}">${r.nSprintMin>0?r.nSprintMin.toFixed(3):'-'}</td>
+                      <td style="${tdS('#34d399',r.acelDecelMin>0)}">${r.acelDecelMin>0?r.acelDecelMin.toFixed(2):'-'}</td>
+                    </tr>`).join('')}
+                  </tbody>
+                </table>`
+                
+                charts3 = [
+                  mkChartBlock('Metros / min','#60a5fa',mkBars(rows as any,[{key:'metMin',label:'Met/min',color:'#60a5fa'}]),[{label:'Met/min',color:'#60a5fa'}]),
+                  mkChartBlock('Dist. Sprint / min','#f59e0b',mkBars(rows as any,[{key:'sprintMin',label:'D.Spr/min',color:'#f59e0b'}]),[{label:'D.Spr/min',color:'#f59e0b'}]),
+                  mkChartBlock('Sprints / min','#ec4899',mkBars(rows as any,[{key:'nSprintMin',label:'Spr/min',color:'#ec4899'}]),[{label:'Spr/min',color:'#ec4899'}]),
+                  mkChartBlock('Acel+Decel / min','#34d399',mkBars(rows as any,[{key:'acelDecelMin',label:'A+D/min',color:'#34d399'}]),[{label:'A+D/min',color:'#34d399'}]),
+                ].join('')
+              }
+            }
+
             // ── ESTILOS Y HTML FINAL ──────────────────────────────────────────
             const css = `
               body{font-family:Arial,sans-serif;color:#111;background:#fff;margin:0;padding:12px;font-size:10px;}
@@ -9207,6 +9342,14 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
                 <h2 style="color:#b45309;border-bottom:2px solid #fde68a;">🏆 RANKING DE LOGROS — MICROCICLO</h2>
                 ${ranking}
               </div>
+              
+              ${c6 ? `
+              <div class="sec pb">
+                <h2 style="color:#a855f7;border-bottom:2px solid #c084fc;">CUADRO 6 — CONTROL DE INTENSIDAD RELATIVA (/ MINUTO)</h2>
+                ${c6}
+                <div class="charts">${charts3}</div>
+              </div>` : ''}
+              
             </body></html>`
 
             win.document.write(html)
