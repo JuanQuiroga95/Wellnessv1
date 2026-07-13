@@ -9856,7 +9856,10 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
       {gpsReal.length > 0 && (() => {
         const activeMds = trainingMds.filter((md:string) => {
           const avg = mdTeamAvg(md)
-          return (avg.duracion_min || avg.minActivo || 0) > 0
+          const dTotal = avg.dist_total || avg.distTotal || 0
+          const dPerMin = avg.dist_per_min || avg.distPerMin || 0
+          const activeMin = (dTotal > 0 && dPerMin > 0) ? (dTotal / dPerMin) : (avg.duracion_min || avg.minActivo || 0)
+          return activeMin > 0
         })
         if (!activeMds.length) return null
 
