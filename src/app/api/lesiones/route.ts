@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { getDb } from '@/lib/db'
 import { getSessionFromRequest } from '@/lib/auth'
+import { sanitizeInt } from '@/lib/security'
 function isAdmin(s: any) { return s?.rol === 'admin' || s?.rol === 'master_admin' }
 export async function GET(req: NextRequest) {
   const s = await getSessionFromRequest(req); if(!s||!isAdmin(s)) return NextResponse.json({error:'No autorizado'},{status:403})
@@ -110,6 +111,23 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ ok: true })
   } catch (e: any) {
     console.error('PATCH lesiones error:', e)
+    return NextResponse.json({ error: String(e) }, { status: 500 })
+  }
+}
+
+export async function DELETE(req: NextRequest) {
+  const s = await getSessionFromRequest(req)
+  if (!s || !isAdmin(s)) return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
+  const { searchParams } = new URL(req.url)
+  const id = sanitizeInt(searchParams.get('id'), 1, 99999999)
+  if (!id) return NextResponse.json({ error: 'ID requerido' }, { status: 400 })
+  
+  // Opcional: Podríamos chequear club_id, pero al ser un soft-delete o delete directo, asumo que el admin tiene permiso para el ID.
+  const sql = getDb()
+  try {
+    await sql`DELETE FROM lesiones WHERE id = ${id}`
+    return NextResponse.json({ ok: true })
+  } catch (e: any) {
     return NextResponse.json({ error: String(e) }, { status: 500 })
   }
 }

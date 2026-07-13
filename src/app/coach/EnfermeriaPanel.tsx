@@ -97,6 +97,13 @@ export default function EnfermeriaPanel({ teamData, onRefresh }: { teamData: any
     onRefresh()
   }
 
+  async function deleteLesion(id: number) {
+    if (!confirm('🚨 ¿Estás seguro de que querés ELIMINAR esta lesión?')) return
+    await fetch(`/api/lesiones?id=${id}`, { method: 'DELETE' })
+    load()
+    onRefresh()
+  }
+
   async function saveChecks(lesionId: number, checks: any) {
     await fetch('/api/lesiones/readaptacion', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ lesion_id: lesionId, ...checks }) })
     load()
@@ -543,7 +550,7 @@ export default function EnfermeriaPanel({ teamData, onRefresh }: { teamData: any
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
                   <thead>
                     <tr style={{ borderBottom: '1px solid var(--mist)' }}>
-                      {['Jugador', 'Fecha', 'Región', 'Tipo', 'Mecanismo', 'Días', 'Estado'].map(h => (
+                      {['Jugador', 'Fecha', 'Región', 'Tipo', 'Mecanismo', 'Días', 'Estado', ''].map(h => (
                         <th key={h} style={{ padding: '8px 10px', textAlign: 'left', fontSize: 10, color: 'var(--fog)', textTransform: 'uppercase', fontWeight: 600, letterSpacing: '0.06em' }}>{h}</th>
                       ))}
                     </tr>
@@ -581,6 +588,9 @@ export default function EnfermeriaPanel({ teamData, onRefresh }: { teamData: any
                                 </div>
                               )}
                             </div>
+                          </td>
+                          <td style={{ padding: '10px 10px', textAlign: 'right' }}>
+                            <button onClick={() => deleteLesion(l.id)} style={{ background:'transparent', border:'none', color:'#ef4444', cursor:'pointer', fontSize:14, opacity:0.8, padding:'4px 8px' }} title="Eliminar lesión">🗑️</button>
                           </td>
                         </tr>
                       )
@@ -621,6 +631,7 @@ export default function EnfermeriaPanel({ teamData, onRefresh }: { teamData: any
                   onUpdateFase={(fase: string) => updateLesion(l.id, { fase })}
                   onSaveChecks={(c: any) => saveChecks(l.id, c)}
                   onDarAlta={() => updateLesion(l.id, { activa: false })}
+                  onDelete={() => deleteLesion(l.id)}
                   diasBaja={diasBaja(l)} />
               ))}
             </div>
@@ -724,8 +735,8 @@ export default function EnfermeriaPanel({ teamData, onRefresh }: { teamData: any
 }
 
 // ─── Readaptación Card ────────────────────────────────────────────────────────
-function ReadaptacionCard({ lesion: l, checks, onUpdateFase, onSaveChecks, onDarAlta, diasBaja }: {
-  lesion: any; checks: any; onUpdateFase: (f: string) => void; onSaveChecks: (c: any) => void; onDarAlta: () => void; diasBaja: number
+function ReadaptacionCard({ lesion: l, checks, onUpdateFase, onSaveChecks, onDarAlta, onDelete, diasBaja }: {
+  lesion: any; checks: any; onUpdateFase: (f: string) => void; onSaveChecks: (c: any) => void; onDarAlta: () => void; onDelete: () => void; diasBaja: number
 }) {
   const [open, setOpen] = useState(false)
   const [localChecks, setLocalChecks] = useState<any>(checks?.checks_data || {})
@@ -950,6 +961,7 @@ function ReadaptacionCard({ lesion: l, checks, onUpdateFase, onSaveChecks, onDar
             {!isLastFase && (
               <button className="btn-ghost" style={{ fontSize: 12, padding: '8px 14px', color: '#4ade80', borderColor: 'rgba(34,197,94,.3)' }} onClick={onDarAlta}>✓ Alta</button>
             )}
+            <button className="btn-ghost" style={{ fontSize: 12, padding: '8px 14px', color: '#ef4444', borderColor: 'rgba(239,68,68,.3)' }} onClick={onDelete}>🗑️ Borrar</button>
           </div>
         </div>
       )}
