@@ -1740,7 +1740,7 @@ function CalendarioPanel({ teamData }) {
 
   // All event days sorted for recovery calculation
   const allEventDays = [...new Set([
-    ...sesiones.map(s=>s.fecha),
+    ...sesiones.filter(s => s.tipo !== 'descanso').map(s=>s.fecha),
     ...partidos.map(p=>p.fecha),
   ])].sort()
 
@@ -1821,7 +1821,7 @@ function CalendarioPanel({ teamData }) {
               // Recovery alert from previous event day
               const prevEventDay = allEventDays[allEventDays.indexOf(fecha)-1]
               const recup = prevEventDay ? calcRecuperacion(prevEventDay, fecha) : null
-              const hasEvents = ses.length > 0 || parts.length > 0
+              const hasEvents = ses.filter((s:any) => s.tipo !== 'descanso').length > 0 || parts.length > 0
               const recupAlert = hasEvents && recup !== null && recup < 48
 
               // Find rival logo for partido display
@@ -1931,7 +1931,8 @@ function CalendarioPanel({ teamData }) {
             const { sesiones:ses, partidos:parts, log } = eventosDelDia(fecha)
             const isToday = fecha === today
             const prevFecha = idx > 0 ? diasSemana[idx-1] : null
-            const recup = prevFecha && (ses.length>0||parts.length>0) ? calcRecuperacion(prevFecha, fecha) : null
+            const hasEvents = ses.filter((s:any) => s.tipo !== 'descanso').length > 0 || parts.length > 0
+            const recup = prevFecha && hasEvents ? calcRecuperacion(prevFecha, fecha) : null
             const dayName = DIAS[idx]
             const dayNum = parseInt(fecha.split('-')[2])
             return (
@@ -2012,7 +2013,8 @@ function CalendarioPanel({ teamData }) {
       {selectedDay && viewMode==='mes' && (() => {
         const { sesiones:ses, partidos:parts, log } = eventosDelDia(selectedDay)
         const prevDay = allEventDays[allEventDays.indexOf(selectedDay)-1]
-        const recup = prevDay ? calcRecuperacion(prevDay, selectedDay) : null
+        const hasEvents = ses.filter((s:any) => s.tipo !== 'descanso').length > 0 || parts.length > 0
+        const recup = prevDay && hasEvents ? calcRecuperacion(prevDay, selectedDay) : null
         const rpeLog = log ? Number(log.avg_rpe || log.max_rpe) || 0 : 0
         const borgColLog = rpeLog <= 2 ? '#22c55e' : rpeLog <= 4 ? '#a3e635' : rpeLog <= 6 ? '#eab308' : rpeLog <= 8 ? '#f97316' : '#ef4444'
         return (
