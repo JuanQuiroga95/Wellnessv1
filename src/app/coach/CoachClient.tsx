@@ -8458,7 +8458,7 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
 
       {/* ══ CUADRO 6: CONTROL DE INTENSIDAD RELATIVA (CALC) ══════════════════════════════════ */}
       {(() => {
-        const trainingMds = mdCols.filter(md => md !== 'MD' && existingMdLabels.has(md) && Number(perSessionTeamAvg[md]?.minActivo) > 0)
+        const trainingMds = mdCols.filter(md => md !== 'MD' && existingMdLabels.has(md) && (Number(perSession[md]?.minActivo) > 0 || Number(perSessionTeamAvg[md]?.minActivo) > 0))
         if (!trainingMds.length) return (
           <div style={{ background:'var(--ink2)', border:'1px solid rgba(168,85,247,.2)', borderRadius:16, padding:'20px', textAlign:'center', marginBottom:8 }}>
             <p style={{ fontSize:11, fontWeight:700, color:'#a855f7', textTransform:'uppercase', letterSpacing:'0.08em' }}>CUADRO 6 — CONTROL DE INTENSIDAD RELATIVA (/ MINUTO)</p>
@@ -8467,8 +8467,8 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
         )
 
         const rows = trainingMds.map((md:string) => {
-          const avg = perSessionTeamAvg[md] || {}
-          const activeMin = Number(avg.minActivo) || 1
+          const avg = perSession[md] || {}
+          const activeMin = Number(avg.minActivo) || Number(perSessionTeamAvg[md]?.minActivo) || 1
           const dTotal = Number(avg.distTotal) || 0
           const dSprint = Number(avg.distSprint) || 0
           const nSprint = Number(avg.nSprints) || 0
