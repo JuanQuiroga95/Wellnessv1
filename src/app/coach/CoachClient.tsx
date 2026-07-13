@@ -1514,7 +1514,7 @@ const SUBTAREAS: Record<string, string[]> = { 'Activación en campo': ['Drill de
 const TAREAS_CON_ESPACIO = ['Rueda de Pases','Rondo','Trabajo analítico','Juego de posesión','Juego de posición','Transiciones','Partido reducido','Partido modificado','Partido de entrenamiento','Partido amistoso','Partido oficial']
 const TAREAS_CON_EQUIPO = ['Rueda de Pases','Rondo','Trabajo analítico','Juego de posesión','Juego de posición','Transiciones','Partido reducido','Partido modificado','Partido de entrenamiento','Partido amistoso','Partido oficial']
 const TAREAS_PARTIDO_SIMPLE = ['Partido amistoso','Partido oficial','Partido de entrenamiento']
-const TAREAS_MOSTRAR_FORM = [...TAREAS_CON_ESPACIO]
+const TAREAS_MOSTRAR_FORM = [...TAREAS_CON_ESPACIO, 'Activación en campo', 'Activación en gimnasio', 'Fuerza Estructural']
 // NE default por tipo de tarea (Nivel de Especificidad 1-10)
 const NE_DEFAULT: Record<string, number> = {
   'Partido oficial': 10, 'Partido amistoso': 9, 'Partido de entrenamiento': 8,
@@ -2537,30 +2537,34 @@ function BloqueMetodologia({ bloque, index, onChange, onRemove, teamPlayers = []
 
       {mostrarForm && (
         <div style={{ marginBottom:8 }}>
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr 1fr', gap:6, marginBottom:6 }}>
-            <div><label style={{ fontSize:9, fontWeight:700, color:'#f97316', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:2 }}>Atacantes</label>{inp('atacantes','Nº','number')}</div>
-            <div><label style={{ fontSize:9, fontWeight:700, color:'#3b82f6', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:2 }}>Defensores</label>{inp('defensores','Nº','number')}</div>
-            <div><label style={{ fontSize:9, fontWeight:700, color:'#a855f7', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:2 }}>Com. (Dentro)</label>{inp('comodines','Nº','number')}</div>
-            <div><label style={{ fontSize:9, fontWeight:700, color:'#a855f7', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:2 }}>Com. (Fuera)</label>{inp('comodines_fuera_num','Nº','number')}</div>
-          </div>
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:6, marginBottom:6 }}>
-            <div><label style={{ fontSize:9, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:2 }}>
-                Total jugadores
-                {autoTotal > 0 && <span style={{ marginLeft:6, fontSize:8, padding:'1px 5px', borderRadius:3, background:'rgba(200,241,53,.15)', color:'var(--lime)', border:'1px solid rgba(200,241,53,.3)' }}>Auto: {autoTotal}</span>}
-                {autoTotal === 0 && teamPlayers.length > 0 && !bloque.jugadores && (
-                  <button type="button" onClick={()=>onChange('jugadores',String(teamPlayers.length))} style={{ marginLeft:6, fontSize:8, padding:'1px 5px', borderRadius:3, background:'rgba(200,241,53,.15)', color:'var(--lime)', border:'1px solid rgba(200,241,53,.3)', cursor:'pointer' }}>
-                    Auto ({teamPlayers.length})
-                  </button>
-                )}
-              </label>
-              {autoTotal > 0
-                ? <div className="wp-input" style={{ padding:'5px 8px', fontSize:12, fontFamily:'DM Mono,monospace', color:'var(--lime)', background:'rgba(200,241,53,.06)', border:'1px solid rgba(200,241,53,.3)', borderRadius:6, display:'flex', alignItems:'center', gap:6 }}>
-                    <span style={{ fontWeight:700 }}>{autoTotal}</span>
-                    <span style={{ fontSize:9, color:'var(--silver)' }}>({atacantes}A + {defensores}D + {comodines}C dentro + {comodinesFueraNum}C fuera)</span>
-                  </div>
-                : inp('jugadores','Nº jugadores','number')
-              }
+          {esConEspacio && (
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr 1fr', gap:6, marginBottom:6 }}>
+              <div><label style={{ fontSize:9, fontWeight:700, color:'#f97316', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:2 }}>Atacantes</label>{inp('atacantes','Nº','number')}</div>
+              <div><label style={{ fontSize:9, fontWeight:700, color:'#3b82f6', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:2 }}>Defensores</label>{inp('defensores','Nº','number')}</div>
+              <div><label style={{ fontSize:9, fontWeight:700, color:'#a855f7', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:2 }}>Com. (Dentro)</label>{inp('comodines','Nº','number')}</div>
+              <div><label style={{ fontSize:9, fontWeight:700, color:'#a855f7', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:2 }}>Com. (Fuera)</label>{inp('comodines_fuera_num','Nº','number')}</div>
             </div>
+          )}
+          <div style={{ display:'grid', gridTemplateColumns: esConEspacio ? '1fr 1fr' : '1fr 1fr 1fr', gap:6, marginBottom:6 }}>
+            {esConEspacio && (
+              <div><label style={{ fontSize:9, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:2 }}>
+                  Total jugadores
+                  {autoTotal > 0 && <span style={{ marginLeft:6, fontSize:8, padding:'1px 5px', borderRadius:3, background:'rgba(200,241,53,.15)', color:'var(--lime)', border:'1px solid rgba(200,241,53,.3)' }}>Auto: {autoTotal}</span>}
+                  {autoTotal === 0 && teamPlayers.length > 0 && !bloque.jugadores && (
+                    <button type="button" onClick={()=>onChange('jugadores',String(teamPlayers.length))} style={{ marginLeft:6, fontSize:8, padding:'1px 5px', borderRadius:3, background:'rgba(200,241,53,.15)', color:'var(--lime)', border:'1px solid rgba(200,241,53,.3)', cursor:'pointer' }}>
+                      Auto ({teamPlayers.length})
+                    </button>
+                  )}
+                </label>
+                {autoTotal > 0
+                  ? <div className="wp-input" style={{ padding:'5px 8px', fontSize:12, fontFamily:'DM Mono,monospace', color:'var(--lime)', background:'rgba(200,241,53,.06)', border:'1px solid rgba(200,241,53,.3)', borderRadius:6, display:'flex', alignItems:'center', gap:6 }}>
+                      <span style={{ fontWeight:700 }}>{autoTotal}</span>
+                      <span style={{ fontSize:9, color:'var(--silver)' }}>({atacantes}A + {defensores}D + {comodines}C dentro + {comodinesFueraNum}C fuera)</span>
+                    </div>
+                  : inp('jugadores','Nº jugadores','number')
+                }
+              </div>
+            )}
             <div><label style={{ fontSize:9, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:2 }}>Bloques</label>{inp('series','Nº bloques','number')}</div>
             <div><label style={{ fontSize:9, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:2 }}>Min / bloque</label>{inp('minutos','Min','number')}</div>
             <div><label style={{ fontSize:9, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:2 }}>Pausa x bloque (min)</label>{inp('pausa','Min descanso','number')}</div>
