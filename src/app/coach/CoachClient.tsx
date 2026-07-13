@@ -181,6 +181,19 @@ function addDays(dateStr: string, n: number): string {
 
 /** Today as 'YYYY-MM-DD' in local time. */
 function todayLocal(): string { return localDateStr(new Date()) }
+function getObjetivoIcon(obj: string) {
+  if (!obj) return null
+  const s = obj.toLowerCase()
+  let icon = ''
+  if (s.includes('fuerza') || s.includes('tensi')) icon = '🏋️‍♂️'
+  else if (s.includes('velocidad') || s.includes('tappering')) icon = '⚡'
+  else if (s.includes('resistencia') || s.includes('duraci') || s.includes('aerob') || s.includes('potencia')) icon = '🏃‍♂️'
+  else if (s.includes('equilibrio') || s.includes('regeneraci') || s.includes('recuperaci')) icon = '🧘‍♂️'
+  
+  if (!icon) return null
+  return <span style={{ fontSize:14, margin:'2px 0', filter:'grayscale(1) brightness(3)', opacity:0.9, display:'block' }}>{icon}</span>
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 export default function CoachClient({ session, teamData, today }) {
   const [tab, setTab] = useState('team')
@@ -1876,7 +1889,12 @@ function CalendarioPanel({ teamData }) {
                           {(s.hora_inicio || s.objetivo) && (
                             <div style={{ display:'flex', flexDirection:'column', alignItems:'center', marginTop:2, borderTop:'1px solid rgba(255,255,255,0.1)', paddingTop:2 }}>
                               {s.hora_inicio && <span style={{ fontSize:9, color:'rgba(255,255,255,0.7)', lineHeight:1, fontWeight:600 }}>{s.hora_inicio.slice(0,5)}</span>}
-                              {s.objetivo && <span style={{ fontSize:8, color:'rgba(255,255,255,0.95)', lineHeight:1.1, fontWeight:800, textAlign:'center', marginTop:2, textTransform:'uppercase' }}>{s.objetivo}</span>}
+                              {s.objetivo && (
+                                <div style={{ display:'flex', flexDirection:'column', alignItems:'center' }}>
+                                  {getObjetivoIcon(s.objetivo)}
+                                  <span style={{ fontSize:8, color:'rgba(255,255,255,0.95)', lineHeight:1.1, fontWeight:800, textAlign:'center', marginTop:1, textTransform:'uppercase' }}>{s.objetivo}</span>
+                                </div>
+                              )}
                             </div>
                           )}
                         </div>
@@ -1913,7 +1931,12 @@ function CalendarioPanel({ teamData }) {
                           {(s.hora_inicio || s.objetivo) && (
                             <div style={{ display:'flex', flexDirection:'column', alignItems:'center', marginTop:2, borderTop:'1px solid rgba(255,255,255,0.1)', paddingTop:2 }}>
                               {s.hora_inicio && <span style={{ fontSize:9, color:'rgba(255,255,255,0.7)', lineHeight:1, fontWeight:600 }}>{s.hora_inicio.slice(0,5)}</span>}
-                              {s.objetivo && <span style={{ fontSize:8, color:'rgba(255,255,255,0.95)', lineHeight:1.1, fontWeight:800, textAlign:'center', marginTop:2, textTransform:'uppercase' }}>{s.objetivo}</span>}
+                              {s.objetivo && (
+                                <div style={{ display:'flex', flexDirection:'column', alignItems:'center' }}>
+                                  {getObjetivoIcon(s.objetivo)}
+                                  <span style={{ fontSize:8, color:'rgba(255,255,255,0.95)', lineHeight:1.1, fontWeight:800, textAlign:'center', marginTop:1, textTransform:'uppercase' }}>{s.objetivo}</span>
+                                </div>
+                              )}
                             </div>
                           )}
                         </div>
@@ -1976,7 +1999,12 @@ function CalendarioPanel({ teamData }) {
                           <div style={{ display:'flex', alignItems:'center', gap:6, marginTop:2, borderTop:'1px solid rgba(255,255,255,0.1)', paddingTop:2, width:'100%', justifyContent:'center' }}>
                             {s.hora_inicio && <span style={{ fontSize:10, color:'rgba(255,255,255,0.7)', fontWeight:600 }}>{s.hora_inicio.slice(0,5)}</span>}
                             {s.hora_inicio && s.objetivo && <span style={{ color:'rgba(255,255,255,0.3)' }}>•</span>}
-                            {s.objetivo && <span style={{ fontSize:9, color:'rgba(255,255,255,0.95)', fontWeight:800, textTransform:'uppercase' }}>{s.objetivo}</span>}
+                            {s.objetivo && (
+                              <div style={{ display:'flex', alignItems:'center', gap:4 }}>
+                                {getObjetivoIcon(s.objetivo)}
+                                <span style={{ fontSize:9, color:'rgba(255,255,255,0.95)', fontWeight:800, textTransform:'uppercase' }}>{s.objetivo}</span>
+                              </div>
+                            )}
                           </div>
                         )}
                       </button>
