@@ -44,6 +44,8 @@ export async function GET(req: NextRequest) {
         
         // Auto-migration: ensure cancha_id column exists
         await sql`ALTER TABLE sesiones_plan ADD COLUMN IF NOT EXISTS cancha_id INTEGER`.catch(() => {})
+        // Auto-migration: ensure rpe_objetivo supports decimals
+        await sql`ALTER TABLE sesiones_plan ALTER COLUMN rpe_objetivo TYPE NUMERIC(4,1)`.catch(() => {})
       } catch { /* ignore if table doesn't exist yet */ }
     }
 

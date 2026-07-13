@@ -1,4 +1,4 @@
-name: Recordatorios Cron
+name: Notificaciones Cron
 
 on:
   schedule:
@@ -10,8 +10,8 @@ jobs:
   ping:
     runs-on: ubuntu-latest
     steps:
-      - name: Llamar al endpoint de recordatorios
+      - name: Llamar al endpoint unificado de notificaciones
         run: |
-          curl -X GET "https://wellness-app-production.up.railway.app/api/cron/reminders?token=${{ secrets.API_SECRET_TOKEN }}" \
-          -H "Authorization: Bearer ${{ secrets.API_SECRET_TOKEN }}"
-          # Nota: Cambiar la URL de arriba por el dominio real en producción
+          curl -X GET "https://wellness-app-production.up.railway.app/api/notifications?secret=${{ secrets.CRON_SECRET }}" \
+          -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"
+          # Nota: Cambiar la URL de arriba por el dominio real en producción, p.ej. https://tu-dominio.vercel.app/api/notifications

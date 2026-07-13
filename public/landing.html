@@ -12,6 +12,11 @@
 <meta name="author" content="W&P Wellness & Performance">
 <link rel="canonical" href="https://wellnessv1.vercel.app/">
 
+<!-- ═══ PWA SUPPORT ═══ -->
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#c8f135">
+<link rel="apple-touch-icon" href="/icons/icon-192x192.png">
+
 <!-- ═══ OPEN GRAPH (WhatsApp, Facebook, LinkedIn) ═══ -->
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://wellnessv1.vercel.app/">
@@ -1344,7 +1349,26 @@
   <div class="footer-copy">Desarrollado con ♥ por <span>Juan Quiroga</span> & <span>Franco Tosoni</span> · Mendoza, Argentina · 2026</div>
 </footer>
 
+<!-- ═══ Scripts Básicos de UI y PWA ═══ -->
 <script>
+  // Menú móvil
+  const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+  const mobileMenu = document.getElementById('mobileMenu');
+  if (mobileMenuBtn && mobileMenu) {
+    mobileMenuBtn.addEventListener('click', () => {
+      mobileMenu.classList.toggle('active');
+    });
+  }
+
+  // PWA Service Worker Registration
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function() {
+      navigator.serviceWorker.register('/sw.js')
+        .then(function(reg) { console.log('[SW] Registered in landing:', reg.scope) })
+        .catch(function(err) { console.log('[SW] Registration failed:', err) })
+    })
+  }
+
   // Scroll reveal
   const observer = new IntersectionObserver((entries) => {
     entries.forEach((entry, i) => {

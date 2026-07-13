@@ -209,4 +209,41 @@ export const SCHEMA_STATEMENTS = [
    SELECT id, club_id FROM usuarios
    WHERE rol = 'admin' AND club_id IS NOT NULL
    ON CONFLICT (admin_id, club_id) DO NOTHING`,
+  // ── Push Notifications & Preferences ──────────────────────────────────────
+  `CREATE TABLE IF NOT EXISTS push_subscriptions (
+    id SERIAL PRIMARY KEY,
+    usuario_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+    endpoint TEXT NOT NULL,
+    p256dh TEXT NOT NULL,
+    auth TEXT NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(usuario_id, endpoint)
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_push_subs_usuario ON push_subscriptions(usuario_id)`,
+  `CREATE TABLE IF NOT EXISTS notification_preferences (
+    id SERIAL PRIMARY KEY,
+    usuario_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE UNIQUE,
+    push_enabled BOOLEAN DEFAULT true,
+    timezone VARCHAR(100) DEFAULT 'America/Argentina/Buenos_Aires',
+    hora_manana VARCHAR(5) DEFAULT '08:00',
+    hora_tarde VARCHAR(5) DEFAULT '20:00',
+    alerta_cumpleanos BOOLEAN DEFAULT true,
+    alerta_acwr BOOLEAN DEFAULT true,
+    alerta_dia_partido BOOLEAN DEFAULT true,
+    alerta_sesion_dia BOOLEAN DEFAULT true,
+    alerta_wellness_pendientes BOOLEAN DEFAULT true,
+    alerta_alta_lesion BOOLEAN DEFAULT true,
+    alerta_wellness_reminder BOOLEAN DEFAULT true,
+    alerta_sesion_manana BOOLEAN DEFAULT true,
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+  )`,
+  `CREATE TABLE IF NOT EXISTS notification_log (
+    id SERIAL PRIMARY KEY,
+    usuario_id INTEGER NOT NULL,
+    tipo VARCHAR(100) NOT NULL,
+    fecha DATE NOT NULL DEFAULT CURRENT_DATE,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(usuario_id, tipo, fecha)
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_notification_log_lookup ON notification_log(usuario_id, tipo, fecha)`,
 ]

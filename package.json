@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "@neondatabase/serverless": "^0.9.4",
+    "@types/web-push": "^3.6.4",
     "bcryptjs": "^2.4.3",
     "date-fns": "^3.6.0",
     "jose": "^5.6.3",
@@ -19,6 +20,7 @@
     "react-dom": "^18",
     "recharts": "^2.12.7",
     "resend": "^6.12.2",
+    "web-push": "^3.6.7",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {

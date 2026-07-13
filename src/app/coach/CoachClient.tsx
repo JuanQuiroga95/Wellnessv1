@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import * as XLSX from 'xlsx'
 import { useRouter } from 'next/navigation'
 import Topbar from '@/components/ui/Topbar'
@@ -14,6 +14,7 @@ import EnfermeriaPanel from './EnfermeriaPanel'
 import TacticalBoard, { TacticalPreview } from './TacticalBoard'
 import CanchasPanel from './CanchasPanel'
 import VinculacionesPanel from './VinculacionesPanel'
+import PushNotificationManager, { PushToggle } from '@/components/ui/PushNotificationManager'
 
 // ─── GPS METRIC METADATA (shared between GpsPanel and CargaExternaPanel) ──────
 // Maps metric key → { label, unit, group } for display purposes
@@ -100,7 +101,7 @@ function compressImage(dataUrl: string, maxSize = 400, quality = 0.7): Promise<s
   })
 }
 
-const TABS = [{id:'team',label:'Equipo'},{id:'calendario',label:'📅 Calendario'},{id:'analytics',label:'Analytics'},{id:'neuromuscular',label:'Neuromuscular'},{id:'minutos',label:'Minutaje'},{id:'control-carga-calc',label:'🏋️ Ctrl. Carga Calc'},{id:'control-carga-gps',label:'📡 Ctrl. Carga GPS'},{id:'acumulado',label:'📈 Acumulado Ind.'},{id:'cambio-carga',label:'Cambio de Carga'},{id:'expo-ai',label:'⚡ Expo. AI'},{id:'evaluaciones',label:'📋 Evaluaciones'},{id:'comparativa',label:'⚖️ Comparativa'},{id:'lesiones',label:'🏥 Enfermería'},{id:'gps',label:'📡 GPS'},{id:'vinculaciones',label:'🔗 ACWR'},{id:'canchas',label:'🏟️ Estadios'},{id:'players',label:'Jugadores'},{id:'biblioteca',label:'📚 Biblioteca'},{id:'manual',label:'📖 Manual'}]
+const TABS = [{id:'team',label:'Equipo'},{id:'calendario',label:'📅 Calendario'},{id:'analytics',label:'Analytics'},{id:'neuromuscular',label:'Neuromuscular'},{id:'minutos',label:'Minutaje'},{id:'control-carga-calc',label:'🏋️ Ctrl. Carga Calc'},{id:'control-carga-gps',label:'📡 Ctrl. Carga GPS'},{id:'acumulado',label:'📈 Acumulado Ind.'},{id:'cambio-carga',label:'Cambio de Carga'},{id:'expo-ai',label:'⚡ Expo. AI'},{id:'evaluaciones',label:'📋 Evaluaciones'},{id:'comparativa',label:'⚖️ Comparativa'},{id:'lesiones',label:'🏥 Enfermería'},{id:'gps',label:'📡 GPS'},{id:'vinculaciones',label:'🔗 ACWR'},{id:'canchas',label:'🏟️ Estadios'},{id:'players',label:'Jugadores'},{id:'biblioteca',label:'📚 Biblioteca'},{id:'manual',label:'📖 Manual'},{id:'notificaciones',label:'🔔 Notificaciones'}]
 
 const SIDEBAR_GROUPS = [
   { label:'General', icon:'🏠', items:[
@@ -135,6 +136,9 @@ const SIDEBAR_GROUPS = [
   ]},
   { label:'Recursos', icon:'📚', items:[
     {id:'manual',label:'Manual',icon:'📖'},
+  ]},
+  { label:'Configuración', icon:'⚙️', items:[
+    {id:'notificaciones',label:'Notificaciones',icon:'🔔'},
   ]},
 ]
 const SC = {optimo:'#22c55e',precaucion:'#f59e0b',peligro:'#ef4444',sin_datos:'#555'}
@@ -480,6 +484,8 @@ export default function CoachClient({ session, teamData, today }) {
 
         {tab==='manual' && <ManualPanel />}
 
+        {tab==='notificaciones' && <NotificacionesCoachPanel />}
+
         {tab==='players' && (
           <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
             <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:10 }}>
@@ -508,6 +514,7 @@ export default function CoachClient({ session, teamData, today }) {
         )}
       </main>
       </div>{/* flex wrapper */}
+      <PushNotificationManager />
     </div>
   )
 }
@@ -1482,11 +1489,19 @@ function CambioCargaPanel() {
 
 // ── CALENDARIO PANEL ──────────────────────────────────────────────────────────
 
-const OBJETIVOS_FISICOS = ['Fuerza','Resistencia','Velocidad','Recuperación-Compensación','Recuperación','Competición']
+const OBJETIVOS_FISICOS = [
+  'Introducción Aerobica',
+  'Fuerza - Tensión',
+  'Resistencia - Duración',
+  'Equilibrio - Regeneración',
+  'Velocidad - Tappering',
+  'Recuperación - Compensación',
+  'Competición'
+]
 const OBJETIVOS_SECUNDARIOS = ['Táctico','Técnico','Técnico-Táctico']
 const TITULOS_SESION = ['MD+1','MD+2','MD+3','MD-4','MD-3','MD-2','MD-1','MD']
 const TAREAS_PRINCIPALES = ['Activación en campo','Activación en gimnasio','Fuerza Estructural','Rueda de Pases','Rondo','Trabajo analítico','Juego de posesión','Juego de posición','Transiciones','Partido reducido','Partido modificado','Partido de entrenamiento','Partido amistoso','Partido oficial']
-const SUBTAREAS: Record<string, string[]> = { 'Activación en campo': ['Circuito técnico','Circuito neuromuscular','Pliometría','Movilidad','Trabajo Preventivo'], 'Activación en gimnasio': ['Isométricos','Pliometría','Movilidad','Excéntricos','Estabilidad','Tracción y empuje','Trabajo Preventivo'], 'Rondo': ['Rondo 4v2','Rondo 5v2','Rondo 6v2','Rondo 8v2','Rondo 4v1+1','Rondo en movimiento','Rondo conservación','Rondo orientado','Rondo dos espacios'] }
+const SUBTAREAS: Record<string, string[]> = { 'Activación en campo': ['Drill de velocidad','Drill de técnica','Drill de movilidad','Drill de pliometría','Circuito Protector','Circuito Neuromuscular'], 'Activación en gimnasio': ['Isométricos','Pliometría','Movilidad','Excéntricos','Estabilidad','Tracción y empuje','Trabajo Preventivo'], 'Rondo': ['Rondo 4v2','Rondo 5v2','Rondo 6v2','Rondo 8v2','Rondo 4v1+1','Rondo en movimiento','Rondo conservación','Rondo orientado','Rondo dos espacios'] }
 const TAREAS_CON_ESPACIO = ['Rueda de Pases','Rondo','Trabajo analítico','Juego de posesión','Juego de posición','Transiciones','Partido reducido','Partido modificado','Partido de entrenamiento','Partido amistoso','Partido oficial']
 const TAREAS_CON_EQUIPO = ['Rueda de Pases','Rondo','Trabajo analítico','Juego de posesión','Juego de posición','Transiciones','Partido reducido','Partido modificado','Partido de entrenamiento','Partido amistoso','Partido oficial']
 const TAREAS_PARTIDO_SIMPLE = ['Partido amistoso','Partido oficial','Partido de entrenamiento']
@@ -1498,8 +1513,11 @@ const NE_DEFAULT: Record<string, number> = {
   'Juego de posesión': 6, 'Transiciones': 5, 'Rondo': 5, 'Rueda de Pases': 5, 'Trabajo analítico': 4,
   'Activación en campo': 2, 'Activación en gimnasio': 2, 'Fuerza Estructural': 1
 }
-const TIPO_COLORES = { entrenamiento:'#c8f135', partido:'#3b82f6', recuperacion:'#f59e0b', descanso:'#555' }
-const TIPO_ICONOS = { entrenamiento:'⚽', partido:'🏆', recuperacion:'🔄', descanso:'😴' }
+const TIPO_COLORES: Record<string, string> = { entrenamiento:'#c8f135', partido:'#3b82f6', recuperacion:'#f59e0b', descanso:'#555' }
+const TIPO_ICONOS: Record<string, string> = { entrenamiento:'⚽', partido:'🏆', recuperacion:'🔄', descanso:'😴' }
+
+// Map para formatear visualmente los MD.
+const formatMD = (md: string) => md === 'MD+1' ? '🔋 MD+1 OFF' : md
 
 // Helper: normaliza subtareas (retrocompat string → array)
 function getSubtareasArr(bl: any): string[] {
@@ -1802,8 +1820,8 @@ function CalendarioPanel({ teamData }) {
                             background:`${TIPO_COLORES[s.tipo]||'#888'}22`, color:TIPO_COLORES[s.tipo]||'#888',
                             border:`1px solid ${TIPO_COLORES[s.tipo]||'#888'}44`, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', cursor:'pointer' }}>
                           {s.tipo==='partido'
-                            ? <span>{TIPO_ICONOS[s.tipo]} {s.rival ? `vs ${s.rival}` : (s.titulo||'Partido')}</span>
-                            : <span>{TIPO_ICONOS[s.tipo]} {s.titulo||s.tipo}</span>
+                            ? <span>{TIPO_ICONOS[s.tipo]} {s.rival ? `vs ${s.rival}` : formatMD(s.titulo||'Partido')}</span>
+                            : <span>{TIPO_ICONOS[s.tipo]} {formatMD(s.titulo||s.tipo)}</span>
                           }
                         </div>
                       ))}
@@ -1907,7 +1925,7 @@ function CalendarioPanel({ teamData }) {
                     {ses.map(s=>(
                       <div key={s.id} style={{ flex:'1 1 260px', background:'var(--ink3)', borderRadius:10, padding:'10px 14px' }}>
                         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:6 }}>
-                          <span style={{ fontSize:12, fontWeight:700, color:TIPO_COLORES[s.tipo]||'#888' }}>{TIPO_ICONOS[s.tipo]} {s.titulo||s.tipo}</span>
+                          <span style={{ fontSize:12, fontWeight:700, color:TIPO_COLORES[s.tipo]||'#888' }}>{TIPO_ICONOS[s.tipo]} {formatMD(s.titulo||s.tipo)}</span>
                           {s.rpe_objetivo && <span style={{ fontSize:11, color:'var(--lime)', fontFamily:'DM Mono,monospace' }}>RPE obj. {s.rpe_objetivo}</span>}
                         </div>
                         {s.objetivo && <div style={{ fontSize:11, color:'var(--silver)', marginBottom:2 }}>🎯 {s.objetivo}{s.objetivo_secundario ? ` · ${s.objetivo_secundario}` : ''}</div>}
@@ -1963,7 +1981,7 @@ function CalendarioPanel({ teamData }) {
             {ses.map(s=>(
               <div key={s.id} style={{ background:'var(--ink3)', borderRadius:10, padding:'12px 14px', marginBottom:8 }}>
                 <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-                  <span style={{ fontWeight:700, color:TIPO_COLORES[s.tipo]||'#888', fontSize:13 }}>{TIPO_ICONOS[s.tipo]} {s.titulo||s.tipo}</span>
+                  <span style={{ fontWeight:700, color:TIPO_COLORES[s.tipo]||'#888', fontSize:13 }}>{TIPO_ICONOS[s.tipo]} {formatMD(s.titulo||s.tipo)}</span>
                   <div style={{ display:'flex', gap:6 }}>
                     <button onClick={()=>{setEditSesion(s);setShowEditor(true)}} style={{ fontSize:11, padding:'3px 8px', borderRadius:6, background:'var(--ink2)', border:'1px solid var(--fog)', color:'var(--silver)', cursor:'pointer' }}>✏️ Editar</button>
                     <button onClick={async()=>{ await fetch(`/api/calendario?id=${s.id}`,{method:'DELETE'}); load() }} style={{ fontSize:11, padding:'3px 8px', borderRadius:6, background:'rgba(239,68,68,.1)', border:'1px solid rgba(239,68,68,.25)', color:'#f87171', cursor:'pointer' }}>🗑</button>
@@ -2333,7 +2351,8 @@ function BloqueMetodologia({ bloque, index, onChange, onRemove, teamPlayers = []
   const atacantes = Number(bloque.atacantes) || 0
   const defensores = Number(bloque.defensores) || 0
   const comodines = Number(bloque.comodines) || 0
-  const autoTotal = atacantes + defensores + (bloque.comodines_fuera ? 0 : comodines)
+  const comodinesFueraNum = Number(bloque.comodines_fuera_num) || 0
+  const autoTotal = atacantes + defensores + comodines + comodinesFueraNum
 
   // For partido types: prefer auto-total > manual jugadores > team selector
   const calcJugadores = autoTotal > 0 ? autoTotal : (Number(bloque.jugadores) || (esConEquipo ? totalJugadoresEquipos : 0))
@@ -2475,16 +2494,11 @@ function BloqueMetodologia({ bloque, index, onChange, onRemove, teamPlayers = []
 
       {mostrarForm && (
         <div style={{ marginBottom:8 }}>
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:6, marginBottom:6 }}>
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr 1fr', gap:6, marginBottom:6 }}>
             <div><label style={{ fontSize:9, fontWeight:700, color:'#f97316', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:2 }}>Atacantes</label>{inp('atacantes','Nº','number')}</div>
             <div><label style={{ fontSize:9, fontWeight:700, color:'#3b82f6', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:2 }}>Defensores</label>{inp('defensores','Nº','number')}</div>
-            <div><label style={{ fontSize:9, fontWeight:700, color:'#a855f7', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:2 }}>Comodines</label>{inp('comodines','Nº','number')}</div>
-          </div>
-          <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:8 }}>
-            <label style={{ display:'flex', alignItems:'center', gap:4, fontSize:10, color:'var(--silver)', cursor:'pointer' }}>
-              <input type="checkbox" checked={!!bloque.comodines_fuera} onChange={e => onChange('comodines_fuera', e.target.checked)} />
-              Comodines juegan por fuera (no cuentan en densidad)
-            </label>
+            <div><label style={{ fontSize:9, fontWeight:700, color:'#a855f7', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:2 }}>Com. (Dentro)</label>{inp('comodines','Nº','number')}</div>
+            <div><label style={{ fontSize:9, fontWeight:700, color:'#a855f7', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:2 }}>Com. (Fuera)</label>{inp('comodines_fuera_num','Nº','number')}</div>
           </div>
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:6, marginBottom:6 }}>
             <div><label style={{ fontSize:9, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:2 }}>
@@ -2499,7 +2513,7 @@ function BloqueMetodologia({ bloque, index, onChange, onRemove, teamPlayers = []
               {autoTotal > 0
                 ? <div className="wp-input" style={{ padding:'5px 8px', fontSize:12, fontFamily:'DM Mono,monospace', color:'var(--lime)', background:'rgba(200,241,53,.06)', border:'1px solid rgba(200,241,53,.3)', borderRadius:6, display:'flex', alignItems:'center', gap:6 }}>
                     <span style={{ fontWeight:700 }}>{autoTotal}</span>
-                    <span style={{ fontSize:9, color:'var(--silver)' }}>({atacantes}A + {defensores}D {bloque.comodines_fuera ? `+ (${comodines}C fuera)` : `+ ${comodines}C`})</span>
+                    <span style={{ fontSize:9, color:'var(--silver)' }}>({atacantes}A + {defensores}D + {comodines}C dentro + {comodinesFueraNum}C fuera)</span>
                   </div>
                 : inp('jugadores','Nº jugadores','number')
               }
@@ -2836,7 +2850,7 @@ function SesionEditor({ sesion, defaultFecha, rpeReal = 0, onSave, onDelete, onC
   const [saveError, setSaveError] = useState('')
   const set = (k,v) => setF(p=>({...p,[k]:v}))
 
-  function addBloque() { setBloques(b=>[...b, { ventana:'', subtareas:[], subtarea:'', jugadores:'', series:'', minutos:'', pausa:'', largo:'', ancho:'', descripcion:'', imagen:'', atacantes:'', defensores:'', comodines:'', comodines_fuera:false, simultanea:false, rutinaGym:[] }]) }
+  function addBloque() { setBloques(b=>[...b, { ventana:'', subtareas:[], subtarea:'', jugadores:'', series:'', minutos:'', pausa:'', largo:'', ancho:'', descripcion:'Ejercicios:\nSeries:\nRep:\nDescanso:\n', imagen:'', atacantes:'', defensores:'', comodines:'', comodines_fuera_num:'', simultanea:false, rutinaGym:[] }]) }
   function addBloqueFromBiblioteca(t: any) {
     const newBloque = {
       ventana: t.ventana || '',
@@ -2851,7 +2865,7 @@ function SesionEditor({ sesion, defaultFecha, rpeReal = 0, onSave, onDelete, onC
       descripcion: t.descripcion || t.nombre || '',
       imagen: t.diagram_preview || t.imagen || '',
       tactical_diagram: t.tactical_diagram || '',
-      atacantes: '', defensores: '', comodines: '', comodines_fuera: false,
+      atacantes: '', defensores: '', comodines: '', comodines_fuera_num: '',
       rutinaGym: t.rutinaGym || [],
     }
     setBloques(prev => [...prev, newBloque])
@@ -2948,7 +2962,7 @@ function SesionEditor({ sesion, defaultFecha, rpeReal = 0, onSave, onDelete, onC
         {/* RPE objetivo */}
         <div style={{ gridColumn:'span 2' }}>
           <label style={{ display:'block', fontSize:10, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:5 }}>RPE objetivo (1–10)</label>
-          <input type="number" min="1" max="10" className="wp-input" value={f.rpe_objetivo} onChange={e=>set('rpe_objetivo',e.target.value)} placeholder="ej: 7" style={{ padding:'8px 12px', fontSize:13 }} />
+          <input type="number" min="1" max="10" step="0.1" className="wp-input" value={f.rpe_objetivo} onChange={e=>set('rpe_objetivo',e.target.value)} placeholder="ej: 7" style={{ padding:'8px 12px', fontSize:13 }} />
         </div>
         {/* Estadio / Cancha */}
         <div style={{ gridColumn:'span 2' }}>
@@ -9758,6 +9772,103 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
         )
       })()}
 
+      {/* ══ CUADRO 6: CONTROL DE INTENSIDAD RELATIVA ══════════════════════════════════ */}
+      {gpsReal.length > 0 && (() => {
+        const activeMds = trainingMds.filter((md:string) => {
+          const avg = mdTeamAvg(md)
+          return (avg.duracion_min || avg.minActivo || 0) > 0
+        })
+        if (!activeMds.length) return null
+
+        const rows = activeMds.map((md:string) => {
+          const avg = mdTeamAvg(md)
+          const activeMin = avg.duracion_min || avg.minActivo || 1
+          const dTotal = avg.dist_total || avg.distTotal || 0
+          const dSprint = avg.dist_hir || avg.distSprint || 0 // Usando HIR o Sprint
+          const nSprint = avg.nSprintsGps || avg.n_sprints || avg.nSprints || 0
+          const accel = avg.acc2 || avg.nAcel || 0
+          const decel = avg.dec2 || avg.nDecel || 0
+
+          return {
+            md,
+            metMin: dTotal / activeMin,
+            sprintMin: dSprint / activeMin,
+            nSprintMin: nSprint / activeMin,
+            acelDecelMin: (accel + decel) / activeMin
+          }
+        })
+
+        const maxMet = Math.max(...rows.map(r=>r.metMin), 1)
+        const maxSpr = Math.max(...rows.map(r=>r.sprintMin), 1)
+        const maxNSpr = Math.max(...rows.map(r=>r.nSprintMin), 1)
+        const maxAD = Math.max(...rows.map(r=>r.acelDecelMin), 1)
+        const BAR_H = 100
+
+        return (
+          <div style={{ background:'var(--ink2)', border:'1px solid rgba(168,85,247,.2)', borderRadius:16, overflow:'hidden', marginBottom:8, pageBreakBefore:'always', breakBefore:'page' }}>
+            <div style={{ padding:'10px 16px', borderBottom:'1px solid var(--mist)' }}>
+              <p style={{ fontSize:11, fontWeight:700, color:'#a855f7', textTransform:'uppercase', letterSpacing:'0.08em' }}>CUADRO 6 · CONTROL DE INTENSIDAD RELATIVA (/ MINUTO)</p>
+              <p style={{ fontSize:10, color:'var(--fog)', marginTop:2 }}>Métricas divididas por el tiempo total (o activo) de la sesión en cada MD</p>
+            </div>
+            
+            <div style={{ overflowX:'auto' }}>
+              <table style={{ width:'100%', borderCollapse:'collapse', fontSize:11 }}>
+                <thead>
+                  <tr style={{ background:'rgba(168,85,247,.05)' }}>
+                    <th style={{ padding:'8px 14px', textAlign:'left', color:'var(--silver)', fontSize:9, fontWeight:700, textTransform:'uppercase' }}>MD</th>
+                    <th style={{ padding:'8px 10px', textAlign:'center', color:'#60a5fa', fontSize:9, fontWeight:700, textTransform:'uppercase' }}>Metros / min</th>
+                    <th style={{ padding:'8px 10px', textAlign:'center', color:'#f59e0b', fontSize:9, fontWeight:700, textTransform:'uppercase' }}>Dist. Sprint / min</th>
+                    <th style={{ padding:'8px 10px', textAlign:'center', color:'#ec4899', fontSize:9, fontWeight:700, textTransform:'uppercase' }}>Sprints / min</th>
+                    <th style={{ padding:'8px 10px', textAlign:'center', color:'#34d399', fontSize:9, fontWeight:700, textTransform:'uppercase' }}>Acel+Decel / min</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((r, i) => (
+                    <tr key={r.md} style={{ borderTop:'1px solid var(--mist)', background: i%2===0 ? 'transparent' : 'rgba(255,255,255,.015)' }}>
+                      <td style={{ padding:'7px 14px', color:'#a855f7', fontWeight:700 }}>{r.md}</td>
+                      <td style={{ padding:'7px 10px', textAlign:'center', fontFamily:'DM Mono,monospace', color:'#60a5fa' }}>{r.metMin.toFixed(1)}</td>
+                      <td style={{ padding:'7px 10px', textAlign:'center', fontFamily:'DM Mono,monospace', color:'#f59e0b' }}>{r.sprintMin.toFixed(2)}</td>
+                      <td style={{ padding:'7px 10px', textAlign:'center', fontFamily:'DM Mono,monospace', color:'#ec4899' }}>{r.nSprintMin.toFixed(3)}</td>
+                      <td style={{ padding:'7px 10px', textAlign:'center', fontFamily:'DM Mono,monospace', color:'#34d399' }}>{r.acelDecelMin.toFixed(2)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Gráficos */}
+            <div style={{ padding:16, borderTop:'1px solid var(--mist)' }}>
+              <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(200px,1fr))', gap:16 }}>
+                {[
+                  { title:'Metros / min', color:'#60a5fa', max:maxMet, val: (r:any)=>r.metMin, dec:1 },
+                  { title:'Dist. Sprint / min', color:'#f59e0b', max:maxSpr, val: (r:any)=>r.sprintMin, dec:2 },
+                  { title:'Sprints / min', color:'#ec4899', max:maxNSpr, val: (r:any)=>r.nSprintMin, dec:3 },
+                  { title:'Acel+Decel / min', color:'#34d399', max:maxAD, val: (r:any)=>r.acelDecelMin, dec:2 }
+                ].map(grp => (
+                  <div key={grp.title} style={{ background:'var(--ink3)', borderRadius:12, padding:14, border:`1px solid ${grp.color}30` }}>
+                    <div style={{ fontSize:11, fontWeight:800, color:grp.color, textTransform:'uppercase', letterSpacing:'0.08em', textAlign:'center', marginBottom:12, borderBottom:`1px solid ${grp.color}30`, paddingBottom:6 }}>{grp.title}</div>
+                    <div style={{ display:'flex', alignItems:'flex-end', justifyContent:'center', height:BAR_H, gap:4, position:'relative' }}>
+                      {rows.map((r,i) => {
+                        const v = grp.val(r)
+                        const h = Math.max((v/grp.max)*BAR_H, v>0?4:0)
+                        return (
+                          <div key={r.md} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'flex-end' }}>
+                            {v>0 && <span style={{ fontSize:8, fontFamily:'DM Mono,monospace', color:grp.color, marginBottom:2 }}>{v.toFixed(grp.dec)}</span>}
+                            <div style={{ width:'100%', maxWidth:24, height:`${h}px`, background:grp.color, borderRadius:'3px 3px 0 0', opacity: v>0?1:0.1 }} />
+                            <div style={{ fontSize:8, color:'var(--silver)', marginTop:4, fontWeight:700, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', maxWidth:'100%' }}>{r.md}</div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+          </div>
+        )
+      })()}
+
       {/* ══ RANKING DE LOGROS ════════════════════════════════════════════ */}
       {gpsReal.length > 0 && (() => {
         const RANKINGS = [
@@ -10889,6 +11000,247 @@ function ManualRow({ label, desc }: { label: string; desc: string }) {
     <div style={{ display:'flex', gap:12, padding:'8px 0', borderBottom:'1px solid rgba(255,255,255,.04)', alignItems:'flex-start' }}>
       <span style={{ fontSize:12, fontWeight:700, color:'var(--snow)', minWidth:140, flexShrink:0 }}>{label}</span>
       <span style={{ fontSize:12, color:'var(--silver)', lineHeight:1.65 }}>{desc}</span>
+    </div>
+  )
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// NOTIFICACIONES PANEL (Coach Preferences)
+// ═══════════════════════════════════════════════════════════════════
+
+const NOTIF_TIMEZONES = [
+  { flag: '🇦🇷', tz: 'America/Argentina/Buenos_Aires', label: 'Argentina (Buenos Aires)' },
+  { flag: '🇺🇾', tz: 'America/Montevideo', label: 'Uruguay (Montevideo)' },
+  { flag: '🇧🇷', tz: 'America/Sao_Paulo', label: 'Brasil (São Paulo)' },
+  { flag: '🇨🇱', tz: 'America/Santiago', label: 'Chile (Santiago)' },
+  { flag: '🇵🇾', tz: 'America/Asuncion', label: 'Paraguay (Asunción)' },
+  { flag: '🇧🇴', tz: 'America/La_Paz', label: 'Bolivia (La Paz)' },
+  { flag: '🇵🇪', tz: 'America/Lima', label: 'Perú (Lima)' },
+  { flag: '🇨🇴', tz: 'America/Bogota', label: 'Colombia (Bogotá)' },
+  { flag: '🇪🇨', tz: 'America/Guayaquil', label: 'Ecuador (Quito)' },
+  { flag: '🇻🇪', tz: 'America/Caracas', label: 'Venezuela (Caracas)' },
+  { flag: '🇲🇽', tz: 'America/Mexico_City', label: 'México (CDMX)' },
+  { flag: '🇨🇷', tz: 'America/Costa_Rica', label: 'Costa Rica' },
+  { flag: '🇵🇦', tz: 'America/Panama', label: 'Panamá' },
+  { flag: '🇩🇴', tz: 'America/Santo_Domingo', label: 'Rep. Dominicana' },
+  { flag: '🇺🇸', tz: 'America/New_York', label: 'EEUU (Este)' },
+  { flag: '🇺🇸', tz: 'America/Chicago', label: 'EEUU (Centro)' },
+  { flag: '🇺🇸', tz: 'America/Los_Angeles', label: 'EEUU (Pacífico)' },
+  { flag: '🇪🇸', tz: 'Europe/Madrid', label: 'España (Madrid)' },
+  { flag: '🇮🇹', tz: 'Europe/Rome', label: 'Italia (Roma)' },
+  { flag: '🇫🇷', tz: 'Europe/Paris', label: 'Francia (París)' },
+  { flag: '🇩🇪', tz: 'Europe/Berlin', label: 'Alemania (Berlín)' },
+  { flag: '🇵🇹', tz: 'Europe/Lisbon', label: 'Portugal (Lisboa)' },
+  { flag: '🇬🇧', tz: 'Europe/London', label: 'Reino Unido (Londres)' },
+  { flag: '🇯🇵', tz: 'Asia/Tokyo', label: 'Japón (Tokio)' },
+  { flag: '🇦🇺', tz: 'Australia/Sydney', label: 'Australia (Sídney)' },
+  { flag: '🇸🇦', tz: 'Asia/Riyadh', label: 'Arabia Saudita (Riad)' },
+  { flag: '🇦🇪', tz: 'Asia/Dubai', label: 'Emiratos Árabes (Dubái)' },
+]
+
+const NOTIF_HOURS: string[] = []
+for (let h = 0; h < 24; h++) {
+  NOTIF_HOURS.push(`${String(h).padStart(2, '0')}:00`)
+  NOTIF_HOURS.push(`${String(h).padStart(2, '0')}:30`)
+}
+
+function NotificacionesCoachPanel() {
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState<'idle' | 'saving' | 'ok' | 'error'>('idle')
+  const [prefs, setPrefs] = useState({
+    push_enabled: true,
+    timezone: 'America/Argentina/Buenos_Aires',
+    hora_manana: '08:00',
+    hora_tarde: '20:00',
+    alerta_cumpleanos: true,
+    alerta_acwr: true,
+    alerta_dia_partido: true,
+    alerta_sesion_dia: true,
+    alerta_wellness_pendientes: true,
+    alerta_alta_lesion: true,
+  })
+  const [hasSubscription, setHasSubscription] = useState(false)
+
+  useEffect(() => {
+    fetch('/api/push/preferences')
+      .then(r => r.json())
+      .then(d => {
+        if (d.preferences) {
+          setPrefs(p => ({ ...p, ...d.preferences }))
+        }
+        setHasSubscription(!!d.hasSubscription)
+        setLoading(false)
+      })
+      .catch(() => setLoading(false))
+  }, [])
+
+  const save = useCallback(async () => {
+    setSaving('saving')
+    try {
+      const res = await fetch('/api/push/preferences', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(prefs),
+      })
+      setSaving(res.ok ? 'ok' : 'error')
+      setTimeout(() => setSaving('idle'), 2500)
+    } catch {
+      setSaving('error')
+      setTimeout(() => setSaving('idle'), 2500)
+    }
+  }, [prefs])
+
+  const togglePref = (key: string) => {
+    setPrefs(p => ({ ...p, [key]: !p[key as keyof typeof p] }))
+  }
+
+  if (loading) return <div style={{ padding: 48, textAlign: 'center', color: 'var(--silver)' }}>Cargando preferencias...</div>
+
+  const ALERT_OPTIONS = [
+    { key: 'alerta_cumpleanos', icon: '🎂', label: 'Cumpleaños de jugadores', desc: 'Cuando un jugador cumple años' },
+    { key: 'alerta_acwr', icon: '⚠️', label: 'Alertas de carga (ACWR)', desc: 'Jugadores en zona de riesgo' },
+    { key: 'alerta_dia_partido', icon: '⚽', label: 'Día de partido', desc: 'Cuando hay partido planificado' },
+    { key: 'alerta_sesion_dia', icon: '🏋️', label: 'Sesión de entrenamiento', desc: 'Sesiones planificadas del día' },
+    { key: 'alerta_wellness_pendientes', icon: '📋', label: 'Wellness pendientes', desc: 'Jugadores sin completar al final del día' },
+    { key: 'alerta_alta_lesion', icon: '🏥', label: 'Altas de lesiones', desc: 'Cuando un jugador es dado de alta' },
+  ]
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      {/* Header */}
+      <div className="anim-up">
+        <h2 className="display" style={{ fontSize: 32, color: 'var(--snow)', marginBottom: 4 }}>🔔 Notificaciones</h2>
+        <p style={{ fontSize: 13, color: 'var(--silver)' }}>Configurá qué alertas querés recibir y en qué horario.</p>
+      </div>
+
+      {/* Push Toggle */}
+      <div className="card anim-up delay-1" style={{ padding: 24 }}>
+        <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--silver)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 16 }}>
+          Notificaciones Push
+        </p>
+        <PushToggle onSubscriptionChange={(sub) => setHasSubscription(sub)} />
+        {!hasSubscription && (
+          <p style={{ fontSize: 12, color: '#f59e0b', marginTop: 10, padding: '8px 12px', background: 'rgba(245,158,11,.08)', borderRadius: 8, border: '1px solid rgba(245,158,11,.2)' }}>
+            ⚠ No tenés notificaciones push activadas. Activá el toggle de arriba para recibir alertas en tu dispositivo.
+          </p>
+        )}
+      </div>
+
+      {/* Timezone + Hours */}
+      <div className="card anim-up delay-2" style={{ padding: 24 }}>
+        <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--silver)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 16 }}>
+          🌍 Zona Horaria y Horarios
+        </p>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {/* Timezone */}
+          <div>
+            <label style={{ fontSize: 12, color: 'var(--silver)', fontWeight: 600, marginBottom: 6, display: 'block' }}>País / Zona horaria</label>
+            <select
+              className="wp-input"
+              value={prefs.timezone}
+              onChange={(e) => setPrefs(p => ({ ...p, timezone: e.target.value }))}
+              style={{ cursor: 'pointer' }}
+            >
+              {NOTIF_TIMEZONES.map(tz => (
+                <option key={tz.tz} value={tz.tz}>{tz.flag} {tz.label}</option>
+              ))}
+            </select>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+            {/* Morning hour */}
+            <div>
+              <label style={{ fontSize: 12, color: 'var(--silver)', fontWeight: 600, marginBottom: 6, display: 'block' }}>🌅 Alertas de mañana</label>
+              <select
+                className="wp-input"
+                value={prefs.hora_manana}
+                onChange={(e) => setPrefs(p => ({ ...p, hora_manana: e.target.value }))}
+                style={{ cursor: 'pointer' }}
+              >
+                {NOTIF_HOURS.map(h => (
+                  <option key={`m-${h}`} value={h}>{h} hs</option>
+                ))}
+              </select>
+              <p style={{ fontSize: 10, color: 'var(--fog)', marginTop: 4 }}>Cumpleaños, partidos, ACWR, sesiones</p>
+            </div>
+
+            {/* Evening hour */}
+            <div>
+              <label style={{ fontSize: 12, color: 'var(--silver)', fontWeight: 600, marginBottom: 6, display: 'block' }}>🌙 Alertas de tarde</label>
+              <select
+                className="wp-input"
+                value={prefs.hora_tarde}
+                onChange={(e) => setPrefs(p => ({ ...p, hora_tarde: e.target.value }))}
+                style={{ cursor: 'pointer' }}
+              >
+                {NOTIF_HOURS.map(h => (
+                  <option key={`t-${h}`} value={h}>{h} hs</option>
+                ))}
+              </select>
+              <p style={{ fontSize: 10, color: 'var(--fog)', marginTop: 4 }}>Wellness pendientes, sesiones de mañana</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Alert Types */}
+      <div className="card anim-up delay-3" style={{ padding: 24 }}>
+        <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--silver)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 16 }}>
+          📬 ¿Qué alertas querés recibir?
+        </p>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          {ALERT_OPTIONS.map(opt => {
+            const checked = !!prefs[opt.key as keyof typeof prefs]
+            return (
+              <button
+                key={opt.key}
+                onClick={() => togglePref(opt.key)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px',
+                  background: checked ? 'rgba(200,241,53,.04)' : 'transparent',
+                  border: 'none', borderRadius: 10, cursor: 'pointer', width: '100%',
+                  textAlign: 'left', transition: 'background .15s',
+                }}
+              >
+                <div style={{
+                  width: 22, height: 22, borderRadius: 6, flexShrink: 0,
+                  border: checked ? '2px solid var(--lime)' : '2px solid var(--fog)',
+                  background: checked ? 'var(--lime)' : 'transparent',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  transition: 'all .15s',
+                }}>
+                  {checked && <span style={{ fontSize: 12, color: '#000', fontWeight: 900 }}>✓</span>}
+                </div>
+                <span style={{ fontSize: 18, flexShrink: 0 }}>{opt.icon}</span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: checked ? 'var(--snow)' : 'var(--silver)' }}>{opt.label}</div>
+                  <div style={{ fontSize: 11, color: 'var(--fog)', marginTop: 1 }}>{opt.desc}</div>
+                </div>
+              </button>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* Save Button */}
+      <div className="anim-up" style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+        {saving === 'ok' && (
+          <span style={{ fontSize: 13, color: '#22c55e', alignSelf: 'center', fontWeight: 600 }}>✓ Guardado</span>
+        )}
+        {saving === 'error' && (
+          <span style={{ fontSize: 13, color: '#ef4444', alignSelf: 'center', fontWeight: 600 }}>✗ Error al guardar</span>
+        )}
+        <button
+          className="btn-lime"
+          onClick={save}
+          disabled={saving === 'saving'}
+          style={{ fontSize: 14, padding: '12px 28px' }}
+        >
+          {saving === 'saving' ? 'Guardando...' : '💾 Guardar preferencias'}
+        </button>
+      </div>
     </div>
   )
 }

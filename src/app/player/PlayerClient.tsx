@@ -5,6 +5,7 @@ import Topbar from '@/components/ui/Topbar'
 import WellnessForm from '@/components/forms/WellnessForm'
 import RPEForm from '@/components/forms/RPEForm'
 import WellnessTrend from '@/components/charts/WellnessTrend'
+import PushNotificationManager, { PushToggle } from '@/components/ui/PushNotificationManager'
 
 // VERSION 2 - NO ACWR VISIBLE AL JUGADOR
 const PLAYER_TABS = [
@@ -199,109 +200,218 @@ export default function PlayerDashboard({ session, jugador, jugadorId, acuteLoad
         )}
 
       </main>
+      <PushNotificationManager />
     </div>
   )
 }
 
 
-function NotificationConfig({ jugadorId, jugador, onSaved }) {
-  const [email, setEmail]   = useState(jugador?.email || '')
-  const [hora, setHora]     = useState(jugador?.hora_recordatorio || '08:00')
-  const [saving, setSaving] = useState(false)
-  const [saved, setSaved]   = useState(false)
-  const [err, setErr]       = useState('')
+const NOTIF_TIMEZONES = [
+  { flag: '🇦🇷', tz: 'America/Argentina/Buenos_Aires', label: 'Argentina (Buenos Aires)' },
+  { flag: '🇺🇾', tz: 'America/Montevideo', label: 'Uruguay (Montevideo)' },
+  { flag: '🇧🇷', tz: 'America/Sao_Paulo', label: 'Brasil (São Paulo)' },
+  { flag: '🇨🇱', tz: 'America/Santiago', label: 'Chile (Santiago)' },
+  { flag: '🇵🇾', tz: 'America/Asuncion', label: 'Paraguay (Asunción)' },
+  { flag: '🇧🇴', tz: 'America/La_Paz', label: 'Bolivia (La Paz)' },
+  { flag: '🇵🇪', tz: 'America/Lima', label: 'Perú (Lima)' },
+  { flag: '🇨🇴', tz: 'America/Bogota', label: 'Colombia (Bogotá)' },
+  { flag: '🇪🇨', tz: 'America/Guayaquil', label: 'Ecuador (Quito)' },
+  { flag: '🇻🇪', tz: 'America/Caracas', label: 'Venezuela (Caracas)' },
+  { flag: '🇲🇽', tz: 'America/Mexico_City', label: 'México (CDMX)' },
+  { flag: '🇨🇷', tz: 'America/Costa_Rica', label: 'Costa Rica' },
+  { flag: '🇵🇦', tz: 'America/Panama', label: 'Panamá' },
+  { flag: '🇩🇴', tz: 'America/Santo_Domingo', label: 'Rep. Dominicana' },
+  { flag: '🇺🇸', tz: 'America/New_York', label: 'EEUU (Este)' },
+  { flag: '🇺🇸', tz: 'America/Chicago', label: 'EEUU (Centro)' },
+  { flag: '🇺🇸', tz: 'America/Los_Angeles', label: 'EEUU (Pacífico)' },
+  { flag: '🇪🇸', tz: 'Europe/Madrid', label: 'España (Madrid)' },
+]
 
-  const HORAS = ['06:00','06:30','07:00','07:30','08:00','08:30','09:00','09:30','10:00','10:30','11:00','11:30','12:00','12:30','13:00','13:30','14:00','14:30','15:00','15:30','16:00','16:30','17:00','17:30','18:00','18:30','19:00','19:30','20:00','20:30','21:00','21:30','22:00','22:30','23:00','23:30']
+const NOTIF_HOURS: string[] = []
+for (let h = 0; h < 24; h++) {
+  NOTIF_HOURS.push(`${String(h).padStart(2, '0')}:00`)
+  NOTIF_HOURS.push(`${String(h).padStart(2, '0')}:30`)
+}
+
+function NotificationConfig({ jugadorId, jugador, onSaved }: any) {
+  const [email, setEmail]   = useState(jugador?.email || '')
+  
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState<'idle'|'saving'|'ok'|'error'>('idle')
+  const [prefs, setPrefs] = useState({
+    push_enabled: true,
+    timezone: 'America/Argentina/Buenos_Aires',
+    hora_manana: '08:00',
+    hora_tarde: '20:00',
+    alerta_wellness_reminder: true,
+    alerta_sesion_manana: true,
+  })
+  const [hasSubscription, setHasSubscription] = useState(false)
+
+  // Fetch push preferences
+  useEffect(() => {
+    fetch('/api/push/preferences')
+      .then(r => r.json())
+      .then(d => {
+        if (d.preferences) setPrefs(p => ({ ...p, ...d.preferences }))
+        setHasSubscription(!!d.hasSubscription)
+        setLoading(false)
+      })
+      .catch(() => setLoading(false))
+  }, [])
 
   async function guardar() {
-    setSaving(true); setErr('')
+    setSaving('saving')
     try {
-      const res = await fetch('/api/players/config', {
+      // Save email in player's table
+      await fetch('/api/players/config', {
         method:'POST',
         headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({ email:email||null, hora_recordatorio:hora }),
+        body:JSON.stringify({ email:email||null }),
       })
-      if (!res.ok) { const d = await res.json(); setErr(d.error||'Error'); return }
-      setSaved(true); onSaved()
-      setTimeout(() => setSaved(false), 3000)
-    } catch { setErr('Error de conexión') }
-    finally { setSaving(false) }
+      
+      // Save push prefs
+      await fetch('/api/push/preferences', {
+        method:'PUT',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify(prefs),
+      })
+      
+      setSaving('ok'); onSaved()
+      setTimeout(() => setSaving('idle'), 3000)
+    } catch { 
+      setSaving('error')
+      setTimeout(() => setSaving('idle'), 3000)
+    }
   }
 
+  const togglePref = (key: string) => {
+    setPrefs(p => ({ ...p, [key]: !p[key as keyof typeof p] }))
+  }
+
+  if (loading) return <div style={{ padding:40, textAlign:'center', color:'var(--silver)' }}>Cargando...</div>
+
   return (
-    <div className="anim-up" style={{ display:'flex', flexDirection:'column', gap:16 }}>
+    <div className="anim-up" style={{ display:'flex', flexDirection:'column', gap:20 }}>
       <div>
-        <h2 className="display" style={{ fontSize:48, color:'var(--snow)' }}>MI PERFIL</h2>
-        <p style={{ color:'var(--silver)', fontSize:14, marginTop:4 }}>Configurá tus notificaciones de recordatorio.</p>
+        <h2 className="display" style={{ fontSize:48, color:'var(--snow)', marginBottom:4 }}>MI PERFIL</h2>
+        <p style={{ color:'var(--silver)', fontSize:14 }}>Configurá tus alertas y zona horaria.</p>
       </div>
 
-      <div className="card" style={{ padding:24 }}>
-        <p style={{ fontSize:10, fontWeight:700, color:'var(--lime)', textTransform:'uppercase', letterSpacing:'0.1em', marginBottom:8 }}>
-          🔔 Recordatorio Diario de Wellness
+      {/* Push Toggle */}
+      <div className="card anim-up delay-1" style={{ padding: 24 }}>
+        <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--silver)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 16 }}>
+          Notificaciones en el Celular
         </p>
-        <p style={{ fontSize:13, color:'var(--silver)', marginBottom:20, lineHeight:1.6 }}>
-          Cada día a las 08:00 hs, si todavía no completaste el wellness, la app te manda un email recordatorio con link directo al formulario.
+        <PushToggle onSubscriptionChange={(sub) => setHasSubscription(sub)} />
+        {!hasSubscription && (
+          <p style={{ fontSize: 12, color: '#f59e0b', marginTop: 10, padding: '8px 12px', background: 'rgba(245,158,11,.08)', borderRadius: 8, border: '1px solid rgba(245,158,11,.2)' }}>
+            ⚠ Activá las notificaciones push para recibir alertas de entrenamientos y partidos directamente en tu pantalla.
+          </p>
+        )}
+      </div>
+
+      {/* Timezone & Hours */}
+      <div className="card anim-up delay-2" style={{ padding: 24 }}>
+        <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--silver)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 16 }}>
+          🌍 Zona Horaria y Horarios
         </p>
-
-        <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div>
-            <label style={{ display:'block', fontSize:11, fontWeight:600, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:8 }}>
-              📧 Tu email
-            </label>
-            <input
-              className="wp-input"
-              type="email"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              placeholder="tuemail@gmail.com"
-            />
-            <p style={{ fontSize:11, color:'var(--fog)', marginTop:5 }}>
-              Solo se usa para recordatorios. El preparador no lo ve.
-            </p>
-          </div>
-
-          <div>
-            <label style={{ display:'block', fontSize:11, fontWeight:600, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:8 }}>
-              ⏰ Horario del recordatorio
-            </label>
+            <label style={{ fontSize: 12, color: 'var(--silver)', fontWeight: 600, marginBottom: 6, display: 'block' }}>País / Zona horaria</label>
             <select
               className="wp-input"
-              value={hora}
-              onChange={e => setHora(e.target.value)}
-              style={{ appearance:'none' }}
+              value={prefs.timezone}
+              onChange={(e) => setPrefs(p => ({ ...p, timezone: e.target.value }))}
             >
-              {HORAS.map(h => (
-                <option key={h} value={h} style={{ background:'var(--ink2)' }}>{h} hs</option>
-              ))}
+              {NOTIF_TIMEZONES.map(tz => <option key={tz.tz} value={tz.tz}>{tz.flag} {tz.label}</option>)}
             </select>
-            <p style={{ fontSize:11, color:'var(--fog)', marginTop:5 }}>
-              El recordatorio se envía a las 08:00 hs cada día si no completaste el wellness.
-            </p>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+            <div>
+              <label style={{ fontSize: 12, color: 'var(--silver)', fontWeight: 600, marginBottom: 6, display: 'block' }}>🌅 Alertas de mañana</label>
+              <select className="wp-input" value={prefs.hora_manana} onChange={(e) => setPrefs(p => ({ ...p, hora_manana: e.target.value }))}>
+                {NOTIF_HOURS.map(h => <option key={`m-${h}`} value={h}>{h} hs</option>)}
+              </select>
+              <p style={{ fontSize: 10, color: 'var(--fog)', marginTop: 4 }}>Día de partido</p>
+            </div>
+            <div>
+              <label style={{ fontSize: 12, color: 'var(--silver)', fontWeight: 600, marginBottom: 6, display: 'block' }}>🌙 Alertas de tarde</label>
+              <select className="wp-input" value={prefs.hora_tarde} onChange={(e) => setPrefs(p => ({ ...p, hora_tarde: e.target.value }))}>
+                {NOTIF_HOURS.map(h => <option key={`t-${h}`} value={h}>{h} hs</option>)}
+              </select>
+              <p style={{ fontSize: 10, color: 'var(--fog)', marginTop: 4 }}>Recordatorio wellness y sesión de mañana</p>
+            </div>
           </div>
         </div>
-
-        {err && <p style={{ fontSize:12, color:'#f87171', marginTop:12 }}>{err}</p>}
-
-        <button
-          onClick={guardar}
-          disabled={saving}
-          className="btn-lime"
-          style={{ width:'100%', padding:14, fontSize:14, marginTop:20 }}
-        >
-          {saved ? '✓ GUARDADO' : saving ? 'GUARDANDO...' : 'GUARDAR CONFIGURACIÓN →'}
-        </button>
       </div>
 
-      <div style={{ background:'rgba(200,241,53,.06)', border:'1px solid rgba(200,241,53,.2)', borderRadius:14, padding:18 }}>
-        <p style={{ fontSize:12, color:'var(--lime)', fontWeight:600, marginBottom:10 }}>¿Cómo funcionan los recordatorios?</p>
-        {[
-          '📋 Cada día a la hora elegida, el sistema verifica si completaste el wellness',
-          '📧 Si no completaste, te llega un email con link directo al formulario',
-          '✓ Si ya completaste, no te molesta',
-          '⚙️ Podés cambiar el horario en cualquier momento desde esta pantalla',
-        ].map((txt,i) => (
-          <p key={i} style={{ fontSize:12, color:'var(--silver)', lineHeight:1.6, marginBottom:4 }}>{txt}</p>
-        ))}
+      {/* Alerts selection */}
+      <div className="card anim-up delay-3" style={{ padding: 24 }}>
+        <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--silver)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 16 }}>
+          📬 Tipos de alertas
+        </p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          {[
+            { key: 'alerta_wellness_reminder', icon: '📋', label: 'Recordatorio Wellness', desc: 'Si no lo completaste, a la tarde te avisamos' },
+            { key: 'alerta_sesion_manana', icon: '📅', label: 'Sesión del día siguiente', desc: 'Te avisamos a la tarde qué toca mañana (entrenamiento o partido)' }
+          ].map(opt => {
+            const checked = !!prefs[opt.key as keyof typeof prefs]
+            return (
+              <button
+                key={opt.key} onClick={() => togglePref(opt.key)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px',
+                  background: checked ? 'rgba(200,241,53,.04)' : 'transparent',
+                  border: 'none', borderRadius: 10, cursor: 'pointer', width: '100%', textAlign: 'left',
+                }}
+              >
+                <div style={{
+                  width: 22, height: 22, borderRadius: 6, flexShrink: 0,
+                  border: checked ? '2px solid var(--lime)' : '2px solid var(--fog)',
+                  background: checked ? 'var(--lime)' : 'transparent',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>
+                  {checked && <span style={{ fontSize: 12, color: '#000', fontWeight: 900 }}>✓</span>}
+                </div>
+                <span style={{ fontSize: 18 }}>{opt.icon}</span>
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: checked ? 'var(--snow)' : 'var(--silver)' }}>{opt.label}</div>
+                  <div style={{ fontSize: 11, color: 'var(--fog)' }}>{opt.desc}</div>
+                </div>
+              </button>
+            )
+          })}
+        </div>
+      </div>
+
+      <div className="card anim-up delay-4" style={{ padding:24 }}>
+        <p style={{ fontSize:10, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.1em', marginBottom:8 }}>
+          📧 Email (Respaldo)
+        </p>
+        <p style={{ fontSize:12, color:'var(--silver)', marginBottom:12 }}>
+          Si fallan las notificaciones push, te enviaremos recordatorios por email.
+        </p>
+        <input
+          className="wp-input"
+          type="email"
+          value={email}
+          onChange={e => setEmail(e.target.value)}
+          placeholder="tuemail@gmail.com"
+        />
+      </div>
+
+      {saving === 'error' && <p style={{ fontSize:13, color:'#ef4444', textAlign:'right' }}>Error al guardar.</p>}
+      
+      <div style={{ display:'flex', justifyContent:'flex-end' }}>
+        <button
+          onClick={guardar}
+          disabled={saving === 'saving'}
+          className="btn-lime"
+          style={{ padding:'12px 28px', fontSize:14 }}
+        >
+          {saving === 'ok' ? '✓ GUARDADO' : saving === 'saving' ? 'GUARDANDO...' : '💾 GUARDAR CONFIGURACIÓN'}
+        </button>
       </div>
     </div>
   )
