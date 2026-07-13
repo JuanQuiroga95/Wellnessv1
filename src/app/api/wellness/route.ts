@@ -174,3 +174,27 @@ export async function POST(req: NextRequest) {
   if (!r) return NextResponse.json({ error: 'No se pudo guardar el registro' }, { status: 500 })
   return NextResponse.json(r)
 }
+
+export async function DELETE(req: NextRequest) {
+  const s = await getSessionFromRequest(req)
+  if (!s || !isAdmin(s)) return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
+
+  const { searchParams } = new URL(req.url)
+  const id = sanitizeInt(searchParams.get('id'), 1, 99999999)
+  const jugador_id = sanitizeInt(searchParams.get('jugador_id'), 1, 99999999)
+  const fecha = searchParams.get('fecha')
+
+  const sql = getDb()
+
+  if (id) {
+    await sql`DELETE FROM wellness_logs WHERE id = ${id}`
+    return NextResponse.json({ success: true })
+  }
+
+  if (jugador_id && fecha) {
+    await sql`DELETE FROM wellness_logs WHERE jugador_id = ${jugador_id} AND fecha = ${fecha}`
+    return NextResponse.json({ success: true })
+  }
+
+  return NextResponse.json({ error: 'Faltan parámetros' }, { status: 400 })
+}

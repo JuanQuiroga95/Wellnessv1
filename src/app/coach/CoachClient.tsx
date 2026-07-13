@@ -830,7 +830,15 @@ function PlayerDetail({ player:p, logs, wellness, loading, onBack, ciclo, onCicl
       )}
       {lastW && (
         <div style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:16, padding:20 }}>
-          <p style={{ fontSize:11, fontWeight:600, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:14 }}>Último Wellness · <span style={{ color:'var(--fog)', fontWeight:400, fontFamily:'DM Mono,monospace' }}>{lastW.fecha}</span></p>
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14 }}>
+            <p style={{ fontSize:11, fontWeight:600, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', margin:0 }}>Último Wellness · <span style={{ color:'var(--fog)', fontWeight:400, fontFamily:'DM Mono,monospace' }}>{lastW.fecha}</span></p>
+            <button onClick={async () => {
+              if (confirm('¿Eliminar registro de wellness de esta fecha?')) {
+                await fetch(`/api/wellness?jugador_id=${p.id}&fecha=${lastW.fecha}`, { method: 'DELETE' });
+                await load();
+              }
+            }} style={{ background:'transparent', border:'none', color:'#ef4444', cursor:'pointer', fontSize:12, opacity:0.8, padding:'4px 8px' }} title="Eliminar registro">✕ Borrar</button>
+          </div>
           <div style={{ display:'flex', flexDirection:'column', gap:8, marginBottom:12 }}>
             {['fatiga','calidad_sueno','dolor_muscular','nivel_estres','estado_animo'].map((k,i)=>{ const v=Number(lastW[k])||0; const c=wCol(v); return (
               <div key={k} style={{ display:'flex', alignItems:'center', gap:10 }}>
@@ -1506,7 +1514,7 @@ const SUBTAREAS: Record<string, string[]> = { 'Activación en campo': ['Drill de
 const TAREAS_CON_ESPACIO = ['Rueda de Pases','Rondo','Trabajo analítico','Juego de posesión','Juego de posición','Transiciones','Partido reducido','Partido modificado','Partido de entrenamiento','Partido amistoso','Partido oficial']
 const TAREAS_CON_EQUIPO = ['Rueda de Pases','Rondo','Trabajo analítico','Juego de posesión','Juego de posición','Transiciones','Partido reducido','Partido modificado','Partido de entrenamiento','Partido amistoso','Partido oficial']
 const TAREAS_PARTIDO_SIMPLE = ['Partido amistoso','Partido oficial','Partido de entrenamiento']
-const TAREAS_MOSTRAR_FORM = [...TAREAS_CON_ESPACIO, 'Activación en campo','Activación en gimnasio','Fuerza Estructural']
+const TAREAS_MOSTRAR_FORM = [...TAREAS_CON_ESPACIO]
 // NE default por tipo de tarea (Nivel de Especificidad 1-10)
 const NE_DEFAULT: Record<string, number> = {
   'Partido oficial': 10, 'Partido amistoso': 9, 'Partido de entrenamiento': 8,
@@ -1518,7 +1526,23 @@ const TIPO_COLORES: Record<string, string> = { entrenamiento:'#c8f135', partido:
 const TIPO_ICONOS: Record<string, string> = { entrenamiento:'⚽', partido:'🏆', recuperacion:'🔄', descanso:'😴' }
 
 // Map para formatear visualmente los MD.
-const formatMD = (md: string) => md === 'MD+1' ? '🔋 MD+1 OFF' : md
+const formatMD = (md: string, tipo?: string) => {
+  if (md === 'MD+1' || tipo === 'descanso') {
+    return (
+      <span style={{ display:'inline-flex', alignItems:'center', background:'rgba(200,241,53,0.15)', color:'var(--lime)', border:'1px solid rgba(200,241,53,0.3)', borderRadius:6, padding:'2px 8px', fontWeight:800, fontSize:10, letterSpacing:'0.05em' }}>
+        🔋 MD+1 OFF
+      </span>
+    )
+  }
+  if (md.startsWith('MD')) {
+    return (
+      <span style={{ display:'inline-flex', alignItems:'center', background:'rgba(59,130,246,0.15)', color:'#60a5fa', border:'1px solid rgba(59,130,246,0.3)', borderRadius:6, padding:'2px 8px', fontWeight:800, fontSize:10, letterSpacing:'0.05em' }}>
+        {md}
+      </span>
+    )
+  }
+  return md
+}
 
 // Helper: normaliza subtareas (retrocompat string → array)
 function getSubtareasArr(bl: any): string[] {
@@ -1821,8 +1845,8 @@ function CalendarioPanel({ teamData }) {
                             background:`${TIPO_COLORES[s.tipo]||'#888'}22`, color:TIPO_COLORES[s.tipo]||'#888',
                             border:`1px solid ${TIPO_COLORES[s.tipo]||'#888'}44`, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', cursor:'pointer' }}>
                           {s.tipo==='partido'
-                            ? <span>{TIPO_ICONOS[s.tipo]} {s.rival ? `vs ${s.rival}` : formatMD(s.titulo||'Partido')}</span>
-                            : <span>{TIPO_ICONOS[s.tipo]} {formatMD(s.titulo||s.tipo)}</span>
+                            ? <span>{TIPO_ICONOS[s.tipo]} {s.rival ? `vs ${s.rival}` : formatMD(s.titulo||'Partido', s.tipo)}</span>
+                            : <span style={{ display:'flex', alignItems:'center', gap:4 }}>{s.tipo !== 'descanso' && !((s.titulo||s.tipo).startsWith('MD')) ? TIPO_ICONOS[s.tipo] : null}{formatMD(s.titulo||s.tipo, s.tipo)}</span>
                           }
                         </div>
                       ))}
@@ -1848,8 +1872,8 @@ function CalendarioPanel({ teamData }) {
                         <div key={s.id} onClick={e=>{e.stopPropagation();setEditSesion(s);setShowEditor(true)}} style={{ display:'flex', alignItems:'center', gap:3, fontSize:10, padding:'2px 5px', borderRadius:4, background:`${TIPO_COLORES[s.tipo]||'#888'}22`, color:TIPO_COLORES[s.tipo]||'#888', border:`1px solid ${TIPO_COLORES[s.tipo]||'#888'}44`, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', cursor:'pointer' }}>
                           {s.tipo==='partido' && s.rival_foto && <img src={s.rival_foto} style={{ width:14, height:14, objectFit:'contain', borderRadius:2, flexShrink:0 }} alt="" />}
                           {s.tipo==='partido'
-                            ? <span>{TIPO_ICONOS[s.tipo]} {s.rival ? `vs ${s.rival}` : formatMD(s.titulo||'Partido')}</span>
-                            : <span>{TIPO_ICONOS[s.tipo]} {formatMD(s.titulo||s.tipo)}</span>
+                            ? <span>{TIPO_ICONOS[s.tipo]} {s.rival ? `vs ${s.rival}` : formatMD(s.titulo||'Partido', s.tipo)}</span>
+                            : <span style={{ display:'flex', alignItems:'center', gap:4 }}>{s.tipo !== 'descanso' && !((s.titulo||s.tipo).startsWith('MD')) ? TIPO_ICONOS[s.tipo] : null}{formatMD(s.titulo||s.tipo, s.tipo)}</span>
                           }
                         </div>
                       ))}
