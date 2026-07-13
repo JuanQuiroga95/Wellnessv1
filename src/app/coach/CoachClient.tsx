@@ -9862,16 +9862,18 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
 
         const rows = activeMds.map((md:string) => {
           const avg = mdTeamAvg(md)
-          const activeMin = avg.duracion_min || avg.minActivo || 1
           const dTotal = avg.dist_total || avg.distTotal || 0
-          const dSprint = avg.dist_hir || avg.distSprint || 0 // Usando HIR o Sprint
-          const nSprint = avg.nSprintsGps || avg.n_sprints || avg.nSprints || 0
-          const accel = avg.acc2 || avg.nAcel || 0
-          const decel = avg.dec2 || avg.nDecel || 0
+          const dPerMin = avg.dist_per_min || avg.distPerMin || 0
+          const activeMin = (dTotal > 0 && dPerMin > 0) ? (dTotal / dPerMin) : (avg.duracion_min || avg.minActivo || 1)
+          
+          const dSprint = avg.dist_v5 || avg.dist_hir || avg.distSprint || 0 // Velocidad B5/B6 o HSR
+          const nSprint = avg.n_sprints || avg.nSprintsGps || avg.nSprints || 0
+          const accel = avg.acc_total || avg.acc2 || avg.nAcel || 0
+          const decel = avg.dec_total || avg.dec2 || avg.nDecel || 0
 
           return {
             md,
-            metMin: dTotal / activeMin,
+            metMin: dPerMin > 0 ? dPerMin : (dTotal / activeMin),
             sprintMin: dSprint / activeMin,
             nSprintMin: nSprint / activeMin,
             acelDecelMin: (accel + decel) / activeMin
@@ -9905,7 +9907,7 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
                 <tbody>
                   {rows.map((r, i) => (
                     <tr key={r.md} style={{ borderTop:'1px solid var(--mist)', background: i%2===0 ? 'transparent' : 'rgba(255,255,255,.015)' }}>
-                      <td style={{ padding:'7px 14px', color:'#a855f7', fontWeight:700 }}>{r.md}</td>
+                      <td style={{ padding:'7px 14px', color:'#a855f7', fontWeight:700, textAlign:'center' }}>{r.md}</td>
                       <td style={{ padding:'7px 10px', textAlign:'center', fontFamily:'DM Mono,monospace', color:'#60a5fa' }}>{r.metMin.toFixed(1)}</td>
                       <td style={{ padding:'7px 10px', textAlign:'center', fontFamily:'DM Mono,monospace', color:'#f59e0b' }}>{r.sprintMin.toFixed(2)}</td>
                       <td style={{ padding:'7px 10px', textAlign:'center', fontFamily:'DM Mono,monospace', color:'#ec4899' }}>{r.nSprintMin.toFixed(3)}</td>
