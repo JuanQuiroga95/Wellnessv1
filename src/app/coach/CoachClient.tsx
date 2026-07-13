@@ -9854,6 +9854,7 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
 
       {/* ══ CUADRO 6: CONTROL DE INTENSIDAD RELATIVA ══════════════════════════════════ */}
       {gpsReal.length > 0 && (() => {
+        const trainingMds = mdCols.filter(md => md !== 'MD' && existingMdLabels.has(md) && (gpsPerMD[md]||[]).length > 0)
         const activeMds = trainingMds.filter((md:string) => {
           const avg = mdTeamAvg(md)
           const dTotal = avg.dist_total || avg.distTotal || 0
