@@ -8477,6 +8477,7 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
 
           return {
             md,
+            activeMin,
             metMin: dTotal / activeMin,
             sprintMin: dSprint / activeMin,
             nSprintMin: nSprint / activeMin,
@@ -8502,6 +8503,7 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
                 <thead>
                   <tr style={{ background:'rgba(168,85,247,.05)' }}>
                     <th style={{ padding:'8px 14px', textAlign:'left', color:'var(--silver)', fontSize:9, fontWeight:700, textTransform:'uppercase' }}>MD</th>
+                    <th style={{ padding:'8px 10px', textAlign:'center', color:'#84cc16', fontSize:9, fontWeight:700, textTransform:'uppercase' }}>Tiempo (min)</th>
                     <th style={{ padding:'8px 10px', textAlign:'center', color:'#60a5fa', fontSize:9, fontWeight:700, textTransform:'uppercase' }}>Metros / min</th>
                     <th style={{ padding:'8px 10px', textAlign:'center', color:'#f59e0b', fontSize:9, fontWeight:700, textTransform:'uppercase' }}>Dist. Sprint / min</th>
                     <th style={{ padding:'8px 10px', textAlign:'center', color:'#ec4899', fontSize:9, fontWeight:700, textTransform:'uppercase' }}>Sprints / min</th>
@@ -8512,6 +8514,7 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
                   {rows.map((r, i) => (
                     <tr key={r.md} style={{ borderTop:'1px solid var(--mist)', background: i%2===0 ? 'transparent' : 'rgba(255,255,255,.015)' }}>
                       <td style={{ padding:'7px 14px', color:'#a855f7', fontWeight:700, textAlign:'center' }}>{r.md}</td>
+                      <td style={{ padding:'7px 10px', textAlign:'center', fontFamily:'DM Mono,monospace', color:'#84cc16', fontWeight:700 }}>{Math.round(r.activeMin)}</td>
                       <td style={{ padding:'7px 10px', textAlign:'center', fontFamily:'DM Mono,monospace', color:'#60a5fa' }}>{r.metMin.toFixed(1)}</td>
                       <td style={{ padding:'7px 10px', textAlign:'center', fontFamily:'DM Mono,monospace', color:'#f59e0b' }}>{r.sprintMin.toFixed(2)}</td>
                       <td style={{ padding:'7px 10px', textAlign:'center', fontFamily:'DM Mono,monospace', color:'#ec4899' }}>{r.nSprintMin.toFixed(3)}</td>
@@ -9980,6 +9983,7 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
 
           return {
             md,
+            activeMin,
             metMin: dPerMin > 0 ? dPerMin : (dTotal / activeMin),
             sprintMin: dSprint / activeMin,
             nSprintMin: nSprint / activeMin,
@@ -10005,6 +10009,7 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
                 <thead>
                   <tr style={{ background:'rgba(168,85,247,.05)' }}>
                     <th style={{ padding:'8px 14px', textAlign:'left', color:'var(--silver)', fontSize:9, fontWeight:700, textTransform:'uppercase' }}>MD</th>
+                    <th style={{ padding:'8px 10px', textAlign:'center', color:'#84cc16', fontSize:9, fontWeight:700, textTransform:'uppercase' }}>Tiempo (min)</th>
                     <th style={{ padding:'8px 10px', textAlign:'center', color:'#60a5fa', fontSize:9, fontWeight:700, textTransform:'uppercase' }}>Metros / min</th>
                     <th style={{ padding:'8px 10px', textAlign:'center', color:'#f59e0b', fontSize:9, fontWeight:700, textTransform:'uppercase' }}>Dist. Sprint / min</th>
                     <th style={{ padding:'8px 10px', textAlign:'center', color:'#ec4899', fontSize:9, fontWeight:700, textTransform:'uppercase' }}>Sprints / min</th>
@@ -10015,6 +10020,7 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
                   {rows.map((r, i) => (
                     <tr key={r.md} style={{ borderTop:'1px solid var(--mist)', background: i%2===0 ? 'transparent' : 'rgba(255,255,255,.015)' }}>
                       <td style={{ padding:'7px 14px', color:'#a855f7', fontWeight:700, textAlign:'center' }}>{r.md}</td>
+                      <td style={{ padding:'7px 10px', textAlign:'center', fontFamily:'DM Mono,monospace', color:'#84cc16', fontWeight:700 }}>{Math.round(r.activeMin)}</td>
                       <td style={{ padding:'7px 10px', textAlign:'center', fontFamily:'DM Mono,monospace', color:'#60a5fa' }}>{r.metMin.toFixed(1)}</td>
                       <td style={{ padding:'7px 10px', textAlign:'center', fontFamily:'DM Mono,monospace', color:'#f59e0b' }}>{r.sprintMin.toFixed(2)}</td>
                       <td style={{ padding:'7px 10px', textAlign:'center', fontFamily:'DM Mono,monospace', color:'#ec4899' }}>{r.nSprintMin.toFixed(3)}</td>
