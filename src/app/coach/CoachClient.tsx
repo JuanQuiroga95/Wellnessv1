@@ -1527,16 +1527,17 @@ const TIPO_ICONOS: Record<string, string> = { entrenamiento:'⚽', partido:'🏆
 
 // Map para formatear visualmente los MD.
 const formatMD = (md: string, tipo?: string) => {
-  if (md === 'MD+1' || tipo === 'descanso') {
+  if (tipo === 'descanso') {
+    const text = md && md.startsWith('MD') ? `${md} OFF` : md ? md : 'OFF'
     return (
-      <span style={{ display:'inline-flex', alignItems:'center', background:'rgba(200,241,53,0.15)', color:'var(--lime)', border:'1px solid rgba(200,241,53,0.3)', borderRadius:6, padding:'2px 8px', fontWeight:800, fontSize:10, letterSpacing:'0.05em' }}>
-        🔋 MD+1 OFF
+      <span className="pulse-energy-lime" style={{ display:'inline-flex', alignItems:'center', background:'rgba(200,241,53,0.15)', color:'var(--lime)', border:'1px solid rgba(200,241,53,0.3)', borderRadius:6, padding:'4px 10px', fontWeight:800, fontSize:11, letterSpacing:'0.05em' }}>
+        🔋 {text}
       </span>
     )
   }
-  if (md.startsWith('MD')) {
+  if (md && md.startsWith('MD')) {
     return (
-      <span style={{ display:'inline-flex', alignItems:'center', background:'rgba(59,130,246,0.15)', color:'#60a5fa', border:'1px solid rgba(59,130,246,0.3)', borderRadius:6, padding:'2px 8px', fontWeight:800, fontSize:10, letterSpacing:'0.05em' }}>
+      <span className="pulse-energy-blue" style={{ display:'inline-flex', alignItems:'center', background:'rgba(59,130,246,0.15)', color:'#60a5fa', border:'1px solid rgba(59,130,246,0.3)', borderRadius:6, padding:'4px 10px', fontWeight:800, fontSize:11, letterSpacing:'0.05em' }}>
         {md}
       </span>
     )
