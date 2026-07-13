@@ -461,7 +461,7 @@ export default function CoachClient({ session, teamData, today }) {
         )}
 
         {tab==='team' && selected && (
-          <PlayerDetail player={selected} logs={playerLogs} wellness={playerWellness} loading={loadingDetail} ciclo={ciclo} onCicloChange={(c)=>{ setCiclo(c); openPlayer(selected, c) }} onBack={()=>setSelected(null)} />
+          <PlayerDetail player={selected} logs={playerLogs} wellness={playerWellness} loading={loadingDetail} ciclo={ciclo} onCicloChange={(c)=>{ setCiclo(c); openPlayer(selected, c) }} onRefreshData={() => { openPlayer(selected, ciclo); router.refresh(); }} onBack={()=>setSelected(null)} />
         )}
 
         {tab==='analytics' && <AnalyticsPanel />}
@@ -568,7 +568,7 @@ function PlayerRow({ player:p, last, onOpen, isInjured }) {
   )
 }
 
-function PlayerDetail({ player:p, logs, wellness, loading, onBack, ciclo, onCicloChange }) {
+function PlayerDetail({ player:p, logs, wellness, loading, onBack, ciclo, onCicloChange, onRefreshData }: any) {
   const col = p.lesion?'#ef4444':(SC[p.acwr?.status]||'#555')
   const [acwrMetric, setAcwrMetric] = useState<'ua'|'uce'>('ua')
   const lastW = wellness[0]
@@ -834,8 +834,8 @@ function PlayerDetail({ player:p, logs, wellness, loading, onBack, ciclo, onCicl
             <p style={{ fontSize:11, fontWeight:600, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', margin:0 }}>Último Wellness · <span style={{ color:'var(--fog)', fontWeight:400, fontFamily:'DM Mono,monospace' }}>{lastW.fecha}</span></p>
             <button onClick={async () => {
               if (confirm('¿Eliminar registro de wellness de esta fecha?')) {
-                await fetch(`/api/wellness?jugador_id=${p.id}&fecha=${lastW.fecha}`, { method: 'DELETE' });
-                await load();
+                await fetch(`/api/wellness?jugador_id=${p.jugador_id}&fecha=${lastW.fecha}`, { method: 'DELETE' });
+                if (onRefreshData) onRefreshData();
               }
             }} style={{ background:'transparent', border:'none', color:'#ef4444', cursor:'pointer', fontSize:12, opacity:0.8, padding:'4px 8px' }} title="Eliminar registro">✕ Borrar</button>
           </div>
@@ -5678,6 +5678,16 @@ function ManageRow({ player, last, onRefresh }) {
                   </button>
                   <button onClick={toggle} disabled={loading} className="btn-ghost" style={{ fontSize:12, padding:'7px 14px', color:player.activo?'#f87171':'#4ade80', borderColor:player.activo?'rgba(239,68,68,.3)':'rgba(34,197,94,.3)' }}>
                     {loading?'...':player.activo?'Desactivar acceso':'Activar acceso'}
+                  </button>
+                  <button onClick={async () => {
+                    if (confirm('🚨 ATENCIÓN 🚨\n\n¿Estás seguro de que querés ELIMINAR COMPLETAMENTE a este jugador y TODO su historial (sesiones, wellness, lesiones, etc.)?\n\nEsta acción NO se puede deshacer.')) {
+                      setLoading(true);
+                      await fetch(`/api/players/${player.id}`, { method: 'DELETE' });
+                      onRefresh();
+                      setLoading(false);
+                    }
+                  }} disabled={loading} className="btn-ghost" style={{ fontSize:12, padding:'7px 14px', color:'#ef4444', borderColor:'rgba(239,68,68,.3)' }}>
+                    🗑️ Eliminar
                   </button>
                 </div>
                 {editOk && <p style={{ fontSize:11, color:'#4ade80', marginTop:8 }}>✓ Datos actualizados</p>}
