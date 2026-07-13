@@ -8459,7 +8459,12 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
       {/* ══ CUADRO 6: CONTROL DE INTENSIDAD RELATIVA (CALC) ══════════════════════════════════ */}
       {(() => {
         const trainingMds = mdCols.filter(md => md !== 'MD' && existingMdLabels.has(md) && Number(perSessionTeamAvg[md]?.minActivo) > 0)
-        if (!trainingMds.length) return null
+        if (!trainingMds.length) return (
+          <div style={{ background:'var(--ink2)', border:'1px solid rgba(168,85,247,.2)', borderRadius:16, padding:'20px', textAlign:'center', marginBottom:8 }}>
+            <p style={{ fontSize:11, fontWeight:700, color:'#a855f7', textTransform:'uppercase', letterSpacing:'0.08em' }}>CUADRO 6 — CONTROL DE INTENSIDAD RELATIVA (/ MINUTO)</p>
+            <p style={{ fontSize:12, color:'var(--fog)', marginTop:8 }}>No hay minutos activos planificados en el calendario para esta semana.</p>
+          </div>
+        )
 
         const rows = trainingMds.map((md:string) => {
           const avg = perSessionTeamAvg[md] || {}
@@ -9955,7 +9960,12 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
           const activeMin = (dTotal > 0 && dPerMin > 0) ? (dTotal / dPerMin) : (avg.duracion_min || avg.minActivo || 0)
           return activeMin > 0
         })
-        if (!activeMds.length) return null
+        if (!activeMds.length) return (
+          <div style={{ background:'var(--ink2)', border:'1px solid rgba(168,85,247,.2)', borderRadius:16, padding:'20px', textAlign:'center', marginBottom:8 }}>
+            <p style={{ fontSize:11, fontWeight:700, color:'#a855f7', textTransform:'uppercase', letterSpacing:'0.08em' }}>CUADRO 6 — CONTROL DE INTENSIDAD RELATIVA (/ MINUTO)</p>
+            <p style={{ fontSize:12, color:'var(--fog)', marginTop:8 }}>Faltan datos de GPS para calcular los minutos activos (se requiere Distancia Total y m/min).</p>
+          </div>
+        )
 
         const rows = activeMds.map((md:string) => {
           const avg = mdTeamAvg(md)
