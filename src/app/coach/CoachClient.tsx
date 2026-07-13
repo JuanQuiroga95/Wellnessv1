@@ -1538,18 +1538,18 @@ function getSesionStyle(s: any, withWidth = true) {
   if (s.tipo === 'descanso') {
     return {
       className: 'pulse-energy-lime',
-      style: { display:'flex', alignItems:'center', gap:4, fontSize:11, padding:'4px 10px', borderRadius:6, background:'rgba(200,241,53,.15)', color:'var(--lime)', border:'1px solid rgba(200,241,53,.3)', fontWeight:800, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', cursor:'pointer', ...w }
+      style: { display:'flex', alignItems:'center', justifyContent:'center', gap:4, fontSize:11, padding:'4px 10px', borderRadius:6, background:'rgba(200,241,53,.15)', color:'var(--lime)', border:'1px solid rgba(200,241,53,.3)', fontWeight:800, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', cursor:'pointer', ...w }
     }
   }
   if ((s.titulo||'').startsWith('MD')) {
     return {
       className: 'pulse-energy-blue',
-      style: { display:'flex', alignItems:'center', gap:4, fontSize:11, padding:'4px 10px', borderRadius:6, background:'rgba(59,130,246,.15)', color:'#60a5fa', border:'1px solid rgba(59,130,246,.3)', fontWeight:800, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', cursor:'pointer', ...w }
+      style: { display:'flex', alignItems:'center', justifyContent:'center', gap:4, fontSize:11, padding:'4px 10px', borderRadius:6, background:'rgba(59,130,246,.15)', color:'#60a5fa', border:'1px solid rgba(59,130,246,.3)', fontWeight:800, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', cursor:'pointer', ...w }
     }
   }
   return {
     className: '',
-    style: { display:'flex', alignItems:'center', gap:3, fontSize:10, padding:'2px 5px', borderRadius:4, background:`${TIPO_COLORES[s.tipo]||'#888'}22`, color:TIPO_COLORES[s.tipo]||'#888', border:`1px solid ${TIPO_COLORES[s.tipo]||'#888'}44`, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', cursor:'pointer', ...w }
+    style: { display:'flex', alignItems:'center', justifyContent:'center', gap:3, fontSize:10, padding:'4px 10px', borderRadius:6, background:`${TIPO_COLORES[s.tipo]||'#888'}22`, color:TIPO_COLORES[s.tipo]||'#888', border:`1px solid ${TIPO_COLORES[s.tipo]||'#888'}44`, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', cursor:'pointer', ...w }
   }
 }
 
