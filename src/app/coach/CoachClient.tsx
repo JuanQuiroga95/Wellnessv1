@@ -1865,13 +1865,20 @@ function CalendarioPanel({ teamData }) {
                       {ses.map(s=>{
                         const sProps = getSesionStyle(s, true);
                         return (
-                        <div key={s.id} onClick={e=>{e.stopPropagation();setEditSesion(s);setShowEditor(true)}}
-                          className={sProps.className} style={sProps.style}>
-                          {s.tipo==='partido' && s.rival_foto && <img src={s.rival_foto} style={{ width:14, height:14, objectFit:'contain', borderRadius:2, flexShrink:0 }} alt="" />}
-                          {s.tipo==='partido'
-                            ? <span>{TIPO_ICONOS[s.tipo]} {s.rival ? `vs ${s.rival}` : formatMD(s.titulo||'Partido', s.tipo)}</span>
-                            : <span>{s.tipo !== 'descanso' && !((s.titulo||s.tipo).startsWith('MD')) ? TIPO_ICONOS[s.tipo] + ' ' : null}{formatMD(s.titulo||s.tipo, s.tipo)}</span>
-                          }
+                        <div key={s.id} onClick={e=>{e.stopPropagation();setEditSesion(s);setShowEditor(true)}} className={sProps.className} style={{...sProps.style, flexDirection:'column', gap:0, padding:(s.hora_inicio || s.objetivo) ? '4px 6px' : sProps.style.padding, alignItems:'stretch', whiteSpace:'normal'}}>
+                          <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:4 }}>
+                            {s.tipo==='partido' && s.rival_foto && <img src={s.rival_foto} style={{ width:14, height:14, objectFit:'contain', borderRadius:2, flexShrink:0 }} alt="" />}
+                            {s.tipo==='partido'
+                              ? <span style={{overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{TIPO_ICONOS[s.tipo]} {s.rival ? `vs ${s.rival}` : formatMD(s.titulo||'Partido', s.tipo)}</span>
+                              : <span style={{overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{s.tipo !== 'descanso' && !((s.titulo||s.tipo).startsWith('MD')) ? TIPO_ICONOS[s.tipo] + ' ' : null}{formatMD(s.titulo||s.tipo, s.tipo)}</span>
+                            }
+                          </div>
+                          {(s.hora_inicio || s.objetivo) && (
+                            <div style={{ display:'flex', flexDirection:'column', alignItems:'center', marginTop:2, borderTop:'1px solid rgba(255,255,255,0.1)', paddingTop:2 }}>
+                              {s.hora_inicio && <span style={{ fontSize:9, color:'rgba(255,255,255,0.7)', lineHeight:1, fontWeight:600 }}>{s.hora_inicio.slice(0,5)}</span>}
+                              {s.objetivo && <span style={{ fontSize:8, color:'rgba(255,255,255,0.95)', lineHeight:1.1, fontWeight:800, textAlign:'center', marginTop:2, textTransform:'uppercase' }}>{s.objetivo}</span>}
+                            </div>
+                          )}
                         </div>
                       )})}
                       {parts.map((p,i)=>(
@@ -1895,12 +1902,20 @@ function CalendarioPanel({ teamData }) {
                       {ses.map(s=>{
                         const sProps = getSesionStyle(s, false);
                         return (
-                        <div key={s.id} onClick={e=>{e.stopPropagation();setEditSesion(s);setShowEditor(true)}} className={sProps.className} style={sProps.style}>
-                          {s.tipo==='partido' && s.rival_foto && <img src={s.rival_foto} style={{ width:14, height:14, objectFit:'contain', borderRadius:2, flexShrink:0 }} alt="" />}
-                          {s.tipo==='partido'
-                            ? <span>{TIPO_ICONOS[s.tipo]} {s.rival ? `vs ${s.rival}` : formatMD(s.titulo||'Partido', s.tipo)}</span>
-                            : <span>{s.tipo !== 'descanso' && !((s.titulo||s.tipo).startsWith('MD')) ? TIPO_ICONOS[s.tipo] + ' ' : null}{formatMD(s.titulo||s.tipo, s.tipo)}</span>
-                          }
+                        <div key={s.id} onClick={e=>{e.stopPropagation();setEditSesion(s);setShowEditor(true)}} className={sProps.className} style={{...sProps.style, flexDirection:'column', gap:0, padding:(s.hora_inicio || s.objetivo) ? '4px 6px' : sProps.style.padding, alignItems:'stretch', whiteSpace:'normal'}}>
+                          <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:4 }}>
+                            {s.tipo==='partido' && s.rival_foto && <img src={s.rival_foto} style={{ width:14, height:14, objectFit:'contain', borderRadius:2, flexShrink:0 }} alt="" />}
+                            {s.tipo==='partido'
+                              ? <span style={{overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{TIPO_ICONOS[s.tipo]} {s.rival ? `vs ${s.rival}` : formatMD(s.titulo||'Partido', s.tipo)}</span>
+                              : <span style={{overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{s.tipo !== 'descanso' && !((s.titulo||s.tipo).startsWith('MD')) ? TIPO_ICONOS[s.tipo] + ' ' : null}{formatMD(s.titulo||s.tipo, s.tipo)}</span>
+                            }
+                          </div>
+                          {(s.hora_inicio || s.objetivo) && (
+                            <div style={{ display:'flex', flexDirection:'column', alignItems:'center', marginTop:2, borderTop:'1px solid rgba(255,255,255,0.1)', paddingTop:2 }}>
+                              {s.hora_inicio && <span style={{ fontSize:9, color:'rgba(255,255,255,0.7)', lineHeight:1, fontWeight:600 }}>{s.hora_inicio.slice(0,5)}</span>}
+                              {s.objetivo && <span style={{ fontSize:8, color:'rgba(255,255,255,0.95)', lineHeight:1.1, fontWeight:800, textAlign:'center', marginTop:2, textTransform:'uppercase' }}>{s.objetivo}</span>}
+                            </div>
+                          )}
                         </div>
                       )})}
                       {parts.map((p,i)=>(
@@ -1949,13 +1964,21 @@ function CalendarioPanel({ teamData }) {
                     {ses.map(s=>{
                       const sProps = getSesionStyle(s, false)
                       return (
-                      <button key={s.id} onClick={()=>{setEditSesion(s);setShowEditor(true)}} className={sProps.className} style={{...sProps.style, fontSize:12, padding:'6px 12px'}}>
-                        {s.tipo==='partido' && s.rival_foto ? <img src={s.rival_foto} style={{ width:14, height:14, objectFit:'contain', borderRadius:2, verticalAlign:'middle', marginRight:4 }} alt="" /> : null}
-                        {s.tipo==='partido'
-                          ? <span>{TIPO_ICONOS[s.tipo]} {s.rival ? `vs ${s.rival}` : formatMD(s.titulo||'Partido', s.tipo)}</span>
-                          : <span>{s.tipo !== 'descanso' && !((s.titulo||s.tipo).startsWith('MD')) ? TIPO_ICONOS[s.tipo] + ' ' : null}{formatMD(s.titulo||s.tipo, s.tipo)}</span>
-                        }
-                        {s.hora_inicio?` · ${s.hora_inicio.slice(0,5)}`:''}
+                      <button key={s.id} onClick={()=>{setEditSesion(s);setShowEditor(true)}} className={sProps.className} style={{...sProps.style, fontSize:12, padding:(s.hora_inicio || s.objetivo)?'4px 12px':'6px 12px', flexDirection:'column', alignItems:'center', gap:2}}>
+                        <div style={{display:'flex', alignItems:'center', gap:4}}>
+                          {s.tipo==='partido' && s.rival_foto ? <img src={s.rival_foto} style={{ width:14, height:14, objectFit:'contain', borderRadius:2, verticalAlign:'middle', marginRight:4 }} alt="" /> : null}
+                          {s.tipo==='partido'
+                            ? <span>{TIPO_ICONOS[s.tipo]} {s.rival ? `vs ${s.rival}` : formatMD(s.titulo||'Partido', s.tipo)}</span>
+                            : <span>{s.tipo !== 'descanso' && !((s.titulo||s.tipo).startsWith('MD')) ? TIPO_ICONOS[s.tipo] + ' ' : null}{formatMD(s.titulo||s.tipo, s.tipo)}</span>
+                          }
+                        </div>
+                        {(s.hora_inicio || s.objetivo) && (
+                          <div style={{ display:'flex', alignItems:'center', gap:6, marginTop:2, borderTop:'1px solid rgba(255,255,255,0.1)', paddingTop:2, width:'100%', justifyContent:'center' }}>
+                            {s.hora_inicio && <span style={{ fontSize:10, color:'rgba(255,255,255,0.7)', fontWeight:600 }}>{s.hora_inicio.slice(0,5)}</span>}
+                            {s.hora_inicio && s.objetivo && <span style={{ color:'rgba(255,255,255,0.3)' }}>•</span>}
+                            {s.objetivo && <span style={{ fontSize:9, color:'rgba(255,255,255,0.95)', fontWeight:800, textTransform:'uppercase' }}>{s.objetivo}</span>}
+                          </div>
+                        )}
                       </button>
                     )})}
                     {parts.map((p,i)=>(
@@ -2475,8 +2498,8 @@ function BloqueMetodologia({ bloque, index, onChange, onRemove, onMoveUp, onMove
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10 }}>
         <span style={{ fontSize:11, fontWeight:700, color:'var(--lime)', textTransform:'uppercase', letterSpacing:'0.06em' }}>Tarea {index+1}</span>
         <div style={{ display:'flex', gap:6 }}>
-          {!isFirst && <button onClick={onMoveUp} style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:6, color:'var(--silver)', cursor:'pointer', padding:'2px 8px', fontSize:11 }}>↑</button>}
-          {!isLast && <button onClick={onMoveDown} style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:6, color:'var(--silver)', cursor:'pointer', padding:'2px 8px', fontSize:11 }}>↓</button>}
+          {!isFirst && <button onClick={onMoveUp} style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:6, color:'var(--silver)', cursor:'pointer', padding:'2px 8px', fontSize:11 }}>▲ Subir</button>}
+          {!isLast && <button onClick={onMoveDown} style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:6, color:'var(--silver)', cursor:'pointer', padding:'2px 8px', fontSize:11 }}>▼ Bajar</button>}
           <button onClick={onRemove} style={{ background:'rgba(239,68,68,.1)', border:'1px solid rgba(239,68,68,.25)', borderRadius:6, color:'#f87171', cursor:'pointer', padding:'2px 8px', fontSize:11 }}>✕</button>
         </div>
       </div>
@@ -2924,9 +2947,10 @@ function SesionEditor({ sesion, defaultFecha, rpeReal = 0, onSave, onDelete, onC
   const [saveError, setSaveError] = useState('')
   const set = (k,v) => setF(p=>({...p,[k]:v}))
 
-  function addBloque() { setBloques(b=>[...b, { ventana:'', subtareas:[], subtarea:'', jugadores:'', series:'', minutos:'', pausa:'', largo:'', ancho:'', descripcion:'Ejercicios:\nSeries:\nRep:\nDescanso:\n', imagen:'', atacantes:'', defensores:'', comodines:'', comodines_fuera_num:'', simultanea:false, rutinaGym:[] }]) }
+  function addBloque() { setBloques(b=>[...b, { _tempId: Date.now()+Math.random(), ventana:'', subtareas:[], subtarea:'', jugadores:'', series:'', minutos:'', pausa:'', largo:'', ancho:'', descripcion:'Ejercicios:\nSeries:\nRep:\nDescanso:\n', imagen:'', atacantes:'', defensores:'', comodines:'', comodines_fuera_num:'', simultanea:false, rutinaGym:[] }]) }
   function addBloqueFromBiblioteca(t: any) {
     const newBloque = {
+      _tempId: Date.now() + Math.random(),
       ventana: t.ventana || '',
       subtareas: Array.isArray(t.subtareas) ? t.subtareas : (t.subtarea ? [t.subtarea] : []),
       subtarea: Array.isArray(t.subtareas) ? t.subtareas.join(', ') : (t.subtarea || ''),
@@ -3170,7 +3194,7 @@ function SesionEditor({ sesion, defaultFecha, rpeReal = 0, onSave, onDelete, onC
         {bloques.length === 0 && !showBiblioteca && <p style={{ fontSize:12, color:'var(--fog)', padding:'8px 0' }}>Sin tareas. Usá "+ Tarea" para crear desde cero o "🎨 Mis Tareas" para elegir una guardada.</p>}
         {bloques.map((bl,i)=>(
           <BloqueMetodologia 
-            key={bl.id || i} 
+            key={bl.id || bl._tempId || i} 
             bloque={bl} 
             index={i} 
             onChange={(k,v)=>updateBloque(i,k,v)} 
