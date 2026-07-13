@@ -8455,6 +8455,99 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
           </div>
         )
       })()}
+
+      {/* ══ CUADRO 6: CONTROL DE INTENSIDAD RELATIVA (CALC) ══════════════════════════════════ */}
+      {(() => {
+        const trainingMds = mdCols.filter(md => md !== 'MD' && existingMdLabels.has(md) && Number(perSessionTeamAvg[md]?.minActivo) > 0)
+        if (!trainingMds.length) return null
+
+        const rows = trainingMds.map((md:string) => {
+          const avg = perSessionTeamAvg[md] || {}
+          const activeMin = Number(avg.minActivo) || 1
+          const dTotal = Number(avg.distTotal) || 0
+          const dSprint = Number(avg.distSprint) || 0
+          const nSprint = Number(avg.nSprints) || 0
+          const accel = (Number(avg.nAcel)||0) + (Number(avg.nAcel3)||0)
+          const decel = (Number(avg.nDecel)||0) + (Number(avg.nDecel3)||0)
+
+          return {
+            md,
+            metMin: dTotal / activeMin,
+            sprintMin: dSprint / activeMin,
+            nSprintMin: nSprint / activeMin,
+            acelDecelMin: (accel + decel) / activeMin
+          }
+        })
+
+        const maxMet = Math.max(...rows.map(r=>r.metMin), 1)
+        const maxSpr = Math.max(...rows.map(r=>r.sprintMin), 1)
+        const maxNSpr = Math.max(...rows.map(r=>r.nSprintMin), 1)
+        const maxAD = Math.max(...rows.map(r=>r.acelDecelMin), 1)
+        const BAR_H = 100
+
+        return (
+          <div style={{ background:'var(--ink2)', border:'1px solid rgba(168,85,247,.2)', borderRadius:16, overflow:'hidden', marginBottom:8, pageBreakBefore:'always', breakBefore:'page' }}>
+            <div style={{ padding:'10px 16px', borderBottom:'1px solid var(--mist)' }}>
+              <p style={{ fontSize:11, fontWeight:700, color:'#a855f7', textTransform:'uppercase', letterSpacing:'0.08em' }}>CUADRO 6 — CONTROL DE INTENSIDAD RELATIVA (/ MINUTO)</p>
+              <p style={{ fontSize:10, color:'var(--fog)', marginTop:2 }}>Métricas divididas por el tiempo activo de la sesión estimado en el diseño de tareas</p>
+            </div>
+            
+            <div style={{ overflowX:'auto' }}>
+              <table style={{ width:'100%', borderCollapse:'collapse', fontSize:11 }}>
+                <thead>
+                  <tr style={{ background:'rgba(168,85,247,.05)' }}>
+                    <th style={{ padding:'8px 14px', textAlign:'left', color:'var(--silver)', fontSize:9, fontWeight:700, textTransform:'uppercase' }}>MD</th>
+                    <th style={{ padding:'8px 10px', textAlign:'center', color:'#60a5fa', fontSize:9, fontWeight:700, textTransform:'uppercase' }}>Metros / min</th>
+                    <th style={{ padding:'8px 10px', textAlign:'center', color:'#f59e0b', fontSize:9, fontWeight:700, textTransform:'uppercase' }}>Dist. Sprint / min</th>
+                    <th style={{ padding:'8px 10px', textAlign:'center', color:'#ec4899', fontSize:9, fontWeight:700, textTransform:'uppercase' }}>Sprints / min</th>
+                    <th style={{ padding:'8px 10px', textAlign:'center', color:'#34d399', fontSize:9, fontWeight:700, textTransform:'uppercase' }}>Acel+Decel / min</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((r, i) => (
+                    <tr key={r.md} style={{ borderTop:'1px solid var(--mist)', background: i%2===0 ? 'transparent' : 'rgba(255,255,255,.015)' }}>
+                      <td style={{ padding:'7px 14px', color:'#a855f7', fontWeight:700, textAlign:'center' }}>{r.md}</td>
+                      <td style={{ padding:'7px 10px', textAlign:'center', fontFamily:'DM Mono,monospace', color:'#60a5fa' }}>{r.metMin.toFixed(1)}</td>
+                      <td style={{ padding:'7px 10px', textAlign:'center', fontFamily:'DM Mono,monospace', color:'#f59e0b' }}>{r.sprintMin.toFixed(2)}</td>
+                      <td style={{ padding:'7px 10px', textAlign:'center', fontFamily:'DM Mono,monospace', color:'#ec4899' }}>{r.nSprintMin.toFixed(3)}</td>
+                      <td style={{ padding:'7px 10px', textAlign:'center', fontFamily:'DM Mono,monospace', color:'#34d399' }}>{r.acelDecelMin.toFixed(2)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Gráficos */}
+            <div style={{ padding:16, borderTop:'1px solid var(--mist)' }}>
+              <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(200px,1fr))', gap:16 }}>
+                {[
+                  { title:'Metros / min', color:'#60a5fa', max:maxMet, val: (r:any)=>r.metMin, dec:1 },
+                  { title:'Dist. Sprint / min', color:'#f59e0b', max:maxSpr, val: (r:any)=>r.sprintMin, dec:2 },
+                  { title:'Sprints / min', color:'#ec4899', max:maxNSpr, val: (r:any)=>r.nSprintMin, dec:3 },
+                  { title:'Acel+Decel / min', color:'#34d399', max:maxAD, val: (r:any)=>r.acelDecelMin, dec:2 }
+                ].map(grp => (
+                  <div key={grp.title} style={{ background:'var(--ink3)', borderRadius:12, padding:14, border:`1px solid ${grp.color}30` }}>
+                    <div style={{ fontSize:11, fontWeight:800, color:grp.color, textTransform:'uppercase', letterSpacing:'0.08em', textAlign:'center', marginBottom:12, borderBottom:`1px solid ${grp.color}30`, paddingBottom:6 }}>{grp.title}</div>
+                    <div style={{ display:'flex', alignItems:'flex-end', justifyContent:'center', height:BAR_H, gap:4, position:'relative' }}>
+                      {rows.map((r,i) => {
+                        const v = grp.val(r)
+                        const h = Math.max((v/grp.max)*BAR_H, v>0?4:0)
+                        return (
+                          <div key={r.md} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'flex-end' }}>
+                            {v>0 && <span style={{ fontSize:8, fontFamily:'DM Mono,monospace', color:grp.color, marginBottom:2 }}>{v.toFixed(grp.dec)}</span>}
+                            <div style={{ width:'100%', maxWidth:24, height:`${h}px`, background:grp.color, borderRadius:'3px 3px 0 0', opacity: v>0?1:0.1 }} />
+                            <div style={{ fontSize:8, color:'var(--silver)', marginTop:4, fontWeight:700, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', maxWidth:'100%' }}>{r.md}</div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )
+      })()}
       </>)}
     </div>
   )
