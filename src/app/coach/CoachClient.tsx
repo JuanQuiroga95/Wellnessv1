@@ -1029,6 +1029,7 @@ function CambioCargaPanel() {
     { key:'uce',               label:'UCE',           color:'#f59e0b', src:'rpe' },
     { key:'rpe',               label:'RPE',           color:'#60a5fa', src:'rpe' },
     { key:'tiempo',            label:'Tiempo MIN',    color:'#34d399', src:'rpe' },
+    { key:'calc_mMin',         label:'m/min (Int. Rel.)', color:'#84cc16', src:'calc' },
     { key:'calc_nSprints',     label:'N Sprint',      color:'#a78bfa', src:'calc' },
     { key:'calc_nAcel',        label:'ACE >2 m',      color:'#ec4899', src:'calc' },
     { key:'calc_nDecel',       label:'DEC >2 m',      color:'#14b8a6', src:'calc' },
@@ -1224,7 +1225,7 @@ function CambioCargaPanel() {
       const SESSION_KEY_MAP: Record<string,string> = {
         distTotal: 'distTotal', distSprint: 'distSprint', nSprints: 'nSprints',
         nAcel: 'nAcel', nDecel: 'nDecel', distMP: 'distMP',
-        nAcel3: 'nAcel3', nDecel3: 'nDecel3',
+        nAcel3: 'nAcel3', nDecel3: 'nDecel3', mMin: 'mMin'
       }
       const sessionKey = SESSION_KEY_MAP[key]
       if (sessionKey) {
@@ -1501,7 +1502,7 @@ const OBJETIVOS_FISICOS = [
 const OBJETIVOS_SECUNDARIOS = ['Táctico','Técnico','Técnico-Táctico']
 const TITULOS_SESION = ['MD+1','MD+2','MD+3','MD-4','MD-3','MD-2','MD-1','MD']
 const TAREAS_PRINCIPALES = ['Activación en campo','Activación en gimnasio','Fuerza Estructural','Rueda de Pases','Rondo','Trabajo analítico','Juego de posesión','Juego de posición','Transiciones','Partido reducido','Partido modificado','Partido de entrenamiento','Partido amistoso','Partido oficial']
-const SUBTAREAS: Record<string, string[]> = { 'Activación en campo': ['Drill de velocidad','Drill de técnica','Drill de movilidad','Drill de pliometría','Circuito Protector','Circuito Neuromuscular'], 'Activación en gimnasio': ['Isométricos','Pliometría','Movilidad','Excéntricos','Estabilidad','Tracción y empuje','Trabajo Preventivo'], 'Rondo': ['Rondo 4v2','Rondo 5v2','Rondo 6v2','Rondo 8v2','Rondo 4v1+1','Rondo en movimiento','Rondo conservación','Rondo orientado','Rondo dos espacios'] }
+const SUBTAREAS: Record<string, string[]> = { 'Activación en campo': ['Drill de velocidad','Drill de técnica','Drill de movilidad','Drill de pliometría','Circuito Protector','Circuito Neuromuscular'], 'Activación en gimnasio': ['Isométricos','Pliometría','Movilidad','Excéntricos','Estabilidad','Tracción y empuje','Circuito Protector','Circuito Neuromuscular'], 'Rondo': ['Rondo 4v2','Rondo 5v2','Rondo 6v2','Rondo 8v2','Rondo 4v1+1','Rondo en movimiento','Rondo conservación','Rondo orientado','Rondo dos espacios'] }
 const TAREAS_CON_ESPACIO = ['Rueda de Pases','Rondo','Trabajo analítico','Juego de posesión','Juego de posición','Transiciones','Partido reducido','Partido modificado','Partido de entrenamiento','Partido amistoso','Partido oficial']
 const TAREAS_CON_EQUIPO = ['Rueda de Pases','Rondo','Trabajo analítico','Juego de posesión','Juego de posición','Transiciones','Partido reducido','Partido modificado','Partido de entrenamiento','Partido amistoso','Partido oficial']
 const TAREAS_PARTIDO_SIMPLE = ['Partido amistoso','Partido oficial','Partido de entrenamiento']
@@ -1847,8 +1848,8 @@ function CalendarioPanel({ teamData }) {
                         <div key={s.id} onClick={e=>{e.stopPropagation();setEditSesion(s);setShowEditor(true)}} style={{ display:'flex', alignItems:'center', gap:3, fontSize:10, padding:'2px 5px', borderRadius:4, background:`${TIPO_COLORES[s.tipo]||'#888'}22`, color:TIPO_COLORES[s.tipo]||'#888', border:`1px solid ${TIPO_COLORES[s.tipo]||'#888'}44`, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', cursor:'pointer' }}>
                           {s.tipo==='partido' && s.rival_foto && <img src={s.rival_foto} style={{ width:14, height:14, objectFit:'contain', borderRadius:2, flexShrink:0 }} alt="" />}
                           {s.tipo==='partido'
-                            ? <span>{TIPO_ICONOS[s.tipo]} {s.rival ? `vs ${s.rival}` : (s.titulo||'Partido')}</span>
-                            : <span>{TIPO_ICONOS[s.tipo]} {s.titulo||s.tipo}</span>
+                            ? <span>{TIPO_ICONOS[s.tipo]} {s.rival ? `vs ${s.rival}` : formatMD(s.titulo||'Partido')}</span>
+                            : <span>{TIPO_ICONOS[s.tipo]} {formatMD(s.titulo||s.tipo)}</span>
                           }
                         </div>
                       ))}
@@ -1968,6 +1969,12 @@ function CalendarioPanel({ teamData }) {
                     <div style={{ display:'flex', alignItems:'center', gap:4, fontSize:11, padding:'2px 10px', borderRadius:6, background:`${borgColLog}20`, color:borgColLog, border:`1px solid ${borgColLog}44`, fontWeight:700 }}>
                       RPE medio: <span style={{ fontSize:14 }}>{rpeLog % 1 === 0 ? rpeLog : rpeLog.toFixed(1)}</span>
                       <span style={{ fontSize:8, opacity:.7 }}>({log.n || ''} resp.)</span>
+                      <button onClick={async () => {
+                        if (confirm('¿Eliminar todos los RPE de este día?')) {
+                          await fetch(`/api/logs?fecha=${selectedDay}`, { method: 'DELETE' });
+                          await load();
+                        }
+                      }} style={{ background:'transparent', border:'none', color:'#ef4444', cursor:'pointer', padding:'0 0 0 6px', fontSize:12, opacity:0.8 }} title="Eliminar RPE del día">✕</button>
                     </div>
                   )}
                 </div>
@@ -2571,7 +2578,7 @@ function BloqueMetodologia({ bloque, index, onChange, onRemove, teamPlayers = []
         </div>
       )}
 
-      {(bloque.ventana === 'Activación en gimnasio' || bloque.ventana === 'Fuerza Estructural') && (
+      {(bloque.ventana === 'Activación en gimnasio' || bloque.ventana === 'Fuerza Estructural' || bloque.ventana === 'Activación en campo') && (
         <div style={{ marginBottom: 12, padding:'10px', background:'rgba(255,255,255,.02)', borderRadius:8, border:'1px dashed rgba(255,255,255,.1)' }}>
           <label style={{ fontSize:10, fontWeight:700, color:'var(--lime)', textTransform:'uppercase', letterSpacing:'0.06em', display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
             <span>Rutina de Ejercicios</span>

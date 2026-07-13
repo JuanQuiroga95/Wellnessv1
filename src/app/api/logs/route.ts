@@ -152,3 +152,27 @@ export async function PATCH(req: NextRequest) {
     RETURNING id, fecha::text, carga_ua::int, duracion_min::int, rpe::int`
   return NextResponse.json(r)
 }
+
+export async function DELETE(req: NextRequest) {
+  const s = await getSessionFromRequest(req)
+  if (!s || !isAdmin(s)) return NextResponse.json({ error: 'Solo el Coach puede eliminar' }, { status: 403 })
+
+  const { searchParams } = new URL(req.url)
+  const fecha = searchParams.get('fecha')
+  const id = sanitizeInt(searchParams.get('id'), 1, 9999999)
+
+  const sql = getDb()
+  const clubId = s.clubId ? Number(s.clubId) : null
+
+  if (id) {
+    await sql`DELETE FROM entrenamiento_logs WHERE id = ${id} AND club_id = ${clubId}`
+    return NextResponse.json({ success: true })
+  }
+
+  if (fecha) {
+    await sql`DELETE FROM entrenamiento_logs WHERE fecha = ${fecha} AND club_id = ${clubId}`
+    return NextResponse.json({ success: true })
+  }
+
+  return NextResponse.json({ error: 'Falta fecha o id' }, { status: 400 })
+}
