@@ -1,5 +1,5 @@
-'use client'
-import { useState } from 'react'
+﻿'use client'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Topbar from '@/components/ui/Topbar'
 import WellnessForm from '@/components/forms/WellnessForm'
