@@ -84,10 +84,7 @@ export default function CanchasPanel(){
   // Load Leaflet CSS + JS
   useEffect(()=>{
     if(typeof window==='undefined')return
-    if(document.getElementById('leaflet-css'))return setLoaded(true)
-    const css=document.createElement('link');css.id='leaflet-css';css.rel='stylesheet';css.href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';document.head.appendChild(css)
-    const js=document.createElement('script');js.id='leaflet-js';js.src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'
-    js.onload=()=>setLoaded(true);document.head.appendChild(js)
+    setLoaded(true)
   },[])
 
   // Init map
@@ -366,10 +363,13 @@ export default function CanchasPanel(){
   return(
     <div style={{display:'flex',flexDirection:'column',gap:16}}>
       <div className="anim-up" style={{display:'flex',alignItems:'center',justifyContent:'space-between',flexWrap:'wrap',gap:10}}>
-        <div>
-          <h2 className="display" style={{fontSize:48,color:'var(--snow)'}}>ESTADIOS</h2>
-          <p style={{fontSize:12,color:'var(--silver)',marginTop:2}}>Buscador de estadios · Medidas y dimensiones</p>
-        </div>
+        <PanelHeader 
+          icon={Icons.estadio} 
+          title="ESTADIOS" 
+          subtitle="INSTALACIONES" 
+          description="Buscador de estadios · Medidas y dimensiones" 
+          color="#a855f7" 
+        />
         <div style={{display:'flex',gap:6}}>
           {(['buscar','guardadas'] as const).map(t=>(
             <button key={t} onClick={()=>{

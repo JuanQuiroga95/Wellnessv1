@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
+import { PanelHeader, Icons } from './Headers'
 
 const STATUS_COLOR: Record<string,string> = { optimo:'#22c55e', precaucion:'#f59e0b', peligro:'#ef4444', peligro_bajo:'#3b82f6', sin_datos:'#555' }
 const STATUS_LABEL: Record<string,string> = { optimo:'ÓPTIMO', precaucion:'PRECAUCIÓN', peligro:'RIESGO ALTO', peligro_bajo:'CARGA BAJA', sin_datos:'Sin datos' }
@@ -134,10 +135,13 @@ export default function VinculacionesPanel({ teamData }: { teamData: any[] }) {
     <div style={{display:'flex',flexDirection:'column',gap:16}}>
       {/* Header */}
       <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',flexWrap:'wrap',gap:10}}>
-        <div>
-          <h2 className="display" style={{fontSize:48,color:'var(--snow)',margin:0}}>ACWR</h2>
-          <p style={{fontSize:12,color:'var(--silver)',marginTop:2}}>Análisis causal · Lesión ↔ Pico de Carga</p>
-        </div>
+        <PanelHeader 
+          icon={Icons.balanza} 
+          title="ACWR" 
+          subtitle="MÉTRICAS" 
+          description="Análisis causal · Lesión ↔ Pico de Carga" 
+          color="#a855f7" 
+        />
         <div style={{display:'flex',gap:6}}>
           {(['timeline','equipo'] as const).map(t=>(
             <button key={t} onClick={()=>setSubtab(t)} style={{...C.btnGhost, background:subtab===t?'rgba(200,241,53,.1)':'transparent', color:subtab===t?'var(--lime)':'var(--silver)', borderColor:subtab===t?'rgba(200,241,53,.3)':'var(--fog)', fontWeight:subtab===t?700:500}}>

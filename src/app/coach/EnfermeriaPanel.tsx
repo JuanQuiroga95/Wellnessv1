@@ -1,5 +1,7 @@
 'use client'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useMemo } from 'react'
+import { Calendar, CheckCircle2, ChevronRight, Activity, X } from 'lucide-react'
+import { PanelHeader, Icons } from './Headers'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const FASES = [
@@ -176,10 +178,13 @@ export default function EnfermeriaPanel({ teamData, onRefresh }: { teamData: any
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
-        <div>
-          <h2 className="display" style={{ fontSize: 44, color: 'var(--snow)', margin: 0 }}>ENFERMERÍA</h2>
-          <p style={{ fontSize: 12, color: 'var(--silver)', marginTop: 2 }}>Dpto. Médico · Control y seguimiento de lesiones</p>
-        </div>
+        <PanelHeader 
+          icon={Icons.medico} 
+          title="ENFERMERÍA" 
+          subtitle="MÉDICO" 
+          description="Dpto. Médico · Control y seguimiento de lesiones" 
+          color="#a855f7" 
+        />
       </div>
 
       {/* Sub-tabs */}

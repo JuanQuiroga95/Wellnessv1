@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, ReferenceLine, PieChart, Pie, Legend, LineChart, Line, AreaChart, Area } from 'recharts'
+import { PanelHeader, Icons } from './Headers'
 
 // ── Readiness logic ─────────────────────────────────────────────────────────
 function readiness(total) {
@@ -365,10 +366,13 @@ export default function AnalyticsPanel() {
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', flexWrap:'wrap', gap:12 }}>
-        <div>
-          <h2 className="display" style={{ fontSize:48, color:'var(--snow)' }}>ANALYTICS</h2>
-          <p style={{ fontSize:12, color:'var(--silver)', marginTop:2 }}>Readiness · Scatter Plots · Acumulado</p>
-        </div>
+        <PanelHeader 
+          icon={Icons.metricas} 
+          title="ANALYTICS" 
+          subtitle="MÉTRICAS" 
+          description="Readiness · Scatter Plots · Acumulado" 
+          color="#a855f7" 
+        />
         <div style={{ display:'flex', gap:8, alignItems:'center', flexWrap:'wrap' }}>
           <div style={{ display:'flex', alignItems:'center', gap:6 }}>
             <label style={{ fontSize:10, color:'var(--silver)', fontFamily:'DM Mono,monospace' }}>DESDE</label>

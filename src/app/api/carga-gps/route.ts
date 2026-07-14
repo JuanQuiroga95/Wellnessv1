@@ -247,7 +247,23 @@ export async function GET(req: NextRequest) {
       }))
       const ce_total = bloques.reduce((s, b) => s + b.ce, 0)
       const rpe_obj = Number(ses.rpe_objetivo) || 0
-      cePerSession[label] = { fecha: ses.fecha, rpe_objetivo: rpe_obj, ce_total, uce_total: rpe_obj > 0 ? Math.round(ce_total * rpe_obj) : 0, bloques }
+      const uce_total = rpe_obj > 0 ? Math.round(ce_total * rpe_obj) : 0
+      if (cePerSession[label]) {
+        cePerSession[label].ce_total += ce_total
+        cePerSession[label].uce_total += uce_total
+        cePerSession[label].rpe_objetivo = Math.max(cePerSession[label].rpe_objetivo, rpe_obj)
+        for (const b of bloques) {
+          const ex = cePerSession[label].bloques.find((x:any) => x.ventana === b.ventana)
+          if (ex) {
+            ex.minTotal += b.minTotal
+            ex.ce += b.ce
+          } else {
+            cePerSession[label].bloques.push(b)
+          }
+        }
+      } else {
+        cePerSession[label] = { fecha: ses.fecha, rpe_objetivo: rpe_obj, ce_total, uce_total, bloques }
+      }
     }
 
     const rpeByPlayerDate: Record<string, any> = {}

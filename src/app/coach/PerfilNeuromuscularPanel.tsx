@@ -1,6 +1,6 @@
-'use client'
 import { useState, useEffect } from 'react'
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, LineChart, CartesianGrid, XAxis, YAxis, Legend, Line, AreaChart, Area, BarChart, Bar } from 'recharts'
+import { PanelHeader, Icons } from './Headers'
 
 export default function PerfilNeuromuscularPanel() {
   const [data, setData] = useState<any>(null)
@@ -48,10 +48,13 @@ export default function PerfilNeuromuscularPanel() {
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', flexWrap:'wrap', gap:12 }}>
-        <div>
-          <h2 className="display" style={{ fontSize:48, color:'var(--snow)' }}>PERFIL NEUROMUSCULAR</h2>
-          <p style={{ fontSize:12, color:'var(--silver)', marginTop:2 }}>Balance Neuromuscular · Control de Cargas</p>
-        </div>
+        <PanelHeader 
+          icon={Icons.neuromuscular} 
+          title="PERFIL NEUROMUSCULAR" 
+          subtitle="MÉTRICAS" 
+          description="Balance Neuromuscular · Control de Cargas" 
+          color="#a855f7" 
+        />
         <div style={{ display:'flex', gap:8, alignItems:'center', flexWrap:'wrap' }}>
           <div style={{ display:'flex', alignItems:'center', gap:6 }}>
             <label style={{ fontSize:10, color:'var(--silver)', fontFamily:'DM Mono,monospace' }}>PARTIDOS BASE (MD PROM)</label>

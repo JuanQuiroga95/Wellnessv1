@@ -15,6 +15,7 @@ import TacticalBoard, { TacticalPreview } from './TacticalBoard'
 import CanchasPanel from './CanchasPanel'
 import VinculacionesPanel from './VinculacionesPanel'
 import PushNotificationManager, { PushToggle } from '@/components/ui/PushNotificationManager'
+import { PanelHeader, CuadroHeader, Icons } from './Headers'
 
 // ─── GPS METRIC METADATA (shared between GpsPanel and CargaExternaPanel) ──────
 // Maps metric key → { label, unit, group } for display purposes
@@ -209,6 +210,7 @@ export default function CoachClient({ session, teamData, today }) {
   const [teamName, setTeamName] = useState<string>('PLANTEL')
   const [editingTeamName, setEditingTeamName] = useState(false)
   const [teamNameDraft, setTeamNameDraft] = useState<string>('PLANTEL')
+  const [playerSearch, setPlayerSearch] = useState('')
   const [ciclo, setCiclo] = useState<'microciclo'|'mesociclo'|'macrociclo'>('microciclo')
   const router = useRouter()
 
@@ -255,14 +257,15 @@ export default function CoachClient({ session, teamData, today }) {
     setPlayerLogs(logs); setPlayerWellness(well); setLoadingDetail(false)
   }
 
-  const available = teamData.filter(p=>!p.lesion && p.entrena_grupo!==false)
-  const unavailable = teamData.filter(p=>p.entrena_grupo===false && !p.lesion)
-  const injured = teamData.filter(p=>p.lesion)
-  const responded = teamData.filter(p=>p.respondedToday)
-  const pending = teamData.filter(p=>!p.respondedToday)
-  const atRisk = teamData.filter(p=>p.acwr?.status==='peligro').length
-  const caution = teamData.filter(p=>p.acwr?.status==='precaucion').length
-  const optimal = teamData.filter(p=>p.acwr?.status==='optimo').length
+  const filteredTeamData = playerSearch.trim() ? teamData.filter((p: any) => p.nombre.toLowerCase().includes(playerSearch.toLowerCase())) : teamData
+  const available = filteredTeamData.filter(p=>!p.lesion && p.entrena_grupo!==false)
+  const unavailable = filteredTeamData.filter(p=>p.entrena_grupo===false && !p.lesion)
+  const injured = filteredTeamData.filter(p=>p.lesion)
+  const responded = filteredTeamData.filter(p=>p.respondedToday)
+  const pending = filteredTeamData.filter(p=>!p.respondedToday)
+  const atRisk = filteredTeamData.filter(p=>p.acwr?.status==='peligro').length
+  const caution = filteredTeamData.filter(p=>p.acwr?.status==='precaucion').length
+  const optimal = filteredTeamData.filter(p=>p.acwr?.status==='optimo').length
 
   const byPos = {}
   for (const p of available) {
@@ -414,7 +417,7 @@ export default function CoachClient({ session, teamData, today }) {
                     r.readAsDataURL(f)
                   }} />
                 </label>
-                <div>
+                <div style={{ flex: 1 }}>
                   {editingTeamName ? (
                     <div style={{ display:'flex', alignItems:'center', gap:8 }}>
                       <input
@@ -429,12 +432,37 @@ export default function CoachClient({ session, teamData, today }) {
                     </div>
                   ) : (
                     <div style={{ display:'flex', alignItems:'center', gap:8, cursor:'pointer' }} onClick={()=>{ setTeamNameDraft(teamName); setEditingTeamName(true) }}>
-                      <h2 className="display" style={{ fontSize:32, color:'var(--snow)' }}>{teamName}</h2>
+                      <PanelHeader 
+                        icon={Icons.equipo} 
+                        title={teamName} 
+                        subtitle="PROFESIONAL" 
+                        color="#a855f7" 
+                      />
                       <span style={{ fontSize:11, color:'var(--fog)', marginTop:4 }} title="Editar nombre del equipo">✏️</span>
                     </div>
                   )}
-                  <p style={{ fontSize:11, color:'var(--silver)', marginTop:2 }}>Por posición · {today}</p>
+                  
+                  <div style={{ display: 'flex', gap: 16, marginTop: 10 }}>
+                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                      <span style={{ fontSize: 10, color: 'var(--fog)', textTransform: 'uppercase', fontWeight: 700 }}>Promedio Edad</span>
+                      <span style={{ fontSize: 14, color: 'var(--snow)', fontWeight: 600 }}>
+                        {teamData.length ? Math.round(teamData.reduce((acc: number, p: any) => acc + (Number(p.edad)||0), 0) / teamData.filter((p: any) => p.edad).length || 0) : 0} años
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                      <span style={{ fontSize: 10, color: 'var(--fog)', textTransform: 'uppercase', fontWeight: 700 }}>Promedio Estatura</span>
+                      <span style={{ fontSize: 14, color: 'var(--snow)', fontWeight: 600 }}>
+                        {teamData.length ? Math.round(teamData.reduce((acc: number, p: any) => acc + (Number(p.estatura_cm)||0), 0) / teamData.filter((p: any) => p.estatura_cm).length || 0) : 0} cm
+                      </span>
+                    </div>
+                  </div>
+                  
+                  <p style={{ fontSize:11, color:'var(--silver)', marginTop:8 }}>Por posición · {today}</p>
                 </div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', background: 'var(--ink2)', border: '1px solid var(--mist)', borderRadius: 10, padding: '6px 12px', width: 220 }}>
+                <span style={{ color: 'var(--fog)', marginRight: 8 }}>🔍</span>
+                <input type="text" placeholder="Buscar jugador..." value={playerSearch} onChange={e => setPlayerSearch(e.target.value)} style={{ background: 'transparent', border: 'none', outline: 'none', color: 'var(--snow)', fontSize: 13, width: '100%' }} />
               </div>
             </div>
             {Object.keys(byPos).sort((a,b)=>Number(a)-Number(b)).map(posKey=>(
@@ -469,7 +497,7 @@ export default function CoachClient({ session, teamData, today }) {
                 </div>
               </div>
             )}
-            {teamData.length===0 && <div style={{ textAlign:'center', padding:'48px 20px', color:'var(--silver)', fontSize:14 }}>Sin jugadores. Creá uno en "Jugadores".</div>}
+            {filteredTeamData.length===0 && <div style={{ textAlign:'center', padding:'48px 20px', color:'var(--silver)', fontSize:14 }}>Sin jugadores.</div>}
           </div>
         )}
 
@@ -502,7 +530,16 @@ export default function CoachClient({ session, teamData, today }) {
         {tab==='players' && (
           <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
             <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:10 }}>
-              <h2 className="display" style={{ fontSize:48, color:'var(--snow)' }}>JUGADORES</h2>
+              <PanelHeader 
+                icon={Icons.planificacion} 
+                title="JUGADORES" 
+                subtitle="ADMINISTRAR" 
+                color="#a855f7" 
+              />
+              <div style={{ display: 'flex', alignItems: 'center', background: 'var(--ink2)', border: '1px solid var(--mist)', borderRadius: 10, padding: '6px 12px', width: 220 }}>
+                <span style={{ color: 'var(--fog)', marginRight: 8 }}>🔍</span>
+                <input type="text" placeholder="Buscar jugador..." value={playerSearch} onChange={e => setPlayerSearch(e.target.value)} style={{ background: 'transparent', border: 'none', outline: 'none', color: 'var(--snow)', fontSize: 13, width: '100%' }} />
+              </div>
               <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
                 <a href="/api/players/template" download="plantilla_jugadores.xlsx"
                   style={{ display:'inline-flex', alignItems:'center', gap:7, fontSize:13, padding:'10px 18px', borderRadius:10, background:'rgba(200,241,53,.08)', border:'1px solid rgba(200,241,53,.25)', color:'var(--lime)', textDecoration:'none', fontWeight:600, cursor:'pointer' }}>
@@ -518,9 +555,9 @@ export default function CoachClient({ session, teamData, today }) {
             {showImport && <BulkImportPanel onSuccess={()=>{ setShowImport(false); router.refresh() }} onCancel={()=>setShowImport(false)} />}
             {showNew && <NewPlayerForm onSuccess={()=>{ setShowNew(false); router.refresh() }} onCancel={()=>setShowNew(false)} />}
             <div style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:16, overflow:'hidden' }}>
-              {teamData.length===0
+              {filteredTeamData.length===0
                 ? <div style={{ padding:'40px 20px', textAlign:'center', color:'var(--silver)', fontSize:14 }}>No hay jugadores.</div>
-                : teamData.map((p,i)=><ManageRow key={p.id} player={p} last={i===teamData.length-1} onRefresh={()=>router.refresh()} />)
+                : filteredTeamData.map((p: any, i: number) => <ManageRow key={p.id} player={p} last={i===filteredTeamData.length-1} onRefresh={()=>router.refresh()} />)
               }
             </div>
           </div>
@@ -539,10 +576,18 @@ function PlayerRow({ player:p, last, onOpen, isInjured }) {
       onMouseEnter={e=>e.currentTarget.style.background='var(--ink3)'}
       onMouseLeave={e=>e.currentTarget.style.background='transparent'}
     >
-      {isInjured
-        ? <span style={{ fontSize:14, flexShrink:0 }}>🏥</span>
-        : <div style={{ width:8, height:8, borderRadius:'50%', flexShrink:0, background:p.respondedToday?'#22c55e':'#ef4444' }} />
-      }
+      <div style={{ position: 'relative', flexShrink: 0 }}>
+        <div style={{ width: 40, height: 40, borderRadius: '50%', overflow: 'hidden', background: 'var(--mist)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: 'var(--silver)', border: '1px solid var(--fog)' }}>
+          {p.foto_url
+            ? <img src={p.foto_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt=""/>
+            : (p.nombre||'').split(' ').map((w: string)=>w[0]).slice(0,2).join('')
+          }
+        </div>
+        {isInjured
+          ? <span style={{ position: 'absolute', bottom: -4, right: -4, fontSize: 14 }}>🏥</span>
+          : <div style={{ position: 'absolute', bottom: 0, right: -2, width: 10, height: 10, borderRadius: '50%', background: p.respondedToday ? '#22c55e' : '#ef4444', border: '2px solid var(--ink2)' }} />
+        }
+      </div>
       <div style={{ flex:1, minWidth:0 }}>
         <div style={{ fontWeight:500, fontSize:14, color:isInjured?'#f87171':'var(--snow)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{p.nombre}</div>
         <div style={{ fontSize:11, color:'var(--silver)', marginTop:1 }}>
@@ -1316,10 +1361,13 @@ function CambioCargaPanel() {
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
       <div>
-        <h2 className="display" style={{ fontSize:48, color:'var(--snow)' }}>CAMBIO DE CARGA</h2>
-        <p style={{ fontSize:12, color:'var(--silver)', marginTop:2 }}>
-          Variación de UCE acumulada — jugadores con ≥{minEnt}min entrenamiento y ≥{minPart}min en partido
-        </p>
+        <PanelHeader 
+          icon={Icons.velocimetro} 
+          title="CAMBIO DE CARGA" 
+          subtitle="CONTROL" 
+          description={`Variación de UCE acumulada — jugadores con ≥${minEnt}min entrenamiento y ≥${minPart}min en partido`}
+          color="#a855f7" 
+        />
       </div>
 
       {/* Filters */}
@@ -1522,6 +1570,7 @@ function CambioCargaPanel() {
 const OBJETIVOS_FISICOS = [
   'Introducción Aerobica',
   'Fuerza - Tensión',
+  'Fuerza - Resistencia',
   'Resistencia - Duración',
   'Equilibrio - Regeneración',
   'Velocidad - Tappering',
@@ -1762,8 +1811,13 @@ function CalendarioPanel({ teamData }) {
       {/* Header */}
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', flexWrap:'wrap', gap:12 }}>
         <div>
-          <h2 className="display" style={{ fontSize:48, color:'var(--snow)' }}>CALENDARIO</h2>
-          <p style={{ fontSize:12, color:'var(--silver)', marginTop:2 }}>Planificación de sesiones y recuperación</p>
+          <PanelHeader 
+            icon={Icons.planificacion} 
+            title="PLANIFICACIÓN" 
+            subtitle="MENSUAL" 
+            description="Planificación de sesiones y recuperación"
+            color="#a855f7" 
+          />
         </div>
         <div style={{ display:'flex', gap:8, alignItems:'center' }}>
           <button onClick={async()=>{
@@ -3460,7 +3514,15 @@ function MinutosPanel({ teamData }) {
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', flexWrap:'wrap', gap:12 }}>
-        <div><h2 className="display" style={{ fontSize:48, color:'var(--snow)' }}>MINUTAJE</h2><p style={{ fontSize:12, color:'var(--silver)', marginTop:2 }}>Entrenamiento vs. competición</p></div>
+        <div>
+          <PanelHeader 
+            icon={Icons.reloj} 
+            title="MINUTAJE" 
+            subtitle="COMPETICIÓN" 
+            description="Entrenamiento vs. competición"
+            color="#a855f7" 
+          />
+        </div>
         <button className="btn-lime" onClick={()=>setShowAdd(true)} style={{ fontSize:12, padding:'10px 18px' }}>+ Registrar partido</button>
       </div>
       <div style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:14, padding:16 }}>
@@ -5003,7 +5065,10 @@ function LesionesPanel({ teamData, onRefresh }) {
     <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', flexWrap:'wrap', gap:12 }}>
         <div>
-          <h2 className="display" style={{ fontSize:48, color:'var(--snow)' }}>ENFERMERÍA</h2>
+          <div style={{ marginBottom: 0 }}>
+            <h2 style={{ fontSize: 36, fontWeight: 900, fontStyle: 'italic', color: 'var(--snow)', textTransform: 'uppercase', margin: 0, lineHeight: 1.1 }}>ENFERMERÍA</h2>
+            <h3 style={{ fontSize: 22, fontWeight: 900, fontStyle: 'italic', color: '#a855f7', textTransform: 'uppercase', margin: 0, letterSpacing: '0.05em' }}>MÉDICO</h3>
+          </div>
           <p style={{ fontSize:12, color:'var(--silver)', marginTop:2 }}>Registro y historial de lesiones del plantel</p>
         </div>
         <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
@@ -5909,8 +5974,13 @@ function ReadinessPanel({ teamData }) {
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
       <div>
-        <h2 className="display" style={{ fontSize:48, color:'var(--snow)' }}>READINESS</h2>
-        <p style={{ fontSize:12, color:'var(--silver)', marginTop:2 }}>Bienestar y estado de carga del plantel</p>
+        <PanelHeader 
+          icon={Icons.bateria} 
+          title="READINESS" 
+          subtitle="WELLNESS" 
+          description="Bienestar y estado de carga del plantel"
+          color="#a855f7" 
+        />
       </div>
 
       {/* Today readiness table */}
@@ -8342,8 +8412,13 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
       {/* ══ CUADRO 3: PROMEDIO POR MD + gráficos agrupados ══════════════ */}
       <div style={{ background:'var(--ink2)', border:'1px solid rgba(168,85,247,.2)', borderRadius:16, overflow:'hidden', marginBottom:20 }}>
         <div style={{ padding:'10px 16px', borderBottom:'1px solid var(--mist)' }}>
-          <p style={{ fontSize:11, fontWeight:700, color:'#a78bfa', textTransform:'uppercase', letterSpacing:'0.08em' }}>CUADRO 3 · PROMEDIO POR MD · MD+1 → MD</p>
-          <p style={{ fontSize:10, color:'var(--fog)', marginTop:2 }}>Promedio del equipo en cada sesión del microciclo · con gráfico agrupado</p>
+          <CuadroHeader 
+            icon={Icons.calculadora} 
+            cuadroNum="3" 
+            title="TOTALES EQUIPO POR MD (GPS REAL)" 
+            description="Suma total del equipo (promedio × nº jugadores con datos) en cada sesión" 
+            color="#a78bfa" 
+          />
         </div>
         {existingMdLabels.size === 0 ? (
           <div style={{ padding:24, textAlign:'center', color:'var(--fog)', fontSize:12 }}>Sin sesiones con MD asignado en este período. Asigná MD en el Calendario.</div>
@@ -8384,14 +8459,14 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
 
       {/* ══ CUADRO 4: % vs MEDIA 3 PARTIDOS ═════════════════════════════ */}
       <div style={{ background:'var(--ink2)', border:'1px solid rgba(239,68,68,.2)', borderRadius:16, overflow:'hidden', marginBottom:8 }}>
-        <div style={{ padding:'10px 16px', borderBottom:'1px solid var(--mist)', display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:8 }}>
-          <div>
-            <p style={{ fontSize:11, fontWeight:700, color:'#f87171', textTransform:'uppercase', letterSpacing:'0.08em' }}>CUADRO 4 · % SOBRE EL PARTIDO (= 100%)</p>
-            <p style={{ fontSize:10, color:'var(--fog)', marginTop:2 }}>Media de 3 partidos de referencia → objetivo: 100% en cada variable por sesión</p>
-          </div>
-          <button onClick={()=>setShowRefInput(!showRefInput)} style={{ fontSize:11, padding:'6px 14px', borderRadius:8, background:'rgba(239,68,68,.1)', color:'#f87171', border:'1px solid rgba(239,68,68,.3)', cursor:'pointer' }}>
-            {showRefInput?'▲ Ocultar partidos':'▼ Ingresar 3 partidos'}
-          </button>
+        <div style={{ padding:'10px 16px', borderBottom:'1px solid var(--mist)' }}>
+          <CuadroHeader 
+            icon={Icons.porcentaje} 
+            cuadroNum="4" 
+            title="% SOBRE EL PARTIDO GPS (= 100%)" 
+            description="Media de 3 partidos de referencia = objetivo 100% por variable" 
+            color="#f87171" 
+          />
         </div>
         {showRefInput && (
           <div style={{ padding:16, borderBottom:'1px solid var(--mist)', background:'rgba(239,68,68,.03)' }}>
@@ -8623,8 +8698,13 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
         return (
           <div style={{ background:'var(--ink2)', border:'1px solid rgba(168,85,247,.2)', borderRadius:16, overflow:'hidden', marginBottom:8, pageBreakBefore:'always', breakBefore:'page' }}>
             <div style={{ padding:'10px 16px', borderBottom:'1px solid var(--mist)' }}>
-              <p style={{ fontSize:11, fontWeight:700, color:'#a855f7', textTransform:'uppercase', letterSpacing:'0.08em' }}>CUADRO 6 — CONTROL DE INTENSIDAD RELATIVA (/ MINUTO)</p>
-              <p style={{ fontSize:10, color:'var(--fog)', marginTop:2 }}>Métricas divididas por el tiempo activo de la sesión estimado en el diseño de tareas</p>
+              <CuadroHeader 
+                icon={Icons.velocimetro} 
+                cuadroNum="6" 
+                title="CONTROL DE INTENSIDAD RELATIVA (/ MINUTO)" 
+                description="Métricas divididas por el tiempo total (o activo) de la sesión en cada MD" 
+                color="#a855f7" 
+              />
             </div>
             
             <div style={{ overflowX:'auto' }}>
@@ -9420,8 +9500,13 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
       {/* ══ CUADRO 1: Por MD — datos REALES por jugador ════════════════════ */}
       <div style={{ marginBottom:20, pageBreakBefore:'auto', breakBefore:'auto' }}>
         <div style={{ padding:'10px 0 12px' }}>
-          <p style={{ fontSize:11, fontWeight:700, color:'#60a5fa', textTransform:'uppercase', letterSpacing:'0.08em' }}>CUADRO 1 · GPS REAL POR SESIÓN · MD+1 → MD</p>
-          <p style={{ fontSize:10, color:'var(--fog)', marginTop:2 }}>Datos reales individuales por jugador en cada sesión del microciclo</p>
+          <CuadroHeader 
+            icon={Icons.equipo} 
+            cuadroNum="1" 
+            title="GPS REAL POR SESIÓN – MD+1 ➔ MD" 
+            description="Datos reales individuales por jugador en cada sesión del microciclo" 
+            color="#60a5fa" 
+          />
         </div>
         {/* GPS por fecha (sin sesion_id asignado) — GPS data not linked to a planned session */}
         {(() => {
