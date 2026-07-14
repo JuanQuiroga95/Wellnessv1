@@ -7679,8 +7679,8 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
   ]
 
   const GRUPOS = [
-    { label:'DT + Mts/min',             vars: ['distTotal'],   colors:['#f59e0b'], lineVar:'minActivo', lineColor:'#34d399', lineLabel:'Tiempo (min)' },
-    { label:'Dist. Sprint + Nº Sprint', vars: ['distSprint','nSprints'],   colors:['#f97316','#a78bfa'], lineVar:null },
+    { label:'DT (m) / Minutos',         vars: ['distTotal'],   colors:['#f59e0b'], lineVar:'minActivo', lineColor:'#34d399', lineLabel:'Tiempo (min)' },
+    { label:'Dist. Sprint + Nº Sprint', vars: ['distSprint'],   colors:['#f97316'], lineVar:'nSprints', lineColor:'#a78bfa', lineLabel:'Nº Sprints' },
     { label:'Acc >2 + Dec >2',          vars: ['nAcel','nDecel'],          colors:['#ec4899','#14b8a6'], lineVar:null },
     { label:'Acc >3 + Dec >3',          vars: ['nAcel3','nDecel3'],        colors:['#f43f5e','#0ea5e9'], lineVar:null },
     { label:'Alta Potencia',            vars: ['distMP'],                  colors:['#fbbf24'], lineVar:null },
