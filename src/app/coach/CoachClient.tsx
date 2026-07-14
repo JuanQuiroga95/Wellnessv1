@@ -1716,10 +1716,15 @@ function CalendarioPanel({ teamData }) {
       hasta = localDateStr(we)
     }
     try {
-      const r = await fetch(`/api/calendario?desde=${desde}&hasta=${hasta}`)
-      setData(await r.json())
-      const rc = await fetch('/api/canchas')
-      const dc = await rc.json()
+      const [rc, rg] = await Promise.all([
+        fetch(`/api/calendario?desde=${desde}&hasta=${hasta}`),
+        fetch(`/api/carga-gps?desde=${desde}&hasta=${hasta}&ciclo=microciclo`)
+      ])
+      const calendData = await rc.json()
+      const gpsData = await rg.json().catch(() => ({}))
+      setData({ ...calendData, perSession: gpsData?.perSession, perSessionTeamAvg: gpsData?.perSessionTeamAvg })
+      const rcCanchas = await fetch('/api/canchas')
+      const dc = await rcCanchas.json()
       setCanchas(Array.isArray(dc) ? dc : [])
     } catch {}
     setLoading(false)
@@ -1815,36 +1820,35 @@ function CalendarioPanel({ teamData }) {
 
   orderedSesiones.forEach(s => {
     let volRelativo = 0
-    if (s.ejercicios?.length > 0) {
-      let minActivo = 0
-      let dTotal = 0, dSprint = 0, nSprint = 0, accelDecel = 0
-      s.ejercicios.forEach((bl:any) => {
-        if (!TAREAS_CON_ESPACIO.includes(bl.ventana)) return
-        const jugN = getJugadoresBloque(bl, TAREAS_CON_EQUIPO.includes(bl.ventana))
-        const calc = calcularDistancias(jugN, Number(bl.largo), Number(bl.ancho), Number(bl.series), Number(bl.minutos))
-        if (!calc) return
-        const mins = (Number(bl.series)||1) * (Number(bl.minutos)||0)
-        minActivo += mins
-        dTotal += calc.distTotal || 0
-        dSprint += calc.distSprint || 0
-        nSprint += calc.nSprints || 0
-        accelDecel += (calc.nAcel||0) + (calc.nDecel||0) + (calc.nAcel3||0) + (calc.nDecel3||0)
-      })
-      if (minActivo > 0) {
-        volRelativo = (dTotal/minActivo) + (dSprint/minActivo) + (nSprint/minActivo) + (accelDecel/minActivo)
-      }
+    const mdLabel = s.titulo || s.tipo
+    const m = data?.perSession?.[mdLabel] || {}
+    const mt = data?.perSessionTeamAvg?.[mdLabel] || {}
+    const dTotal = Number(m.distTotal)||Number(mt.distTotal)||0
+    const dPerMin = Number(m.distPerMin)||Number(mt.distPerMin)||0
+    const activeMin = (dTotal>0 && dPerMin>0) ? (dTotal/dPerMin) : (Number(m.minActivo)||Number(mt.minActivo)||1)
+    
+    const distTot = Number(m.distTotal)||Number(mt.distTotal)||0
+    const v4 = Number(m.distV4)||Number(mt.distV4)||0
+    const v5 = Number(m.distV5)||Number(mt.distV5)||0
+    const nSprints = Number(m.nSprints)||Number(mt.nSprints)||0
+    const accDec = (Number(m.nAcel)||Number(mt.nAcel)||0) + (Number(m.nDecel)||Number(mt.nDecel)||0) + (Number(m.nAcel3)||Number(mt.nAcel3)||0) + (Number(m.nDecel3)||Number(mt.nDecel3)||0)
+
+    if (activeMin > 0) {
+      volRelativo = (distTot + v4 + v5 + nSprints + accDec) / activeMin
     }
+    
+    // Si la sesión no tiene título de MD (ej. "Descanso") o no hay datos históricos, volRelativo será 0.
     sessionVolMap.set(s.id, volRelativo)
   })
 
   // Arrows logic
   const sessionArrowMap = new Map<number, 'UP'|'DOWN'|'EQUAL'>()
-  for (let i = 1; i < orderedSesiones.length; i++) {
-    const prev = orderedSesiones[i-1]
-    const curr = orderedSesiones[i]
+  const validSesiones = orderedSesiones.filter(s => (sessionVolMap.get(s.id) || 0) > 0)
+  for (let i = 1; i < validSesiones.length; i++) {
+    const prev = validSesiones[i-1]
+    const curr = validSesiones[i]
     const prevVol = sessionVolMap.get(prev.id) || 0
     const currVol = sessionVolMap.get(curr.id) || 0
-    if (currVol === 0 || prevVol === 0) continue
     
     // threshold: 5% difference is considered a change, else equal.
     if (currVol > prevVol * 1.05) sessionArrowMap.set(curr.id, 'UP')
@@ -1857,6 +1861,7 @@ function CalendarioPanel({ teamData }) {
   let totalGymMin = 0
   let totalCampoMin = 0
   const campoDetalle: Record<string, number> = {}
+  const gymDetalle: Record<string, number> = {}
 
   sesiones.forEach(s => {
     if (!visibleDays.includes(s.fecha)) return
@@ -1864,8 +1869,9 @@ function CalendarioPanel({ teamData }) {
     s.ejercicios.forEach((bl:any) => {
       const mins = (Number(bl.series)||1) * (Number(bl.minutos)||0)
       if (mins <= 0) return
-      if (bl.ventana === 'Activación en gimnasio' || bl.ventana === 'Fuerza Estructural') {
+      if (bl.ventana === 'Activación en gimnasio' || bl.ventana === 'Fuerza Estructural' || (bl.ventana && bl.ventana.toLowerCase().includes('gimnasio'))) {
         totalGymMin += mins
+        gymDetalle[bl.ventana] = (gymDetalle[bl.ventana] || 0) + mins
       } else if (bl.ventana) {
         totalCampoMin += mins
         campoDetalle[bl.ventana] = (campoDetalle[bl.ventana] || 0) + mins
@@ -1878,6 +1884,7 @@ function CalendarioPanel({ teamData }) {
   const pctCampo = totalMin > 0 ? Math.round((totalCampoMin/totalMin)*100) : 0
   
   const campoSorted = Object.entries(campoDetalle).sort((a,b)=>b[1]-a[1])
+  const gymSorted = Object.entries(gymDetalle).sort((a,b)=>b[1]-a[1])
 
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
@@ -2012,9 +2019,9 @@ function CalendarioPanel({ teamData }) {
                               ? <span style={{overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{TIPO_ICONOS[s.tipo]} {s.rival ? `vs ${s.rival}` : formatMD(s.titulo||'Partido', s.tipo)}</span>
                               : <span style={{overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{s.tipo !== 'descanso' && !((s.titulo||s.tipo).startsWith('MD')) ? TIPO_ICONOS[s.tipo] + ' ' : null}{formatMD(s.titulo||s.tipo, s.tipo)}</span>
                             }
-                            {sessionArrowMap.get(s.id) === 'UP' && <span style={{fontSize:10, color:'#ef4444', fontWeight:800}} title={`Sube vol. relativo (${sessionVolMap.get(s.id)?.toFixed(1)})`}>⬆️</span>}
-                            {sessionArrowMap.get(s.id) === 'DOWN' && <span style={{fontSize:10, color:'#22c55e', fontWeight:800}} title={`Baja vol. relativo (${sessionVolMap.get(s.id)?.toFixed(1)})`}>⬇️</span>}
-                            {sessionArrowMap.get(s.id) === 'EQUAL' && <span style={{fontSize:10, color:'#f59e0b', fontWeight:800}} title={`Mantiene vol. relativo (${sessionVolMap.get(s.id)?.toFixed(1)})`}>➖</span>}
+                            {sessionArrowMap.get(s.id) === 'UP' && <span style={{fontSize:11, color:'#3b82f6', fontWeight:800, textShadow:'0 0 8px rgba(59,130,246,0.8)'}} title={`Sube vol. relativo (${sessionVolMap.get(s.id)?.toFixed(1)})`}>▲</span>}
+                            {sessionArrowMap.get(s.id) === 'DOWN' && <span style={{fontSize:11, color:'#ef4444', fontWeight:800, textShadow:'0 0 8px rgba(239,68,68,0.8)'}} title={`Baja vol. relativo (${sessionVolMap.get(s.id)?.toFixed(1)})`}>▼</span>}
+                            {sessionArrowMap.get(s.id) === 'EQUAL' && <span style={{fontSize:11, color:'#eab308', fontWeight:800, textShadow:'0 0 8px rgba(234,179,8,0.8)'}} title={`Mantiene vol. relativo (${sessionVolMap.get(s.id)?.toFixed(1)})`}>▬</span>}
                             
                           </div>
                           {(s.hora_inicio || s.objetivo) && (
@@ -2058,9 +2065,9 @@ function CalendarioPanel({ teamData }) {
                               ? <span style={{overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{TIPO_ICONOS[s.tipo]} {s.rival ? `vs ${s.rival}` : formatMD(s.titulo||'Partido', s.tipo)}</span>
                               : <span style={{overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{s.tipo !== 'descanso' && !((s.titulo||s.tipo).startsWith('MD')) ? TIPO_ICONOS[s.tipo] + ' ' : null}{formatMD(s.titulo||s.tipo, s.tipo)}</span>
                             }
-                            {sessionArrowMap.get(s.id) === 'UP' && <span style={{fontSize:10, color:'#ef4444', fontWeight:800}} title={`Sube vol. relativo (${sessionVolMap.get(s.id)?.toFixed(1)})`}>⬆️</span>}
-                            {sessionArrowMap.get(s.id) === 'DOWN' && <span style={{fontSize:10, color:'#22c55e', fontWeight:800}} title={`Baja vol. relativo (${sessionVolMap.get(s.id)?.toFixed(1)})`}>⬇️</span>}
-                            {sessionArrowMap.get(s.id) === 'EQUAL' && <span style={{fontSize:10, color:'#f59e0b', fontWeight:800}} title={`Mantiene vol. relativo (${sessionVolMap.get(s.id)?.toFixed(1)})`}>➖</span>}
+                            {sessionArrowMap.get(s.id) === 'UP' && <span style={{fontSize:11, color:'#3b82f6', fontWeight:800, textShadow:'0 0 8px rgba(59,130,246,0.8)'}} title={`Sube vol. relativo (${sessionVolMap.get(s.id)?.toFixed(1)})`}>▲</span>}
+                            {sessionArrowMap.get(s.id) === 'DOWN' && <span style={{fontSize:11, color:'#ef4444', fontWeight:800, textShadow:'0 0 8px rgba(239,68,68,0.8)'}} title={`Baja vol. relativo (${sessionVolMap.get(s.id)?.toFixed(1)})`}>▼</span>}
+                            {sessionArrowMap.get(s.id) === 'EQUAL' && <span style={{fontSize:11, color:'#eab308', fontWeight:800, textShadow:'0 0 8px rgba(234,179,8,0.8)'}} title={`Mantiene vol. relativo (${sessionVolMap.get(s.id)?.toFixed(1)})`}>▬</span>}
                             
                           </div>
                           {(s.hora_inicio || s.objetivo) && (
@@ -2513,6 +2520,30 @@ function CalendarioPanel({ teamData }) {
                         </div>
                         <div style={{ width:'100%', height:4, background:'var(--ink3)', borderRadius:2, overflow:'hidden' }}>
                           <div style={{ width:`${p}%`, height:'100%', background:'#c8f135' }}></div>
+                        </div>
+                        <div style={{ fontSize:9, color:'var(--fog)', marginTop:4, textAlign:'right' }}>{mins} min</div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+            
+            {/* Desglose de Tareas de Gimnasio */}
+            {gymSorted.length > 0 && (
+              <div style={{ flex:2, minWidth:300 }}>
+                <p style={{ fontSize:11, color:'var(--fog)', marginBottom:8 }}>Desglose de Gimnasio</p>
+                <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(180px, 1fr))', gap:10 }}>
+                  {gymSorted.map(([nombre, mins]) => {
+                    const p = Math.round((mins / totalGymMin) * 100)
+                    return (
+                      <div key={nombre} style={{ background:'rgba(96,165,250,.05)', border:'1px solid rgba(96,165,250,.15)', borderRadius:8, padding:'8px 12px' }}>
+                        <div style={{ display:'flex', justifyContent:'space-between', marginBottom:4 }}>
+                          <span style={{ fontSize:11, color:'var(--snow)', fontWeight:600, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{nombre}</span>
+                          <span style={{ fontSize:11, color:'#60a5fa', fontWeight:700 }}>{p}%</span>
+                        </div>
+                        <div style={{ width:'100%', height:4, background:'var(--ink3)', borderRadius:2, overflow:'hidden' }}>
+                          <div style={{ width:`${p}%`, height:'100%', background:'#60a5fa' }}></div>
                         </div>
                         <div style={{ fontSize:9, color:'var(--fog)', marginTop:4, textAlign:'right' }}>{mins} min</div>
                       </div>
