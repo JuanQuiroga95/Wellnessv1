@@ -189,3 +189,11 @@ html{font-size:16px}body{font-family:'DM Sans',system-ui,sans-serif;background:v
   [style*="background:rgba(200,241,53"],
   [style*="background: rgba(200,241,53"] { background: #f0ffe0 !important; color: #3a5c00 !important; }
 }
+
+@keyframes fillBarWidth {
+  0% { max-width: 0; }
+  100% { max-width: 100%; }
+}
+.anim-bar {
+  animation: fillBarWidth 1.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}

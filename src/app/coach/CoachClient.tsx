@@ -16,6 +16,7 @@ import CanchasPanel from './CanchasPanel'
 import VinculacionesPanel from './VinculacionesPanel'
 import PushNotificationManager, { PushToggle } from '@/components/ui/PushNotificationManager'
 import { PanelHeader, CuadroHeader, Icons } from './Headers'
+import { PieChart, Pie, Cell } from 'recharts'
 
 // ─── GPS METRIC METADATA (shared between GpsPanel and CargaExternaPanel) ──────
 // Maps metric key → { label, unit, group } for display purposes
@@ -2492,19 +2493,45 @@ function CalendarioPanel({ teamData }) {
         <div style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:16, padding:20 }}>
           <h2 style={{ fontSize:13, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:16 }}>Distribución de Tareas ({viewMode === 'mes' ? 'Mes' : 'Semana'})</h2>
           <div style={{ display:'flex', gap:24, flexWrap:'wrap', alignItems:'flex-start' }}>
-            {/* Barras Globales: Campo vs Gym */}
-            <div style={{ flex:1, minWidth:250 }}>
-              <p style={{ fontSize:11, color:'var(--fog)', marginBottom:8 }}>Campo vs Gimnasio (Minutos Totales: {totalMin}m)</p>
-              <div style={{ width:'100%', height:24, borderRadius:12, background:'var(--ink3)', display:'flex', overflow:'hidden', marginBottom:8 }}>
-                {pctCampo > 0 && <div style={{ width:`${pctCampo}%`, background:'#c8f135', display:'flex', alignItems:'center', justifyContent:'center', fontSize:10, color:'var(--ink)', fontWeight:700 }} title={`Campo: ${totalCampoMin}m`}>{pctCampo}%</div>}
-                {pctGym > 0 && <div style={{ width:`${pctGym}%`, background:'#60a5fa', display:'flex', alignItems:'center', justifyContent:'center', fontSize:10, color:'var(--ink)', fontWeight:700 }} title={`Gimnasio: ${totalGymMin}m`}>{pctGym}%</div>}
+                        {/* Gr�fico de Torta: Campo vs Gym */}
+            <div style={{ flex:1, minWidth:250, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center' }}>
+              <p style={{ fontSize:11, color:'var(--fog)', marginBottom:8 }}>Distribuci�n (Minutos Totales: {totalMin}m)</p>
+              <div style={{ position:'relative', width:180, height:180 }}>
+                <PieChart width={180} height={180}>
+                  <Pie
+                    data={[
+                      { name: 'Campo', value: totalCampoMin, color: '#c8f135' },
+                      { name: 'Gimnasio', value: totalGymMin, color: '#60a5fa' }
+                    ].filter(d => d.value > 0)}
+                    cx={90}
+                    cy={90}
+                    innerRadius={60}
+                    outerRadius={80}
+                    paddingAngle={5}
+                    dataKey="value"
+                    stroke="none"
+                    isAnimationActive={true}
+                    animationDuration={1200}
+                  >
+                    { [
+                        { name: 'Campo', value: totalCampoMin, color: '#c8f135' },
+                        { name: 'Gimnasio', value: totalGymMin, color: '#60a5fa' }
+                      ].filter(d => d.value > 0).map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                </PieChart>
+                <div style={{ position:'absolute', top:0, left:0, width:180, height:180, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', pointerEvents:'none' }}>
+                  <span style={{ fontSize:11, color:'var(--fog)', textTransform:'uppercase', letterSpacing:'0.05em' }}>TOTAL</span>
+                  <span style={{ fontSize:20, fontWeight:700, color:'var(--snow)', fontFamily:'DM Mono,monospace' }}>{totalMin}m</span>
+                </div>
               </div>
-              <div style={{ display:'flex', justifyContent:'space-between', fontSize:11 }}>
-                <span style={{ color:'#c8f135', fontWeight:700 }}>🌿 Campo ({totalCampoMin}m)</span>
-                <span style={{ color:'#60a5fa', fontWeight:700 }}>🏋️ Gimnasio ({totalGymMin}m)</span>
+              <div style={{ display:'flex', justifyContent:'center', gap:20, fontSize:12, marginTop:12 }}>
+                <span style={{ color:'#c8f135', fontWeight:700 }}>Campo ({pctCampo}%)</span>
+                <span style={{ color:'#60a5fa', fontWeight:700 }}>Gim ({pctGym}%)</span>
               </div>
             </div>
-            
+
             {/* Desglose de Tareas de Campo */}
             {campoSorted.length > 0 && (
               <div style={{ flex:2, minWidth:300 }}>
@@ -2519,7 +2546,7 @@ function CalendarioPanel({ teamData }) {
                           <span style={{ fontSize:11, color:'#c8f135', fontWeight:700 }}>{p}%</span>
                         </div>
                         <div style={{ width:'100%', height:4, background:'var(--ink3)', borderRadius:2, overflow:'hidden' }}>
-                          <div style={{ width:`${p}%`, height:'100%', background:'#c8f135' }}></div>
+                          <div className="anim-bar" style={{ width:`${p}%`, height:'100%', background:'#c8f135' }}></div>
                         </div>
                         <div style={{ fontSize:9, color:'var(--fog)', marginTop:4, textAlign:'right' }}>{mins} min</div>
                       </div>
@@ -2543,7 +2570,7 @@ function CalendarioPanel({ teamData }) {
                           <span style={{ fontSize:11, color:'#60a5fa', fontWeight:700 }}>{p}%</span>
                         </div>
                         <div style={{ width:'100%', height:4, background:'var(--ink3)', borderRadius:2, overflow:'hidden' }}>
-                          <div style={{ width:`${p}%`, height:'100%', background:'#60a5fa' }}></div>
+                          <div className="anim-bar" style={{ width:`${p}%`, height:'100%', background:'#60a5fa' }}></div>
                         </div>
                         <div style={{ fontSize:9, color:'var(--fog)', marginTop:4, textAlign:'right' }}>{mins} min</div>
                       </div>
@@ -5080,7 +5107,7 @@ function ComparativaPanel({ teamData }: { teamData: any[] }) {
                         return (
                           <div key={i} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'flex-end', height:'100%', minWidth:minBarWidth }}>
                             <span style={{ fontSize:11, color:col, fontFamily:'DM Mono,monospace', fontWeight:800, marginBottom:4, whiteSpace:'nowrap' }}>{x.val.toLocaleString()}</span>
-                            <div style={{ position:'relative', width:'60%', borderRadius:'4px 4px 0 0', height:`${barH}px`,
+                            <div className="anim-bar-v" style={{ position:'relative', width:'60%', borderRadius:'4px 4px 0 0', height:`${barH}px`,
                               background: `linear-gradient(180deg, ${col}dd, ${col}88)`,
                               flexShrink:0, boxShadow:`0 0 12px ${col}40` }}>
                             </div>
@@ -5163,7 +5190,7 @@ function ComparativaPanel({ teamData }: { teamData: any[] }) {
                         return (
                           <div key={i} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', minWidth:minBarWidth, height:'100%', justifyContent:'flex-end' }}>
                             <span style={{ fontSize:11, color:posColor(x.pos), fontFamily:'DM Mono,monospace', fontWeight:800, marginBottom:4, whiteSpace:'nowrap' }}>{x.avg.toLocaleString()}</span>
-                            <div style={{ position:'relative', width:'60%', minWidth:28, maxWidth:64, borderRadius:'6px 6px 0 0',
+                            <div className="anim-bar-v" style={{ position:'relative', width:'60%', minWidth:28, maxWidth:64, borderRadius:'6px 6px 0 0',
                               height:`${barH}px`,
                               background: `linear-gradient(180deg, ${posColor(x.pos)}dd, ${posColor(x.pos)}88)`,
                               flexShrink:0, boxShadow:`0 0 12px ${posColor(x.pos)}40` }}>
@@ -6289,7 +6316,7 @@ function AcumBarChart({ players, vars, accentColor = '#c8f135' }: { players: any
                   return (
                   <div key={i} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', minWidth:52, justifyContent:'flex-end' }}>
                     {!showInside && <div style={{ fontSize:11, color:selVar.color, fontFamily:'DM Mono,monospace', fontWeight:800, marginBottom:3, whiteSpace:'nowrap' }}>{d.val}</div>}
-                    <div style={{ width:'55%', minWidth:20, maxWidth:48, borderRadius:'5px 5px 0 0',
+                    <div className="anim-bar-v" style={{ width:'55%', minWidth:20, maxWidth:48, borderRadius:'5px 5px 0 0',
                       height:`${barH}px`, position:'relative',
                       background: selVar.color, flexShrink:0, opacity:1,
                       display:'flex', alignItems:'center', justifyContent:'center' }}>
@@ -8904,7 +8931,7 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
                         return (
                           <div key={r.md} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'flex-end' }}>
                             {v>0 && <span style={{ fontSize:8, fontFamily:'DM Mono,monospace', color:grp.color, marginBottom:2 }}>{v.toFixed(grp.dec)}</span>}
-                            <div style={{ width:'100%', maxWidth:24, height:`${h}px`, background:grp.color, borderRadius:'3px 3px 0 0', opacity: v>0?1:0.1 }} />
+                            <div className="anim-bar-v" style={{ width:'100%', maxWidth:24, height:`${h}px`, background:grp.color, borderRadius:'3px 3px 0 0', opacity: v>0?1:0.1 }} />
                             <div style={{ fontSize:8, color:'var(--silver)', marginTop:4, fontWeight:700, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', maxWidth:'100%' }}>{r.md}</div>
                           </div>
                         )
@@ -9986,7 +10013,7 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
                                   const h = Math.max((val/maxBar)*BAR_H, val>0?4:2)
                                   return (
                                     <div key={bi} title={`${md}: ${val}`}
-                                      style={{ position:'relative', width:'100%', maxWidth:24, height:`${h}px`, background:val>0?b.color:`${b.color}18`, borderRadius:'3px 3px 0 0', minWidth:6 }}>
+                                      className="anim-bar-v" style={{ position:'relative', width:'100%', maxWidth:24, height:`${h}px`, background:val>0?b.color:`${b.color}18`, borderRadius:'3px 3px 0 0', minWidth:6 }}>
                                       {val>0 && h>=16 && <span style={{ position:'absolute', top:'50%', left:'50%', transform:'translate(-50%,-50%) rotate(-90deg)', fontSize:7, color:'#fff', fontFamily:'DM Mono,monospace', fontWeight:700, whiteSpace:'nowrap', textShadow:'0 1px 2px rgba(0,0,0,.9)' }}>{val}</span>}
                                     </div>
                                   )
@@ -10124,7 +10151,7 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
                                   const h = Math.max((val/maxBar)*BAR_H, val>0?4:2)
                                   return (
                                     <div key={bi} title={`${md}: ${val}`}
-                                      style={{ position:'relative', width:'100%', maxWidth:24, height:`${h}px`, background:val>0?b.color:`${b.color}18`, borderRadius:'3px 3px 0 0', minWidth:6 }}>
+                                      className="anim-bar-v" style={{ position:'relative', width:'100%', maxWidth:24, height:`${h}px`, background:val>0?b.color:`${b.color}18`, borderRadius:'3px 3px 0 0', minWidth:6 }}>
                                       {val>0 && h>=16 && <span style={{ position:'absolute', top:'50%', left:'50%', transform:'translate(-50%,-50%) rotate(-90deg)', fontSize:7, color:'#fff', fontFamily:'DM Mono,monospace', fontWeight:700, whiteSpace:'nowrap', textShadow:'0 1px 2px rgba(0,0,0,.9)' }}>{val}</span>}
                                     </div>
                                   )
@@ -10504,7 +10531,7 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
                         return (
                           <div key={r.md} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'flex-end' }}>
                             {v>0 && <span style={{ fontSize:8, fontFamily:'DM Mono,monospace', color:grp.color, marginBottom:2 }}>{v.toFixed(grp.dec)}</span>}
-                            <div style={{ width:'100%', maxWidth:24, height:`${h}px`, background:grp.color, borderRadius:'3px 3px 0 0', opacity: v>0?1:0.1 }} />
+                            <div className="anim-bar-v" style={{ width:'100%', maxWidth:24, height:`${h}px`, background:grp.color, borderRadius:'3px 3px 0 0', opacity: v>0?1:0.1 }} />
                             <div style={{ fontSize:8, color:'var(--silver)', marginTop:4, fontWeight:700, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', maxWidth:'100%' }}>{r.md}</div>
                           </div>
                         )
@@ -12284,3 +12311,4 @@ function BibliotecaPanel() {
     </div>
   )
 }
+
