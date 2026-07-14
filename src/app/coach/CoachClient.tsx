@@ -8596,12 +8596,12 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
         return (
           <div style={{ background:'var(--ink2)', border:'1px solid rgba(96,165,250,.25)', borderRadius:16, overflow:'hidden', marginBottom:8 }}>
             <div style={{ padding:'10px 16px', borderBottom:'1px solid var(--mist)' }}>
-              <p style={{ fontSize:11, fontWeight:700, color:'#60a5fa', textTransform:'uppercase', letterSpacing:'0.08em' }}>
-                CUADRO 5 · ÍNDICE DE CARGA (CIV) — MICROCICLO vs PARTIDO
-              </p>
-              <p style={{ fontSize:10, color:'var(--fog)', marginTop:2 }}>
-                CIV = Suma Microciclo ÷ Partido · <span style={{ color:'#60a5fa' }}>Azul &lt;1.0</span> · <span style={{ color:'#22c55e' }}>Verde 1.0–1.5</span> · <span style={{ color:'#ef4444' }}>Rojo &gt;1.5</span> · 1.0 = igual al partido · 2.0 = doble carga
-              </p>
+              <CuadroHeader icon={Icons.metricas} cuadroNum="5" title="ÍNDICE DE CARGA (CIV) — MICROCICLO vs PARTIDO" description="CIV = Suma Microciclo ÷ Partido · Azul <1.0 · Verde 1.0–1.5 · Rojo >1.5 · 1.0 = igual al partido · 2.0 = doble carga" color="#60a5fa" />
+            </div>
+
+
+
+
             </div>
             <div style={{ overflowX:'auto' }}>
               <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12 }}>
