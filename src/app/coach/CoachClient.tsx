@@ -1930,7 +1930,16 @@ function CalendarioPanel({ teamData }) {
 
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
-      {/* Header */}
+      
+        <style>{`
+          @keyframes growUpAnim { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+          @keyframes fadeUpAnim { from { opacity: 0; transform: translateY(10px) translateX(-50%); } to { opacity: 1; transform: translateY(0) translateX(-50%); } }
+          @keyframes fadeInAnim { from { opacity: 0; } to { opacity: 1; } }
+          .anim-grow-up { transform-origin: bottom; animation: growUpAnim 1s cubic-bezier(0.16, 1, 0.3, 1) forwards; transform: scaleY(0); }
+          .anim-fade-up { animation: fadeUpAnim 1s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; }
+          .anim-fade-in { animation: fadeInAnim 1s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; }
+        `}</style>
+        {/* Header */}
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', flexWrap:'wrap', gap:12 }}>
         <div>
           <PanelHeader 
@@ -2536,10 +2545,10 @@ function CalendarioPanel({ teamData }) {
       {totalMin > 0 && (
         <div style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:16, padding:20 }}>
           <h2 style={{ fontSize:13, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:16 }}>Distribución de Tareas ({viewMode === 'mes' ? 'Mes' : 'Semana'})</h2>
-          <div style={{ display:'flex', gap:24, flexWrap:'wrap', alignItems:'flex-start' }}>
+          <div style={{ display:'flex', gap:24, flexWrap:'wrap', alignItems:'flex-start', justifyContent:'center' }}>
             {/* Gráfico de Torta: Campo vs Gym */}
             <div style={{ flex:1, minWidth:250, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center' }}>
-              <p style={{ fontSize:11, color:'var(--fog)', marginBottom:8 }}>Distribución (Minutos Totales: {totalMin}m)</p>
+              <p style={{ fontSize:11, color:'var(--fog)', marginBottom:4, textAlign:'center' }}>TOTAL: <strong style={{color:'var(--snow)', fontSize:14}}>{totalMin}m</strong></p>
               <div style={{ position:'relative', width:180, height:180 }}>
                 <PieChart width={180} height={180}>
                   <Pie
@@ -7788,9 +7797,10 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
                         const h = Math.max((val/maxVal)*BAR_H, val>0?3:0)
                         return (
                           <div key={si} title={`${name} - ${s.label}: ${val}`}
-                            style={{ position:'relative', width:'100%', maxWidth:18, minWidth:7, height:`${h}px`,
+                            className="anim-grow-up"
+                              style={{ position:'relative', width:'100%', maxWidth:18, minWidth:7, height:`${h}px`,
                               background: val>0 ? s.color : `${s.color}18`,
-                              borderRadius:'3px 3px 0 0', overflow:'visible' }}>
+                              borderRadius:'3px 3px 0 0', overflow:'visible', animationDelay: `${ni * 0.05 + si * 0.02}s` }}>
                             {val>0 && h>=18 && (
                               <span style={{ position:'absolute', top:'50%', left:'50%', transform:'translate(-50%,-50%) rotate(-90deg)', fontSize:8, color:'#fff', fontFamily:'DM Mono,monospace', fontWeight:700, whiteSpace:'nowrap', textShadow:'0 1px 2px rgba(0,0,0,.9)', pointerEvents:'none' }}>{val}</span>
                             )}
@@ -7799,7 +7809,7 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
                       })}
                       {/* Inline dot + value label */}
                       {grupo.lineVar && lineV > 0 && (
-                        <div style={{ position:'absolute', left:'50%', bottom:dotBottom - 5, transform:'translateX(-50%)', zIndex:10, pointerEvents:'none', display:'flex', flexDirection:'column', alignItems:'center' }}>
+                        <div className="anim-fade-up" style={{ position:'absolute', left:'50%', bottom:dotBottom - 5, zIndex:10, pointerEvents:'none', display:'flex', flexDirection:'column', alignItems:'center', animationDelay:`${0.5 + ni*0.05}s` }}>
                           <span style={{ fontSize:BAR_H*0.09, fontFamily:'DM Mono,monospace', fontWeight:700, color:grupo.lineColor, whiteSpace:'nowrap', marginBottom:4, textShadow:'0 1px 3px rgba(0,0,0,.8)' }}>{lineV}</span>
                           <div style={{ width:10, height:10, borderRadius:'50%', background:grupo.lineColor, border:'1.5px solid #000', boxSizing:'border-box', flexShrink:0 }} />
                         </div>
@@ -7821,7 +7831,7 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
                   <svg style={{ position:'absolute', bottom:0, left:0, right:0, width:'100%', height:BAR_H, overflow:'visible', pointerEvents:'none' }}>
                     {valid.map((pt, i) => i > 0 ? (
                       <line key={i} x1={`${valid[i-1].x}%`} y1={valid[i-1].y} x2={`${pt.x}%`} y2={pt.y}
-                        stroke={grupo.lineColor} strokeWidth="2.5" strokeDasharray="10,6" />
+                        stroke={grupo.lineColor} strokeWidth="2.5" strokeDasharray="10,6" className="anim-fade-in" style={{ animationDelay:`${0.5 + i*0.05}s` }} />
                     ) : null)}
                   </svg>
                 )
@@ -8517,7 +8527,7 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
                                         </div>
                                         {/* Inline dot + value label */}
                                         {grp.line && lineVal > 0 && (
-                                          <div style={{ position:'absolute', left:'50%', bottom:dotBottom - 5, transform:'translateX(-50%)', zIndex:10, pointerEvents:'none', display:'flex', flexDirection:'column', alignItems:'center' }}>
+                                          <div className="anim-fade-up" style={{ position:'absolute', left:'50%', bottom:dotBottom - 5, zIndex:10, pointerEvents:'none', display:'flex', flexDirection:'column', alignItems:'center', animationDelay:`${0.5 + ni*0.05}s` }}>
                                             <span style={{ fontSize:BAR_H*0.08, fontFamily:'DM Mono,monospace', fontWeight:700, color:grp.line.color, whiteSpace:'nowrap', marginBottom:4, textShadow:'0 1px 3px rgba(0,0,0,.8)' }}>{lineVal}</span>
                                             <div style={{ width:10, height:10, borderRadius:'50%', background:grp.line.color, border:'1.5px solid #000', boxSizing:'border-box', flexShrink:0 }} />
                                           </div>
@@ -9917,7 +9927,7 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
                                         </div>
                                         {/* Inline dot + value label — rendered INSIDE the column for guaranteed horizontal alignment */}
                                         {grp.line && lineVal > 0 && (
-                                          <div style={{ position:'absolute', left:'50%', bottom:dotBottom - 5, transform:'translateX(-50%)', zIndex:10, pointerEvents:'none', display:'flex', flexDirection:'column', alignItems:'center' }}>
+                                          <div className="anim-fade-up" style={{ position:'absolute', left:'50%', bottom:dotBottom - 5, zIndex:10, pointerEvents:'none', display:'flex', flexDirection:'column', alignItems:'center', animationDelay:`${0.5 + ni*0.05}s` }}>
                                             <span style={{ fontSize:BAR_H*0.08, fontFamily:'DM Mono,monospace', fontWeight:700, color:grp.line.color, whiteSpace:'nowrap', marginBottom:4, textShadow:'0 1px 3px rgba(0,0,0,.8)' }}>{lineVal}</span>
                                             <div style={{ width:10, height:10, borderRadius:'50%', background:grp.line.color, border:'1.5px solid #000', boxSizing:'border-box', flexShrink:0 }} />
                                           </div>
