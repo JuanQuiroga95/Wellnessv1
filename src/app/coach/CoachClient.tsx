@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef, ReactNode } from 'react'
 import * as XLSX from 'xlsx'
 import { useRouter } from 'next/navigation'
 import Topbar from '@/components/ui/Topbar'
@@ -197,6 +197,45 @@ function getObjetivoIcon(obj: string) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+
+const AnimateOnScroll = ({ children, minHeight = 0 }: { children: any, minHeight?: number }) => {
+  const [isVisible, setIsVisible] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) { setIsVisible(true); obs.disconnect(); }
+    }, { threshold: 0.1 });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
+  return (
+    <div ref={ref} className={isVisible ? "start-animations" : "pause-animations"} style={{ width: '100%', minHeight }}>
+      {children}
+    </div>
+  )
+}
+
+const AnimatedPieChart = (props: any) => {
+  const [isVisible, setIsVisible] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(([entry]) => {
+      if (entry.isIntersecting) { setIsVisible(true); obs.disconnect(); }
+    }, { threshold: 0.1 });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, []);
+  return (
+    <div ref={ref} style={{ width: props.width, height: props.height }}>
+      {isVisible && <AnimatedPieChart {...props}>{props.children}</AnimatedPieChart>}
+    </div>
+  )
+}
+
 export default function CoachClient({ session, teamData, today }) {
   const [tab, setTab] = useState('team')
   const [selected, setSelected] = useState(null)
@@ -1938,6 +1977,13 @@ function CalendarioPanel({ teamData }) {
           .anim-grow-up { transform-origin: bottom; animation: growUpAnim 1s cubic-bezier(0.16, 1, 0.3, 1) forwards; transform: scaleY(0); }
           .anim-fade-up { animation: fadeUpAnim 1s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; }
           .anim-fade-in { animation: fadeInAnim 1s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; }
+        
+          .pause-animations .anim-grow-up,
+          .pause-animations .anim-fade-up,
+          .pause-animations .anim-fade-in,
+          .pause-animations .anim-bar { animation: none !important; opacity: 0 !important; }
+          .pause-animations .anim-grow-up { transform: scaleY(0) !important; }
+          .pause-animations .anim-bar { transform: scaleX(0) !important; }
         `}</style>
         {/* Header */}
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', flexWrap:'wrap', gap:12 }}>
@@ -2545,12 +2591,13 @@ function CalendarioPanel({ teamData }) {
       {totalMin > 0 && (
         <div style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:16, padding:20 }}>
           <h2 style={{ fontSize:13, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:16 }}>Distribución de Tareas ({viewMode === 'mes' ? 'Mes' : 'Semana'})</h2>
-          <div style={{ display:'flex', gap:24, flexWrap:'wrap', alignItems:'flex-start', justifyContent:'center' }}>
+          <AnimateOnScroll minHeight={200}>
+            <div style={{ display:'flex', gap:24, flexWrap:'wrap', alignItems:'flex-start', justifyContent:'center' }}>
             {/* Gráfico de Torta: Campo vs Gym */}
             <div style={{ flex:1, minWidth:250, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center' }}>
               <p style={{ fontSize:11, color:'var(--fog)', marginBottom:4, textAlign:'center' }}>TOTAL: <strong style={{color:'var(--snow)', fontSize:14}}>{totalMin}m</strong></p>
               <div style={{ position:'relative', width:180, height:180 }}>
-                <PieChart width={180} height={180}>
+                <AnimatedPieChart width={180} height={180}>
                   <Pie
                     data={[
                       { name: 'Campo', value: totalCampoMin, color: '#c8f135' },
@@ -2573,7 +2620,7 @@ function CalendarioPanel({ teamData }) {
                       <Cell key={`cell-${index}`} fill={entry.color} />
                     ))}
                   </Pie>
-                </PieChart>
+                </AnimatedPieChart>
                 <div style={{ position:'absolute', top:0, left:0, width:180, height:180, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', pointerEvents:'none' }}>
                   <span style={{ fontSize:11, color:'var(--fog)', textTransform:'uppercase', letterSpacing:'0.05em' }}>TOTAL</span>
                   <span style={{ fontSize:20, fontWeight:700, color:'var(--snow)', fontFamily:'DM Mono,monospace' }}>{totalMin}m</span>
@@ -2632,7 +2679,7 @@ function CalendarioPanel({ teamData }) {
                 </div>
               </div>
             )}
-          </div>
+          </div>\n          </AnimateOnScroll>
         </div>
       )}
     </div>
@@ -8641,9 +8688,11 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
         )}
         <div style={{ padding:16, borderTop:'1px solid var(--mist)' }}>
           <p style={{ fontSize:10, fontWeight:700, color:'#60a5fa', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:12 }}>📊 GRÁFICO AGRUPADO · TOTALES POR DÍA DE ENTRENAMIENTO</p>
-          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(260px,1fr))', gap:16 }}>
-            {GRUPOS.map(g=>renderGrupoBar(g,'md','totales'))}
-          </div>
+          <AnimateOnScroll minHeight={200}>
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(260px,1fr))', gap:16 }}>
+              {GRUPOS.map(g=>renderGrupoBar(g,'md','totales'))}
+            </div>
+          </AnimateOnScroll>
         </div>
       </div>
 
@@ -8688,9 +8737,11 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
           </div>
           <div style={{ padding:16, borderTop:'1px solid var(--mist)' }}>
             <p style={{ fontSize:10, fontWeight:700, color:'#a78bfa', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:12 }}>📊 GRÁFICO AGRUPADO · PROMEDIO POR MD</p>
-            <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(260px,1fr))', gap:16 }}>
-              {GRUPOS.map(g=>renderGrupoBar(g,'md','promedio'))}
-            </div>
+            <AnimateOnScroll minHeight={200}>
+              <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(260px,1fr))', gap:16 }}>
+                {GRUPOS.map(g=>renderGrupoBar(g,'md','promedio'))}
+              </div>
+            </AnimateOnScroll>
           </div>
         </>)}
       </div>
