@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 import { useState, useEffect, useCallback } from 'react'
 import * as XLSX from 'xlsx'
 import { useRouter } from 'next/navigation'
@@ -1806,6 +1806,79 @@ function CalendarioPanel({ teamData }) {
     ...partidos.map(p=>p.fecha),
   ])].sort()
 
+  // 1. Calcular volumen relativo de cada sesión (para semáforo)
+  const sessionVolMap = new Map<number, number>()
+  const orderedSesiones = [...sesiones].sort((a,b) => {
+    if (a.fecha !== b.fecha) return a.fecha.localeCompare(b.fecha)
+    return (a.hora_inicio || '').localeCompare(b.hora_inicio || '')
+  })
+
+  orderedSesiones.forEach(s => {
+    let volRelativo = 0
+    if (s.ejercicios?.length > 0) {
+      let minActivo = 0
+      let dTotal = 0, dSprint = 0, nSprint = 0, accelDecel = 0
+      s.ejercicios.forEach((bl:any) => {
+        if (!TAREAS_CON_ESPACIO.includes(bl.ventana)) return
+        const jugN = getJugadoresBloque(bl, TAREAS_CON_EQUIPO.includes(bl.ventana))
+        const calc = calcularDistancias(jugN, Number(bl.largo), Number(bl.ancho), Number(bl.series), Number(bl.minutos))
+        if (!calc) return
+        const mins = (Number(bl.series)||1) * (Number(bl.minutos)||0)
+        minActivo += mins
+        dTotal += calc.distTotal || 0
+        dSprint += calc.distSprint || 0
+        nSprint += calc.nSprints || 0
+        accelDecel += (calc.nAcel||0) + (calc.nDecel||0) + (calc.nAcel3||0) + (calc.nDecel3||0)
+      })
+      if (minActivo > 0) {
+        volRelativo = (dTotal/minActivo) + (dSprint/minActivo) + (nSprint/minActivo) + (accelDecel/minActivo)
+      }
+    }
+    sessionVolMap.set(s.id, volRelativo)
+  })
+
+  // Arrows logic
+  const sessionArrowMap = new Map<number, 'UP'|'DOWN'|'EQUAL'>()
+  for (let i = 1; i < orderedSesiones.length; i++) {
+    const prev = orderedSesiones[i-1]
+    const curr = orderedSesiones[i]
+    const prevVol = sessionVolMap.get(prev.id) || 0
+    const currVol = sessionVolMap.get(curr.id) || 0
+    if (currVol === 0 || prevVol === 0) continue
+    
+    // threshold: 5% difference is considered a change, else equal.
+    if (currVol > prevVol * 1.05) sessionArrowMap.set(curr.id, 'UP')
+    else if (currVol < prevVol * 0.95) sessionArrowMap.set(curr.id, 'DOWN')
+    else sessionArrowMap.set(curr.id, 'EQUAL')
+  }
+
+  // 2. Calcular distribución de tareas (Campo vs Gimnasio) para el período actual
+  const visibleDays = viewMode === 'mes' ? diasMes.filter(Boolean) : diasSemana
+  let totalGymMin = 0
+  let totalCampoMin = 0
+  const campoDetalle: Record<string, number> = {}
+
+  sesiones.forEach(s => {
+    if (!visibleDays.includes(s.fecha)) return
+    if (!s.ejercicios) return
+    s.ejercicios.forEach((bl:any) => {
+      const mins = (Number(bl.series)||1) * (Number(bl.minutos)||0)
+      if (mins <= 0) return
+      if (bl.ventana === 'Activación en gimnasio' || bl.ventana === 'Fuerza Estructural') {
+        totalGymMin += mins
+      } else if (bl.ventana) {
+        totalCampoMin += mins
+        campoDetalle[bl.ventana] = (campoDetalle[bl.ventana] || 0) + mins
+      }
+    })
+  })
+  
+  const totalMin = totalGymMin + totalCampoMin
+  const pctGym = totalMin > 0 ? Math.round((totalGymMin/totalMin)*100) : 0
+  const pctCampo = totalMin > 0 ? Math.round((totalCampoMin/totalMin)*100) : 0
+  
+  const campoSorted = Object.entries(campoDetalle).sort((a,b)=>b[1]-a[1])
+
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
       {/* Header */}
@@ -1939,6 +2012,10 @@ function CalendarioPanel({ teamData }) {
                               ? <span style={{overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{TIPO_ICONOS[s.tipo]} {s.rival ? `vs ${s.rival}` : formatMD(s.titulo||'Partido', s.tipo)}</span>
                               : <span style={{overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{s.tipo !== 'descanso' && !((s.titulo||s.tipo).startsWith('MD')) ? TIPO_ICONOS[s.tipo] + ' ' : null}{formatMD(s.titulo||s.tipo, s.tipo)}</span>
                             }
+                            {sessionArrowMap.get(s.id) === 'UP' && <span style={{fontSize:10, color:'#ef4444', fontWeight:800}} title={`Sube vol. relativo (${sessionVolMap.get(s.id)?.toFixed(1)})`}>⬆️</span>}
+                            {sessionArrowMap.get(s.id) === 'DOWN' && <span style={{fontSize:10, color:'#22c55e', fontWeight:800}} title={`Baja vol. relativo (${sessionVolMap.get(s.id)?.toFixed(1)})`}>⬇️</span>}
+                            {sessionArrowMap.get(s.id) === 'EQUAL' && <span style={{fontSize:10, color:'#f59e0b', fontWeight:800}} title={`Mantiene vol. relativo (${sessionVolMap.get(s.id)?.toFixed(1)})`}>➖</span>}
+                            
                           </div>
                           {(s.hora_inicio || s.objetivo) && (
                             <div style={{ display:'flex', flexDirection:'column', alignItems:'center', marginTop:2, borderTop:'1px solid rgba(255,255,255,0.1)', paddingTop:2 }}>
@@ -1981,6 +2058,10 @@ function CalendarioPanel({ teamData }) {
                               ? <span style={{overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{TIPO_ICONOS[s.tipo]} {s.rival ? `vs ${s.rival}` : formatMD(s.titulo||'Partido', s.tipo)}</span>
                               : <span style={{overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{s.tipo !== 'descanso' && !((s.titulo||s.tipo).startsWith('MD')) ? TIPO_ICONOS[s.tipo] + ' ' : null}{formatMD(s.titulo||s.tipo, s.tipo)}</span>
                             }
+                            {sessionArrowMap.get(s.id) === 'UP' && <span style={{fontSize:10, color:'#ef4444', fontWeight:800}} title={`Sube vol. relativo (${sessionVolMap.get(s.id)?.toFixed(1)})`}>⬆️</span>}
+                            {sessionArrowMap.get(s.id) === 'DOWN' && <span style={{fontSize:10, color:'#22c55e', fontWeight:800}} title={`Baja vol. relativo (${sessionVolMap.get(s.id)?.toFixed(1)})`}>⬇️</span>}
+                            {sessionArrowMap.get(s.id) === 'EQUAL' && <span style={{fontSize:10, color:'#f59e0b', fontWeight:800}} title={`Mantiene vol. relativo (${sessionVolMap.get(s.id)?.toFixed(1)})`}>➖</span>}
+                            
                           </div>
                           {(s.hora_inicio || s.objetivo) && (
                             <div style={{ display:'flex', flexDirection:'column', alignItems:'center', marginTop:2, borderTop:'1px solid rgba(255,255,255,0.1)', paddingTop:2 }}>
@@ -2398,6 +2479,51 @@ function CalendarioPanel({ teamData }) {
         />
         )
       })()}
+
+      {/* ── DISTRIBUCIÓN DE TAREAS ── */}
+      {totalMin > 0 && (
+        <div style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:16, padding:20 }}>
+          <h2 style={{ fontSize:13, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:16 }}>Distribución de Tareas ({viewMode === 'mes' ? 'Mes' : 'Semana'})</h2>
+          <div style={{ display:'flex', gap:24, flexWrap:'wrap', alignItems:'flex-start' }}>
+            {/* Barras Globales: Campo vs Gym */}
+            <div style={{ flex:1, minWidth:250 }}>
+              <p style={{ fontSize:11, color:'var(--fog)', marginBottom:8 }}>Campo vs Gimnasio (Minutos Totales: {totalMin}m)</p>
+              <div style={{ width:'100%', height:24, borderRadius:12, background:'var(--ink3)', display:'flex', overflow:'hidden', marginBottom:8 }}>
+                {pctCampo > 0 && <div style={{ width:`${pctCampo}%`, background:'#c8f135', display:'flex', alignItems:'center', justifyContent:'center', fontSize:10, color:'var(--ink)', fontWeight:700 }} title={`Campo: ${totalCampoMin}m`}>{pctCampo}%</div>}
+                {pctGym > 0 && <div style={{ width:`${pctGym}%`, background:'#60a5fa', display:'flex', alignItems:'center', justifyContent:'center', fontSize:10, color:'var(--ink)', fontWeight:700 }} title={`Gimnasio: ${totalGymMin}m`}>{pctGym}%</div>}
+              </div>
+              <div style={{ display:'flex', justifyContent:'space-between', fontSize:11 }}>
+                <span style={{ color:'#c8f135', fontWeight:700 }}>🌿 Campo ({totalCampoMin}m)</span>
+                <span style={{ color:'#60a5fa', fontWeight:700 }}>🏋️ Gimnasio ({totalGymMin}m)</span>
+              </div>
+            </div>
+            
+            {/* Desglose de Tareas de Campo */}
+            {campoSorted.length > 0 && (
+              <div style={{ flex:2, minWidth:300 }}>
+                <p style={{ fontSize:11, color:'var(--fog)', marginBottom:8 }}>Desglose de Campo</p>
+                <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(180px, 1fr))', gap:10 }}>
+                  {campoSorted.map(([nombre, mins]) => {
+                    const p = Math.round((mins / totalCampoMin) * 100)
+                    return (
+                      <div key={nombre} style={{ background:'rgba(200,241,53,.05)', border:'1px solid rgba(200,241,53,.15)', borderRadius:8, padding:'8px 12px' }}>
+                        <div style={{ display:'flex', justifyContent:'space-between', marginBottom:4 }}>
+                          <span style={{ fontSize:11, color:'var(--snow)', fontWeight:600, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{nombre}</span>
+                          <span style={{ fontSize:11, color:'#c8f135', fontWeight:700 }}>{p}%</span>
+                        </div>
+                        <div style={{ width:'100%', height:4, background:'var(--ink3)', borderRadius:2, overflow:'hidden' }}>
+                          <div style={{ width:`${p}%`, height:'100%', background:'#c8f135' }}></div>
+                        </div>
+                        <div style={{ fontSize:9, color:'var(--fog)', marginTop:4, textAlign:'right' }}>{mins} min</div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -8597,11 +8723,6 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
           <div style={{ background:'var(--ink2)', border:'1px solid rgba(96,165,250,.25)', borderRadius:16, overflow:'hidden', marginBottom:8 }}>
             <div style={{ padding:'10px 16px', borderBottom:'1px solid var(--mist)' }}>
               <CuadroHeader icon={Icons.metricas} cuadroNum="5" title="ÍNDICE DE CARGA (CIV) — MICROCICLO vs PARTIDO" description="CIV = Suma Microciclo ÷ Partido · Azul <1.0 · Verde 1.0–1.5 · Rojo >1.5 · 1.0 = igual al partido · 2.0 = doble carga" color="#60a5fa" />
-            </div>
-
-
-
-
             </div>
             <div style={{ overflowX:'auto' }}>
               <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12 }}>
