@@ -1819,33 +1819,32 @@ function CalendarioPanel({ teamData }) {
     return (a.hora_inicio || '').localeCompare(b.hora_inicio || '')
   })
 
-  orderedSesiones.forEach(s => {
-    let volRelativo = 0
-    const mdLabel = s.titulo || s.tipo
-    const m = data?.perSession?.[mdLabel] || {}
-    const mt = data?.perSessionTeamAvg?.[mdLabel] || {}
-    const dTotal = Number(m.distTotal)||Number(mt.distTotal)||0
-    const dPerMin = Number(m.distPerMin)||Number(mt.distPerMin)||0
-    const activeMin = (dTotal>0 && dPerMin>0) ? (dTotal/dPerMin) : (Number(m.minActivo)||Number(mt.minActivo)||1)
-    
-    const distTot = Number(m.distTotal)||Number(mt.distTotal)||0
-    const v4 = Number(m.distV4)||Number(mt.distV4)||0
-    const v5 = Number(m.distV5)||Number(mt.distV5)||0
-    const nSprints = Number(m.nSprints)||Number(mt.nSprints)||0
-    const accDec = (Number(m.nAcel)||Number(mt.nAcel)||0) + (Number(m.nDecel)||Number(mt.nDecel)||0) + (Number(m.nAcel3)||Number(mt.nAcel3)||0) + (Number(m.nDecel3)||Number(mt.nDecel3)||0)
-
-    if (activeMin > 0) {
-      volRelativo = (distTot + v4 + v5 + nSprints + accDec) / activeMin
-    }
-    
-    // Si la sesión no tiene título de MD (ej. "Descanso") o no hay datos históricos, volRelativo será 0.
-    sessionVolMap.set(s.id, volRelativo)
-  })
-
-  // Arrows logic
-  const sessionArrowMap = new Map<number, 'UP'|'DOWN'|'EQUAL'>()
-  const validSesiones = orderedSesiones.filter(s => (sessionVolMap.get(s.id) || 0) > 0)
-  for (let i = 1; i < validSesiones.length; i++) {
+      orderedSesiones.forEach(s => {
+      let volRelativo = 0
+      const mdLabel = (s.titulo || s.tipo).trim()
+      const m = data?.perSession?.[mdLabel] || {}
+      const mt = data?.perSessionTeamAvg?.[mdLabel] || {}
+      const dTotal = Number(m.distTotal)||Number(mt.distTotal)||0
+      const dPerMin = Number(m.distPerMin)||Number(mt.distPerMin)||0
+      const activeMin = (dTotal>0 && dPerMin>0) ? (dTotal/dPerMin) : (Number(m.minActivo)||Number(mt.minActivo)||1)
+      
+      const distTot = Number(m.distTotal)||Number(mt.distTotal)||0
+      const v4 = Number(m.distV4)||Number(mt.distV4)||0
+      const v5 = Number(m.distV5)||Number(mt.distV5)||0
+      const nSprints = Number(m.nSprints)||Number(mt.nSprints)||0
+      const accDec = (Number(m.nAcel)||Number(mt.nAcel)||0) + (Number(m.nDecel)||Number(mt.nDecel)||0) + (Number(m.nAcel3)||Number(mt.nAcel3)||0) + (Number(m.nDecel3)||Number(mt.nDecel3)||0)
+  
+      if (activeMin > 0) {
+        volRelativo = (distTot + v4 + v5 + nSprints + accDec) / activeMin
+      }
+      
+      sessionVolMap.set(s.id, volRelativo)
+    })
+  
+    // Arrows logic
+    const sessionArrowMap = new Map<number, 'UP'|'DOWN'|'EQUAL'>()
+    const validSesiones = orderedSesiones.filter(s => s.tipo !== 'descanso' && s.tipo !== 'partido' && (sessionVolMap.get(s.id) || 0) > 0)
+    for (let i = 1; i < validSesiones.length; i++) {
     const prev = validSesiones[i-1]
     const curr = validSesiones[i]
     const prevVol = sessionVolMap.get(prev.id) || 0
@@ -12311,4 +12310,5 @@ function BibliotecaPanel() {
     </div>
   )
 }
+
 
