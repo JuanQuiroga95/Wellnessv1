@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 import { useState, useEffect, useCallback } from 'react'
 import * as XLSX from 'xlsx'
 import { useRouter } from 'next/navigation'
@@ -8047,8 +8047,8 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
       {/* ══ CUADRO 1: MICROCICLO — INDIVIDUAL + SESIÓN (CALCULADA) ══════ */}
       <div style={{ marginBottom:20 }}>
         <div style={{ padding:'10px 0 12px' }}>
-          <p style={{ fontSize:11, fontWeight:700, color:'var(--lime)', textTransform:'uppercase', letterSpacing:'0.08em' }}>CUADRO 1 · MICROCICLO — DATOS POR SESIÓN · MD+1 → MD</p>
-          <p style={{ fontSize:10, color:'var(--fog)', marginTop:2 }}>Izquierda: datos individuales por jugador · Derecha: datos de sesión calculada (iguales para todos)</p>
+          <CuadroHeader icon={Icons.equipo} cuadroNum="1" title="MICROCICLO – DATOS POR SESIÓN – MD+1 ➔ MD" description="Izquierda: datos individuales por jugador · Derecha: datos de sesión calculada (iguales para todos)" color="var(--lime)" />
+
         </div>
         {mdCols.map((md:string) => {
           const ses = sesionesInfo.find((s:any) => s.titulo === md)
@@ -8356,8 +8356,8 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
       {/* ══ CUADRO 2: TOTALES POR MD (filas=métricas, cols=MD) ════════ */}
       <div style={{ background:'var(--ink2)', border:'1px solid rgba(96,165,250,.2)', borderRadius:16, overflow:'hidden', marginBottom:20 }}>
         <div style={{ padding:'10px 16px', borderBottom:'1px solid var(--mist)' }}>
-          <p style={{ fontSize:11, fontWeight:700, color:'#60a5fa', textTransform:'uppercase', letterSpacing:'0.08em' }}>CUADRO 2 · TOTALES POR MD · MD+1 → MD</p>
-          <p style={{ fontSize:10, color:'var(--fog)', marginTop:2 }}>Sumatoria total del equipo (dato sesión × nº jugadores) en cada día del microciclo</p>
+          <CuadroHeader icon={Icons.bateria} cuadroNum="2" title="TOTALES POR MD – MD+1 ➔ MD" description="Sumatoria total del equipo (dato sesión × nº jugadores) en cada día del microciclo" color="#60a5fa" />
+
         </div>
         {existingMdLabels.size === 0 ? (
           <div style={{ padding:24, textAlign:'center', color:'var(--fog)', fontSize:12 }}>Sin sesiones con MD asignado. Asigná MD en el Calendario.</div>
@@ -8415,8 +8415,8 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
           <CuadroHeader 
             icon={Icons.calculadora} 
             cuadroNum="3" 
-            title="TOTALES EQUIPO POR MD (GPS REAL)" 
-            description="Suma total del equipo (promedio × nº jugadores con datos) en cada sesión" 
+            title="PROMEDIO POR MD – MD+1 ➔ MD" 
+            description="Promedio del equipo en cada sesión del microciclo · con gráfico agrupado" 
             color="#a78bfa" 
           />
         </div>
@@ -8463,8 +8463,8 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
           <CuadroHeader 
             icon={Icons.porcentaje} 
             cuadroNum="4" 
-            title="% SOBRE EL PARTIDO GPS (= 100%)" 
-            description="Media de 3 partidos de referencia = objetivo 100% por variable" 
+            title="% SOBRE EL PARTIDO (= 100%)" 
+            description="Media de 3 partidos de referencia → objetivo: 100% en cada variable por sesión" 
             color="#f87171" 
           />
         </div>
@@ -8665,8 +8665,8 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
         const trainingMds = mdCols.filter(md => existingMdLabels.has(md) && (Number(perSession[md]?.minActivo) > 0 || Number(perSessionTeamAvg[md]?.minActivo) > 0))
         if (!trainingMds.length) return (
           <div style={{ background:'var(--ink2)', border:'1px solid rgba(168,85,247,.2)', borderRadius:16, padding:'20px', textAlign:'center', marginBottom:8 }}>
-            <p style={{ fontSize:11, fontWeight:700, color:'#a855f7', textTransform:'uppercase', letterSpacing:'0.08em' }}>CUADRO 6 — CONTROL DE INTENSIDAD RELATIVA (/ MINUTO)</p>
-            <p style={{ fontSize:12, color:'var(--fog)', marginTop:8 }}>No hay minutos activos planificados en el calendario para esta semana.</p>
+            <CuadroHeader icon={Icons.velocimetro} cuadroNum="6" title="CONTROL DE INTENSIDAD RELATIVA (/ MINUTO)" description="No hay minutos activos planificados en el calendario para esta semana." color="#a855f7" />
+
           </div>
         )
 
@@ -8702,7 +8702,7 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
                 icon={Icons.velocimetro} 
                 cuadroNum="6" 
                 title="CONTROL DE INTENSIDAD RELATIVA (/ MINUTO)" 
-                description="Métricas divididas por el tiempo total (o activo) de la sesión en cada MD" 
+                description="Métricas divididas por el tiempo activo de la sesión estimado en el diseño de tareas" 
                 color="#a855f7" 
               />
             </div>
@@ -9751,8 +9751,13 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
       {/* ══ CUADRO 2: Totales por MD (GPS) ══════════════════════════════════ */}
       <div style={{ background:'var(--ink2)', border:'1px solid rgba(96,165,250,.2)', borderRadius:16, overflow:'hidden', marginBottom:20, pageBreakBefore:'always', breakBefore:'page' }}>
         <div style={{ padding:'10px 16px', borderBottom:'1px solid var(--mist)' }}>
-          <p style={{ fontSize:11, fontWeight:700, color:'#60a5fa', textTransform:'uppercase', letterSpacing:'0.08em' }}>CUADRO 2 · PROMEDIO EQUIPO POR MD (GPS REAL)</p>
-          <p style={{ fontSize:10, color:'var(--fog)', marginTop:2 }}>Promedio del equipo en cada sesión · MD+1 → MD</p>
+          <CuadroHeader 
+            icon={Icons.bateria} 
+            cuadroNum="2" 
+            title="PROMEDIO EQUIPO POR MD (GPS REAL)" 
+            description="Promedio del equipo en cada sesión · MD+1 ➔ MD" 
+            color="#60a5fa" 
+          />
         </div>
         <div style={{ overflowX:'auto' }}>
           <table style={{ width:'100%', borderCollapse:'collapse', fontSize:11 }}>
@@ -9875,8 +9880,13 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
       {/* ══ CUADRO 3: TOTALES POR MD (GPS REAL) ═══════════════════════════ */}
       <div style={{ background:'var(--ink2)', border:'1px solid rgba(168,85,247,.2)', borderRadius:16, overflow:'hidden', marginBottom:20, pageBreakBefore:'always', breakBefore:'page' }}>
         <div style={{ padding:'10px 16px', borderBottom:'1px solid var(--mist)' }}>
-          <p style={{ fontSize:11, fontWeight:700, color:'#a78bfa', textTransform:'uppercase', letterSpacing:'0.08em' }}>CUADRO 3 · TOTALES EQUIPO POR MD (GPS REAL)</p>
-          <p style={{ fontSize:10, color:'var(--fog)', marginTop:2 }}>Suma total del equipo (promedio × nº jugadores con datos) en cada sesión</p>
+          <CuadroHeader 
+            icon={Icons.calculadora} 
+            cuadroNum="3" 
+            title="TOTALES EQUIPO POR MD (GPS REAL)" 
+            description="Suma total del equipo (promedio × nº jugadores con datos) en cada sesión" 
+            color="#a78bfa" 
+          />
         </div>
         <div style={{ overflowX:'auto' }}>
           <table style={{ width:'100%', borderCollapse:'collapse', fontSize:11 }}>
@@ -10009,8 +10019,13 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
       <div style={{ background:'var(--ink2)', border:'1px solid rgba(239,68,68,.2)', borderRadius:16, overflow:'hidden', marginBottom:8, pageBreakBefore:'always', breakBefore:'page' }}>
         <div style={{ padding:'10px 16px', borderBottom:'1px solid var(--mist)', display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:8 }}>
           <div>
-            <p style={{ fontSize:11, fontWeight:700, color:'#f87171', textTransform:'uppercase', letterSpacing:'0.08em' }}>CUADRO 4 · % SOBRE EL PARTIDO GPS (= 100%)</p>
-            <p style={{ fontSize:10, color:'var(--fog)', marginTop:2 }}>Media de 3 partidos de referencia · objetivo 100% por variable</p>
+            <CuadroHeader 
+              icon={Icons.porcentaje} 
+              cuadroNum="4" 
+              title="% SOBRE EL PARTIDO GPS (= 100%)" 
+              description="Media de 3 partidos de referencia · objetivo 100% por variable" 
+              color="#f87171" 
+            />
           </div>
           <button onClick={()=>setShowRefInput(!showRefInput)} style={{ fontSize:11, padding:'6px 14px', borderRadius:8, background:'rgba(239,68,68,.1)', color:'#f87171', border:'1px solid rgba(239,68,68,.3)', cursor:'pointer' }}>
             {showRefInput?'▲ Ocultar':'▼ Ingresar partidos'}
@@ -10173,15 +10188,13 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
         return (
           <div style={{ background:'var(--ink2)', border:'1px solid rgba(96,165,250,.25)', borderRadius:16, overflow:'hidden', marginBottom:8, pageBreakBefore:'always', breakBefore:'page' }}>
             <div style={{ padding:'10px 16px', borderBottom:'1px solid var(--mist)' }}>
-              <p style={{ fontSize:11, fontWeight:700, color:'#60a5fa', textTransform:'uppercase', letterSpacing:'0.08em' }}>
-                CUADRO 5 · ÍNDICE DE CARGA GPS (CIV) — MICROCICLO vs PARTIDO
-              </p>
-              <p style={{ fontSize:10, color:'var(--fog)', marginTop:2 }}>
-                CIV = Suma Microciclo ÷ Partido (GPS real) ·{' '}
-                <span style={{ color:'#60a5fa' }}>Azul &lt;1.0</span> ·{' '}
-                <span style={{ color:'#22c55e' }}>Verde 1.0–1.5</span> ·{' '}
-                <span style={{ color:'#ef4444' }}>Rojo &gt;1.5</span> · 1.0 = igual al partido
-              </p>
+              <CuadroHeader 
+                icon={Icons.metricas} 
+                cuadroNum="5" 
+                title="ÍNDICE DE CARGA GPS (CIV) — MICROCICLO vs PARTIDO" 
+                description="CIV = Suma Microciclo ÷ Partido (GPS real) · Azul <1.0 · Verde 1.0–1.5 · Rojo >1.5 · 1.0 = igual al partido" 
+                color="#60a5fa" 
+              />
             </div>
             <div style={{ overflowX:'auto' }}>
               <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12 }}>
@@ -10245,8 +10258,13 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
         })
         if (!activeMds.length) return (
           <div style={{ background:'var(--ink2)', border:'1px solid rgba(168,85,247,.2)', borderRadius:16, padding:'20px', textAlign:'center', marginBottom:8 }}>
-            <p style={{ fontSize:11, fontWeight:700, color:'#a855f7', textTransform:'uppercase', letterSpacing:'0.08em' }}>CUADRO 6 — CONTROL DE INTENSIDAD RELATIVA (/ MINUTO)</p>
-            <p style={{ fontSize:12, color:'var(--fog)', marginTop:8 }}>Faltan datos de GPS para calcular los minutos activos (se requiere Distancia Total y m/min).</p>
+            <CuadroHeader 
+              icon={Icons.velocimetro} 
+              cuadroNum="6" 
+              title="CONTROL DE INTENSIDAD RELATIVA (/ MINUTO)" 
+              description="Faltan datos de GPS para calcular los minutos activos (se requiere Distancia Total y m/min)." 
+              color="#a855f7" 
+            />
           </div>
         )
 
@@ -10280,8 +10298,13 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
         return (
           <div style={{ background:'var(--ink2)', border:'1px solid rgba(168,85,247,.2)', borderRadius:16, overflow:'hidden', marginBottom:8, pageBreakBefore:'always', breakBefore:'page' }}>
             <div style={{ padding:'10px 16px', borderBottom:'1px solid var(--mist)' }}>
-              <p style={{ fontSize:11, fontWeight:700, color:'#a855f7', textTransform:'uppercase', letterSpacing:'0.08em' }}>CUADRO 6 · CONTROL DE INTENSIDAD RELATIVA (/ MINUTO)</p>
-              <p style={{ fontSize:10, color:'var(--fog)', marginTop:2 }}>Métricas divididas por el tiempo total (o activo) de la sesión en cada MD</p>
+              <CuadroHeader 
+                icon={Icons.velocimetro} 
+                cuadroNum="6" 
+                title="CONTROL DE INTENSIDAD RELATIVA (/ MINUTO)" 
+                description="Métricas divididas por el tiempo total (o activo) de la sesión en cada MD" 
+                color="#a855f7" 
+              />
             </div>
             
             <div style={{ overflowX:'auto' }}>
