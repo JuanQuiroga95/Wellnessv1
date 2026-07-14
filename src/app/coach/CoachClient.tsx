@@ -204,11 +204,22 @@ const AnimateOnScroll = ({ children, minHeight = 0 }: { children: any, minHeight
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    const obs = new IntersectionObserver(([entry]) => {
-      if (entry.isIntersecting) { setIsVisible(true); obs.disconnect(); }
-    }, { threshold: 0.1 });
-    obs.observe(el);
-    return () => obs.disconnect();
+    
+    const timeout = setTimeout(() => {
+      const obs = new IntersectionObserver(([entry]) => {
+        if (entry.isIntersecting) { setIsVisible(true); obs.disconnect(); }
+      }, { threshold: 0.1 });
+      obs.observe(el);
+      
+      // @ts-ignore
+      el._obs = obs;
+    }, 500);
+
+    return () => {
+      clearTimeout(timeout);
+      // @ts-ignore
+      if (el._obs) el._obs.disconnect();
+    };
   }, []);
   return (
     <div ref={ref} className={isVisible ? "start-animations" : "pause-animations"} style={{ width: '100%', minHeight }}>
@@ -223,11 +234,22 @@ const AnimatedPieChart = (props: any) => {
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    const obs = new IntersectionObserver(([entry]) => {
-      if (entry.isIntersecting) { setIsVisible(true); obs.disconnect(); }
-    }, { threshold: 0.1 });
-    obs.observe(el);
-    return () => obs.disconnect();
+    
+    const timeout = setTimeout(() => {
+      const obs = new IntersectionObserver(([entry]) => {
+        if (entry.isIntersecting) { setIsVisible(true); obs.disconnect(); }
+      }, { threshold: 0.1 });
+      obs.observe(el);
+      
+      // @ts-ignore
+      el._obs = obs;
+    }, 500);
+
+    return () => {
+      clearTimeout(timeout);
+      // @ts-ignore
+      if (el._obs) el._obs.disconnect();
+    };
   }, []);
   return (
     <div ref={ref} style={{ width: props.width, height: props.height }}>
