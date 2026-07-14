@@ -1898,20 +1898,28 @@ function CalendarioPanel({ teamData }) {
   const gymDetalle: Record<string, number> = {}
 
   sesiones.forEach(s => {
-    if (!visibleDays.includes(s.fecha)) return
-    if (!s.ejercicios) return
-    s.ejercicios.forEach((bl:any) => {
-      const mins = (Number(bl.series)||1) * (Number(bl.minutos)||0)
-      if (mins <= 0) return
-      if (bl.ventana === 'Activación en gimnasio' || bl.ventana === 'Fuerza Estructural' || (bl.ventana && bl.ventana.toLowerCase().includes('gimnasio'))) {
-        totalGymMin += mins
-        gymDetalle[bl.ventana] = (gymDetalle[bl.ventana] || 0) + mins
-      } else if (bl.ventana) {
-        totalCampoMin += mins
-        campoDetalle[bl.ventana] = (campoDetalle[bl.ventana] || 0) + mins
-      }
+      if (!visibleDays.includes(s.fecha)) return
+      if (!s.ejercicios) return
+      s.ejercicios.forEach((bl:any) => {
+        const mins = (Number(bl.series)||1) * (Number(bl.minutos)||0)
+        if (mins <= 0) return
+        
+        let subtareas = getSubtareasArr(bl)
+        if (subtareas.length === 0) subtareas = [bl.ventana || 'Sin especificar']
+
+        if (bl.ventana === 'Activación en gimnasio' || bl.ventana === 'Fuerza Estructural' || (bl.ventana && bl.ventana.toLowerCase().includes('gimnasio'))) {
+          totalGymMin += mins
+          subtareas.forEach(st => {
+            gymDetalle[st] = (gymDetalle[st] || 0) + (mins / subtareas.length)
+          })
+        } else if (bl.ventana) {
+          totalCampoMin += mins
+          subtareas.forEach(st => {
+            campoDetalle[st] = (campoDetalle[st] || 0) + (mins / subtareas.length)
+          })
+        }
+      })
     })
-  })
   
   const totalMin = totalGymMin + totalCampoMin
   const pctGym = totalMin > 0 ? Math.round((totalGymMin/totalMin)*100) : 0
@@ -2053,9 +2061,9 @@ function CalendarioPanel({ teamData }) {
                               ? <span style={{overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{TIPO_ICONOS[s.tipo]} {s.rival ? `vs ${s.rival}` : formatMD(s.titulo||'Partido', s.tipo)}</span>
                               : <span style={{overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{s.tipo !== 'descanso' && !((s.titulo||s.tipo).startsWith('MD')) ? TIPO_ICONOS[s.tipo] + ' ' : null}{formatMD(s.titulo||s.tipo, s.tipo)}</span>
                             }
-                            {sessionArrowMap.get(s.id) === 'UP' && <span style={{fontSize:11, color:'#3b82f6', fontWeight:800, textShadow:'0 0 8px rgba(59,130,246,0.8)'}} title={`Sube vol. relativo (${sessionVolMap.get(s.id)?.toFixed(1)})`}>▲</span>}
-                            {sessionArrowMap.get(s.id) === 'DOWN' && <span style={{fontSize:11, color:'#ef4444', fontWeight:800, textShadow:'0 0 8px rgba(239,68,68,0.8)'}} title={`Baja vol. relativo (${sessionVolMap.get(s.id)?.toFixed(1)})`}>▼</span>}
-                            {sessionArrowMap.get(s.id) === 'EQUAL' && <span style={{fontSize:11, color:'#eab308', fontWeight:800, textShadow:'0 0 8px rgba(234,179,8,0.8)'}} title={`Mantiene vol. relativo (${sessionVolMap.get(s.id)?.toFixed(1)})`}>▬</span>}
+                            {sessionArrowMap.get(s.id) === 'UP' && <span style={{color:'#ef4444', marginLeft:4}}>▲</span>}
+                            {sessionArrowMap.get(s.id) === 'DOWN' && <span style={{color:'#10b981', marginLeft:4}}>▼</span>}
+                            {sessionArrowMap.get(s.id) === 'EQUAL' && <span style={{color:'#fbbf24', marginLeft:4}}>▬</span>}
                             
                           </div>
                           {(s.hora_inicio || s.objetivo) && (
@@ -2099,9 +2107,9 @@ function CalendarioPanel({ teamData }) {
                               ? <span style={{overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{TIPO_ICONOS[s.tipo]} {s.rival ? `vs ${s.rival}` : formatMD(s.titulo||'Partido', s.tipo)}</span>
                               : <span style={{overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>{s.tipo !== 'descanso' && !((s.titulo||s.tipo).startsWith('MD')) ? TIPO_ICONOS[s.tipo] + ' ' : null}{formatMD(s.titulo||s.tipo, s.tipo)}</span>
                             }
-                            {sessionArrowMap.get(s.id) === 'UP' && <span style={{fontSize:11, color:'#3b82f6', fontWeight:800, textShadow:'0 0 8px rgba(59,130,246,0.8)'}} title={`Sube vol. relativo (${sessionVolMap.get(s.id)?.toFixed(1)})`}>▲</span>}
-                            {sessionArrowMap.get(s.id) === 'DOWN' && <span style={{fontSize:11, color:'#ef4444', fontWeight:800, textShadow:'0 0 8px rgba(239,68,68,0.8)'}} title={`Baja vol. relativo (${sessionVolMap.get(s.id)?.toFixed(1)})`}>▼</span>}
-                            {sessionArrowMap.get(s.id) === 'EQUAL' && <span style={{fontSize:11, color:'#eab308', fontWeight:800, textShadow:'0 0 8px rgba(234,179,8,0.8)'}} title={`Mantiene vol. relativo (${sessionVolMap.get(s.id)?.toFixed(1)})`}>▬</span>}
+                            {sessionArrowMap.get(s.id) === 'UP' && <span style={{color:'#ef4444', marginLeft:4}}>▲</span>}
+                            {sessionArrowMap.get(s.id) === 'DOWN' && <span style={{color:'#10b981', marginLeft:4}}>▼</span>}
+                            {sessionArrowMap.get(s.id) === 'EQUAL' && <span style={{color:'#fbbf24', marginLeft:4}}>▬</span>}
                             
                           </div>
                           {(s.hora_inicio || s.objetivo) && (
@@ -2170,6 +2178,9 @@ function CalendarioPanel({ teamData }) {
                             ? <span>{TIPO_ICONOS[s.tipo]} {s.rival ? `vs ${s.rival}` : formatMD(s.titulo||'Partido', s.tipo)}</span>
                             : <span>{s.tipo !== 'descanso' && !((s.titulo||s.tipo).startsWith('MD')) ? TIPO_ICONOS[s.tipo] + ' ' : null}{formatMD(s.titulo||s.tipo, s.tipo)}</span>
                           }
+                          {sessionArrowMap.get(s.id) === 'UP' && <span style={{color:'#ef4444', marginLeft:4}}>▲</span>}
+                          {sessionArrowMap.get(s.id) === 'DOWN' && <span style={{color:'#10b981', marginLeft:4}}>▼</span>}
+                          {sessionArrowMap.get(s.id) === 'EQUAL' && <span style={{color:'#fbbf24', marginLeft:4}}>▬</span>}
                         </div>
                         {(s.hora_inicio || s.objetivo) && (
                           <div style={{ display:'flex', alignItems:'center', gap:6, marginTop:2, borderTop:'1px solid rgba(255,255,255,0.1)', paddingTop:2, width:'100%', justifyContent:'center' }}>
@@ -2274,7 +2285,7 @@ function CalendarioPanel({ teamData }) {
             {ses.map(s=>(
               <div key={s.id} style={{ background:'var(--ink3)', borderRadius:10, padding:'12px 14px', marginBottom:8 }}>
                 <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-                  <span style={{ fontWeight:700, color:TIPO_COLORES[s.tipo]||'#888', fontSize:13 }}>{TIPO_ICONOS[s.tipo]} {formatMD(s.titulo||s.tipo)} <span style={{fontSize:9, opacity:0.6}}>({(sessionVolMap.get(s.id)||0).toFixed(1)})</span></span>
+                  <span style={{ fontWeight:700, color:TIPO_COLORES[s.tipo]||'#888', fontSize:13 }}>{TIPO_ICONOS[s.tipo]} {formatMD(s.titulo||s.tipo)}</span>
                   <div style={{ display:'flex', gap:6 }}>
                     <button onClick={()=>{setEditSesion(s);setShowEditor(true)}} style={{ fontSize:11, padding:'3px 8px', borderRadius:6, background:'var(--ink2)', border:'1px solid var(--fog)', color:'var(--silver)', cursor:'pointer' }}>✏️ Editar</button>
                     <button onClick={async()=>{ await fetch(`/api/calendario?id=${s.id}`,{method:'DELETE'}); load() }} style={{ fontSize:11, padding:'3px 8px', borderRadius:6, background:'rgba(239,68,68,.1)', border:'1px solid rgba(239,68,68,.25)', color:'#f87171', cursor:'pointer' }}>🗑</button>
