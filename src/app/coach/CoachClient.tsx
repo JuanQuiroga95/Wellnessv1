@@ -1831,22 +1831,26 @@ function CalendarioPanel({ teamData }) {
           return vals.length ? vals.reduce((sum, x) => sum + x, 0) / vals.length : 0
         }
         
-        const distPerMin = getAvg('dist_per_min')
-        const activeMin = getAvg('duracion_min') || 1
+        const dTotal = getAvg('dist_total')
+        const dPerMin = getAvg('dist_per_min')
+        const activeMin = (dTotal > 0 && dPerMin > 0) ? (dTotal / dPerMin) : (getAvg('duracion_min') || 1)
         
-        const distV4 = getAvg('dist_v4') || getAvg('dist_hir') || 0
-        const v4PerMin = distV4 / activeMin
+        const metMin = dPerMin > 0 ? dPerMin : (dTotal / activeMin)
         
-        const distV5 = getAvg('dist_v5') || 0
-        const v5PerMin = distV5 / activeMin
+        const dSprint = getAvg('dist_v5') || getAvg('dist_hir') || 0
+        const sprintMin = dSprint / activeMin
+        
+        const nSprint = getAvg('n_sprints') || 0
+        const nSprintMin = nSprint / activeMin
         
         const acc2 = getAvg('acc2'); const acc3 = getAvg('acc3')
         const dec2 = getAvg('dec2'); const dec3 = getAvg('dec3')
         const accTotal = getAvg('acc_total'); const decTotal = getAvg('dec_total')
-        const accDec = (accTotal + decTotal) > 0 ? (accTotal + decTotal) : (acc2 + acc3 + dec2 + dec3)
-        const accDecPerMin = accDec / activeMin
+        const accel = accTotal || acc2 || 0
+        const decel = decTotal || dec2 || 0
+        const acelDecelMin = (accel + decel) / activeMin
         
-        volRelativo = distPerMin + v4PerMin + v5PerMin + accDecPerMin
+        volRelativo = metMin + sprintMin + nSprintMin + acelDecelMin
       }
       
       // Si no hay datos GPS reales, intentar con los datos planificados
