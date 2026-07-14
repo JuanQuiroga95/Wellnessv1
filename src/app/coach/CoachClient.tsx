@@ -1723,7 +1723,7 @@ function CalendarioPanel({ teamData }) {
       ])
       const calendData = await rc.json()
       const gpsData = await rg.json().catch(() => ({}))
-      setData({ ...calendData, perSession: gpsData?.perSession, perSessionTeamAvg: gpsData?.perSessionTeamAvg })
+      setData({ ...calendData, perSession: gpsData?.perSession, perSessionTeamAvg: gpsData?.perSessionTeamAvg, gpsPerMD: gpsData?.gpsPerMD })
       const rcCanchas = await fetch('/api/canchas')
       const dc = await rcCanchas.json()
       setCanchas(Array.isArray(dc) ? dc : [])
