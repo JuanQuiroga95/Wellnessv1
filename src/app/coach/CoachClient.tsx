@@ -1996,9 +1996,9 @@ function CalendarioPanel({ teamData }) {
           @keyframes growUpAnim { from { transform: scaleY(0); } to { transform: scaleY(1); } }
           @keyframes fadeUpAnim { from { opacity: 0; transform: translateY(10px) translateX(-50%); } to { opacity: 1; transform: translateY(0) translateX(-50%); } }
           @keyframes fadeInAnim { from { opacity: 0; } to { opacity: 1; } }
-          .anim-grow-up { transform-origin: bottom; animation: growUpAnim 2.5s cubic-bezier(0.16, 1, 0.3, 1) forwards; transform: scaleY(0); }
-          .anim-fade-up { animation: fadeUpAnim 2.5s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; }
-          .anim-fade-in { animation: fadeInAnim 2.5s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; }
+          .anim-grow-up { transform-origin: bottom; animation: growUpAnim 5s cubic-bezier(0.16, 1, 0.3, 1) forwards; transform: scaleY(0); }
+          .anim-fade-up { animation: fadeUpAnim 5s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; }
+          .anim-fade-in { animation: fadeInAnim 5s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; }
         
           .pause-animations .anim-grow-up,
           .pause-animations .anim-fade-up,
