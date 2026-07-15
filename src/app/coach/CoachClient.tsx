@@ -18,6 +18,7 @@ import PushNotificationManager, { PushToggle } from '@/components/ui/PushNotific
 import { PanelHeader, CuadroHeader, Icons } from './Headers'
 import { PieChart, Pie, Cell } from 'recharts'
 import { AnimateOnScroll } from '@/components/AnimateOnScroll'
+import InicioPanel from './InicioPanel'
 
 // ─── GPS METRIC METADATA (shared between GpsPanel and CargaExternaPanel) ──────
 // Maps metric key → { label, unit, group } for display purposes
@@ -104,10 +105,11 @@ function compressImage(dataUrl: string, maxSize = 400, quality = 0.7): Promise<s
   })
 }
 
-const TABS = [{id:'team',label:'Equipo'},{id:'calendario',label:'📅 Calendario'},{id:'analytics',label:'Analytics'},{id:'neuromuscular',label:'Neuromuscular'},{id:'minutos',label:'Minutaje'},{id:'control-carga-calc',label:'🏋️ Ctrl. Carga Calc'},{id:'control-carga-gps',label:'📡 Ctrl. Carga GPS'},{id:'acumulado',label:'📈 Acumulado Ind.'},{id:'cambio-carga',label:'Cambio de Carga'},{id:'expo-ai',label:'⚡ Expo. AI'},{id:'evaluaciones',label:'📋 Evaluaciones'},{id:'comparativa',label:'⚖️ Comparativa'},{id:'lesiones',label:'🏥 Enfermería'},{id:'gps',label:'📡 GPS'},{id:'vinculaciones',label:'🔗 ACWR'},{id:'canchas',label:'🏟️ Estadios'},{id:'players',label:'Jugadores'},{id:'biblioteca',label:'📚 Biblioteca'},{id:'manual',label:'📖 Manual'},{id:'notificaciones',label:'🔔 Notificaciones'}]
+const TABS = [{id:'inicio',label:'🏠 Inicio'},{id:'team',label:'Equipo'},{id:'calendario',label:'📅 Calendario'},{id:'analytics',label:'Analytics'},{id:'neuromuscular',label:'Neuromuscular'},{id:'minutos',label:'Minutaje'},{id:'control-carga-calc',label:'🏋️ Ctrl. Carga Calc'},{id:'control-carga-gps',label:'📡 Ctrl. Carga GPS'},{id:'acumulado',label:'📈 Acumulado Ind.'},{id:'cambio-carga',label:'Cambio de Carga'},{id:'expo-ai',label:'⚡ Expo. AI'},{id:'evaluaciones',label:'📋 Evaluaciones'},{id:'comparativa',label:'⚖️ Comparativa'},{id:'lesiones',label:'🏥 Enfermería'},{id:'gps',label:'📡 GPS'},{id:'vinculaciones',label:'🔗 ACWR'},{id:'canchas',label:'🏟️ Estadios'},{id:'players',label:'Jugadores'},{id:'biblioteca',label:'📚 Biblioteca'},{id:'manual',label:'📖 Manual'},{id:'notificaciones',label:'🔔 Notificaciones'}]
 
 const SIDEBAR_GROUPS = [
   { label:'General', icon:'🏠', items:[
+    {id:'inicio',label:'Inicio',icon:'🏠'},
     {id:'team',label:'Equipo',icon:'👥'},
     {id:'calendario',label:'Calendario',icon:'📅'},
     {id:'biblioteca',label:'Diseñador Tareas',icon:'🎨'},
@@ -230,7 +232,7 @@ const AnimatedPieChart = (props: any) => {
 }
 
 export default function CoachClient({ session, teamData, today }) {
-  const [tab, setTab] = useState('team')
+  const [tab, setTab] = useState('inicio')
   const [selected, setSelected] = useState(null)
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [playerLogs, setPlayerLogs] = useState([])
@@ -376,6 +378,8 @@ export default function CoachClient({ session, teamData, today }) {
         {/* ── Main content ── */}
         <main style={{ flex:1, maxWidth:1200, margin:'0 auto', padding:'24px 16px', minWidth:0 }}>
           <AnimateOnScroll key={tab} delay={100}>
+
+        {tab==='inicio' && <InicioPanel teamData={teamData} session={session} today={today} />}
 
         {tab==='team' && !selected && (
           <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
