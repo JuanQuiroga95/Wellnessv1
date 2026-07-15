@@ -2658,7 +2658,7 @@ function CalendarioPanel({ teamData }) {
             {campoSorted.length > 0 && (
               <div style={{ flex:2, minWidth:300 }}>
                 <p style={{ fontSize:11, color:'var(--fog)', marginBottom:8 }}>Desglose de Campo</p>
-                <div style={{ display:'grid', gridTemplateRows:'repeat(10, auto)', gridAutoFlow:'column', gridAutoColumns:'minmax(180px, 1fr)', gap:10 }}>
+                <div style={{ columns: '180px', columnGap: 16 }}>
                   {campoSorted.map(([nombre, mins]) => {
                     const p = Math.round((mins / totalCampoMin) * 100)
                     return (
@@ -2682,7 +2682,7 @@ function CalendarioPanel({ teamData }) {
             {gymSorted.length > 0 && (
               <div style={{ flex:2, minWidth:300 }}>
                 <p style={{ fontSize:11, color:'var(--fog)', marginBottom:8 }}>Desglose de Gimnasio</p>
-                <div style={{ display:'grid', gridTemplateRows:'repeat(10, auto)', gridAutoFlow:'column', gridAutoColumns:'minmax(180px, 1fr)', gap:10 }}>
+                <div style={{ columns: '180px', columnGap: 16 }}>
                   {gymSorted.map(([nombre, mins]) => {
                     const p = Math.round((mins / totalGymMin) * 100)
                     return (
@@ -2701,7 +2701,8 @@ function CalendarioPanel({ teamData }) {
                 </div>
               </div>
             )}
-          </div>\n          </AnimateOnScroll>
+          </div>
+          </AnimateOnScroll>
         </div>
       )}
     </div>
