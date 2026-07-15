@@ -25,7 +25,7 @@ export default async function CoachPage() {
   const [players, lesionesRows] = await Promise.all([
     filterByClub
       ? sql`SELECT u.id, u.nombre, u.usuario, u.activo, u.password_plain, j.id AS jugador_id, j.posicion, j.edad,
-                   j.peso_kg::text AS peso_kg, j.estatura_cm, j.pie_habil, j.foto_url
+                   j.peso_kg::text AS peso_kg, j.estatura_cm, j.pie_habil, j.foto_url, j.fecha_nacimiento::text AS fecha_nacimiento, j.fecha_nacimiento::text AS fecha_nacimiento
             FROM usuarios u JOIN jugadores j ON j.usuario_id=u.id
             WHERE u.rol='jugador' AND u.activo=true AND u.club_id=${clubId} ORDER BY u.nombre`
       : sql`SELECT u.id, u.nombre, u.usuario, u.activo, u.password_plain, j.id AS jugador_id, j.posicion, j.edad,
@@ -118,6 +118,7 @@ export default async function CoachPage() {
       jugador_id: p.jugador_id, posicion: String(p.posicion||''), edad: Number(p.edad)||null,
       peso_kg: String(p.peso_kg||''), estatura_cm: Number(p.estatura_cm)||null, pie_habil: String(p.pie_habil||''),
       foto_url: p.foto_url ? String(p.foto_url) : null,
+      fecha_nacimiento: p.fecha_nacimiento ? String(p.fecha_nacimiento) : null,
       posicion_orden: posOrder(p.posicion), acwr: calcACWR(sl, new Date(), 'ua', jugadorAusencias),
       recentLogs: logs.map(l => ({ id: Number(l.id), fecha: String(l.fecha), carga_ua: Number(l.carga_ua)||0, rpe: Number(l.rpe)||0, duracion_min: Number(l.duracion_min)||0 })),
       lastWellness: lastW, respondedToday, entrena_grupo: respondedToday ? (lastW?.entrena_grupo ?? null) : null,
