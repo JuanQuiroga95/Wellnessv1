@@ -17,6 +17,7 @@ import VinculacionesPanel from './VinculacionesPanel'
 import PushNotificationManager, { PushToggle } from '@/components/ui/PushNotificationManager'
 import { PanelHeader, CuadroHeader, Icons } from './Headers'
 import { PieChart, Pie, Cell } from 'recharts'
+import { AnimateOnScroll } from '@/components/AnimateOnScroll'
 
 // ─── GPS METRIC METADATA (shared between GpsPanel and CargaExternaPanel) ──────
 // Maps metric key → { label, unit, group } for display purposes
@@ -198,36 +199,6 @@ function getObjetivoIcon(obj: string) {
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-const AnimateOnScroll = ({ children, minHeight = 0 }: { children: any, minHeight?: number }) => {
-  const [isVisible, setIsVisible] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    
-    const timeout = setTimeout(() => {
-      const obs = new IntersectionObserver(([entry]) => {
-        if (entry.isIntersecting) { setIsVisible(true); obs.disconnect(); }
-      }, { threshold: 0.1 });
-      obs.observe(el);
-      
-      // @ts-ignore
-      el._obs = obs;
-    }, 500);
-
-    return () => {
-      clearTimeout(timeout);
-      // @ts-ignore
-      if (el._obs) el._obs.disconnect();
-    };
-  }, []);
-  return (
-    <div ref={ref} className={isVisible ? "start-animations" : "pause-animations"} style={{ width: '100%', minHeight }}>
-      {children}
-    </div>
-  )
-}
-
 const AnimatedPieChart = (props: any) => {
   const [isVisible, setIsVisible] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -404,6 +375,7 @@ export default function CoachClient({ session, teamData, today }) {
         </nav>
         {/* ── Main content ── */}
         <main style={{ flex:1, maxWidth:1200, margin:'0 auto', padding:'24px 16px', minWidth:0 }}>
+          <AnimateOnScroll key={tab} delay={100}>
 
         {tab==='team' && !selected && (
           <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
@@ -588,6 +560,7 @@ export default function CoachClient({ session, teamData, today }) {
         {tab==='manual' && <ManualPanel />}
 
         {tab==='notificaciones' && <NotificacionesCoachPanel />}
+          </AnimateOnScroll>
 
         {tab==='players' && (
           <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
@@ -2621,7 +2594,7 @@ function CalendarioPanel({ teamData }) {
               <div style={{ position:'relative', width:180, height:180 }}>
                 <AnimatedPieChart width={180} height={180}>
                   <Pie
-                    data={[
+                    isAnimationActive={true} data={[
                       { name: 'Campo', value: totalCampoMin, color: '#c8f135' },
                       { name: 'Gimnasio', value: totalGymMin, color: '#60a5fa' }
                     ].filter(d => d.value > 0)}
@@ -2670,7 +2643,7 @@ function CalendarioPanel({ teamData }) {
                         <div style={{ width:'100%', height:4, background:'var(--ink3)', borderRadius:2, overflow:'hidden' }}>
                           <div className="anim-bar" style={{ width:`${p}%`, height:'100%', background:'#c8f135' }}></div>
                         </div>
-                        <div style={{ fontSize:9, color:'var(--fog)', marginTop:4, textAlign:'right' }}>{mins} min</div>
+                        <div style={{ fontSize:9, color:'var(--fog)', marginTop:4, textAlign:'right' }}>{Number(Number(mins).toFixed(2))} min</div>
                       </div>
                     )
                   })}
@@ -2694,7 +2667,7 @@ function CalendarioPanel({ teamData }) {
                         <div style={{ width:'100%', height:4, background:'var(--ink3)', borderRadius:2, overflow:'hidden' }}>
                           <div className="anim-bar" style={{ width:`${p}%`, height:'100%', background:'#60a5fa' }}></div>
                         </div>
-                        <div style={{ fontSize:9, color:'var(--fog)', marginTop:4, textAlign:'right' }}>{mins} min</div>
+                        <div style={{ fontSize:9, color:'var(--fog)', marginTop:4, textAlign:'right' }}>{Number(Number(mins).toFixed(2))} min</div>
                       </div>
                     )
                   })}

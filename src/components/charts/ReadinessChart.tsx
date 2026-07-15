@@ -54,7 +54,7 @@ export default function ReadinessChart({ data, mode = 'wellness' }) {
             <ReferenceLine y={18} stroke="#f59e0b" strokeDasharray="3 3" strokeWidth={1} opacity={.5} label={{ value:'Atención', fill:'#f59e0b', fontSize:9 }}/>
           </>
         )}
-        <Scatter animationDuration={15000} data={data} shape={<PlayerDot />}/>
+        <Scatter isAnimationActive={true} animationDuration={15000} data={data} shape={<PlayerDot />}/>
       </ScatterChart>
     </ResponsiveContainer>
   )

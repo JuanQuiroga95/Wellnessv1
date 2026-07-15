@@ -226,7 +226,7 @@ export default function AnalyticsPanel() {
                   <Tooltip content={<ScatterTip />} cursor={{ strokeDasharray:'3 3', stroke:'rgba(255,255,255,.1)' }}/>
                   <ReferenceLine y={12} stroke="#c8f135" strokeDasharray="3 3" strokeWidth={1} opacity={.4}/>
                   <ReferenceLine y={18} stroke="#f59e0b" strokeDasharray="3 3" strokeWidth={1} opacity={.4}/>
-                  <Scatter animationDuration={15000} data={merged} shape={<PlayerDot/>}>
+                  <Scatter isAnimationActive={true} animationDuration={15000} data={merged} shape={<PlayerDot/>}>
                     {merged.map((d,i) => <Cell key={i} fill={d.dotColor}/>)}
                   </Scatter>
                 </ScatterChart>
@@ -246,7 +246,7 @@ export default function AnalyticsPanel() {
                   <Tooltip content={<ScatterTip />} cursor={{ strokeDasharray:'3 3', stroke:'rgba(255,255,255,.1)' }}/>
                   <ReferenceLine x={6}   stroke="#f59e0b" strokeDasharray="3 3" strokeWidth={1} opacity={.4}/>
                   <ReferenceLine y={3.5} stroke="#ef4444" strokeDasharray="3 3" strokeWidth={1} opacity={.4}/>
-                  <Scatter animationDuration={15000} data={merged} shape={<PlayerDot/>}>
+                  <Scatter isAnimationActive={true} animationDuration={15000} data={merged} shape={<PlayerDot/>}>
                     {merged.map((d,i) => <Cell key={i} fill={d.avg_dolor>=4?'#ef4444':d.avg_dolor>=3?'#f59e0b':'#22c55e'}/>)}
                   </Scatter>
                 </ScatterChart>
