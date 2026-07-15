@@ -552,7 +552,7 @@ export default function EnfermeriaPanel({ teamData, onRefresh }: { teamData: any
               <p style={{ fontSize: 12, color: 'var(--fog)', textAlign: 'center', padding: 20 }}>Sin registros.</p>
             ) : (
               <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                <table className="wp-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
                   <thead>
                     <tr style={{ borderBottom: '1px solid var(--mist)' }}>
                       {['Jugador', 'Fecha', 'Región', 'Tipo', 'Mecanismo', 'Días', 'Estado', ''].map(h => (
@@ -983,7 +983,7 @@ const LabelField = ({ label, children }: { label: string; children: React.ReactN
   </div>
 )
 
-function NewLesionFormEnf({ teamData, onSuccess }: { teamData: any[]; onSuccess: () => void }) {
+function NewLesionFormEnf({ teamData, onSuccess, onCancel }: { teamData: any[]; onSuccess: () => void; onCancel: () => void }) {
   const [f, setF] = useState({
     jugador_id: '', fecha_inicio: new Date().toISOString().split('T')[0],
     tipo_lesion: 'Desgarro Muscular', region_corporal: '', zona: '', lateralidad: 'Bilateral',

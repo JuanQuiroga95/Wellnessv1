@@ -38,13 +38,46 @@ html{font-size:16px}body{font-family:'DM Sans',system-ui,sans-serif;background:v
 .wp-input{width:100%;background:var(--ink3);border:1px solid var(--fog);border-radius:10px;padding:10px 14px;font-size:15px;font-family:'DM Sans',sans-serif;color:var(--snow);outline:none;transition:border-color .15s}
 .wp-input:focus{border-color:var(--lime)}
 .wp-input::placeholder{color:var(--silver)}
-.btn-lime{background:var(--lime);color:var(--ink);border:none;border-radius:10px;padding:11px 22px;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;cursor:pointer;transition:opacity .15s}
-.btn-lime:hover{opacity:.9}.btn-lime:disabled{opacity:.35;cursor:default}
-.btn-ghost{background:transparent;color:var(--silver);border:1px solid var(--fog);border-radius:10px;padding:10px 18px;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:500;cursor:pointer;transition:color .15s,border-color .15s}
-.btn-ghost:hover{color:var(--snow);border-color:var(--silver)}
-.nav-tab{padding:9px 16px;border-radius:8px;font-size:14px;font-weight:500;color:var(--silver);background:transparent;border:none;cursor:pointer;white-space:nowrap;transition:color .15s,background .15s}
-.nav-tab:hover{color:var(--snow);background:var(--mist)}
+.btn-lime{background:var(--lime);color:var(--ink);border:none;border-radius:10px;padding:11px 22px;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;cursor:pointer;transition:all .2s cubic-bezier(0.175, 0.885, 0.32, 1.275)}
+.btn-lime:hover{opacity:1;box-shadow:0 0 15px rgba(200,241,53,0.4);transform:translateY(-1px)}.btn-lime:active{transform:scale(0.96)}.btn-lime:disabled{opacity:.35;cursor:default;pointer-events:none;transform:none;box-shadow:none}
+.btn-ghost{background:transparent;color:var(--silver);border:1px solid var(--fog);border-radius:10px;padding:10px 18px;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:500;cursor:pointer;transition:all .2s cubic-bezier(0.175, 0.885, 0.32, 1.275)}
+.btn-ghost:hover{color:var(--snow);border-color:var(--silver);transform:translateY(-1px);background:rgba(255,255,255,0.05)}.btn-ghost:active{transform:scale(0.96)}
+.nav-tab{padding:9px 16px;border-radius:8px;font-size:14px;font-weight:500;color:var(--silver);background:transparent;border:none;cursor:pointer;white-space:nowrap;transition:all .2s}
+.nav-tab:hover{color:var(--snow);background:rgba(255,255,255,0.05)}
 .nav-tab.active{color:var(--lime);background:rgba(200,241,53,.1)}
+
+/* UI/UX OVERHAUL CLASSES */
+@keyframes shimmer {
+  0% { background-position: -1000px 0; }
+  100% { background-position: 1000px 0; }
+}
+.skeleton-shimmer {
+  background: #111;
+  background-image: linear-gradient(to right, #111 8%, #222 18%, #111 33%);
+  background-size: 1000px 100%;
+  animation: shimmer 2.5s infinite linear;
+}
+.wp-table { width: 100%; border-collapse: separate; border-spacing: 0; }
+.wp-table th { padding: 12px 16px; text-align: left; font-size: 11px; font-weight: 700; color: var(--fog); text-transform: uppercase; letter-spacing: 0.1em; border-bottom: 1px solid var(--mist); background: var(--ink3); position: sticky; top: 0; z-index: 10; }
+.wp-table td { padding: 12px 16px; border-bottom: 1px solid var(--mist); font-size: 14px; transition: background 0.2s; font-variant-numeric: tabular-nums; }
+.wp-table tbody tr { transition: all 0.2s; }
+.wp-table tbody tr:hover { background: rgba(255,255,255,0.03); }
+.modal-backdrop {
+  position: fixed; inset: 0; z-index: 999;
+  background: rgba(0,0,0,0.6); backdrop-filter: blur(8px);
+  display: flex; align-items: center; justify-content: center; padding: 20px;
+  animation: fadeIn 0.3s ease;
+}
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes modalScaleIn { from { opacity: 0; transform: scale(0.95) translateY(10px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+.modal-content {
+  background: rgba(17,17,17,0.95);
+  border: 1px solid var(--mist);
+  border-radius: 16px;
+  box-shadow: 0 25px 50px -12px rgba(0,0,0,0.7);
+  animation: modalScaleIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  max-width: 90vw; max-height: 90vh; overflow-y: auto;
+}
 
 /* ─── PRINT / PDF ─────────────────────────────────────────────────────────── */
 @media print {

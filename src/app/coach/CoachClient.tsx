@@ -235,6 +235,7 @@ export default function CoachClient({ session, teamData, today }) {
   const [tab, setTab] = useState('inicio')
   const [selected, setSelected] = useState(null)
   const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [openGroups, setOpenGroups] = useState({'General':true, 'Control de Carga':true, 'Análisis':true, 'Evaluaciones':true, 'Médico':true, 'Instalaciones':true, 'Recursos':true, 'Configuración':true})
   const [playerLogs, setPlayerLogs] = useState([])
   const [playerWellness, setPlayerWellness] = useState([])
   const [loadingDetail, setLoadingDetail] = useState(false)
@@ -880,7 +881,7 @@ function PlayerDetail({ player:p, logs, wellness, loading, onBack, ciclo, onCicl
         <div style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:16, padding:20 }}>
           <p style={{ fontSize:11, fontWeight:600, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:14 }}>Detalle últimos 7 días</p>
           <div style={{ overflowX:'auto' }}>
-            <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12 }}>
+            <table className="wp-table" style={{ width:'100%', borderCollapse:'collapse', fontSize:12 }}>
               <thead>
                 <tr style={{ background:'rgba(255,255,255,.03)' }}>
                   {['MD','Fecha',acwrMetric.toUpperCase(),'ACWR','Estado'].map(h=>(
@@ -1079,7 +1080,7 @@ function HistorialLesivo({ jugadorId }: { jugadorId: number }) {
       )}
 
       <div style={{ overflowX:'auto' }}>
-        <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12 }}>
+        <table className="wp-table" style={{ width:'100%', borderCollapse:'collapse', fontSize:12 }}>
           <thead>
             <tr style={{ borderBottom:'1px solid var(--mist)' }}>
               {['Fecha inicio','Diagnóstico','Zona','Estado','Días de baja','Alta'].map(h => (
@@ -3218,7 +3219,7 @@ function imprimirSesion(f: any, bloques: any[], teamPlayers: any[] = []) {
       </div>
       ${equiposHtml}
       ${(bl.rutinaGym && bl.rutinaGym.length > 0) ? `
-        <table style="width:100%; border-collapse:collapse; margin-top:6px; margin-bottom:${bl.descripcion?6:0}px; font-size:10px;">
+        <table className="wp-table" style="width:100%; border-collapse:collapse; margin-top:6px; margin-bottom:${bl.descripcion?6:0}px; font-size:10px;">
           <thead>
             <tr style="background:#f3f4f6; color:#374151; text-transform:uppercase; text-align:left;">
               <th style="padding:4px 6px; border:1px solid #e5e7eb;">Ejercicio</th>
@@ -4466,7 +4467,7 @@ function CargaExternaPanel() {
                     <p style={{ fontSize:10, color:'var(--fog)' }}>Click en columna para ordenar</p>
                   </div>
                   <div style={{ overflowX:'auto' }}>
-                    <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12 }}>
+                    <table className="wp-table" style={{ width:'100%', borderCollapse:'collapse', fontSize:12 }}>
                       <thead>
                         <tr style={{ background:'rgba(255,255,255,.03)' }}>
                           <SortTh field="nombre"   label="Jugador" />
@@ -4575,7 +4576,7 @@ function CargaExternaPanel() {
               <p style={{ fontSize: 10, color: 'var(--fog)' }}>Click en columna para ordenar</p>
             </div>
             <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+              <table className="wp-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
                 <thead>
                   <tr style={{ background: 'rgba(255,255,255,.03)' }}>
                     <SortTh field="nombre"   label="Jugador" />
@@ -4708,7 +4709,7 @@ function CargaExternaPanel() {
 
             {hasRealGps ? (
               <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                <table className="wp-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
                   <thead>
                     <tr style={{ background: 'rgba(96,165,250,.05)' }}>
                       <th style={{ padding: '8px 14px', fontWeight: 600, textTransform: 'uppercase', fontSize: 9, letterSpacing: '0.06em', color: '#93c5fd', textAlign: 'left', whiteSpace: 'nowrap', position: 'sticky', left: 0, background: 'var(--ink2)' }}>Jugador</th>
@@ -5048,7 +5049,7 @@ function ComparativaPanel({ teamData }: { teamData: any[] }) {
               </div>
               <div class="sec">
                 <h2 style="color:#4a7c00;border-bottom:2px solid #c8f135;">TABLA COMPARATIVA POR JUGADOR</h2>
-                <table style="width:100%;border-collapse:collapse;">
+                <table className="wp-table" style="width:100%;border-collapse:collapse;">
                   <thead><tr>
                     <th style="${thL('#555')}">Jugador</th><th style="${thL('#555')}">Pos.</th>
                     ${VARS.map((v:any)=>`<th style="${thS(v.color.replace('var(--silver)','#888').replace('var(--lime)','#4a7c00'))}">${v.label}${v.unit?' ('+v.unit+')':''}</th>`).join('')}
@@ -5093,7 +5094,7 @@ function ComparativaPanel({ teamData }: { teamData: any[] }) {
           <p style={{ fontSize:10, color:'var(--fog)' }}>Click en columna para ordenar</p>
         </div>
         <div style={{ overflowX:'auto' }}>
-          <table style={{ width:'100%', borderCollapse:'collapse', fontSize:11 }}>
+          <table className="wp-table" style={{ width:'100%', borderCollapse:'collapse', fontSize:11 }}>
             <thead>
               <tr style={{ background:'rgba(255,255,255,.02)' }}>
                 <th style={{ padding:'8px 14px', textAlign:'left', color:'var(--silver)', fontSize:9, fontWeight:600, textTransform:'uppercase' }}>Jugador</th>
@@ -5411,7 +5412,7 @@ function HistorialResumen({ onSelectJugador }: { onSelectJugador:(id:number)=>vo
         📊 Historial lesivo del plantel
       </p>
       <div style={{ overflowX:'auto' }}>
-        <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12 }}>
+        <table className="wp-table" style={{ width:'100%', borderCollapse:'collapse', fontSize:12 }}>
           <thead>
             <tr style={{ borderBottom:'1px solid var(--mist)' }}>
               {['Jugador','Lesiones','Días totales','Última',''].map(h=>(
@@ -5491,7 +5492,7 @@ function HistorialJugador({ jugadorId, jugadorNombre }: { jugadorId:number, juga
         ? <p style={{ fontSize:12, color:'var(--fog)', textAlign:'center', padding:'20px 0' }}>Sin lesiones registradas.</p>
         : (
           <div style={{ overflowX:'auto' }}>
-            <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12 }}>
+            <table className="wp-table" style={{ width:'100%', borderCollapse:'collapse', fontSize:12 }}>
               <thead>
                 <tr style={{ borderBottom:'1px solid var(--mist)' }}>
                   {['Fecha','Diagnóstico','Zona','Días de baja','Estado','Alta'].map(h=>(
@@ -5828,7 +5829,7 @@ function BulkImportPanel({ onSuccess, onCancel }: { onSuccess: ()=>void; onCance
           )}
 
           <div style={{ overflowX:'auto', marginBottom:20, borderRadius:10, border:'1px solid var(--mist)' }}>
-            <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12 }}>
+            <table className="wp-table" style={{ width:'100%', borderCollapse:'collapse', fontSize:12 }}>
               <thead>
                 <tr style={{ background:'var(--ink3)' }}>
                   {['Nombre','Usuario','Posición','Edad','Peso','Estatura','Pie','Email'].map(h=>(
@@ -6627,7 +6628,7 @@ function AcumPanel({ teamData }) {
               const RPE_VARS = [{key:'rpe',label:'RPE',color:'#c8f135'},{key:'ua_total',label:'UA',color:'#60a5fa'},{key:'minActivo',label:'Min',color:'#34d399'}]
 
               // Table RPE/UA/Min
-              const t1 = `<table style="width:100%;border-collapse:collapse;margin-bottom:16px;">
+              const t1 = `<table className="wp-table" style="width:100%;border-collapse:collapse;margin-bottom:16px;">
                 <thead><tr>
                   <th style="${thL('#555')}">Jugador</th>
                   ${activeMDs.map(md=>`<th style="${thS('#c8f135')}" colspan="3">${md}</th>`).join('')}
@@ -6650,7 +6651,7 @@ function AcumPanel({ teamData }) {
               </table>`
 
               // Table GPS calculado
-              const t2 = `<table style="width:100%;border-collapse:collapse;margin-bottom:16px;">
+              const t2 = `<table className="wp-table" style="width:100%;border-collapse:collapse;margin-bottom:16px;">
                 <thead><tr>
                   <th style="${thL('#555')}">Métrica</th>
                   ${activeMDs.map(md=>`<th style="${thS('#f59e0b')}">${md}</th>`).join('')}
@@ -6726,7 +6727,7 @@ function AcumPanel({ teamData }) {
           <div style={{ padding:32, textAlign:'center', color:'var(--silver)', fontSize:12 }}>Sin datos para este período. Registrá sesiones con RPE en el Calendario.</div>
         ) : (
           <div style={{ overflowX:'auto' }}>
-            <table style={{ width:'100%', borderCollapse:'collapse', fontSize:11 }}>
+            <table className="wp-table" style={{ width:'100%', borderCollapse:'collapse', fontSize:11 }}>
               <thead>
                 <tr style={{ background:'rgba(200,241,53,.04)' }}>
                   <th style={{ padding:'8px 14px', textAlign:'left', color:'var(--silver)', fontSize:9, fontWeight:700, textTransform:'uppercase' }}>Jugador</th>
@@ -6820,7 +6821,7 @@ function AcumPanel({ teamData }) {
               </div>
             ) : (
               <div style={{ overflowX:'auto' }}>
-                <table style={{ width:'100%', borderCollapse:'collapse', fontSize:11 }}>
+                <table className="wp-table" style={{ width:'100%', borderCollapse:'collapse', fontSize:11 }}>
                   <thead>
                     <tr style={{ background:'rgba(96,165,250,.04)' }}>
                       <th style={{ padding:'8px 14px', textAlign:'left', color:'var(--silver)', fontSize:9, fontWeight:700, textTransform:'uppercase' }}>Jugador</th>
@@ -7456,7 +7457,7 @@ function GpsPanel({ teamData }: { teamData: any }) {
 
             {/* Dynamic table */}
             <div style={{ overflowX: 'auto', marginBottom: preview.unmatched.length > 0 ? 16 : 0 }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+              <table className="wp-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
                 <thead>
                   <tr style={{ borderBottom: '1px solid var(--mist)', background: 'rgba(255,255,255,.02)' }}>
                     <th style={{ padding: '8px 12px', textAlign: 'left', fontSize: 10, color: 'var(--fog)', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600, whiteSpace: 'nowrap' }}>Catapult</th>
@@ -7996,7 +7997,7 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
             const trainingMDs = activeMDs.filter(md => md !== 'MD')
 
             // Cuadro 1: RPE por jugador x MD
-            const c1 = `<table style="width:100%;border-collapse:collapse;margin-bottom:8px;">
+            const c1 = `<table className="wp-table" style="width:100%;border-collapse:collapse;margin-bottom:8px;">
               <thead><tr>
                 <th style="${thL('#555')}">Jugador</th>
                 ${activeMDs.map(md=>`<th style="${thS('#c8f135')}">${md}</th>`).join('')}
@@ -8015,7 +8016,7 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
             </table>`
 
             // Cuadro 2: UA por jugador x MD
-            const c2 = `<table style="width:100%;border-collapse:collapse;margin-bottom:8px;">
+            const c2 = `<table className="wp-table" style="width:100%;border-collapse:collapse;margin-bottom:8px;">
               <thead><tr>
                 <th style="${thL('#555')}">Jugador</th>
                 ${activeMDs.map(md=>`<th style="${thS('#60a5fa')}">${md}</th>`).join('')}
@@ -8034,7 +8035,7 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
             </table>`
 
             // Cuadro 3: GPS calculado por MD
-            const c3 = `<table style="width:100%;border-collapse:collapse;margin-bottom:8px;">
+            const c3 = `<table className="wp-table" style="width:100%;border-collapse:collapse;margin-bottom:8px;">
               <thead><tr>
                 <th style="${thL('#555')}">Métrica</th>
                 ${activeMDs.map(md=>`<th style="${thS('#f59e0b')}">${md}</th>`).join('')}
@@ -8073,7 +8074,7 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
                 return { name: md, md, activeMin, metMin, sprintMin, nSprintMin, acelDecelMin }
               })
               
-              c6 = `<table style="width:100%;border-collapse:collapse;margin-bottom:12px;">
+              c6 = `<table className="wp-table" style="width:100%;border-collapse:collapse;margin-bottom:12px;">
                 <thead><tr>
                   <th style="${thL('#555')}">MD</th>
                   <th style="${thS('#84cc16')}">Tiempo (min)</th>
@@ -8105,7 +8106,7 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
             // Cuadro 4: % sobre partido
             const hasRef = Object.keys(refMedia).length > 0
             const pct = (val:number, key:string) => { const r=refMedia[key]; if(!r) return null; return Math.round((val/r)*100) }
-            const c4 = hasRef ? `<table style="width:100%;border-collapse:collapse;margin-bottom:8px;">
+            const c4 = hasRef ? `<table className="wp-table" style="width:100%;border-collapse:collapse;margin-bottom:8px;">
               <thead><tr>
                 <th style="${thL('#555')}">Jugador / MD</th>
                 ${VARS.map((v:any)=>`<th style="${thS(v.color.replace('var(--lime)','#4a7c00').replace('var(--silver)','#888'))}">${v.label}</th>`).join('')}
@@ -8243,7 +8244,7 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
 
             {/* Table */}
             <div style={{ overflowX:'auto' }}>
-              <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12 }}>
+              <table className="wp-table" style={{ width:'100%', borderCollapse:'collapse', fontSize:12 }}>
                 <thead>
                   <tr style={{ borderBottom:'1px solid var(--mist)' }}>
                     {['SESIÓN','RPE obj.','BLOQUES (TAREA · MIN · NE · CE)','CE TOTAL','UCE TOTAL','% REF'].map((h,i) => (
@@ -8368,7 +8369,7 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
               {hasData ? (
                 <>
                 <div style={{ overflowX:'auto' }}>
-                  <table style={{ width:'100%', borderCollapse:'collapse', fontSize:11 }}>
+                  <table className="wp-table" style={{ width:'100%', borderCollapse:'collapse', fontSize:11 }}>
                     <thead>
                       <tr>
                         {/* Individual cols */}
@@ -8648,7 +8649,7 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
           <div style={{ padding:24, textAlign:'center', color:'var(--fog)', fontSize:12 }}>Sin sesiones con MD asignado. Asigná MD en el Calendario.</div>
         ) : (
           <div style={{ overflowX:'auto' }}>
-            <table style={{ width:'100%', borderCollapse:'collapse', fontSize:11 }}>
+            <table className="wp-table" style={{ width:'100%', borderCollapse:'collapse', fontSize:11 }}>
               <thead>
                 <tr style={{ background:'rgba(96,165,250,.05)' }}>
                   <th style={{ padding:'8px 16px', textAlign:'left', color:'var(--silver)', fontSize:9, fontWeight:700, textTransform:'uppercase' }}>MÉTRICA</th>
@@ -8711,7 +8712,7 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
           <div style={{ padding:24, textAlign:'center', color:'var(--fog)', fontSize:12 }}>Sin sesiones con MD asignado en este período. Asigná MD en el Calendario.</div>
         ) : (<>
           <div style={{ overflowX:'auto' }}>
-            <table style={{ width:'100%', borderCollapse:'collapse', fontSize:11 }}>
+            <table className="wp-table" style={{ width:'100%', borderCollapse:'collapse', fontSize:11 }}>
               <thead>
                 <tr style={{ background:'rgba(168,85,247,.04)' }}>
                   <th style={{ padding:'7px 14px', textAlign:'left', color:'var(--silver)', fontSize:9, fontWeight:700, textTransform:'uppercase' }}>Métrica</th>
@@ -8819,7 +8820,7 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
           </div>
         ) : (
           <div style={{ overflowX:'auto' }}>
-            <table style={{ width:'100%', borderCollapse:'collapse', fontSize:11 }}>
+            <table className="wp-table" style={{ width:'100%', borderCollapse:'collapse', fontSize:11 }}>
               <thead>
                 <tr style={{ background:'rgba(239,68,68,.04)' }}>
                   <th style={{ padding:'7px 14px', textAlign:'left', color:'var(--silver)', fontSize:9, fontWeight:700, textTransform:'uppercase' }}>Jugador / MD</th>
@@ -8888,7 +8889,7 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
               <CuadroHeader icon={Icons.metricas} cuadroNum="5" title="ÍNDICE DE CARGA (CIV) — MICROCICLO vs PARTIDO" description="CIV = Suma Microciclo ÷ Partido · Azul <1.0 · Verde 1.0–1.5 · Rojo >1.5 · 1.0 = igual al partido · 2.0 = doble carga" color="#60a5fa" />
             </div>
             <div style={{ overflowX:'auto' }}>
-              <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12 }}>
+              <table className="wp-table" style={{ width:'100%', borderCollapse:'collapse', fontSize:12 }}>
                 <thead>
                   <tr style={{ background:'rgba(96,165,250,.05)' }}>
                     <th style={{ padding:'9px 16px', textAlign:'left', color:'var(--silver)', fontSize:9, fontWeight:700, textTransform:'uppercase', letterSpacing:'0.06em' }}>MÉTRICA</th>
@@ -8992,7 +8993,7 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
             </div>
             
             <div style={{ overflowX:'auto' }}>
-              <table style={{ width:'100%', borderCollapse:'collapse', fontSize:11 }}>
+              <table className="wp-table" style={{ width:'100%', borderCollapse:'collapse', fontSize:11 }}>
                 <thead>
                   <tr style={{ background:'rgba(168,85,247,.05)' }}>
                     <th style={{ padding:'8px 14px', textAlign:'left', color:'var(--silver)', fontSize:9, fontWeight:700, textTransform:'uppercase' }}>MD</th>
@@ -9426,7 +9427,7 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
                   <span style="color:#555;font-size:10px;">${fecha}</span>
                 </div>
                 <div style="overflow:visible;">
-                  <table style="width:100%;border-collapse:collapse;table-layout:auto;">
+                  <table className="wp-table" style="width:100%;border-collapse:collapse;table-layout:auto;">
                     <thead><tr>
                       <th style="${thL('#555')}">Jugador</th>
                       <th style="${thL('#555')}">Pos.</th>
@@ -9480,7 +9481,7 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
             }
 
             // ── CUADRO 2: promedio por MD ─────────────────────────────────────
-            let c2 = `<table style="width:100%;border-collapse:collapse;">
+            let c2 = `<table className="wp-table" style="width:100%;border-collapse:collapse;">
               <thead><tr>
                 <th style="${thL('#555')}">Métrica</th>
                 ${mdWithData.map(md=>`<th style="${thS('#1d4ed8')}">${md}</th>`).join('')}
@@ -9516,7 +9517,7 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
             })
 
             // ── CUADRO 3: totales por MD ──────────────────────────────────────
-            let c3 = `<table style="width:100%;border-collapse:collapse;">
+            let c3 = `<table className="wp-table" style="width:100%;border-collapse:collapse;">
               <thead><tr>
                 <th style="${thL('#555')}">Métrica</th>
                 ${mdWithData.map(md=>`<th style="${thS('#6d28d9')}">${md}</th>`).join('')}
@@ -9545,7 +9546,7 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
             const hasRef = Object.keys(refMedia).length > 0
             let c4 = ''
             if (hasRef) {
-              c4 = `<table style="width:100%;border-collapse:collapse;">
+              c4 = `<table className="wp-table" style="width:100%;border-collapse:collapse;">
                 <thead><tr>
                   <th style="${thL('#555')}">Jugador</th>
                   ${refMediaVars.map((v:any)=>`<th style="${thS(fc(v.key))}">${v.label.replace(/ \(.*\)/,'')}</th>`).join('')}
@@ -9590,7 +9591,7 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
               }).filter((v:any) => v.ref > 0 || v.suma > 0)
 
               if (civRows.length) {
-                c5 = `<table style="width:100%;border-collapse:collapse;">
+                c5 = `<table className="wp-table" style="width:100%;border-collapse:collapse;">
                   <thead><tr>
                     <th style="${thL('#555')}">Métrica</th>
                     <th style="${thS('#059669')}">Suma Microciclo</th>
@@ -9668,7 +9669,7 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
               }).filter(r => r.activeMin > 0)
               
               if (rows.length > 0) {
-                c6 = `<table style="width:100%;border-collapse:collapse;margin-bottom:12px;">
+                c6 = `<table className="wp-table" style="width:100%;border-collapse:collapse;margin-bottom:12px;">
                   <thead><tr>
                     <th style="${thL('#555')}">MD</th>
                     <th style="${thS('#84cc16')}">Tiempo (min)</th>
@@ -9811,7 +9812,7 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
                       <span style={{ fontSize:10, color:'var(--fog)' }}>{datePlayers.length} jugadores</span>
                     </div>
                     <div style={{ overflowX:'auto' }}>
-                      <table style={{ width:'100%', borderCollapse:'collapse', fontSize:11 }}>
+                      <table className="wp-table" style={{ width:'100%', borderCollapse:'collapse', fontSize:11 }}>
                         <thead>
                           <tr style={{ background:'rgba(255,255,255,.02)' }}>
                             <th style={{ padding:'5px 14px', textAlign:'left', color:'var(--silver)', fontSize:8, fontWeight:700, textTransform:'uppercase', borderBottom:'1px solid var(--mist)' }}>Jugador</th>
@@ -9865,7 +9866,7 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
               {hasData ? (
                 <>
                 <div style={{ overflowX:'auto' }}>
-                  <table style={{ width:'100%', borderCollapse:'collapse', fontSize:11 }}>
+                  <table className="wp-table" style={{ width:'100%', borderCollapse:'collapse', fontSize:11 }}>
                     <thead>
                       <tr>
                         <th colSpan={3} style={{ padding:'6px 14px', textAlign:'left', background:'rgba(96,165,250,.06)', color:'#60a5fa', fontSize:9, fontWeight:700, textTransform:'uppercase', letterSpacing:'0.06em', borderBottom:'1px solid var(--mist)' }}>
@@ -10044,7 +10045,7 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
           />
         </div>
         <div style={{ overflowX:'auto' }}>
-          <table style={{ width:'100%', borderCollapse:'collapse', fontSize:11 }}>
+          <table className="wp-table" style={{ width:'100%', borderCollapse:'collapse', fontSize:11 }}>
             <thead>
               <tr style={{ background:'rgba(96,165,250,.05)' }}>
                 <th style={{ padding:'8px 14px', textAlign:'left', color:'var(--silver)', fontSize:9, fontWeight:700, textTransform:'uppercase' }}>Métrica</th>
@@ -10173,7 +10174,7 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
           />
         </div>
         <div style={{ overflowX:'auto' }}>
-          <table style={{ width:'100%', borderCollapse:'collapse', fontSize:11 }}>
+          <table className="wp-table" style={{ width:'100%', borderCollapse:'collapse', fontSize:11 }}>
             <thead>
               <tr style={{ background:'rgba(168,85,247,.05)' }}>
                 <th style={{ padding:'8px 14px', textAlign:'left', color:'var(--silver)', fontSize:9, fontWeight:700, textTransform:'uppercase' }}>Métrica</th>
@@ -10374,7 +10375,7 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
           <div style={{ padding:24, textAlign:'center', color:'var(--fog)', fontSize:12 }}>Ingresá los valores de 3 partidos de referencia para ver los porcentajes.</div>
         ) : (
           <div style={{ overflowX:'auto' }}>
-            <table style={{ width:'100%', borderCollapse:'collapse', fontSize:11 }}>
+            <table className="wp-table" style={{ width:'100%', borderCollapse:'collapse', fontSize:11 }}>
               <thead>
                 <tr style={{ background:'rgba(239,68,68,.04)' }}>
                   <th style={{ padding:'7px 14px', textAlign:'left', color:'var(--silver)', fontSize:9, fontWeight:700, textTransform:'uppercase' }}>Jugador / MD</th>
@@ -10481,7 +10482,7 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
               />
             </div>
             <div style={{ overflowX:'auto' }}>
-              <table style={{ width:'100%', borderCollapse:'collapse', fontSize:12 }}>
+              <table className="wp-table" style={{ width:'100%', borderCollapse:'collapse', fontSize:12 }}>
                 <thead>
                   <tr style={{ background:'rgba(96,165,250,.05)' }}>
                     <th style={{ padding:'9px 16px', textAlign:'left', color:'var(--silver)', fontSize:9, fontWeight:700, textTransform:'uppercase', letterSpacing:'0.06em' }}>MÉTRICA</th>
@@ -10592,7 +10593,7 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
             </div>
             
             <div style={{ overflowX:'auto' }}>
-              <table style={{ width:'100%', borderCollapse:'collapse', fontSize:11 }}>
+              <table className="wp-table" style={{ width:'100%', borderCollapse:'collapse', fontSize:11 }}>
                 <thead>
                   <tr style={{ background:'rgba(168,85,247,.05)' }}>
                     <th style={{ padding:'8px 14px', textAlign:'left', color:'var(--silver)', fontSize:9, fontWeight:700, textTransform:'uppercase' }}>MD</th>
@@ -10873,7 +10874,7 @@ function ExpoAIPanel({ teamData }: { teamData: any[] }) {
           <p style={{ fontSize:10, color:'var(--fog)', marginTop:2 }}>VM alcanzada en cada sesión · Verde = superó el 80% VM promedio de referencia · Objetivo: ≥3 veces en la semana</p>
         </div>
         <div style={{ overflowX:'auto' }}>
-          <table style={{ width:'100%', borderCollapse:'collapse', fontSize:11 }}>
+          <table className="wp-table" style={{ width:'100%', borderCollapse:'collapse', fontSize:11 }}>
             <thead>
               <tr>
                 <th colSpan={2} style={{ padding:'6px 14px', textAlign:'left', background:'rgba(239,68,68,.05)', color:'#f87171', fontSize:9, fontWeight:700, textTransform:'uppercase', borderBottom:'1px solid var(--mist)' }}>JUGADOR</th>
@@ -10944,7 +10945,7 @@ function ExpoAIPanel({ teamData }: { teamData: any[] }) {
           <p style={{ fontSize:10, color:'var(--fog)', marginTop:2 }}>Sumatoria semanal HSR vs promedio de 3 partidos · &lt;1 bajo | 1–1.5 normal | &gt;1.5 alto</p>
         </div>
         <div style={{ overflowX:'auto' }}>
-          <table style={{ width:'100%', borderCollapse:'collapse', fontSize:11 }}>
+          <table className="wp-table" style={{ width:'100%', borderCollapse:'collapse', fontSize:11 }}>
             <thead>
               <tr>
                 <th colSpan={2} style={{ padding:'6px 14px', textAlign:'left', background:'rgba(251,191,36,.05)', color:'#fbbf24', fontSize:9, fontWeight:700, textTransform:'uppercase', borderBottom:'1px solid var(--mist)' }}>JUGADOR</th>
@@ -10999,7 +11000,7 @@ function ExpoAIPanel({ teamData }: { teamData: any[] }) {
           <p style={{ fontSize:10, color:'var(--fog)', marginTop:2 }}>Nº ACC &gt;3 por sesión · Sumatoria semanal vs promedio de 3 partidos</p>
         </div>
         <div style={{ overflowX:'auto' }}>
-          <table style={{ width:'100%', borderCollapse:'collapse', fontSize:11 }}>
+          <table className="wp-table" style={{ width:'100%', borderCollapse:'collapse', fontSize:11 }}>
             <thead>
               <tr>
                 <th colSpan={2} style={{ padding:'6px 14px', textAlign:'left', background:'rgba(244,63,94,.05)', color:'#f43f5e', fontSize:9, fontWeight:700, textTransform:'uppercase', borderBottom:'1px solid var(--mist)' }}>JUGADOR</th>
@@ -11052,7 +11053,7 @@ function ExpoAIPanel({ teamData }: { teamData: any[] }) {
           <p style={{ fontSize:10, color:'var(--fog)', marginTop:2 }}>Nº DEC &gt;3 por sesión · Sumatoria semanal vs promedio de 3 partidos</p>
         </div>
         <div style={{ overflowX:'auto' }}>
-          <table style={{ width:'100%', borderCollapse:'collapse', fontSize:11 }}>
+          <table className="wp-table" style={{ width:'100%', borderCollapse:'collapse', fontSize:11 }}>
             <thead>
               <tr>
                 <th colSpan={2} style={{ padding:'6px 14px', textAlign:'left', background:'rgba(14,165,233,.05)', color:'#0ea5e9', fontSize:9, fontWeight:700, textTransform:'uppercase', borderBottom:'1px solid var(--mist)' }}>JUGADOR</th>
