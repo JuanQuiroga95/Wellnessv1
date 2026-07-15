@@ -57,8 +57,9 @@ export default function InicioPanel({ teamData, session, today }: { teamData: an
         // Fetch Agenda (Today and Tomorrow)
         const calRes = await fetch(`/api/calendario?desde=${today}&hasta=${tomorrow}`)
         const calData = await calRes.json()
-        const hoy = calData.filter((d: any) => d.fecha.startsWith(today))
-        const manana = calData.filter((d: any) => d.fecha.startsWith(tomorrow))
+        const allEvents = [...(calData.sesiones || []), ...(calData.partidos || [])]
+        const hoy = allEvents.filter((d: any) => d.fecha.startsWith(today))
+        const manana = allEvents.filter((d: any) => d.fecha.startsWith(tomorrow))
         setAgenda({ hoy, manana })
 
         // Fetch Load Trend (Last 7 days)
