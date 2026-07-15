@@ -2633,7 +2633,7 @@ function CalendarioPanel({ teamData }) {
                     dataKey="value"
                     stroke="none"
                     isAnimationActive={true}
-                    animationDuration={2500}
+                    animationDuration={15000}
                   >
                     { [
                         { name: 'Campo', value: totalCampoMin, color: '#c8f135' },

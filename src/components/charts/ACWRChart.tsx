@@ -18,7 +18,7 @@ export default function ACWRChart({ data }) {
         <ReferenceLine y={0.8} stroke="#22c55e" strokeDasharray="3 3" strokeWidth={1} opacity={.5} />
         <ReferenceLine y={1.3} stroke="#f59e0b" strokeDasharray="3 3" strokeWidth={1} opacity={.5} />
         <ReferenceLine y={1.5} stroke="#ef4444" strokeDasharray="3 3" strokeWidth={1} opacity={.5} />
-        <Bar dataKey="ratio" radius={[3,3,0,0]}>{data.map((e,i) => <Cell key={i} fill={COL[e.status]} fillOpacity={.9} />)}</Bar>
+        <Bar animationDuration={15000} dataKey="ratio" radius={[3,3,0,0]}>{data.map((e,i) => <Cell key={i} fill={COL[e.status]} fillOpacity={.9} />)}</Bar>
       </BarChart>
     </ResponsiveContainer>
   )

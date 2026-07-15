@@ -472,8 +472,8 @@ export default function PerfilNeuromuscularPanel() {
                                   <YAxis domain={[0, 100]} tick={{ fill: 'var(--fog)', fontSize: 10 }} tickFormatter={(val) => `${val}%`} axisLine={false} tickLine={false} />
                                   <Tooltip cursor={{ fill: 'rgba(255,255,255,0.02)' }} contentStyle={{ background: 'var(--ink)', border: '1px solid var(--mist)', borderRadius: 12, color: 'var(--snow)' }} />
                                   <Legend verticalAlign="bottom" height={36} wrapperStyle={{ fontSize: 11, color: 'var(--silver)' }} />
-                                  <Bar dataKey="% Promedio Volumen" fill="#3b82f6" radius={[4,4,0,0]} barSize={40} />
-                                  <Bar dataKey="% Promedio Intensidad" fill="#f97316" radius={[4,4,0,0]} barSize={40} />
+                                  <Bar animationDuration={15000} dataKey="% Promedio Volumen" fill="#3b82f6" radius={[4,4,0,0]} barSize={40} />
+                                  <Bar animationDuration={15000} dataKey="% Promedio Intensidad" fill="#f97316" radius={[4,4,0,0]} barSize={40} />
                                 </BarChart>
                               </ResponsiveContainer>
                             </div>
@@ -565,7 +565,7 @@ export default function PerfilNeuromuscularPanel() {
                         <XAxis dataKey="objetivo" tick={{ fill:'var(--fog)', fontSize:9 }} axisLine={false} tickLine={false} />
                         <YAxis domain={['auto', 'auto']} tick={{ fill:'var(--fog)', fontSize:10 }} axisLine={false} tickLine={false} />
                         <Tooltip contentStyle={{ background:'var(--ink)', border:'1px solid var(--mist)', borderRadius:12 }} />
-                        <Line type="monotone" dataKey="max_vel" stroke="#3b82f6" strokeWidth={3} dot={{ r:4, fill:'#3b82f6' }} activeDot={{ r:6 }} />
+                        <Line animationDuration={15000} type="monotone" dataKey="max_vel" stroke="#3b82f6" strokeWidth={3} dot={{ r:4, fill:'#3b82f6' }} activeDot={{ r:6 }} />
                       </LineChart>
                     </ResponsiveContainer>
                   </div>
@@ -582,7 +582,7 @@ export default function PerfilNeuromuscularPanel() {
                         <XAxis dataKey="objetivo" tick={{ fill:'var(--fog)', fontSize:9 }} axisLine={false} tickLine={false} />
                         <YAxis domain={['auto', 'auto']} tick={{ fill:'var(--fog)', fontSize:10 }} axisLine={false} tickLine={false} />
                         <Tooltip contentStyle={{ background:'var(--ink)', border:'1px solid var(--mist)', borderRadius:12 }} />
-                        <Area type="monotone" dataKey="mts_min" stroke="#c8f135" strokeWidth={3} fillOpacity={1} fill="url(#colorMts)" />
+                        <Area animationDuration={15000} type="monotone" dataKey="mts_min" stroke="#c8f135" strokeWidth={3} fillOpacity={1} fill="url(#colorMts)" />
                       </AreaChart>
                     </ResponsiveContainer>
                   </div>
@@ -595,9 +595,9 @@ export default function PerfilNeuromuscularPanel() {
                         <YAxis tick={{ fill:'var(--fog)', fontSize:10 }} axisLine={false} tickLine={false} />
                         <Tooltip contentStyle={{ background:'var(--ink)', border:'1px solid var(--mist)', borderRadius:12 }} />
                         <Legend iconType="circle" wrapperStyle={{ fontSize:10, paddingTop:10 }} />
-                        <Line name="Aceleraciones" type="monotone" dataKey="acel" stroke="#3b82f6" strokeWidth={2} dot={false} />
-                        <Line name="Desacel" type="monotone" dataKey="decel" stroke="#f97316" strokeWidth={2} dot={false} />
-                        <Line name="Sprints" type="monotone" dataKey="sprints" stroke="#c8f135" strokeWidth={2} dot={false} />
+                        <Line animationDuration={15000} name="Aceleraciones" type="monotone" dataKey="acel" stroke="#3b82f6" strokeWidth={2} dot={false} />
+                        <Line animationDuration={15000} name="Desacel" type="monotone" dataKey="decel" stroke="#f97316" strokeWidth={2} dot={false} />
+                        <Line animationDuration={15000} name="Sprints" type="monotone" dataKey="sprints" stroke="#c8f135" strokeWidth={2} dot={false} />
                       </LineChart>
                     </ResponsiveContainer>
                   </div>
@@ -615,9 +615,9 @@ export default function PerfilNeuromuscularPanel() {
                       <YAxis tick={{ fill:'var(--fog)', fontSize:10 }} axisLine={false} tickLine={false} />
                       <Tooltip contentStyle={{ background:'var(--ink)', border:'1px solid var(--mist)', borderRadius:12 }} />
                       <Legend iconType="circle" wrapperStyle={{ fontSize:10, paddingTop:10 }} />
-                      <Area name="Aceleraciones" type="monotone" dataKey="acel" stackId="1" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.4} />
-                      <Area name="Desaceleraciones" type="monotone" dataKey="decel" stackId="1" stroke="#f97316" fill="#f97316" fillOpacity={0.4} />
-                      <Area name="Sprints" type="monotone" dataKey="sprints" stackId="1" stroke="#c8f135" fill="#c8f135" fillOpacity={0.4} />
+                      <Area animationDuration={15000} name="Aceleraciones" type="monotone" dataKey="acel" stackId="1" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.4} />
+                      <Area animationDuration={15000} name="Desaceleraciones" type="monotone" dataKey="decel" stackId="1" stroke="#f97316" fill="#f97316" fillOpacity={0.4} />
+                      <Area animationDuration={15000} name="Sprints" type="monotone" dataKey="sprints" stackId="1" stroke="#c8f135" fill="#c8f135" fillOpacity={0.4} />
                     </AreaChart>
                   </ResponsiveContainer>
                 </div>
