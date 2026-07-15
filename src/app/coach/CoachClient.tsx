@@ -344,33 +344,55 @@ export default function CoachClient({ session, teamData, today }) {
               return (
                 <div key={g.label} style={{ marginBottom:4 }}>
                   {sidebarOpen && (
-                    <div style={{ padding:'8px 16px 4px', fontSize:9, fontWeight:700, color: groupActive ? 'var(--lime)' : 'var(--fog)',
-                      textTransform:'uppercase', letterSpacing:'0.1em', whiteSpace:'nowrap' }}>{g.label}</div>
+                    <button 
+                      onClick={() => setOpenGroups(prev => ({...prev, [g.label]: prev[g.label] === false ? true : false}))}
+                      style={{ 
+                        width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                        padding: '8px 16px', background: 'transparent', border: 'none', cursor: 'pointer',
+                        color: groupActive ? 'var(--lime)' : 'var(--fog)', transition: 'color 0.2s'
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.color = groupActive ? 'var(--lime)' : 'var(--silver)'}
+                      onMouseLeave={e => e.currentTarget.style.color = groupActive ? 'var(--lime)' : 'var(--fog)'}
+                    >
+                      <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+                        {g.label}
+                      </span>
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" 
+                           style={{ transform: openGroups[g.label] !== false ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>
+                        <polyline points="6 9 12 15 18 9"></polyline>
+                      </svg>
+                    </button>
                   )}
-                  {g.items.map(item => {
-                    const active = tab === item.id
-                    return (
-                      <button key={item.id} onClick={()=>{setTab(item.id);setSelected(null)}}
-                        title={sidebarOpen ? undefined : item.label}
-                        style={{
-                          display:'flex', alignItems:'center', gap:10, width:'100%',
-                          padding: sidebarOpen ? '8px 16px' : '10px 0',
-                          justifyContent: sidebarOpen ? 'flex-start' : 'center',
-                          background: active ? 'rgba(163,230,53,.1)' : 'transparent',
-                          borderLeft: active ? '3px solid var(--lime)' : '3px solid transparent',
-                          border:'none', borderRight:'none', borderTop:'none', borderBottom:'none',
-                          borderLeftWidth:3, borderLeftStyle:'solid', borderLeftColor: active ? 'var(--lime)' : 'transparent',
-                          cursor:'pointer', transition:'all .12s', fontSize:13,
-                          color: active ? 'var(--lime)' : 'var(--silver)',
-                        }}
-                        onMouseEnter={e=>{if(!active)(e.currentTarget.style.background='rgba(255,255,255,.04)')}}
-                        onMouseLeave={e=>{if(!active)(e.currentTarget.style.background='transparent')}}
-                      >
-                        <span style={{ fontSize:15, flexShrink:0 }}>{item.icon}</span>
-                        {sidebarOpen && <span style={{ whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', fontWeight: active?600:400 }}>{item.label}</span>}
-                      </button>
-                    )
-                  })}
+                  <div style={{ 
+                    overflow: 'hidden', 
+                    maxHeight: (!sidebarOpen || openGroups[g.label] !== false) ? 1000 : 0, 
+                    transition: 'max-height 0.3s ease-in-out' 
+                  }}>
+                    {g.items.map(item => {
+                      const active = tab === item.id
+                      return (
+                        <button key={item.id} onClick={()=>{setTab(item.id);setSelected(null)}}
+                          title={sidebarOpen ? undefined : item.label}
+                          style={{
+                            display:'flex', alignItems:'center', gap:10, width:'100%',
+                            padding: sidebarOpen ? '8px 16px' : '10px 0',
+                            justifyContent: sidebarOpen ? 'flex-start' : 'center',
+                            background: active ? 'rgba(163,230,53,.1)' : 'transparent',
+                            borderLeft: active ? '3px solid var(--lime)' : '3px solid transparent',
+                            border:'none', borderRight:'none', borderTop:'none', borderBottom:'none',
+                            borderLeftWidth:3, borderLeftStyle:'solid', borderLeftColor: active ? 'var(--lime)' : 'transparent',
+                            cursor:'pointer', transition:'all .12s', fontSize:13,
+                            color: active ? 'var(--lime)' : 'var(--silver)',
+                          }}
+                          onMouseEnter={e=>{if(!active)(e.currentTarget.style.background='rgba(255,255,255,.04)')}}
+                          onMouseLeave={e=>{if(!active)(e.currentTarget.style.background='transparent')}}
+                        >
+                          <span style={{ fontSize:15, flexShrink:0 }}>{item.icon}</span>
+                          {sidebarOpen && <span style={{ whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', fontWeight: active?600:400 }}>{item.label}</span>}
+                        </button>
+                      )
+                    })}
+                  </div>
                 </div>
               )
             })}
@@ -5626,9 +5648,10 @@ function NewLesionForm({ teamData, onSuccess, onCancel }) {
     finally { setLoading(false) }
   }
   return (
-    <div style={{ background:'var(--ink2)', border:'1px solid rgba(239,68,68,.25)', borderRadius:14, padding:20 }} className="anim-up">
-      <p style={{ fontSize:13, fontWeight:600, color:'#f87171', marginBottom:16, textTransform:'uppercase', letterSpacing:'0.06em' }}>🏥 Nueva Lesión</p>
-      <form onSubmit={submit}>
+    <div className="modal-backdrop">
+      <div className="modal-content" style={{ padding: 32, width: '100%', maxWidth: 700 }}>
+        <p style={{ fontSize:15, fontWeight:700, color:'#f87171', marginBottom:24, textTransform:'uppercase', letterSpacing:'0.06em' }}>🏥 Nueva Lesión</p>
+        <form onSubmit={submit}>
         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:12 }}>
           <div><label style={{ display:'block', fontSize:10, fontWeight:600, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:4 }}>Jugador</label><select className="wp-input" style={{ padding:'8px 12px', fontSize:13, appearance:'none' }} value={f.jugador_id} onChange={e=>set('jugador_id',e.target.value)} required><option value="" style={{ background:'var(--ink2)' }}>— Seleccionar —</option>{teamData.map(p=><option key={p.jugador_id} value={p.jugador_id} style={{ background:'var(--ink2)' }}>{p.nombre}</option>)}</select></div>
           <div><label style={{ display:'block', fontSize:10, fontWeight:600, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:4 }}>Fecha inicio</label><input type="date" className="wp-input" style={{ padding:'8px 12px', fontSize:13 }} value={f.fecha_inicio} onChange={e=>set('fecha_inicio',e.target.value)} /></div>
@@ -5638,11 +5661,12 @@ function NewLesionForm({ teamData, onSuccess, onCancel }) {
           <div><label style={{ display:'block', fontSize:10, fontWeight:600, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:4 }}>Estado inicial</label><select className="wp-input" style={{ padding:'8px 12px', fontSize:13, appearance:'none' }} value={f.estado} onChange={e=>set('estado',e.target.value)}>{LEST.filter(s=>s!=='Alta').map(s=><option key={s} value={s} style={{ background:'var(--ink2)' }}>{s}</option>)}</select></div>
         </div>
         <div style={{ marginBottom:12 }}><label style={{ display:'block', fontSize:10, fontWeight:600, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:4 }}>Descripción</label><input className="wp-input" value={f.descripcion} onChange={e=>set('descripcion',e.target.value)} placeholder="Mecanismo, observaciones..." /></div>
-        <div style={{ display:'flex', gap:10 }}>
-          <button type="button" className="btn-ghost" style={{ flex:1 }} onClick={onCancel}>Cancelar</button>
+        <div style={{ display:'flex', gap:12, marginTop:24 }}>
           <button type="submit" className="btn-lime" style={{ flex:1 }} disabled={loading}>{loading?'Registrando...':'Registrar lesión →'}</button>
+          <button type="button" className="btn-ghost" style={{ flex:1 }} onClick={onCancel}>Cancelar</button>
         </div>
       </form>
+      </div>
     </div>
   )
 }
@@ -5732,9 +5756,10 @@ function BulkImportPanel({ onSuccess, onCancel }: { onSuccess: ()=>void; onCance
   const sectionTitle = (t: string) => <p style={{ fontSize:10, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:10 }}>{t}</p>
 
   return (
-    <div style={{ background:'var(--ink2)', border:'1px solid rgba(200,241,53,.2)', borderRadius:14, padding:24 }} className="anim-up">
+    <div className="modal-backdrop">
+      <div className="modal-content" style={{ padding: 32, width: '100%', maxWidth: 700 }}>
       <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:18 }}>
-        <p style={{ fontSize:13, fontWeight:700, color:'var(--lime)', textTransform:'uppercase', letterSpacing:'0.06em' }}>
+        <p style={{ fontSize:15, fontWeight:700, color:'var(--lime)', textTransform:'uppercase', letterSpacing:'0.06em' }}>
           📤 Importación masiva de jugadores
         </p>
         <button onClick={onCancel} style={{ background:'transparent', border:'none', cursor:'pointer', color:'var(--silver)', fontSize:18, lineHeight:1 }}>✕</button>
@@ -5893,6 +5918,7 @@ function BulkImportPanel({ onSuccess, onCancel }: { onSuccess: ()=>void; onCance
           )}
         </div>
       )}
+      </div>
     </div>
   )
 }
@@ -5913,9 +5939,10 @@ function NewPlayerForm({ onSuccess, onCancel }) {
     finally { setLoading(false) }
   }
   return (
-    <div style={{ background:'var(--ink2)', border:'1px solid rgba(200,241,53,.2)', borderRadius:14, padding:24 }} className="anim-up">
-      <p style={{ fontSize:13, fontWeight:600, color:'var(--lime)', marginBottom:18, textTransform:'uppercase', letterSpacing:'0.06em' }}>Nuevo Jugador</p>
-      <form onSubmit={submit}>
+    <div className="modal-backdrop">
+      <div className="modal-content" style={{ padding: 32, width: '100%', maxWidth: 700 }}>
+        <p style={{ fontSize:15, fontWeight:700, color:'var(--lime)', marginBottom:24, textTransform:'uppercase', letterSpacing:'0.06em' }}>Nuevo Jugador</p>
+        <form onSubmit={submit}>
         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:12 }}>
           {[['nombre','Nombre completo','Juan Pérez',false],['usuario','Usuario','juan.perez',false],['password','Contraseña','Mín. 6 caracteres',true],['edad','Edad','22',false],['peso_kg','Peso (kg)','75.5',false],['estatura_cm','Estatura (cm)','178',false]].map(([k,lbl,ph,pw])=>(
             <div key={k}>
@@ -5970,11 +5997,12 @@ function NewPlayerForm({ onSuccess, onCancel }) {
           </div>
         </div>
         {error && <p style={{ fontSize:12, color:'#f87171', marginBottom:12 }}>{error}</p>}
-        <div style={{ display:'flex', gap:10 }}>
-          <button type="button" className="btn-ghost" style={{ flex:1 }} onClick={onCancel}>Cancelar</button>
+        <div style={{ display:'flex', gap:12, marginTop:24 }}>
           <button type="submit" className="btn-lime" style={{ flex:1 }} disabled={loading}>{loading?'Creando...':'Crear jugador →'}</button>
+          <button type="button" className="btn-ghost" style={{ flex:1 }} onClick={onCancel}>Cancelar</button>
         </div>
       </form>
+      </div>
     </div>
   )
 }

@@ -726,7 +726,7 @@ export default function EnfermeriaPanel({ teamData, onRefresh }: { teamData: any
 
       {/* ═══════ NUEVA LESIÓN ═══════ */}
       {!loading && subTab === 'nueva' && (
-        <NewLesionFormEnf teamData={teamData} onSuccess={() => { 
+        <NewLesionFormEnf teamData={teamData} onCancel={() => setSubTab('dashboard')} onSuccess={() => { 
           setSubTab('dashboard'); 
           setFilterTipo('all');
           setFilterEstado('all');
@@ -983,7 +983,7 @@ const LabelField = ({ label, children }: { label: string; children: React.ReactN
   </div>
 )
 
-function NewLesionFormEnf({ teamData, onSuccess, onCancel }: { teamData: any[]; onSuccess: () => void; onCancel: () => void }) {
+function NewLesionFormEnf({ teamData, onSuccess, onCancel }: { teamData: any[]; onSuccess: () => void; onCancel?: () => void }) {
   const [f, setF] = useState({
     jugador_id: '', fecha_inicio: new Date().toISOString().split('T')[0],
     tipo_lesion: 'Desgarro Muscular', region_corporal: '', zona: '', lateralidad: 'Bilateral',
@@ -1012,8 +1012,9 @@ function NewLesionFormEnf({ teamData, onSuccess, onCancel }: { teamData: any[]; 
 
 
   return (
-    <div style={{ background: 'var(--ink2)', border: '1px solid rgba(239,68,68,.25)', borderRadius: 14, padding: 24 }}>
-      <p style={{ fontSize: 14, fontWeight: 700, color: '#f87171', marginBottom: 20, textTransform: 'uppercase', letterSpacing: '0.08em' }}>🏥 Nueva Lesión</p>
+    <div className="modal-backdrop">
+      <div className="modal-content" style={{ padding: 32, width: '100%', maxWidth: 700 }}>
+      <p style={{ fontSize: 15, fontWeight: 700, color: '#f87171', marginBottom: 24, textTransform: 'uppercase', letterSpacing: '0.06em' }}>🏥 Nueva Lesión</p>
       <form onSubmit={submit}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 14 }}>
           <LabelField label="Jugador">
@@ -1072,10 +1073,14 @@ function NewLesionFormEnf({ teamData, onSuccess, onCancel }: { teamData: any[]; 
             <input type="checkbox" checked={f.recurrente} onChange={e => set('recurrente', e.target.checked)} /> Lesión recurrente
           </label>
         </div>
-        <button type="submit" className="btn-lime" style={{ width: '100%', fontSize: 14, padding: '12px 0' }} disabled={loading || !f.jugador_id}>
-          {loading ? 'Registrando...' : 'Registrar Lesión →'}
-        </button>
+        <div style={{ display: 'flex', gap: 12, marginTop: 24 }}>
+          <button type="submit" className="btn-lime" style={{ flex: 1, fontSize: 14, padding: '12px 0' }} disabled={loading || !f.jugador_id}>
+            {loading ? 'Registrando...' : 'Registrar Lesión →'}
+          </button>
+          <button type="button" className="btn-ghost" style={{ flex: 1 }} onClick={onCancel}>Cancelar</button>
+        </div>
       </form>
+      </div>
     </div>
   )
 }
