@@ -164,7 +164,7 @@ export default function InicioPanel({ teamData, session, today }: { teamData: an
         {/* Agenda Section */}
         <AnimateOnScroll delay={500}>
           <div style={{ background: 'var(--ink2)', border: '1px solid var(--mist)', borderRadius: 16, padding: 20, height: '100%', minHeight: 350 }}>
-            <CuadroHeader title="AGENDA" subtitle="Próximas actividades" />
+            <CuadroHeader title="AGENDA" subtitle="Próximas actividades" icon={Icons.planificacion} />
             
             <div style={{ marginTop: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
               {/* HOY */}
@@ -228,7 +228,7 @@ export default function InicioPanel({ teamData, session, today }: { teamData: an
         <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
           <AnimateOnScroll delay={600}>
             <div style={{ background: 'var(--ink2)', border: '1px solid var(--mist)', borderRadius: 16, padding: 20, height: 240 }}>
-              <CuadroHeader title="TENDENCIA READINESS" subtitle="Últimos 7 días (Promedio Plantel)" />
+              <CuadroHeader title="TENDENCIA READINESS" subtitle="Últimos 7 días (Promedio Plantel)" icon={Icons.neuromuscular} />
               <div style={{ width: '100%', height: 160, marginTop: 16 }}>
                 {!loading && readinessData.length > 0 ? (
                   <ResponsiveContainer width="100%" height="100%">
@@ -266,7 +266,7 @@ export default function InicioPanel({ teamData, session, today }: { teamData: an
 
           <AnimateOnScroll delay={700}>
             <div style={{ background: 'var(--ink2)', border: '1px solid var(--mist)', borderRadius: 16, padding: 20, height: 240 }}>
-              <CuadroHeader title="TENDENCIA CARGA (RPE)" subtitle="Últimos 7 días (Promedio Sesiones)" />
+              <CuadroHeader title="TENDENCIA CARGA (RPE)" subtitle="Últimos 7 días (Promedio Sesiones)" icon={Icons.metricas} />
               <div style={{ width: '100%', height: 160, marginTop: 16 }}>
                 {!loading && loadData.length > 0 ? (
                   <ResponsiveContainer width="100%" height="100%">

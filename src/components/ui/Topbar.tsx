@@ -6,6 +6,7 @@ export default function Topbar({ nombre, rol, activeTab, onTabChange, tabs, club
   const router = useRouter()
   const [clubs, setClubs] = useState<any[]>([])
   const [switching, setSwitching] = useState(false)
+  const [dropdownOpen, setDropdownOpen] = useState(false)
 
   useEffect(() => {
     if (rol === 'admin' || rol === 'master_admin') {
@@ -46,22 +47,65 @@ export default function Topbar({ nombre, rol, activeTab, onTabChange, tabs, club
           <span className="display" style={{ fontSize:20, color:'var(--snow)', letterSpacing:'0.05em' }}>W&P</span>
           <span style={{ fontFamily:'DM Mono,monospace', fontSize:10, color:'var(--silver)', marginLeft:4, textTransform:'uppercase', letterSpacing:'0.06em' }}>{rol==='master_admin'?'Master Admin':rol==='admin'?'Preparador':'Jugador'}</span>
           {clubs.length > 1 ? (
-            <select
-              disabled={switching}
-              onChange={(e) => switchClub(Number(e.target.value))}
-              style={{ fontFamily:'DM Mono,monospace', fontSize:10, color:'var(--lime)', background:'rgba(200,241,53,.08)', border:'1px solid rgba(200,241,53,.2)', borderRadius:6, padding:'2px 24px 2px 8px', marginLeft:4, cursor:'pointer', outline:'none' }}
-              value={clubs.find(c => c.is_active)?.id || ''}
-            >
-              <option value="" disabled style={{ background:'var(--ink)', color:'var(--fog)' }}>— Seleccionar club —</option>
-              {clubs.map(c => (
-                <option key={c.id} value={c.id} style={{ background:'var(--ink)', color:'var(--snow)' }}>
-                  🏟️ {c.nombre}
-                </option>
-              ))}
-            </select>
+            <div style={{ position: 'relative', marginLeft: 16 }}>
+              <button 
+                onClick={() => setDropdownOpen(!dropdownOpen)}
+                disabled={switching}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 8,
+                  fontFamily: 'DM Mono, monospace', fontSize: 13, fontWeight: 600, color: 'var(--lime)',
+                  background: 'linear-gradient(180deg, rgba(200,241,53,0.1), rgba(200,241,53,0.02))',
+                  border: '1px solid rgba(200,241,53,0.3)',
+                  borderRadius: 8, padding: '6px 16px', cursor: 'pointer', outline: 'none',
+                  boxShadow: '0 2px 10px rgba(200,241,53,0.05)',
+                  transition: 'all 0.2s', minWidth: 200, justifyContent: 'space-between'
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ opacity: 0.8 }}>🛡️</span>
+                  <span>{clubs.find(c => c.is_active)?.nombre || 'Seleccionar equipo'}</span>
+                </div>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ transform: dropdownOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}><polyline points="6 9 12 15 18 9"></polyline></svg>
+              </button>
+
+              {dropdownOpen && (
+                <>
+                  <div style={{ position: 'fixed', inset: 0, zIndex: 90 }} onClick={() => setDropdownOpen(false)} />
+                  <div style={{
+                    position: 'absolute', top: '100%', left: 0, marginTop: 8, minWidth: '100%',
+                    background: 'rgba(15,23,42,0.98)', backdropFilter: 'blur(10px)',
+                    border: '1px solid var(--mist)', borderRadius: 12, overflow: 'hidden',
+                    boxShadow: '0 10px 30px rgba(0,0,0,0.5)', zIndex: 100,
+                    display: 'flex', flexDirection: 'column'
+                  }}>
+                    {clubs.map(c => (
+                      <button
+                        key={c.id}
+                        onClick={() => { setDropdownOpen(false); switchClub(c.id) }}
+                        style={{
+                          padding: '12px 16px', background: 'transparent', border: 'none',
+                          color: c.is_active ? 'var(--lime)' : 'var(--snow)',
+                          textAlign: 'left', cursor: 'pointer',
+                          fontFamily: 'DM Mono, monospace', fontSize: 13,
+                          borderBottom: '1px solid rgba(255,255,255,0.05)',
+                          display: 'flex', alignItems: 'center', gap: 12,
+                          transition: 'background 0.2s'
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
+                        onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                      >
+                        <span style={{ opacity: c.is_active ? 1 : 0.5 }}>🛡️</span>
+                        {c.nombre}
+                        {c.is_active && <svg style={{ marginLeft: 'auto' }} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
           ) : clubNombre ? (
-            <span style={{ fontFamily:'DM Mono,monospace', fontSize:10, color:'var(--lime)', background:'rgba(200,241,53,.08)', border:'1px solid rgba(200,241,53,.2)', borderRadius:6, padding:'2px 8px', marginLeft:4 }}>
-              🏟️ {clubNombre}
+            <span style={{ fontFamily:'DM Mono,monospace', fontSize:13, fontWeight: 600, color:'var(--lime)', background:'linear-gradient(180deg, rgba(200,241,53,0.1), rgba(200,241,53,0.02))', border:'1px solid rgba(200,241,53,0.3)', borderRadius:8, padding:'6px 16px', marginLeft:16, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ opacity: 0.8 }}>🛡️</span> {clubNombre}
             </span>
           ) : null}
         </div>
