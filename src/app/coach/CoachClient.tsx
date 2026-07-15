@@ -1996,9 +1996,9 @@ function CalendarioPanel({ teamData }) {
           @keyframes growUpAnim { from { transform: scaleY(0); } to { transform: scaleY(1); } }
           @keyframes fadeUpAnim { from { opacity: 0; transform: translateY(10px) translateX(-50%); } to { opacity: 1; transform: translateY(0) translateX(-50%); } }
           @keyframes fadeInAnim { from { opacity: 0; } to { opacity: 1; } }
-          .anim-grow-up { transform-origin: bottom; animation: growUpAnim 5s cubic-bezier(0.16, 1, 0.3, 1) forwards; transform: scaleY(0); }
-          .anim-fade-up { animation: fadeUpAnim 5s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; }
-          .anim-fade-in { animation: fadeInAnim 5s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; }
+          .anim-grow-up { transform-origin: bottom; animation: growUpAnim 8s cubic-bezier(0.16, 1, 0.3, 1) forwards; transform: scaleY(0); }
+          .anim-fade-up { animation: fadeUpAnim 8s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; }
+          .anim-fade-in { animation: fadeInAnim 8s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; }
         
           .pause-animations .anim-grow-up,
           .pause-animations .anim-fade-up,
@@ -2658,7 +2658,7 @@ function CalendarioPanel({ teamData }) {
             {campoSorted.length > 0 && (
               <div style={{ flex:2, minWidth:300 }}>
                 <p style={{ fontSize:11, color:'var(--fog)', marginBottom:8 }}>Desglose de Campo</p>
-                <div style={{ columns: '180px', columnGap: 16 }}>
+                <div style={{ columnCount: 2, columnGap: 16 }}>
                   {campoSorted.map(([nombre, mins]) => {
                     const p = Math.round((mins / totalCampoMin) * 100)
                     return (
@@ -2682,7 +2682,7 @@ function CalendarioPanel({ teamData }) {
             {gymSorted.length > 0 && (
               <div style={{ flex:2, minWidth:300 }}>
                 <p style={{ fontSize:11, color:'var(--fog)', marginBottom:8 }}>Desglose de Gimnasio</p>
-                <div style={{ columns: '180px', columnGap: 16 }}>
+                <div style={{ columnCount: 2, columnGap: 16 }}>
                   {gymSorted.map(([nombre, mins]) => {
                     const p = Math.round((mins / totalGymMin) * 100)
                     return (
