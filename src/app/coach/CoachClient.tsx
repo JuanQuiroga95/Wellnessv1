@@ -253,7 +253,7 @@ const AnimatedPieChart = (props: any) => {
   }, []);
   return (
     <div ref={ref} style={{ width: props.width, height: props.height }}>
-      {isVisible && <AnimatedPieChart {...props}>{props.children}</AnimatedPieChart>}
+      {isVisible && <PieChart {...props}>{props.children}</PieChart>}
     </div>
   )
 }
@@ -1996,9 +1996,9 @@ function CalendarioPanel({ teamData }) {
           @keyframes growUpAnim { from { transform: scaleY(0); } to { transform: scaleY(1); } }
           @keyframes fadeUpAnim { from { opacity: 0; transform: translateY(10px) translateX(-50%); } to { opacity: 1; transform: translateY(0) translateX(-50%); } }
           @keyframes fadeInAnim { from { opacity: 0; } to { opacity: 1; } }
-          .anim-grow-up { transform-origin: bottom; animation: growUpAnim 1s cubic-bezier(0.16, 1, 0.3, 1) forwards; transform: scaleY(0); }
-          .anim-fade-up { animation: fadeUpAnim 1s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; }
-          .anim-fade-in { animation: fadeInAnim 1s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; }
+          .anim-grow-up { transform-origin: bottom; animation: growUpAnim 2.5s cubic-bezier(0.16, 1, 0.3, 1) forwards; transform: scaleY(0); }
+          .anim-fade-up { animation: fadeUpAnim 2.5s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; }
+          .anim-fade-in { animation: fadeInAnim 2.5s cubic-bezier(0.16, 1, 0.3, 1) forwards; opacity: 0; }
         
           .pause-animations .anim-grow-up,
           .pause-animations .anim-fade-up,
@@ -2633,7 +2633,7 @@ function CalendarioPanel({ teamData }) {
                     dataKey="value"
                     stroke="none"
                     isAnimationActive={true}
-                    animationDuration={1200}
+                    animationDuration={2500}
                   >
                     { [
                         { name: 'Campo', value: totalCampoMin, color: '#c8f135' },
@@ -2658,7 +2658,7 @@ function CalendarioPanel({ teamData }) {
             {campoSorted.length > 0 && (
               <div style={{ flex:2, minWidth:300 }}>
                 <p style={{ fontSize:11, color:'var(--fog)', marginBottom:8 }}>Desglose de Campo</p>
-                <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(180px, 1fr))', gap:10 }}>
+                <div style={{ display:'grid', gridTemplateRows:'repeat(10, auto)', gridAutoFlow:'column', gridAutoColumns:'minmax(180px, 1fr)', gap:10 }}>
                   {campoSorted.map(([nombre, mins]) => {
                     const p = Math.round((mins / totalCampoMin) * 100)
                     return (
@@ -2682,7 +2682,7 @@ function CalendarioPanel({ teamData }) {
             {gymSorted.length > 0 && (
               <div style={{ flex:2, minWidth:300 }}>
                 <p style={{ fontSize:11, color:'var(--fog)', marginBottom:8 }}>Desglose de Gimnasio</p>
-                <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(180px, 1fr))', gap:10 }}>
+                <div style={{ display:'grid', gridTemplateRows:'repeat(10, auto)', gridAutoFlow:'column', gridAutoColumns:'minmax(180px, 1fr)', gap:10 }}>
                   {gymSorted.map(([nombre, mins]) => {
                     const p = Math.round((mins / totalGymMin) * 100)
                     return (

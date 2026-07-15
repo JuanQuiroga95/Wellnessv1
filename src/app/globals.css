@@ -195,5 +195,5 @@ html{font-size:16px}body{font-family:'DM Sans',system-ui,sans-serif;background:v
   100% { max-width: 100%; }
 }
 .anim-bar {
-  animation: fillBarWidth 1.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: fillBarWidth 2.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
