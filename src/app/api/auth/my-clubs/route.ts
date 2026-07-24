@@ -34,8 +34,8 @@ export async function GET(req: NextRequest) {
           SELECT c.id, c.nombre, c.logo_url, c.pais,
                  (c.id = ${s.clubId || 0}) AS is_active
           FROM clubs c
-          JOIN usuarios u ON (c.id = ANY(u.admin_clubs) OR c.id = ANY(u.club_ids))
-          WHERE u.id = ${s.userId}
+          JOIN admin_clubs ac ON ac.club_id = c.id
+          WHERE ac.admin_id = ${s.userId}
           ORDER BY c.nombre`
       }
     } catch {

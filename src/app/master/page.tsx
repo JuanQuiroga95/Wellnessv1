@@ -22,7 +22,11 @@ export default async function MasterPage() {
         GROUP BY c.id ORDER BY c.nombre`,
     sql`SELECT u.id, u.nombre, u.usuario, u.activo, u.club_id, c.nombre AS club_nombre,
                u.created_at::text, u.password_plain,
-               u.last_login::text, u.login_count
+               u.last_login::text, u.login_count,
+               COALESCE(
+                 (SELECT json_agg(ac.club_id) FROM admin_clubs ac WHERE ac.admin_id = u.id),
+                 '[]'::json
+               ) AS club_ids
         FROM usuarios u LEFT JOIN clubs c ON c.id=u.club_id
         WHERE u.rol='admin' ORDER BY u.nombre`,
   ])

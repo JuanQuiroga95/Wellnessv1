@@ -31,28 +31,6 @@ export async function POST(req: NextRequest) {
       LIMIT 1`
 
     if (access.length === 0) {
-      // Admins check their admin_clubs array OR club_ids array
-      const hasAccess = await sql`SELECT id FROM usuarios WHERE id = ${s.userId} AND (${clubIdNum} = ANY(admin_clubs) OR ${clubIdNum} = ANY(club_ids))`
-      
-      if (hasAccess.length > 0) {
-        const club = await sql`SELECT nombre FROM clubs WHERE id = ${clubIdNum} LIMIT 1`
-        if (club.length === 0) return NextResponse.json({ error: 'Club no existe' }, { status: 404 })
-        
-        const token = await createToken({
-          userId: s.userId,
-          usuario: s.usuario,
-          nombre: s.nombre,
-          rol: s.rol,
-          jugadorId: s.jugadorId,
-          clubId: clubIdNum,
-          clubNombre: String((club[0] as any).nombre),
-        })
-        cookies().set('wp_token', token, {
-          httpOnly: true, secure: true, sameSite: 'strict', maxAge: 604800, path: '/',
-        })
-        return NextResponse.json({ ok: true, clubId: clubIdNum, clubNombre: String((club[0] as any).nombre) })
-      }
-
       // master_admin can access any club
       if (s.rol === 'master_admin') {
         const club = await sql`SELECT nombre FROM clubs WHERE id = ${clubIdNum} LIMIT 1`

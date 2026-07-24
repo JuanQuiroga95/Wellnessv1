@@ -55,7 +55,7 @@ export default function MasterClient({ session, clubs: initialClubs, coaches: in
 
   // Run migration on mount to ensure pais column exists in production DB
   useEffect(() => {
-    fetch('/api/migrate', { method: 'POST' }).catch(() => {})
+    fetch('/api/seed', { method: 'POST' }).catch(() => {})
   }, [])
 
   // Auto-refresh cada 60 segundos para mantener ingresos actualizados
