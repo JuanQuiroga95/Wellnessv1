@@ -1,0 +1,14 @@
+{
+  "framework": "nextjs",
+  "functions": {
+    "src/app/api/gps/import/route.ts": {
+      "maxDuration": 60
+    }
+  },
+  "crons": [
+    {
+      "path": "/api/notifications",
+      "schedule": "0 11 * * *"
+    }
+  ]
+}
