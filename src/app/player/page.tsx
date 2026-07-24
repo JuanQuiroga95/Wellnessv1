@@ -13,13 +13,14 @@ export default async function PlayerPage() {
   if (!jugadorId) redirect('/login')
   const today = new Date().toISOString().split('T')[0]
 
-  const [jRows, logs, wRows, todayRows, gpsRows, wAllRows] = await Promise.all([
-    sql`SELECT u.nombre, j.posicion, j.edad, j.peso_kg::text AS peso_kg, j.estatura_cm, j.pie_habil, j.foto_url, j.email, j.hora_recordatorio FROM usuarios u JOIN jugadores j ON j.usuario_id=u.id WHERE u.id=${session.userId}`,
+  const [jRows, logs, wRows, todayRows, gpsRows, wAllRows, cRows] = await Promise.all([
+    sql`SELECT u.nombre, j.posicion, j.edad, j.peso_kg::text AS peso_kg, j.estatura_cm, j.pie_habil, j.foto_url, j.email, j.hora_recordatorio, j.club_id FROM usuarios u JOIN jugadores j ON j.usuario_id=u.id WHERE u.id=${session.userId}`,
     sql`SELECT fecha::text, carga_ua::int, rpe::int, rpe_gimnasio::int, duracion_min::int, tipo_sesion FROM entrenamiento_logs WHERE jugador_id=${jugadorId} AND fecha>=CURRENT_DATE-28 ORDER BY fecha ASC`,
     sql`SELECT fecha::text, fatiga::int, calidad_sueno::int, dolor_muscular::int, nivel_estres::int, estado_animo::int, dolor_zona, COALESCE(horas_sueno::numeric,0) AS horas_sueno, COALESCE(tqr::int,0) AS tqr, COALESCE(recovery::int,0) AS recovery, COALESCE(dolor_eva::int,0) AS dolor_eva, COALESCE(entrena_grupo::text,'true') AS entrena_grupo, COALESCE(fue_gimnasio::text,'false') AS fue_gimnasio, COALESCE(grupos_musculares,'') AS grupos_musculares FROM wellness_logs WHERE jugador_id=${jugadorId} ORDER BY fecha DESC LIMIT 10`,
     sql`SELECT fecha::text, fatiga::int, calidad_sueno::int, dolor_muscular::int, nivel_estres::int, estado_animo::int, dolor_zona, COALESCE(horas_sueno::numeric,0) AS horas_sueno, COALESCE(tqr::int,0) AS tqr, COALESCE(recovery::int,0) AS recovery, COALESCE(dolor_eva::int,0) AS dolor_eva, COALESCE(entrena_grupo::text,'true') AS entrena_grupo, COALESCE(fue_gimnasio::text,'false') AS fue_gimnasio, COALESCE(grupos_musculares,'') AS grupos_musculares FROM wellness_logs WHERE jugador_id=${jugadorId} AND fecha=${today} LIMIT 1`,
     sql`SELECT MAX(max_velocity)::text AS max_vel, MAX(dist_total)::text AS max_dist, MAX(dist_hir)::text AS max_hir, MAX(n_sprints)::int AS max_sprints, COUNT(*)::int AS total_sesiones_gps FROM gps_logs WHERE jugador_id=${jugadorId}`.catch(()=>[]),
     sql`SELECT fecha::text FROM wellness_logs WHERE jugador_id=${jugadorId} ORDER BY fecha DESC LIMIT 60`.catch(()=>[]),
+    sql`SELECT c.nombre FROM jugadores j JOIN clubs c ON j.club_id = c.id WHERE j.usuario_id = ${session.userId}`.catch(()=>[])
   ])
 
   const pw = (w) => ({ fecha:String(w.fecha), fatiga:Number(w.fatiga)||0, calidad_sueno:Number(w.calidad_sueno)||0, dolor_muscular:Number(w.dolor_muscular)||0, nivel_estres:Number(w.nivel_estres)||0, estado_animo:Number(w.estado_animo)||0, dolor_zona:String(w.dolor_zona||''), horas_sueno:parseFloat(w.horas_sueno)||0, tqr:Number(w.tqr)||0, recovery:Number(w.recovery)||0, entrena_grupo:String(w.entrena_grupo)!=='false', fue_gimnasio:String(w.fue_gimnasio)==='true', grupos_musculares:String(w.grupos_musculares||''), dolor_eva:Number(w.dolor_eva)||0 })
@@ -52,6 +53,8 @@ export default async function PlayerPage() {
   const totalUA = rl.reduce((s, l) => s + l.carga_ua, 0)
   const mejorRpe = rl.length ? Math.min(...rl.filter(l=>l.rpe>0).map(l=>l.rpe)) : null
 
+  const isPanama = cRows[0] ? cRows[0].nombre.toLowerCase().includes('panam') : false;
+
   const acwrData = calcACWR(sl)
-  return <PlayerClient session={session} jugador={j} jugadorId={jugadorId} acuteLoad={acwrData.acuteLoad} recentLogs={rl} recentWellness={wRows.map(pw)} todayWellness={todayRows[0]?pw(todayRows[0]):null} today={today} gpsStats={gpsStats} wellnessStreak={wellnessStreak} totalSesiones={totalSesiones} totalUA={totalUA} mejorRpe={mejorRpe} />
+  return <PlayerClient isPanama={isPanama} session={session} jugador={j} jugadorId={jugadorId} acuteLoad={acwrData.acuteLoad} recentLogs={rl} recentWellness={wRows.map(pw)} todayWellness={todayRows[0]?pw(todayRows[0]):null} today={today} gpsStats={gpsStats} wellnessStreak={wellnessStreak} totalSesiones={totalSesiones} totalUA={totalUA} mejorRpe={mejorRpe} />
 }

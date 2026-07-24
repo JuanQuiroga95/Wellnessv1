@@ -1,9 +1,9 @@
 'use client'
 const W = ['#c8f135','#22c55e','#eab308','#f97316','#ef4444']
 const R = ['#3b82f6','#3b82f6','#22c55e','#22c55e','#eab308','#eab308','#f97316','#f97316','#ef4444','#ef4444','#b91c1c']
-export default function ScaleInput({ id, value, onChange, min=1, max=5, lowLabel, highLabel, isRpe=false }) {
+export default function ScaleInput({ id, value, onChange, min=1, max=5, lowLabel, highLabel, isRpe=false, customColors }) {
   const nums = Array.from({ length: max - min + 1 }, (_,i) => i + min)
-  const color = (v) => isRpe ? R[v]||'#ef4444' : W[v-1]||'#888'
+  const color = (v) => isRpe ? R[v]||'#ef4444' : customColors ? customColors[v-1] : W[v-1]||'#888'
   return (
     <div>
       <div style={{ display:'flex', gap:6 }}>

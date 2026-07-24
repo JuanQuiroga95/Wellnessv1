@@ -14,6 +14,15 @@ const FIELDS = [
   { key:'estado_animo',   label:'Estado de Ánimo',  low:'Muy alto',      high:'Muy bajo'      },
 ]
 
+const FIELDS_PANAMA = [
+  { key:'fatiga',         label:'¿QUÉ TAN RECUPERADO TE SIENTES AL DESPERTAR?', low:'Nada recuperado', high:'Muy bien recuperado', colors: ['#ef4444','#f97316','#eab308','#84cc16','#22c55e'] },
+  { key:'calidad_sueno',  label:'¿CÓMO DORMISTE ANOCHE?', low:'Muy mal', high:'Excelente', colors: ['#ef4444','#f97316','#eab308','#84cc16','#22c55e'] },
+  { key:'dolor_muscular', label:'¿CÓMO SIENTES TUS MÚSCULOS AL DESPERTAR?', low:'Muy adolorido', high:'Muy buenas sens.', colors: ['#ef4444','#f97316','#eab308','#84cc16','#22c55e'] },
+  { key:'nivel_estres',   label:'¿QUÉ NIVEL DE ENERGÍA TIENES ESTA MAÑANA?', low:'Muy cansado', high:'Con mucha energía', colors: ['#ef4444','#f97316','#eab308','#84cc16','#22c55e'] },
+]
+
+const COLORS_HIDRATACION = ['#c8f135', '#c8f135', '#c8f135', '#eab308', '#eab308', '#eab308', '#f97316', '#ef4444']
+
 // TQR: 1=muy mal(rojo) → 10=completamente recuperado(verde) — invertido
 const TQR_LABELS = {
   1:'Muy mal', 2:'Mal', 3:'Bastante mal', 4:'Algo mal', 5:'Moderado',
@@ -466,7 +475,7 @@ function BodyMap({ onSelect, selected }) {
 
 
 // ── Already completed today ───────────────────────────────────────────────────
-function AlreadyCompleted({ data, onBack }) {
+function AlreadyCompleted({ isPanama, data, onBack }: any) {
   const total = WK.reduce((s,k) => s + (Number(data[k])||0), 0)
   const rd = !total ? null : total <= 12 ? {label:'Listo para entrenar',color:'#c8f135'} : total <= 18 ? {label:'Atención Wellness',color:'#f59e0b'} : {label:'Bajar Carga',color:'#ef4444'}
 
@@ -488,13 +497,15 @@ function AlreadyCompleted({ data, onBack }) {
           {WK.map((k,i) => {
             const v = Number(data[k])||0
             const col = WC[v-1]||'#888'
+            const displayVal = (isPanama && i < 4 && v > 0) ? (6 - v) : v
+            const label = isPanama ? ['Recuperación','Sueño','Músculos','Energía','Hidratación'][i] : WL[i]
             return (
               <div key={k} style={{ display:'flex', alignItems:'center', gap:10 }}>
-                <span style={{ fontSize:12, color:'var(--silver)', minWidth:52 }}>{WL[i]}</span>
+                <span style={{ fontSize:12, color:'var(--silver)', minWidth:52 }}>{label}</span>
                 <div style={{ flex:1, height:6, background:'var(--mist)', borderRadius:3, overflow:'hidden' }}>
                   <div style={{ width:`${v*20}%`, height:'100%', background:col, borderRadius:3 }} />
                 </div>
-                <span style={{ fontSize:13, fontFamily:'DM Mono,monospace', fontWeight:600, color:col, minWidth:16 }}>{v}</span>
+                <span style={{ fontSize:13, fontFamily:'DM Mono,monospace', fontWeight:600, color:col, minWidth:16 }}>{displayVal}</span>
               </div>
             )
           })}
@@ -521,7 +532,7 @@ function AlreadyCompleted({ data, onBack }) {
 }
 
 // ── Main Form ─────────────────────────────────────────────────────────────────
-export default function WellnessForm({ jugadorId, onSuccess, todayWellness }) {
+export default function WellnessForm({ isPanama, jugadorId, onSuccess, todayWellness }: any) {
   const [vals, setVals] = useState({ fatiga:null, calidad_sueno:null, dolor_muscular:null, nivel_estres:null, estado_animo:null })
   const [horasSueno, setHorasSueno] = useState('')
   const [tqr, setTqr] = useState(null)
@@ -535,10 +546,14 @@ export default function WellnessForm({ jugadorId, onSuccess, todayWellness }) {
   const [done, setDone] = useState(false)
   const [error, setError] = useState('')
 
-  if (todayWellness) return <AlreadyCompleted data={todayWellness} onBack={onSuccess} />
+  const [tieneMolestia, setTieneMolestia] = useState<boolean|null>(null) // Para Panamá
 
-  // Mostrar mapa corporal cuando dolor >= 2 (algo de dolor)
-  const showBodyMap = vals.dolor_muscular !== null && vals.dolor_muscular >= 2
+  if (todayWellness) return <AlreadyCompleted isPanama={isPanama} data={todayWellness} onBack={onSuccess} />
+
+  // Mostrar mapa corporal
+  const showBodyMap = isPanama 
+    ? tieneMolestia === true 
+    : vals.dolor_muscular !== null && vals.dolor_muscular >= 2
   // Mostrar EVA cuando se seleccionó zona (no "Ningún dolor")
   const showEVA = showBodyMap && zonasSeleccionadas.length > 0 && !zonasSeleccionadas.includes('Ningún dolor')
 
@@ -559,10 +574,15 @@ export default function WellnessForm({ jugadorId, onSuccess, todayWellness }) {
     })
   }
 
-  const allFilled = Object.values(vals).every(v => v !== null) && horasSueno !== '' && tqr !== null && entrenaGrupo !== null && fueGimnasio !== null && (!showBodyMap || zonasSeleccionadas.length > 0 || (vals.dolor_muscular != null && vals.dolor_muscular < 2)) && (!showEVA || dolorEva !== null)
+  const allFilled = Object.values(vals).every(v => v !== null) 
+    && (isPanama ? tieneMolestia !== null : horasSueno !== '') 
+    && (isPanama ? true : tqr !== null)
+    && entrenaGrupo !== null && fueGimnasio !== null 
+    && (!showBodyMap || zonasSeleccionadas.length > 0)
+    && (!showEVA || dolorEva !== null)
 
-  const filledCount = Object.values(vals).filter(v=>v!==null).length + (horasSueno!==''?1:0) + (tqr?1:0) + (entrenaGrupo!==null?1:0) + (fueGimnasio!==null?1:0)
-  const totalFields = 5 + 1 + 1 + 1 + 1 // wellness + horas_sueno + tqr + entrena + gimnasio
+  const filledCount = Object.values(vals).filter(v=>v!==null).length + (isPanama && tieneMolestia!==null?1:horasSueno!==''?1:0) + (isPanama?0:tqr?1:0) + (entrenaGrupo!==null?1:0) + (fueGimnasio!==null?1:0)
+  const totalFields = 5 + (isPanama?1:2) + 1 + 1 // wellness + (molestia/horas+tqr) + entrena + gimnasio
 
   async function submit(e) {
     e.preventDefault()
@@ -572,8 +592,13 @@ export default function WellnessForm({ jugadorId, onSuccess, todayWellness }) {
       const res = await fetch('/api/wellness', {
         method:'POST', headers:{'Content-Type':'application/json'},
         body: JSON.stringify({
-          jugador_id:jugadorId, ...vals,
-          horas_sueno: parseFloat(horasSueno),
+          jugador_id:jugadorId,
+          fatiga: isPanama ? (6 - (vals.fatiga as number)) : vals.fatiga,
+          calidad_sueno: isPanama ? (6 - (vals.calidad_sueno as number)) : vals.calidad_sueno,
+          dolor_muscular: isPanama ? (6 - (vals.dolor_muscular as number)) : vals.dolor_muscular,
+          nivel_estres: isPanama ? (6 - (vals.nivel_estres as number)) : vals.nivel_estres,
+          estado_animo: vals.estado_animo, // Hidratación u original, no se invierte
+          horas_sueno: horasSueno ? parseFloat(horasSueno) : 0,
           dolor_zona: zonasSeleccionadas.length > 0 ? JSON.stringify(zonasSeleccionadas) : null,
           dolor_descripcion: dolorDescripcion||null,
           dolor_eva: dolorEva,
@@ -609,74 +634,106 @@ export default function WellnessForm({ jugadorId, onSuccess, todayWellness }) {
 
   return (
     <form onSubmit={submit} style={{ display:'flex', flexDirection:'column', gap:20 }}>
-      <p style={{ fontSize:10, fontWeight:700, color:'var(--lime)', textTransform:'uppercase', letterSpacing:'0.1em' }}>Bienestar General (1 = Mejor · 5 = Peor)</p>
-
-      {FIELDS.map((f) => (
-        <div key={f.key}>
-          <label style={{ display:'block', fontSize:11, fontWeight:600, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:8 }}>{f.label}</label>
-          <ScaleInput id={f.key} value={vals[f.key]} onChange={v => setVals(p=>({...p,[f.key]:v}))} lowLabel={f.low} highLabel={f.high} />
-
-          {/* Input de horas de sueño debajo de calidad de sueño */}
-          {f.key === 'calidad_sueno' && (
-            <div style={{ marginTop:14, padding:14, background:'var(--ink3)', borderRadius:10, border:'1px solid var(--mist)' }}>
-              <label style={{ display:'block', fontSize:11, fontWeight:600, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:8 }}>
-                Horas de sueño
-              </label>
-              <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-                <input
-                  type="number" min="0" max="24" step="0.5"
-                  className="wp-input"
-                  value={horasSueno}
-                  onChange={e=>setHorasSueno(e.target.value)}
-                  style={{ width:100, textAlign:'center', fontSize:18, fontWeight:700, fontFamily:'DM Mono,monospace', color:'var(--lime)' }}
-                  placeholder="ej: 7.5"
-                />
-                <span style={{ fontSize:12, color:'var(--fog)' }}>horas en total</span>
-              </div>
+      {isPanama ? (
+        <>
+          <p style={{ fontSize:10, fontWeight:700, color:'var(--lime)', textTransform:'uppercase', letterSpacing:'0.1em' }}>Bienestar y Recuperación</p>
+          {FIELDS_PANAMA.map((f) => (
+            <div key={f.key}>
+              <label style={{ display:'block', fontSize:11, fontWeight:600, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:8 }}>{f.label}</label>
+              <ScaleInput id={f.key} value={vals[f.key]} onChange={(v:any) => setVals(p=>({...p,[f.key]:v}))} lowLabel={f.low} highLabel={f.high} customColors={f.colors} />
             </div>
-          )}
-
-          {/* Body map aparece justo debajo de Dolor Muscular si valor >= 2 */}
-          {f.key === 'dolor_muscular' && showBodyMap && (
-            <div style={{ marginTop:14 }}>
+          ))}
+          <div>
+            <label style={{ display:'block', fontSize:11, fontWeight:600, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:8 }}>NIVEL DE HIDRATACIÓN (1=Hidratado, 8=Severamente deshidratado)</label>
+            <ScaleInput id="estado_animo" value={vals.estado_animo} onChange={(v:any) => setVals(p=>({...p,estado_animo:v}))} min={1} max={8} lowLabel="Hidratado" highLabel="Severamente Deshidratado" customColors={COLORS_HIDRATACION} />
+          </div>
+          <div style={{ marginTop:14 }}>
+            <label style={{ display:'block', fontSize:11, fontWeight:600, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:10 }}>¿TENÉS ALGUNA MOLESTIA O DOLOR MUSCULAR/ARTICULAR?</label>
+            <div style={{ display:'flex', gap:10 }}>
+              {radioBtn('NO, ME SIENTO BIEN', tieneMolestia===false, ()=>setTieneMolestia(false), 'var(--lime)')}
+              {radioBtn('SÍ, TENGO DOLOR', tieneMolestia===true, ()=>setTieneMolestia(true), '#ef4444')}
+            </div>
+          </div>
+          {showBodyMap && (
+            <div className="anim-up" style={{ marginTop:14 }}>
               <p style={{ fontSize:11, fontWeight:700, color:'#f87171', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:10 }}>📍 ¿En qué parte sentís dolor o molestia?</p>
-              <PhotoBodyMap
-                selected={zonasSeleccionadas}
-                onSelect={handleZoneSelect}
-                description={dolorDescripcion}
-                onDescriptionChange={setDolorDescripcion}
-              />
+              <PhotoBodyMap selected={zonasSeleccionadas} onSelect={handleZoneSelect} description={dolorDescripcion} onDescriptionChange={setDolorDescripcion} />
               {showEVA && <EVAScale value={dolorEva} onChange={setDolorEva} />}
             </div>
           )}
-        </div>
-      ))}
-
-      {sectionHead('Total Quality Recovery (TQR)')}
-      <p style={{ fontSize:12, color:'var(--silver)', marginTop:-14 }}>¿Qué tan recuperado estás de la última sesión?</p>
-      <div>
-        <label style={{ display:'block', fontSize:11, fontWeight:600, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:8 }}>
-          TQR {tqr && <span style={{ color:TQR_COLORS[tqr]||'var(--lime)', fontWeight:400, textTransform:'none', letterSpacing:'normal', marginLeft:8 }}>{TQR_LABELS[tqr]}</span>}
-        </label>
-        <div style={{ display:'flex', gap:6 }}>
-          {[1,2,3,4,5,6,7,8,9,10].map(v => {
-            const active = tqr === v
-            const col = TQR_COLORS[v]
-            return (
-              <button key={v} type="button" onClick={()=>setTqr(v)} style={{ flex:1, padding:'10px 4px', borderRadius:8, border:active?`2px solid ${col}`:'1px solid var(--fog)', background:active?`${col}25`:'var(--ink3)', color:active?col:'var(--silver)', fontFamily:'DM Mono,monospace', fontSize:13, fontWeight:active?700:500, cursor:'pointer', transition:'all .12s', textAlign:'center' }}>
-                {v}
-              </button>
-            )
-          })}
-        </div>
-        <div style={{ display:'flex', gap:6, marginTop:4 }}>
-          {[1,2,3,4,5,6,7,8,9,10].map(v => <div key={v} style={{ flex:1, height:3, borderRadius:2, background:TQR_COLORS[v], opacity:tqr===v?1:0.3 }} />)}
-        </div>
-        <div style={{ display:'flex', justifyContent:'space-between', marginTop:4 }}>
-          <span style={{ fontSize:10, color:'var(--silver)' }}>Muy mal recuperado</span>
-          <span style={{ fontSize:10, color:'var(--silver)' }}>Completamente recuperado</span>
-        </div>
-      </div>
+        </>
+      ) : (
+        <>
+          <p style={{ fontSize:10, fontWeight:700, color:'var(--lime)', textTransform:'uppercase', letterSpacing:'0.1em' }}>Bienestar General (1 = Mejor · 5 = Peor)</p>
+          
+          {FIELDS.map((f) => (
+            <div key={f.key}>
+              <label style={{ display:'block', fontSize:11, fontWeight:600, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:8 }}>{f.label}</label>
+              <ScaleInput id={f.key} value={vals[f.key]} onChange={(v:any) => setVals(p=>({...p,[f.key]:v}))} lowLabel={f.low} highLabel={f.high} />
+              
+              {/* Input de horas de sueño debajo de calidad de sueño */}
+              {f.key === 'calidad_sueno' && (
+                <div style={{ marginTop:14, padding:14, background:'var(--ink3)', borderRadius:10, border:'1px solid var(--mist)' }}>
+                  <label style={{ display:'block', fontSize:11, fontWeight:600, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:8 }}>
+                    Horas de sueño
+                  </label>
+                  <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                    <input
+                      type="number" min="0" max="24" step="0.5"
+                      className="wp-input"
+                      value={horasSueno}
+                      onChange={e=>setHorasSueno(e.target.value)}
+                      style={{ width:100, textAlign:'center', fontSize:18, fontWeight:700, fontFamily:'DM Mono,monospace', color:'var(--lime)' }}
+                      placeholder="ej: 7.5"
+                    />
+                    <span style={{ fontSize:12, color:'var(--fog)' }}>horas en total</span>
+                  </div>
+                </div>
+              )}
+    
+              {/* Body map aparece justo debajo de Dolor Muscular si valor >= 2 */}
+              {f.key === 'dolor_muscular' && showBodyMap && (
+                <div style={{ marginTop:14 }}>
+                  <p style={{ fontSize:11, fontWeight:700, color:'#f87171', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:10 }}>📍 ¿En qué parte sentís dolor o molestia?</p>
+                  <PhotoBodyMap
+                    selected={zonasSeleccionadas}
+                    onSelect={handleZoneSelect}
+                    description={dolorDescripcion}
+                    onDescriptionChange={setDolorDescripcion}
+                  />
+                  {showEVA && <EVAScale value={dolorEva} onChange={setDolorEva} />}
+                </div>
+              )}
+            </div>
+          ))}
+    
+          {sectionHead('Total Quality Recovery (TQR)')}
+          <p style={{ fontSize:12, color:'var(--silver)', marginTop:-14 }}>¿Qué tan recuperado estás de la última sesión?</p>
+          <div>
+            <label style={{ display:'block', fontSize:11, fontWeight:600, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:8 }}>
+              TQR {tqr && <span style={{ color:TQR_COLORS[tqr]||'var(--lime)', fontWeight:400, textTransform:'none', letterSpacing:'normal', marginLeft:8 }}>{TQR_LABELS[tqr]}</span>}
+            </label>
+            <div style={{ display:'flex', gap:6 }}>
+              {[1,2,3,4,5,6,7,8,9,10].map(v => {
+                const active = tqr === v
+                const col = TQR_COLORS[v]
+                return (
+                  <button key={v} type="button" onClick={()=>setTqr(v)} style={{ flex:1, padding:'10px 4px', borderRadius:8, border:active?`2px solid ${col}`:'1px solid var(--fog)', background:active?`${col}25`:'var(--ink3)', color:active?col:'var(--silver)', fontFamily:'DM Mono,monospace', fontSize:13, fontWeight:active?700:500, cursor:'pointer', transition:'all .12s', textAlign:'center' }}>
+                    {v}
+                  </button>
+                )
+              })}
+            </div>
+            <div style={{ display:'flex', gap:6, marginTop:4 }}>
+              {[1,2,3,4,5,6,7,8,9,10].map(v => <div key={v} style={{ flex:1, height:3, borderRadius:2, background:TQR_COLORS[v], opacity:tqr===v?1:0.3 }} />)}
+            </div>
+            <div style={{ display:'flex', justifyContent:'space-between', marginTop:4 }}>
+              <span style={{ fontSize:10, color:'var(--silver)' }}>Muy mal recuperado</span>
+              <span style={{ fontSize:10, color:'var(--silver)' }}>Completamente recuperado</span>
+            </div>
+          </div>
+        </>
+      )}
 
       {sectionHead('Disponibilidad del Día')}
       <div>

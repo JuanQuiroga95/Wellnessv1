@@ -20,6 +20,7 @@ const PLAYER_TABS = [
 
 const WELLNESS_KEYS   = ['fatiga','calidad_sueno','dolor_muscular','nivel_estres','estado_animo']
 const WELLNESS_LABELS = ['Fatiga','Sueño','Dolor','Estrés','Ánimo']
+const WELLNESS_LABELS_PANAMA = ['Recuperación','Sueño','Músculos','Energía','Hidratación']
 const WELLNESS_COLORS = ['#c8f135','#22c55e','#eab308','#f97316','#ef4444']
 const toNum = (v) => Number(v) || 0
 const toStr = (v) => v == null ? '—' : String(v)
@@ -31,7 +32,7 @@ function getReadiness(total) {
   return { label:'Descarga recomendada', msg:'Tu bienestar está bajo. Contale al preparador cómo estás hoy.', col:'#ef4444', emoji:'🔴' }
 }
 
-export default function PlayerDashboard({ session, jugador, jugadorId, acuteLoad, recentLogs, recentWellness, todayWellness, today, gpsStats, wellnessStreak, totalSesiones, totalUA, mejorRpe }) {
+export default function PlayerDashboard({ isPanama, session, jugador, jugadorId, acuteLoad, recentLogs, recentWellness, todayWellness, today, gpsStats, wellnessStreak, totalSesiones, totalUA, mejorRpe }: any) {
   const [activeTab, setActiveTab] = useState('dashboard')
   const router = useRouter()
   const lastWellness = recentWellness[0]
@@ -127,13 +128,16 @@ export default function PlayerDashboard({ session, jugador, jugadorId, acuteLoad
                     {WELLNESS_KEYS.map((k,i) => {
                       const v = toNum(lastWellness[k])
                       const col = WELLNESS_COLORS[v-1] || '#888'
+                      // Para Panamá, los campos 0 a 3 se invirtieron al guardar, los mostramos des-invertidos. Hidratación (4) se muestra normal
+                      const displayVal = (isPanama && i < 4 && v > 0) ? (6 - v) : v
+                      const label = isPanama ? WELLNESS_LABELS_PANAMA[i] : WELLNESS_LABELS[i]
                       return (
                         <div key={k} style={{ display:'flex', alignItems:'center', gap:8 }}>
-                          <span style={{ fontSize:11, color:'var(--silver)', minWidth:46 }}>{WELLNESS_LABELS[i]}</span>
+                          <span style={{ fontSize:11, color:'var(--silver)', minWidth:46 }}>{label}</span>
                           <div style={{ flex:1, height:5, background:'var(--mist)', borderRadius:3, overflow:'hidden' }}>
                             <div style={{ width:`${v*20}%`, height:'100%', background:col, borderRadius:3 }} />
                           </div>
-                          <span className="mono" style={{ fontSize:12, color:col, minWidth:14, textAlign:'right' }}>{v||'—'}</span>
+                          <span className="mono" style={{ fontSize:12, color:col, minWidth:14, textAlign:'right' }}>{displayVal||'—'}</span>
                         </div>
                       )
                     })}
@@ -197,7 +201,7 @@ export default function PlayerDashboard({ session, jugador, jugadorId, acuteLoad
               <p style={{ color:'var(--silver)', fontSize:14, marginTop:4 }}>Completá ANTES del entrenamiento de hoy.</p>
             </div>
             <div className="card" style={{ padding:28 }}>
-              <WellnessForm jugadorId={jugadorId} todayWellness={todayWellness} onSuccess={() => { setActiveTab('dashboard'); router.refresh() }} />
+              <WellnessForm isPanama={isPanama} jugadorId={jugadorId} todayWellness={todayWellness} onSuccess={() => { setActiveTab('dashboard'); router.refresh() }} />
             </div>
           </div>
         )}
@@ -215,7 +219,7 @@ export default function PlayerDashboard({ session, jugador, jugadorId, acuteLoad
         )}
 
         {activeTab === 'stats' && (
-          <StatsTab jugador={jugador} gpsStats={gpsStats} wellnessStreak={wellnessStreak} totalSesiones={totalSesiones} totalUA={totalUA} mejorRpe={mejorRpe} recentLogs={recentLogs} recentWellness={recentWellness} />
+          <StatsTab isPanama={isPanama} jugador={jugador} gpsStats={gpsStats} wellnessStreak={wellnessStreak} totalSesiones={totalSesiones} totalUA={totalUA} mejorRpe={mejorRpe} recentLogs={recentLogs} recentWellness={recentWellness} />
         )}
 
         {activeTab === 'config' && (
@@ -441,7 +445,7 @@ function NotificationConfig({ jugadorId, jugador, onSaved }: any) {
 }
 
 // ─── Mis Stats ────────────────────────────────────────────────────────────────
-function StatsTab({ jugador, gpsStats, wellnessStreak, totalSesiones, totalUA, mejorRpe, recentLogs, recentWellness }: any) {
+function StatsTab({ isPanama, jugador, gpsStats, wellnessStreak, totalSesiones, totalUA, mejorRpe, recentLogs, recentWellness }: any) {
   const card: any = { background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:16, padding:20 }
 
   const streakEmoji = wellnessStreak >= 14 ? '🔥' : wellnessStreak >= 7 ? '⚡' : wellnessStreak >= 3 ? '✅' : '📋'
