@@ -23,12 +23,17 @@ export async function POST(req: NextRequest) {
     const clubIdNum = Number(club_id)
 
     // Verify the coach has access to this club via admin_clubs
-    const access = await sql`
-      SELECT ac.id, c.nombre AS club_nombre, c.logo_url
-      FROM admin_clubs ac
-      JOIN clubs c ON c.id = ac.club_id
-      WHERE ac.admin_id = ${s.userId} AND ac.club_id = ${clubIdNum}
-      LIMIT 1`
+    let access: any[] = []
+    try {
+      access = await sql`
+        SELECT ac.id, c.nombre AS club_nombre, c.logo_url
+        FROM admin_clubs ac
+        JOIN clubs c ON c.id = ac.club_id
+        WHERE ac.admin_id = ${Number(s.userId)} AND ac.club_id = ${clubIdNum}
+        LIMIT 1`
+    } catch (e) {
+      console.error('Error verificando acceso en admin_clubs', e)
+    }
 
     if (access.length === 0) {
       // master_admin can access any club

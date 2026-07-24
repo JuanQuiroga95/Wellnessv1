@@ -26,27 +26,38 @@ export async function GET(req: NextRequest) {
       if (s.rol === 'master_admin') {
         clubs = await sql`
           SELECT id, nombre, logo_url, pais,
-                 (id = ${s.clubId || 0}) AS is_active
+                 (id = COALESCE(${s.clubId ? Number(s.clubId) : 0}, 0)) AS is_active
           FROM clubs
           ORDER BY nombre`
       } else {
         clubs = await sql`
           SELECT c.id, c.nombre, c.logo_url, c.pais,
-                 (c.id = ${s.clubId || 0}) AS is_active
+                 (c.id = COALESCE(${s.clubId ? Number(s.clubId) : 0}, 0)) AS is_active
           FROM clubs c
           JOIN admin_clubs ac ON ac.club_id = c.id
-          WHERE ac.admin_id = ${s.userId}
+          WHERE ac.admin_id = ${Number(s.userId)}
           ORDER BY c.nombre`
       }
     } catch {
-      // Table doesn't exist yet — fallback to single club from JWT
+      // Table might not exist yet, try to create it and backfill
+      try {
+        await sql`CREATE TABLE IF NOT EXISTS admin_clubs (id SERIAL PRIMARY KEY, admin_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE, club_id INTEGER NOT NULL REFERENCES clubs(id) ON DELETE CASCADE, created_at TIMESTAMPTZ DEFAULT NOW(), UNIQUE(admin_id, club_id))`
+        if (s.clubId) {
+          await sql`INSERT INTO admin_clubs (admin_id, club_id) VALUES (${Number(s.userId)}, ${Number(s.clubId)}) ON CONFLICT DO NOTHING`
+        }
+      } catch (e) {
+        console.error('Error creando admin_clubs en fallback', e)
+      }
+
       if (s.clubId) {
         try {
-          const fallback = await sql`SELECT id, nombre, logo_url, pais FROM clubs WHERE id = ${s.clubId} LIMIT 1`
+          const fallback = await sql`SELECT id, nombre, logo_url, pais FROM clubs WHERE id = ${Number(s.clubId)} LIMIT 1`
           if (fallback.length > 0) {
             clubs = [{ ...fallback[0], is_active: true }]
           }
-        } catch {}
+        } catch (e) {
+          console.error('Error en fallback club', e)
+        }
       }
     }
 
