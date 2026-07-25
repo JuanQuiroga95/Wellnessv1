@@ -284,7 +284,7 @@ const AnimatedPieChart = (props: any) => {
   )
 }
 
-export default function CoachClient({ session, teamData, today }) {
+export default function CoachDashboard({ isPanama, session, teamData, today }: any) {
   const [tab, setTab] = useState('inicio')
   const [selected, setSelected] = useState(null)
   const [sidebarOpen, setSidebarOpen] = useState(true)
@@ -640,7 +640,7 @@ export default function CoachClient({ session, teamData, today }) {
         )}
 
         {tab==='team' && selected && (
-          <PlayerDetail player={selected} logs={playerLogs} wellness={playerWellness} loading={loadingDetail} ciclo={ciclo} onCicloChange={(c)=>{ setCiclo(c); openPlayer(selected, c) }} onRefreshData={() => { openPlayer(selected, ciclo); router.refresh(); }} onBack={()=>setSelected(null)} proxyMode={proxyMode} />
+          <PlayerDetail isPanama={isPanama} player={selected} logs={playerLogs} wellness={playerWellness} loading={loadingDetail} ciclo={ciclo} onCicloChange={(c)=>{ setCiclo(c); openPlayer(selected, c) }} onRefreshData={() => { openPlayer(selected, ciclo); router.refresh(); }} onBack={()=>setSelected(null)} proxyMode={proxyMode} />
         )}
 
         {tab==='analytics' && <AnalyticsPanel />}
@@ -784,7 +784,7 @@ function PlayerRow({ player:p, last, onOpen, isInjured, proxyMode }: any) {
   )
 }
 
-function PlayerDetail({ player:p, logs, wellness, loading, onBack, ciclo, onCicloChange, onRefreshData, proxyMode }: any) {
+function PlayerDetail({ isPanama, player:p, logs, wellness, loading, onBack, ciclo, onCicloChange, onRefreshData, proxyMode }: any) {
   const col = p.lesion?'#ef4444':(SC[p.acwr?.status]||'#555')
   const [showProxyWellness, setShowProxyWellness] = useState(false)
   const [showProxyRPE, setShowProxyRPE] = useState(false)
@@ -1123,7 +1123,7 @@ function PlayerDetail({ player:p, logs, wellness, loading, onBack, ciclo, onCicl
           )}
           <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
             {lastW.dolor_zona && <span style={{ fontSize:11, padding:'3px 8px', borderRadius:6, background:'rgba(245,158,11,.1)', color:'#fbbf24', border:'1px solid rgba(245,158,11,.25)' }}>⚠ {lastW.dolor_zona}</span>}
-            {lastW.dolor_descripcion && <span style={{ fontSize:11, padding:'3px 8px', borderRadius:6, background:'rgba(239,68,68,.07)', color:'#fca5a5', border:'1px solid rgba(239,68,68,.2)', fontStyle:'italic' }}>💬 {lastW.dolor_descripcion}</span>}
+            {lastW.dolor_descripcion && <span style={{ fontSize:11, padding:'3px 8px', borderRadius:6, background:'rgba(239,68,68,.07)', color:'#fca5a5', border:'1px solid rgba(239,68,68,.2)' }}>💬 {lastW.dolor_descripcion}</span>}
             {lastW.entrena_grupo===false && <span style={{ fontSize:11, padding:'3px 8px', borderRadius:6, background:'rgba(239,68,68,.1)', color:'#f87171', border:'1px solid rgba(239,68,68,.2)' }}>✗ No entrena con grupo</span>}
             {lastW.fue_gimnasio && <span style={{ fontSize:11, padding:'3px 8px', borderRadius:6, background:'rgba(200,241,53,.08)', color:'var(--lime)', border:'1px solid rgba(200,241,53,.2)' }}>🏋 Fue al gimnasio</span>}
             {lastW.grupos_musculares && <span style={{ fontSize:11, color:'var(--silver)' }}>💪 {lastW.grupos_musculares}</span>}
@@ -1186,7 +1186,7 @@ function PlayerDetail({ player:p, logs, wellness, loading, onBack, ciclo, onCicl
           <div style={{ background: 'var(--ink)', width: '100%', maxWidth: 500, maxHeight: '90vh', overflowY: 'auto', borderRadius: 24, padding: 24, border: '1px solid var(--mist)', position: 'relative' }}>
             <button onClick={() => setShowProxyWellness(false)} style={{ position: 'absolute', top: 16, right: 16, background: 'var(--ink2)', border: 'none', width: 32, height: 32, borderRadius: 16, color: 'var(--silver)', cursor: 'pointer', zIndex: 10 }}>✕</button>
             <h3 style={{ fontSize: 18, color: 'var(--snow)', marginBottom: 16, textAlign: 'center' }}>Cargar Wellness ({p.nombre})</h3>
-            <WellnessForm jugadorId={p.jugador_id} todayWellness={null} onSuccess={() => { setShowProxyWellness(false); onRefreshData?.() }} />
+            <WellnessForm isPanama={isPanama} jugadorId={p.jugador_id} todayWellness={null} onSuccess={() => { setShowProxyWellness(false); onRefreshData?.() }} />
           </div>
         </div>
       )}

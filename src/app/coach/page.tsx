@@ -25,6 +25,12 @@ export default async function CoachPage() {
   // isMaster sin clubId = super-vista de todos los clubes
   // isMaster con clubId = ve solo su club (igual que un admin normal)
   const filterByClub = !isMaster || clubId !== null
+  let isPanama = false
+  if (clubId) {
+    const cr = await sql`SELECT nombre FROM clubs WHERE id=${clubId}`
+    if (cr.length > 0 && String(cr[0].nombre).toLowerCase().includes('panam')) isPanama = true
+  }
+
   const [players, lesionesRows] = await Promise.all([
     filterByClub
       ? sql`SELECT u.id, u.nombre, u.usuario, u.activo, u.password_plain, j.id AS jugador_id, j.posicion, j.edad,
@@ -144,5 +150,5 @@ export default async function CoachPage() {
   })
 
   const sorted = [...teamData].sort((a,b) => a.posicion_orden!==b.posicion_orden ? a.posicion_orden-b.posicion_orden : a.nombre.localeCompare(b.nombre))
-  return <CoachClient session={session} teamData={sorted} today={today} />
+  return <CoachClient isPanama={isPanama} session={session} teamData={sorted} today={today} />
 }
