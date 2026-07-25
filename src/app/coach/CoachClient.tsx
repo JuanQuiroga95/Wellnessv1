@@ -9120,7 +9120,7 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
                         {GROUPS.map(grp => {
                           // CALC panel: usa SIEMPRE datos de la calculadora (sesión planificada)
                           // Los datos GPS reales se muestran en Ctrl. Carga GPS, no acá
-                          const GPS_BAR_KEYS = new Set(['distTotal','distSprint','nSprints','nAcel','nDecel','distMP','nAcel3','nDecel3'])
+                          const GPS_BAR_KEYS = new Set(['distTotal','distSprint','nSprints','nAcel','nDecel','distMP','nAcel3','nDecel3','dist_acc_hi','dist_dec_hi'])
                           const getBarVal = (p: any, key: string) => {
                             // Métricas GPS → valor calculado de la sesión (igual para todos los jugadores)
                             if (GPS_BAR_KEYS.has(key)) return Math.round(Number(sesData[key])||0)
