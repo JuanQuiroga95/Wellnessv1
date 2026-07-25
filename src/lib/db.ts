@@ -116,17 +116,8 @@ export const SCHEMA_STATEMENTS = [
   `CREATE INDEX IF NOT EXISTS idx_rsi_jugador ON rsi_tests(jugador_id, fecha DESC)`,
   `CREATE TABLE IF NOT EXISTS dsi_tests (id SERIAL PRIMARY KEY, jugador_id INTEGER NOT NULL REFERENCES jugadores(id) ON DELETE CASCADE, club_id INTEGER, fecha DATE NOT NULL DEFAULT CURRENT_DATE, fuerza_balistico_n NUMERIC(8,2) NOT NULL, fuerza_isometrico_n NUMERIC(8,2) NOT NULL, dsi NUMERIC(6,4) GENERATED ALWAYS AS (ROUND(fuerza_balistico_n / NULLIF(fuerza_isometrico_n, 0), 4)) STORED, notas TEXT, created_at TIMESTAMPTZ DEFAULT NOW())`,
   `CREATE INDEX IF NOT EXISTS idx_dsi_jugador ON dsi_tests(jugador_id, fecha DESC)`,
-  // ── Wellness upsert: unique index on (jugador_id, fecha) — created only if no duplicates exist
-  // Uses DO block so it's a no-op if the index already exists or if duplicates prevent creation
-  `DO $$ BEGIN
-    IF NOT EXISTS (
-      SELECT 1 FROM pg_indexes WHERE indexname = 'idx_wellness_jugador_fecha_unique'
-    ) AND NOT EXISTS (
-      SELECT jugador_id, fecha FROM wellness_logs GROUP BY jugador_id, fecha HAVING COUNT(*) > 1
-    ) THEN
-      CREATE UNIQUE INDEX idx_wellness_jugador_fecha_unique ON wellness_logs(jugador_id, fecha);
-    END IF;
-  END $$`,
+  // ── Wellness upsert: remove unique index to allow double sessions
+  `DROP INDEX IF EXISTS idx_wellness_jugador_fecha_unique`,
   // ── Biblioteca: intensidad and objetivo columns for grouping ─────────────────
   `ALTER TABLE biblioteca_tareas ADD COLUMN IF NOT EXISTS intensidad INTEGER`,
   `ALTER TABLE biblioteca_tareas ADD COLUMN IF NOT EXISTS objetivo VARCHAR(50)`,

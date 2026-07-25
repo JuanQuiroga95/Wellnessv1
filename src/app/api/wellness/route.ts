@@ -89,8 +89,9 @@ export async function POST(req: NextRequest) {
   }
   const fecha = b.fecha || new Date().toISOString().split('T')[0]
 
-  // Ensure columns exist
+  // Ensure columns exist and drop old unique index
   try { await sql`ALTER TABLE wellness_logs ADD COLUMN IF NOT EXISTS horas_sueno NUMERIC(4,2)` } catch {}
+  try { await sql`DROP INDEX IF EXISTS idx_wellness_jugador_fecha_unique` } catch {}
 
   let clubId = s.clubId ? Number(s.clubId) : null
   if (s.rol === 'jugador') {
@@ -101,13 +102,26 @@ export async function POST(req: NextRequest) {
   // Manual upsert: no depende de UNIQUE INDEX (que puede no existir si hay duplicados históricos)
   // 1) Buscar si ya existe un registro para hoy
   const existing = await sql`
-    SELECT id FROM wellness_logs
+    SELECT id, created_at FROM wellness_logs
     WHERE jugador_id = ${jugador_id} AND fecha = ${fecha}
     ORDER BY id DESC LIMIT 1`
 
+  let shouldUpdate = false;
+  if (existing.length > 0) {
+    const createdAt = (existing[0] as any).created_at;
+    if (createdAt) {
+      const msSince = Date.now() - new Date(createdAt).getTime();
+      if (msSince < 1000 * 60 * 60) { // menos de 1 hora
+        shouldUpdate = true;
+      }
+    } else {
+      shouldUpdate = true;
+    }
+  }
+
   let r: any
   try {
-    if (existing.length > 0) {
+    if (shouldUpdate) {
       // UPDATE del registro más reciente
       ;[r] = await sql`
         UPDATE wellness_logs SET
@@ -128,7 +142,7 @@ export async function POST(req: NextRequest) {
         WHERE id = ${(existing[0] as any).id}
         RETURNING id, fecha::text`
     } else {
-      // INSERT nuevo
+      // INSERT nuevo (ya sea el primero del día o segundo turno)
       ;[r] = await sql`
         INSERT INTO wellness_logs(
           jugador_id, fecha, fatiga, calidad_sueno, dolor_muscular, nivel_estres, estado_animo,

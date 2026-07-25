@@ -13,14 +13,19 @@ export async function GET(req: NextRequest) {
   const sql = getDb()
   const [user] = await sql`SELECT email FROM usuarios WHERE id=${session.userId}`
 
-  // Simple lookup by admin_id (now has UNIQUE constraint)
-  const [club] = await sql`SELECT club_nombre, club_foto FROM club_settings WHERE admin_id=${session.userId} LIMIT 1`
+  // Lookup club details from the clubs table using the current session's clubId
+  let club = null
+  if (session.clubId) {
+    const clubs = await sql`SELECT nombre as club_nombre, logo_url as club_foto FROM clubs WHERE id=${session.clubId} LIMIT 1`
+    club = clubs[0]
+  }
 
   return NextResponse.json({
     email: (user as any)?.email || null,
     club_nombre: (club as any)?.club_nombre || 'Mi Club',
     club_foto: (club as any)?.club_foto || null,
     debug_userId: session.userId,
+    debug_clubId: session.clubId,
   })
 }
 
@@ -43,25 +48,13 @@ export async function POST(req: NextRequest) {
     await sql`UPDATE usuarios SET email=${email || null} WHERE id=${session.userId}`
   }
 
-  if (club_nombre !== undefined || club_foto !== undefined) {
-    // True upsert using ON CONFLICT — requires UNIQUE(admin_id)
-    await sql`
-      INSERT INTO club_settings(admin_id, club_nombre, club_foto, updated_at)
-      VALUES(
-        ${session.userId},
-        ${club_nombre || 'Mi Club'},
-        ${club_foto || null},
-        NOW()
-      )
-      ON CONFLICT (admin_id) DO UPDATE SET
-        club_nombre = CASE WHEN EXCLUDED.club_nombre IS NOT NULL AND EXCLUDED.club_nombre != '' 
-                          THEN EXCLUDED.club_nombre 
-                          ELSE club_settings.club_nombre END,
-        club_foto   = CASE WHEN EXCLUDED.club_foto IS NOT NULL 
-                          THEN EXCLUDED.club_foto 
-                          ELSE club_settings.club_foto END,
-        updated_at  = NOW()
-    `
+  if (session.clubId && (club_nombre !== undefined || club_foto !== undefined)) {
+    if (club_nombre !== undefined && club_nombre !== '') {
+      await sql`UPDATE clubs SET nombre = ${club_nombre} WHERE id = ${session.clubId}`
+    }
+    if (club_foto !== undefined) {
+      await sql`UPDATE clubs SET logo_url = ${club_foto} WHERE id = ${session.clubId}`
+    }
   }
 
   return NextResponse.json({ ok: true })

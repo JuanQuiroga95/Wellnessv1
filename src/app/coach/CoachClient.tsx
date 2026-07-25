@@ -2793,7 +2793,7 @@ function CalendarioPanel({ teamData }) {
                     {/* Carga Total Absoluta de la Sesión (GPS Calc) */}
                     {(() => {
                       const metricKeys = ['distTotal','distSprint','distMP','distAcel','distDecel','nSprints','nAcel','dist_acc_hi','nDecel','dist_dec_hi']
-                      const metricLabels = ['Dist. total','Sprint >21km/h','Alta pot. >20W/kg','Acel. >2m/s²','Decel. >-2m/s²','Nº sprints','Nº acel. >3m/s²','Dist. Acc Alta','Nº decel. >-3m/s²','Dist. Dec Alta']
+                      const metricLabels = ['Dist. total','Sprint >21km/h','Alta pot. >20W/kg','Acel. >2m/s²','Decel. >-2m/s²','Nº sprints','Nº acel. >3m/s²','ACE >3 (m)','Nº decel. >-3m/s²','DEC >3 (m)']
                       const metricUnits = ['m','m','m','m','m','','','m','','m']
                       const totals: Record<string,number> = {}
                       metricKeys.forEach(k => { totals[k] = 0 })
@@ -3653,7 +3653,7 @@ function BloqueMetodologia({ bloque, index, onChangeProp, onRemoveProp, onMoveUp
               </button>
             </div>
             <div style={{ display:'grid', gridTemplateColumns:'repeat(5,1fr)', gap:5 }}>
-              {[['Dist. total','distTotal','m'],['Sprint >21km/h','distSprint','m'],['Alta pot. >20W/kg','distMP','m'],['Acel. >2m/s²','distAcel','m'],['Decel. >-2m/s²','distDecel','m'],['Nº sprints','nSprints',''],['Nº acel. >3m/s²','nAcel',''],['Dist. Acc Alta','dist_acc_hi','m'],['Nº decel. >-3m/s²','nDecel',''],['Dist. Dec Alta','dist_dec_hi','m']].map(([label,key,unit])=>{
+              {[['Dist. total','distTotal','m'],['Sprint >21km/h','distSprint','m'],['Alta pot. >20W/kg','distMP','m'],['Acel. >2m/s²','distAcel','m'],['Decel. >-2m/s²','distDecel','m'],['Nº sprints','nSprints',''],['Nº acel. >3m/s²','nAcel',''],['ACE >3 (m)','dist_acc_hi','m'],['Nº decel. >-3m/s²','nDecel',''],['DEC >3 (m)','dist_dec_hi','m']].map(([label,key,unit])=>{
                 const rawVal = Math.round(calc[key])
                 return (
                   <div key={key} style={{ textAlign:'center', background:'var(--ink2)', borderRadius:6, padding:'5px 4px' }}>
@@ -3719,7 +3719,7 @@ const BloqueMetodologiaMemo = React.memo(BloqueMetodologia, (prev: any, next: an
 })
 async function imprimirSesion(f: any, bloques: any[], teamPlayers: any[] = []) {
   const metricKeys = ['distTotal','distSprint','distMP','distAcel','distDecel','nSprints','nAcel','dist_acc_hi','nDecel','dist_dec_hi']
-  const metricLabels = ['Dist. total','Sprint >21km/h','Alta pot. >20W/kg','Acel. >2m/s²','Decel. >-2m/s²','Nº sprints','Nº acel. >3m/s²','Dist. Acc Alta','Nº decel. >-3m/s²','Dist. Dec Alta']
+  const metricLabels = ['Dist. total','Sprint >21km/h','Alta pot. >20W/kg','Acel. >2m/s²','Decel. >-2m/s²','Nº sprints','Nº acel. >3m/s²','ACE >3 (m)','Nº decel. >-3m/s²','DEC >3 (m)']
   const metricUnits = ['m','m','m','m','m','','','m','','m']
   const totals: Record<string,number> = {}
   metricKeys.forEach(k => { totals[k] = 0 })
@@ -4265,7 +4265,7 @@ function SesionEditor({ sesion, defaultFecha, rpeReal = 0, onSave, onDelete, onC
       {/* Resumen de carga total de la sesión */}
       {bloques.length > 0 && (() => {
         const metricKeys = ['distTotal','distSprint','distMP','distAcel','distDecel','nSprints','nAcel','dist_acc_hi','nDecel','dist_dec_hi']
-        const metricLabels = ['Dist. total','Sprint >21','Alta pot.','Acel.','Decel.','Nº sprints','Nº acel.','Dist. Acc Alta','Nº decel.','Dist. Dec Alta']
+        const metricLabels = ['Dist. total','Sprint >21','Alta pot.','Acel.','Decel.','Nº sprints','Nº acel.','ACE >3 (m)','Nº decel.','DEC >3 (m)']
         const metricUnits = ['m','m','m','m','m','','','m','','m']
         const totals: Record<string,number> = {}
         metricKeys.forEach(k => { totals[k] = 0 })
@@ -7096,6 +7096,8 @@ function AcumPanel({ teamData }) {
     {key:'nDecel',     label:'Dec >2 (m)',      color:'#14b8a6'},
     {key:'nAcel3',     label:'ACE >3 (n)',      color:'#f43f5e'},
     {key:'nDecel3',    label:'DEC >3 (n)',      color:'#0ea5e9'},
+    {key:'dist_acc_hi',label:'ACE >3 (m)',      color:'#ec4899'},
+    {key:'dist_dec_hi',label:'DEC >3 (m)',      color:'#14b8a6'},
     {key:'distMP',     label:'Alta Pot.',       color:'#fbbf24'},
   ]
 
@@ -8334,6 +8336,8 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
     {key:'nDecel',     label:'Dec >2 (m)',     color:'#14b8a6', unit:'m'},
     {key:'nAcel3',     label:'ACE >3 (n)',     color:'#f43f5e', unit:'nº'},
     {key:'nDecel3',    label:'DEC >3 (n)',     color:'#0ea5e9', unit:'nº'},
+    {key:'dist_acc_hi',label:'ACE >3 (m)',     color:'#ec4899', unit:'m'},
+    {key:'dist_dec_hi',label:'DEC >3 (m)',     color:'#14b8a6', unit:'m'},
     {key:'distMP',     label:'Alta Pot.',      color:'#fbbf24', unit:'m'},
   ]
 
@@ -8960,6 +8964,8 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
             {key:'nDecel',     label:'DEC >2',          color:'#14b8a6'},
             {key:'nAcel3',     label:'ACE >3 (n)',      color:'#f43f5e'},
             {key:'nDecel3',    label:'DEC >3 (n)',      color:'#0ea5e9'},
+            {key:'dist_acc_hi',label:'ACE >3 (m)',      color:'#ec4899'},
+            {key:'dist_dec_hi',label:'DEC >3 (m)',      color:'#14b8a6'},
             {key:'distMP',     label:'Alta Pot.',       color:'#fbbf24'},
           ]
           return (
@@ -9079,6 +9085,14 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
                       bars: [
                         { key:'nDecel3', label:'DEC >3 (n)', color:'#f43f5e' },
                         { key:'nAcel3',  label:'ACE >3 (n)', color:'#0ea5e9' },
+                      ],
+                      line: null,
+                    },
+                    {
+                      title: 'ACC/DEC >3 (m)', color: '#f43f5e',
+                      bars: [
+                        { key:'dist_dec_hi', label:'DEC >3 (m)', color:'#14b8a6' },
+                        { key:'dist_acc_hi',  label:'ACE >3 (m)', color:'#ec4899' },
                       ],
                       line: null,
                     },

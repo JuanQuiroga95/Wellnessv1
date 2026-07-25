@@ -81,15 +81,22 @@ export default async function CoachPage() {
             WHERE jugador_id IN (SELECT unnest(${jugadorIds}::int[]))
             ORDER BY jugador_id, fecha DESC`,
         sql`SELECT DISTINCT ON (jugador_id)
-              jugador_id::int, fecha::text, fatiga::int, calidad_sueno::int,
-              dolor_muscular::int, nivel_estres::int, estado_animo::int, dolor_zona,
-              COALESCE(horas_sueno::numeric,0) AS horas_sueno,
-              COALESCE(tqr::int,0) AS tqr, COALESCE(recovery::int,0) AS recovery,
-              COALESCE(entrena_grupo::text,'true') AS entrena_grupo,
-              COALESCE(fue_gimnasio::text,'false') AS fue_gimnasio,
-              COALESCE(grupos_musculares,'') AS grupos_musculares
+              jugador_id::int, fecha::text, 
+              ROUND(AVG(fatiga))::int AS fatiga, 
+              ROUND(AVG(calidad_sueno))::int AS calidad_sueno,
+              ROUND(AVG(dolor_muscular))::int AS dolor_muscular, 
+              ROUND(AVG(nivel_estres))::int AS nivel_estres, 
+              ROUND(AVG(estado_animo))::int AS estado_animo, 
+              MAX(dolor_zona) AS dolor_zona,
+              ROUND(AVG(COALESCE(horas_sueno::numeric,0)))::numeric AS horas_sueno,
+              ROUND(AVG(COALESCE(tqr::int,0)))::int AS tqr, 
+              ROUND(AVG(COALESCE(recovery::int,0)))::int AS recovery,
+              MAX(COALESCE(entrena_grupo::text,'true')) AS entrena_grupo,
+              MAX(COALESCE(fue_gimnasio::text,'false')) AS fue_gimnasio,
+              MAX(COALESCE(grupos_musculares,'')) AS grupos_musculares
             FROM wellness_logs
             WHERE jugador_id IN (SELECT unnest(${jugadorIds}::int[]))
+            GROUP BY jugador_id, fecha
             ORDER BY jugador_id, fecha DESC`,
         sql`SELECT jugador_id::int, fecha::text
             FROM ausencias

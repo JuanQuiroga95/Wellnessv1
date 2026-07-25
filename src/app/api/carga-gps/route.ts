@@ -6,7 +6,7 @@ import { getSessionFromRequest } from '@/lib/auth'
 function isAdmin(s: any) { return s?.rol === 'admin' || s?.rol === 'master_admin' }
 
 function sumarMetricasBloques(ejercicios: any[]): Record<string, number> {
-  const t = { distTotal:0, distSprint:0, distMP:0, distAcel:0, distDecel:0, nSprints:0, nAcel:0, nDecel:0, nAcel3:0, nDecel3:0, minActivo:0, minPausa:0 }
+  const t: Record<string, number> = { distTotal:0, distSprint:0, distMP:0, distAcel:0, distDecel:0, nSprints:0, nAcel:0, nDecel:0, nAcel3:0, nDecel3:0, dist_acc_hi:0, dist_dec_hi:0, minActivo:0, minPausa:0 }
   if (!Array.isArray(ejercicios)) return t
   for (const bl of ejercicios) {
     const series  = Number(bl.series)  || 0
@@ -51,6 +51,8 @@ function sumarMetricasBloques(ejercicios: any[]): Record<string, number> {
       t.nDecel     += Number(ov.nDecel     ?? 0)
       t.nAcel3     += Number(ov.nAcel3     ?? 0)
       t.nDecel3    += Number(ov.nDecel3    ?? 0)
+      t.dist_acc_hi+= Number(ov.dist_acc_hi ?? 0)
+      t.dist_dec_hi+= Number(ov.dist_dec_hi ?? 0)
     } else if (series && minutos && jug && largo && ancho) {
       const densidad   = (largo * ancho) / jug
       const tiempoAct  = series * minutos
@@ -70,6 +72,14 @@ function sumarMetricasBloques(ejercicios: any[]): Record<string, number> {
       t.distSprint += Math.max(0, (0.018 * densidad - 0.1)  * tiempoAct)
       const rawNSprints = Math.max(0, (0.001 * densidad - 0.005) * tiempoAct)
       t.nSprints += rawNSprints > 0 ? Math.max(1, rawNSprints) : 0
+      
+      let factorAcc = 0;
+      let factorDec = 0;
+      if (densidad < 100) { factorAcc = 1.0; factorDec = 1.8; }
+      else if (densidad <= 180) { factorAcc = 3.0; factorDec = 1.5; }
+      else { factorAcc = 4.25; factorDec = 0.85; }
+      t.dist_acc_hi += factorAcc * tiempoAct;
+      t.dist_dec_hi += factorDec * tiempoAct;
     }
   }
   // nSprints ya viene con mínimo 1 por bloque — solo redondear el resto
