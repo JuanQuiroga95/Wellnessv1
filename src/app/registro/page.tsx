@@ -5,7 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation'
 const PAISES = [
   'Argentina','Uruguay','Chile','Brasil','Paraguay','Bolivia','Perú','Colombia','Venezuela',
   'Ecuador','México','España','Portugal','Italia','Francia','Alemania','Inglaterra',
-  'Estados Unidos','Otro'
+  'Hungría','Estados Unidos','Otro'
 ]
 
 // ── Inner component that uses useSearchParams ──
