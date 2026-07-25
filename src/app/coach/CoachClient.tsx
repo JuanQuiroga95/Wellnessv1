@@ -3209,8 +3209,13 @@ function calcularDistancias(jugadores: number, largo: number, ancho: number, ser
   const distDecel = Math.max(0, (1.157 * Math.log(densidad) - 0.418) * tiempoTotal)
   const rawNSprints = Math.max(0, (0.001 * densidad - 0.005) * tiempoTotal)
   const nSprints = rawNSprints > 0 ? Math.max(1, Math.round(rawNSprints)) : 0
-  const nAcel = Math.max(0, (0.212 * Math.log(densidad) - 0.23) * tiempoTotal)
-  const nDecel = Math.max(0, (0.1041 * Math.log(densidad) - 0.096) * tiempoTotal)
+  let nAcelRate = 0;
+  let nDecelRate = 0;
+  if (densidad < 100) { nAcelRate = 3.0; nDecelRate = 3.3; }
+  else if (densidad <= 200) { nAcelRate = 2.1; nDecelRate = 2.3; }
+  else { nAcelRate = 1.25; nDecelRate = 1.4; }
+  const nAcel = nAcelRate * tiempoTotal;
+  const nDecel = nDecelRate * tiempoTotal;
   // ACE>3 and DEC>3 (high intensity efforts): approx 22% of B2-3 based on Casamichana (2013)
   const nAcel3 = Math.max(0, Math.round(nAcel * 0.22))
   const nDecel3 = Math.max(0, Math.round(nDecel * 0.22))

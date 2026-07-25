@@ -60,10 +60,17 @@ function sumarMetricasBloques(ejercicios: any[]): Record<string, number> {
       t.distMP     += Math.max(0, (7.0421 * Math.log(densidad) - 15.255) * tiempoAct)
       t.distAcel   += Math.max(0, (1.321  * Math.log(densidad) - 0.629)  * tiempoAct)
       t.distDecel  += Math.max(0, (1.157  * Math.log(densidad) - 0.418)  * tiempoAct)
-      t.nAcel      += Math.max(0, (0.212  * Math.log(densidad) - 0.23)   * tiempoAct)
-      t.nDecel     += Math.max(0, (0.1041 * Math.log(densidad) - 0.096)  * tiempoAct)
-      t.nAcel3     += Math.max(0, (0.212  * Math.log(densidad) - 0.23)   * tiempoAct * 0.22)
-      t.nDecel3    += Math.max(0, (0.1041 * Math.log(densidad) - 0.096)  * tiempoAct * 0.22)
+      let nAcelRate = 0;
+      let nDecelRate = 0;
+      if (densidad < 100) { nAcelRate = 3.0; nDecelRate = 3.3; }
+      else if (densidad <= 200) { nAcelRate = 2.1; nDecelRate = 2.3; }
+      else { nAcelRate = 1.25; nDecelRate = 1.4; }
+      const calcNAcel = nAcelRate * tiempoAct;
+      const calcNDecel = nDecelRate * tiempoAct;
+      t.nAcel      += calcNAcel;
+      t.nDecel     += calcNDecel;
+      t.nAcel3     += calcNAcel * 0.22;
+      t.nDecel3    += calcNDecel * 0.22;
       // distSprint y nSprints: intercepto ajustado para producir valores realistas
       // en tareas de alta densidad (partidos reducidos, rondos).
       // La fórmula original (0.018d-0.844) da 0 para densidades <47m²/jug.
