@@ -50,10 +50,11 @@ export async function POST(req: NextRequest) {
           clubId: clubIdNum,
           clubNombre: String((club[0] as any).nombre),
         })
-        cookies().set('wp_token', token, {
+    const response = NextResponse.json({ ok: true, clubId: clubIdNum, clubNombre: String((club[0] as any).nombre) })
+        response.cookies.set('wp_token', token, {
           httpOnly: true, secure: true, sameSite: 'strict', maxAge: 604800, path: '/',
         })
-        return NextResponse.json({ ok: true, clubId: clubIdNum, clubNombre: String((club[0] as any).nombre) })
+        return response
       }
       return NextResponse.json({ error: 'No tenés acceso a este club' }, { status: 403 })
     }
@@ -74,11 +75,12 @@ export async function POST(req: NextRequest) {
       clubNombre,
     })
 
-    cookies().set('wp_token', token, {
+    const response = NextResponse.json({ ok: true, clubId: clubIdNum, clubNombre })
+    response.cookies.set('wp_token', token, {
       httpOnly: true, secure: true, sameSite: 'strict', maxAge: 604800, path: '/',
     })
 
-    return NextResponse.json({ ok: true, clubId: clubIdNum, clubNombre })
+    return response
   } catch (err) {
     console.error('[switch-club error]', err)
     return NextResponse.json({ error: String(err) }, { status: 500 })
