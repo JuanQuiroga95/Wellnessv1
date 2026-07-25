@@ -167,7 +167,7 @@ const POSICIONES = ['Portero','Defensa Central','Lateral Derecho','Lateral Izqui
 const FLAG_CODES: Record<string,string> = {
   'Argentina':'ar','Bolivia':'bo','Brasil':'br','Chile':'cl','Colombia':'co',
   'Costa Rica':'cr','Cuba':'cu','Ecuador':'ec','El Salvador':'sv','Guatemala':'gt',
-  'Honduras':'hn','México':'mx','Nicaragua':'ni','Panamá':'pa','Paraguay':'py',
+  'Honduras':'hn','Hungría':'hu','México':'mx','Nicaragua':'ni','Panamá':'pa','Paraguay':'py',
   'Perú':'pe','República Dominicana':'do','Uruguay':'uy','Venezuela':'ve',
   'España':'es','Estados Unidos':'us','Francia':'fr','Italia':'it',
   'Alemania':'de','Inglaterra':'gb-eng','Portugal':'pt','Senegal':'sn','Japón':'jp',
