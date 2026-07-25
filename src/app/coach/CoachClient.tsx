@@ -2792,9 +2792,9 @@ function CalendarioPanel({ teamData }) {
                     
                     {/* Carga Total Absoluta de la Sesión (GPS Calc) */}
                     {(() => {
-                      const metricKeys = ['distTotal','distSprint','distMP','distAcel','distDecel','nSprints','nAcel','nDecel']
-                      const metricLabels = ['Dist. total','Sprint >21km/h','Alta pot. >20W/kg','Acel. >2m/s²','Decel. >-2m/s²','Nº sprints','Nº acel. >3m/s²','Nº decel. >-3m/s²']
-                      const metricUnits = ['m','m','m','m','m','','','']
+                      const metricKeys = ['distTotal','distSprint','distMP','distAcel','distDecel','nSprints','nAcel','dist_acc_hi','nDecel','dist_dec_hi']
+                      const metricLabels = ['Dist. total','Sprint >21km/h','Alta pot. >20W/kg','Acel. >2m/s²','Decel. >-2m/s²','Nº sprints','Nº acel. >3m/s²','Dist. Acc Alta','Nº decel. >-3m/s²','Dist. Dec Alta']
+                      const metricUnits = ['m','m','m','m','m','','','m','','m']
                       const totals: Record<string,number> = {}
                       metricKeys.forEach(k => { totals[k] = 0 })
                       let hasCarga = false
@@ -2813,7 +2813,7 @@ function CalendarioPanel({ teamData }) {
                       return (
                         <div style={{ marginTop:12, background:'rgba(59,130,246,.06)', border:'1px solid rgba(59,130,246,.2)', borderRadius:10, padding:'12px 14px' }}>
                           <strong style={{ fontSize:10, color:'#3b82f6', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:8 }}>📊 Carga absoluta simulada (GPS Calc)</strong>
-                          <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:6 }}>
+                          <div style={{ display:'grid', gridTemplateColumns:'repeat(5,1fr)', gap:6 }}>
                             {metricKeys.map((k,i) => (
                               <div key={k} style={{ textAlign:'center', background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:6, padding:'6px' }}>
                                 <div style={{ fontSize:8, color:'var(--silver)', marginBottom:2, lineHeight:1.2 }}>{metricLabels[i]}</div>
@@ -3214,7 +3214,24 @@ function calcularDistancias(jugadores: number, largo: number, ancho: number, ser
   // ACE>3 and DEC>3 (high intensity efforts): approx 22% of B2-3 based on Casamichana (2013)
   const nAcel3 = Math.max(0, Math.round(nAcel * 0.22))
   const nDecel3 = Math.max(0, Math.round(nDecel * 0.22))
-  return { distTotal, distSprint, distMP, distAcel, distDecel, nSprints, nAcel, nDecel, nAcel3, nDecel3, densidad, tiempoTotal }
+
+  let factorAcc = 0;
+  let factorDec = 0;
+  if (densidad < 100) {
+    factorAcc = 1.0;
+    factorDec = 1.8;
+  } else if (densidad <= 180) {
+    factorAcc = 3.0;
+    factorDec = 1.5;
+  } else {
+    factorAcc = 4.25;
+    factorDec = 0.85;
+  }
+  
+  const dist_acc_hi = Number((factorAcc * tiempoTotal).toFixed(1));
+  const dist_dec_hi = Number((factorDec * tiempoTotal).toFixed(1));
+
+  return { distTotal, distSprint, distMP, distAcel, distDecel, nSprints, nAcel, nDecel, nAcel3, nDecel3, dist_acc_hi, dist_dec_hi, densidad, tiempoTotal }
 }
 
 function BloqueMetodologia({ bloque, index, onChangeProp, onRemoveProp, onMoveUpProp, onMoveDownProp, teamPlayers = [], isFirst, isLast }) {
@@ -3635,8 +3652,8 @@ function BloqueMetodologia({ bloque, index, onChangeProp, onRemoveProp, onMoveUp
                 {editingMetrics ? '✓ Listo' : '✏️ Editar GPS'}
               </button>
             </div>
-            <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:5 }}>
-              {[['Dist. total','distTotal','m'],['Sprint >21km/h','distSprint','m'],['Alta pot. >20W/kg','distMP','m'],['Acel. >2m/s²','distAcel','m'],['Decel. >-2m/s²','distDecel','m'],['Nº sprints','nSprints',''],['Nº acel. >3m/s²','nAcel',''],['Nº decel. >-3m/s²','nDecel','']].map(([label,key,unit])=>{
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(5,1fr)', gap:5 }}>
+              {[['Dist. total','distTotal','m'],['Sprint >21km/h','distSprint','m'],['Alta pot. >20W/kg','distMP','m'],['Acel. >2m/s²','distAcel','m'],['Decel. >-2m/s²','distDecel','m'],['Nº sprints','nSprints',''],['Nº acel. >3m/s²','nAcel',''],['Dist. Acc Alta','dist_acc_hi','m'],['Nº decel. >-3m/s²','nDecel',''],['Dist. Dec Alta','dist_dec_hi','m']].map(([label,key,unit])=>{
                 const rawVal = Math.round(calc[key])
                 return (
                   <div key={key} style={{ textAlign:'center', background:'var(--ink2)', borderRadius:6, padding:'5px 4px' }}>
@@ -3701,9 +3718,9 @@ const BloqueMetodologiaMemo = React.memo(BloqueMetodologia, (prev: any, next: an
          prev.teamPlayers === next.teamPlayers
 })
 async function imprimirSesion(f: any, bloques: any[], teamPlayers: any[] = []) {
-  const metricKeys = ['distTotal','distSprint','distMP','distAcel','distDecel','nSprints','nAcel','nDecel']
-  const metricLabels = ['Dist. total','Sprint >21km/h','Alta pot. >20W/kg','Acel. >2m/s²','Decel. >-2m/s²','Nº sprints','Nº acel. >3m/s²','Nº decel. >-3m/s²']
-  const metricUnits = ['m','m','m','m','m','','','']
+  const metricKeys = ['distTotal','distSprint','distMP','distAcel','distDecel','nSprints','nAcel','dist_acc_hi','nDecel','dist_dec_hi']
+  const metricLabels = ['Dist. total','Sprint >21km/h','Alta pot. >20W/kg','Acel. >2m/s²','Decel. >-2m/s²','Nº sprints','Nº acel. >3m/s²','Dist. Acc Alta','Nº decel. >-3m/s²','Dist. Dec Alta']
+  const metricUnits = ['m','m','m','m','m','','','m','','m']
   const totals: Record<string,number> = {}
   metricKeys.forEach(k => { totals[k] = 0 })
   
@@ -3763,7 +3780,7 @@ async function imprimirSesion(f: any, bloques: any[], teamPlayers: any[] = []) {
           <strong style="color:${objColor};font-size:11px;text-transform:uppercase">${cuad!.label} · ${calc.densidad.toFixed(1)} m²/jug</strong>
           <span style="font-size:12px;font-weight:800;color:${objColor};text-transform:uppercase">🎯 ${cuad!.objetivo} <span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:${objColor};color:#fff;font-size:12px;font-weight:900;vertical-align:middle;margin-left:4px">${cuad!.intensidad}</span></span>
         </div>
-        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-top:6px">
+        <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:4px;margin-top:6px">
           ${metricKeys.map((k,mi) => {
             const val = bl.manualMetrics?.[k] !== undefined ? bl.manualMetrics[k] : Math.round(calc[k])
             return `<div style="text-align:center;background:#f8f8f8;border-radius:4px;padding:4px 2px"><div style="font-size:8px;color:#666">${metricLabels[mi]}</div><div style="font-size:12px;font-weight:700">${val}${metricUnits[mi]}</div></div>`
@@ -3814,7 +3831,7 @@ async function imprimirSesion(f: any, bloques: any[], teamPlayers: any[] = []) {
   const totalResumenHtml = hasCarga ? `
     <div style="background:#eff6ff;border:1px solid #93c5fd;border-radius:8px;padding:12px;margin-bottom:12px">
       <strong style="font-size:12px;color:#1d4ed8">📊 Carga total de la sesión</strong>
-      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:8px">
+      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-top:8px">
         ${metricKeys.map((k,i) => `<div style="text-align:center;background:white;border-radius:4px;padding:6px"><div style="font-size:9px;color:#555">${metricLabels[i]}</div><div style="font-size:14px;font-weight:700;color:#1d4ed8">${Math.round(totals[k])}${metricUnits[i]}</div></div>`).join('')}
       </div>
     </div>` : ''
@@ -4247,9 +4264,9 @@ function SesionEditor({ sesion, defaultFecha, rpeReal = 0, onSave, onDelete, onC
 
       {/* Resumen de carga total de la sesión */}
       {bloques.length > 0 && (() => {
-        const metricKeys = ['distTotal','distSprint','distMP','distAcel','distDecel','nSprints','nAcel','nDecel']
-        const metricLabels = ['Dist. total','Sprint >21','Alta pot.','Acel.','Decel.','Nº sprints','Nº acel.','Nº decel.']
-        const metricUnits = ['m','m','m','m','m','','','']
+        const metricKeys = ['distTotal','distSprint','distMP','distAcel','distDecel','nSprints','nAcel','dist_acc_hi','nDecel','dist_dec_hi']
+        const metricLabels = ['Dist. total','Sprint >21','Alta pot.','Acel.','Decel.','Nº sprints','Nº acel.','Dist. Acc Alta','Nº decel.','Dist. Dec Alta']
+        const metricUnits = ['m','m','m','m','m','','','m','','m']
         const totals: Record<string,number> = {}
         metricKeys.forEach(k => { totals[k] = 0 })
         let hasCarga = false
@@ -4268,7 +4285,7 @@ function SesionEditor({ sesion, defaultFecha, rpeReal = 0, onSave, onDelete, onC
         return (
           <div style={{ background:'rgba(96,165,250,.06)', border:'1px solid rgba(96,165,250,.2)', borderRadius:10, padding:'12px 16px', marginBottom:16 }}>
             <p style={{ fontSize:10, fontWeight:700, color:'#60a5fa', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:8 }}>📊 Resumen de carga total (todas las tareas)</p>
-            <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:6 }}>
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(5,1fr)', gap:6 }}>
               {metricKeys.map((k,i) => (
                 <div key={k} style={{ textAlign:'center', background:'var(--ink2)', borderRadius:8, padding:'8px 6px' }}>
                   <div style={{ fontSize:8, color:'var(--silver)', marginBottom:3, lineHeight:1.3 }}>{metricLabels[i]}</div>
