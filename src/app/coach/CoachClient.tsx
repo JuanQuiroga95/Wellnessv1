@@ -1330,7 +1330,9 @@ function CambioCargaPanel() {
     { key:'calc_mMin',         label:'m/min (Int. Rel.)', color:'#84cc16', src:'calc' },
     { key:'calc_nSprints',     label:'N Sprint',      color:'#a78bfa', src:'calc' },
     { key:'calc_nAcel',        label:'ACE >2 (n)',      color:'#ec4899', src:'calc' },
+    { key:'calc_distAcel',     label:'ACE >2 (m)',      color:'#ec4899', src:'calc' },
     { key:'calc_nDecel',       label:'DEC >2 (n)',      color:'#14b8a6', src:'calc' },
+    { key:'calc_distDecel',    label:'DEC >2 (m)',      color:'#14b8a6', src:'calc' },
     { key:'calc_nAcel3',       label:'ACE >3 n°',     color:'#f43f5e', src:'calc' },
     { key:'calc_nDecel3',      label:'DEC >3 n°',     color:'#0ea5e9', src:'calc' },
     { key:'calc_distMP',       label:'Alta Pot. m',   color:'#fb923c', src:'calc' },
@@ -1927,7 +1929,10 @@ function CalendarioPanel({ teamData }) {
   const [year, setYear] = useState(now.getFullYear())
   const [month, setMonth] = useState(now.getMonth()) // 0-indexed
   const [weekStart, setWeekStart] = useState(() => {
-    const d = new Date(); d.setDate(d.getDate() - d.getDay() + 1); return d
+    const d = new Date(); 
+    const day = d.getDay() || 7; // Convert Sunday (0) to 7
+    d.setDate(d.getDate() - day + 1); 
+    return d
   })
   const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(false)
@@ -2323,7 +2328,7 @@ function CalendarioPanel({ teamData }) {
           </span>
           <button onClick={nextNav} className="btn-ghost" style={{ padding:'6px 12px', fontSize:16 }}>›</button>
         </div>
-        <button className="hover-scale" onClick={()=>{ const d=new Date(); setYear(d.getFullYear()); setMonth(d.getMonth()); setWeekStart(()=>{ const w=new Date(); w.setDate(w.getDate()-w.getDay()+1); return w }); }} className="btn-ghost" style={{ fontSize:11, padding:'6px 12px' }}>Hoy</button>
+        <button className="hover-scale" onClick={()=>{ const d=new Date(); setYear(d.getFullYear()); setMonth(d.getMonth()); setWeekStart(()=>{ const w=new Date(); const day = w.getDay()||7; w.setDate(w.getDate()-day+1); return w }); }} className="btn-ghost" style={{ fontSize:11, padding:'6px 12px' }}>Hoy</button>
       </div>
 
       {loading ? (
@@ -2793,7 +2798,7 @@ function CalendarioPanel({ teamData }) {
                     {/* Carga Total Absoluta de la Sesión (GPS Calc) */}
                     {(() => {
                       const metricKeys = ['distTotal','distSprint','distMP','distAcel','distDecel','nSprints','nAcel','nAcel3','dist_acc_hi','nDecel','nDecel3','dist_dec_hi']
-                      const metricLabels = ['Dist. total','Sprint >21km/h','Alta pot. >20W/kg','Acel. >2m/s²','Decel. >-2m/s²','Nº sprints','ACE >2 (n)','ACE >3 (n)','ACE >3 (m)','DEC >2 (n)','DEC >3 (n)','DEC >3 (m)']
+                      const metricLabels = ['Dist. total','Sprint >21km/h','Alta pot. >20W/kg','ACE >2 (m)','DEC >2 (m)','Nº sprints','ACE >2 (n)','ACE >3 (n)','ACE >3 (m)','DEC >2 (n)','DEC >3 (n)','DEC >3 (m)']
                       const metricUnits = ['m','m','m','m','m','','','','m','','','m']
                       const totals: Record<string,number> = {}
                       metricKeys.forEach(k => { totals[k] = 0 })
@@ -2926,6 +2931,9 @@ function CalendarioPanel({ teamData }) {
           }}
           onDelete={editSesion?.id ? async()=>{
             await fetch(`/api/calendario?id=${editSesion.id}`,{method:'DELETE'})
+            setShowEditor(false); setEditSesion(null); await load()
+          } : undefined}
+          onTransfer={editSesion?.id ? async()=>{
             setShowEditor(false); setEditSesion(null); await load()
           } : undefined}
           onCancel={()=>{ setShowEditor(false); setEditSesion(null) }}
@@ -3658,7 +3666,7 @@ function BloqueMetodologia({ bloque, index, onChangeProp, onRemoveProp, onMoveUp
               </button>
             </div>
             <div style={{ display:'grid', gridTemplateColumns:'repeat(6,1fr)', gap:5 }}>
-              {[['Dist. total','distTotal','m'],['Sprint >21km/h','distSprint','m'],['Alta pot. >20W/kg','distMP','m'],['Acel. >2m/s²','distAcel','m'],['Decel. >-2m/s²','distDecel','m'],['Nº sprints','nSprints',''],['ACE >2 (n)','nAcel',''],['ACE >3 (n)','nAcel3',''],['ACE >3 (m)','dist_acc_hi','m'],['DEC >2 (n)','nDecel',''],['DEC >3 (n)','nDecel3',''],['DEC >3 (m)','dist_dec_hi','m']].map(([label,key,unit])=>{
+              {[['Dist. total','distTotal','m'],['Sprint >21km/h','distSprint','m'],['Alta pot. >20W/kg','distMP','m'],['ACE >2 (m)','distAcel','m'],['DEC >2 (m)','distDecel','m'],['Nº sprints','nSprints',''],['ACE >2 (n)','nAcel',''],['ACE >3 (n)','nAcel3',''],['ACE >3 (m)','dist_acc_hi','m'],['DEC >2 (n)','nDecel',''],['DEC >3 (n)','nDecel3',''],['DEC >3 (m)','dist_dec_hi','m']].map(([label,key,unit])=>{
                 const rawVal = Math.round(calc[key])
                 return (
                   <div key={key} style={{ textAlign:'center', background:'var(--ink2)', borderRadius:6, padding:'5px 4px' }}>
@@ -3724,7 +3732,7 @@ const BloqueMetodologiaMemo = React.memo(BloqueMetodologia, (prev: any, next: an
 })
 async function imprimirSesion(f: any, bloques: any[], teamPlayers: any[] = []) {
   const metricKeys = ['distTotal','distSprint','distMP','distAcel','distDecel','nSprints','nAcel','nAcel3','dist_acc_hi','nDecel','nDecel3','dist_dec_hi']
-  const metricLabels = ['Dist. total','Sprint >21km/h','Alta pot. >20W/kg','Acel. >2m/s²','Decel. >-2m/s²','Nº sprints','ACE >2 (n)','ACE >3 (n)','ACE >3 (m)','DEC >2 (n)','DEC >3 (n)','DEC >3 (m)']
+  const metricLabels = ['Dist. total','Sprint >21km/h','Alta pot. >20W/kg','ACE >2 (m)','DEC >2 (m)','Nº sprints','ACE >2 (n)','ACE >3 (n)','ACE >3 (m)','DEC >2 (n)','DEC >3 (n)','DEC >3 (m)']
   const metricUnits = ['m','m','m','m','m','','','','m','','','m']
   const totals: Record<string,number> = {}
   metricKeys.forEach(k => { totals[k] = 0 })
@@ -3878,7 +3886,7 @@ async function imprimirSesion(f: any, bloques: any[], teamPlayers: any[] = []) {
   if (win) { win.document.write(html); win.document.close() }
 }
 
-function SesionEditor({ sesion, defaultFecha, rpeReal = 0, onSave, onDelete, onCancel, teamPlayers = [], canchas = [] }) {
+function SesionEditor({ sesion, defaultFecha, rpeReal = 0, onSave, onDelete, onCancel, onTransfer, teamPlayers = [], canchas = [] }) {
   const [f, setF] = useState({
     fecha: sesion?.fecha || defaultFecha,
     hora_inicio: sesion?.hora_inicio?.slice(0,5) || '',
@@ -3899,6 +3907,11 @@ function SesionEditor({ sesion, defaultFecha, rpeReal = 0, onSave, onDelete, onC
   })
   const [loading, setLoading] = useState(false)
   const [saveError, setSaveError] = useState('')
+  // States for transfer
+  const [showTransfer, setShowTransfer] = useState(false)
+  const [clubsDestino, setClubsDestino] = useState([])
+  const [transferClubId, setTransferClubId] = useState('')
+  const [transfering, setTransfering] = useState(false)
   const set = (k,v) => setF(p=>({...p,[k]:v}))
 
   function addBloque() { setBloques(b=>[...b, { _tempId: Date.now()+Math.random(), tipo_entrenamiento:'', orientacion:'', orientacion_fisica:'', ejes_estructurales:[], ventana:'', subtareas:[], subtarea:'', jugadores:'', series:'', minutos:'', pausa:'', largo:'', ancho:'', descripcion:'Ejercicios:\nSeries:\nRep:\nDescanso:\n', imagen:'', atacantes:'', defensores:'', comodines:'', comodines_fuera_num:'', simultanea:false, rutinaGym:[] }]) }
@@ -4310,9 +4323,66 @@ function SesionEditor({ sesion, defaultFecha, rpeReal = 0, onSave, onDelete, onC
         <input className="wp-input" value={f.notas} onChange={e=>set('notas',e.target.value)} placeholder="Observaciones, condiciones especiales..." style={{ padding:'8px 12px', fontSize:13 }} />
       </div>
 
-      <div style={{ display:'flex', gap:10 }}>
+      {showTransfer && (
+        <div style={{ marginBottom:20, padding:14, background:'rgba(168,85,247,.08)', border:'1px solid rgba(168,85,247,.2)', borderRadius:8 }}>
+          <p style={{ fontSize:11, fontWeight:700, color:'#c084fc', marginBottom:8, textTransform:'uppercase', letterSpacing:'0.06em' }}>Transferir Sesión a otro plantel</p>
+          {clubsDestino.length === 0 ? (
+            <p style={{ fontSize:11, color:'#f87171' }}>No tienes acceso a otros planteles.</p>
+          ) : (
+            <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+              <select className="wp-input" value={transferClubId} onChange={(e) => setTransferClubId(e.target.value)} style={{ flex:1 }}>
+                <option value="" disabled style={{ background:'var(--ink2)' }}>Seleccionar plantel destino...</option>
+                {clubsDestino.map((c:any) => (
+                  <option key={c.id} value={c.id} style={{ background:'var(--ink2)' }}>{c.nombre}</option>
+                ))}
+              </select>
+              <button 
+                onClick={async () => {
+                  if(!transferClubId) return
+                  if(!confirm('🚨 ATENCIÓN 🚨\n\n¿Estás seguro de transferir esta sesión al otro plantel? Desaparecerá de tu calendario actual.')) return
+                  setTransfering(true)
+                  try {
+                    const r = await fetch(`/api/calendario/sesiones/${sesion.id}/transfer`, {
+                      method: 'POST',
+                      headers: {'Content-Type': 'application/json'},
+                      body: JSON.stringify({ target_club_id: transferClubId })
+                    })
+                    if(!r.ok) {
+                      const d = await r.json()
+                      alert('Error: ' + d.error)
+                      setTransfering(false)
+                      return
+                    }
+                    if(onTransfer) onTransfer()
+                  } catch(e) {
+                    alert('Error de conexión')
+                    setTransfering(false)
+                  }
+                }} 
+                disabled={!transferClubId || transfering} 
+                className="btn-lime" 
+                style={{ padding:'8px 16px', fontSize:12 }}
+              >
+                {transfering ? 'Transfiriendo...' : 'Confirmar'}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      <div style={{ display:'flex', gap:10, flexWrap:'wrap' }}>
         {onDelete && (
           <button type="button" onClick={onDelete} className="btn-ghost" style={{ fontSize:12, color:'#f87171', borderColor:'rgba(239,68,68,.3)', padding:'10px 16px' }}>🗑 Eliminar</button>
+        )}
+        {sesion?.id && (
+          <button type="button" onClick={async () => {
+            setShowTransfer(true)
+            try {
+              const res = await fetch('/api/auth/my-clubs')
+              const data = await res.json()
+              setClubsDestino(data.filter((c:any) => !c.is_active))
+            } catch(e) {}
+          }} className="btn-ghost" style={{ fontSize:12, color:'#a855f7', borderColor:'rgba(168,85,247,.3)', padding:'10px 16px' }}>🔄 Transferir</button>
         )}
         <button type="button" onClick={onCancel} className="btn-ghost" style={{ flex:1, fontSize:13 }}>Cancelar</button>
         <button className="hover-scale btn-ghost" type="button" onClick={async () => await imprimirSesion(f, bloques, teamPlayers)} style={{ fontSize:12, padding:'10px 14px' }} title="Imprimir machete">🖨️ Imprimir</button>
@@ -6590,6 +6660,12 @@ function ManageRow({ player, last, onRefresh }) {
   const [editOk, setEditOk] = useState(false)
   const [showPass, setShowPass] = useState(false)
   const [currentPass, setCurrentPass] = useState(player.password_plain || null)
+  // States for transfer feature
+  const [showTransfer, setShowTransfer] = useState(false)
+  const [clubsDestino, setClubsDestino] = useState([])
+  const [transferClubId, setTransferClubId] = useState('')
+  const [transfering, setTransfering] = useState(false)
+
   // Sync password when player data refreshes (e.g. after saving a new password)
   useEffect(() => { setCurrentPass(player.password_plain || null) }, [player.password_plain])
   const [ef, setEf] = useState({
@@ -6641,6 +6717,40 @@ function ManageRow({ player, last, onRefresh }) {
       setEditOk(true); setEditing(false); onRefresh()
     } catch { setEditError('Error de conexión') }
     finally { setEditSaving(false) }
+  }
+
+  async function loadClubsDestino() {
+    setShowTransfer(true)
+    try {
+      const res = await fetch('/api/auth/my-clubs')
+      const data = await res.json()
+      // Filter out current club (where is_active is true)
+      setClubsDestino(data.filter((c:any) => !c.is_active))
+    } catch(e) {}
+  }
+
+  async function transferirJugador() {
+    if (!transferClubId) return
+    if (!confirm('🚨 ATENCIÓN 🚨\n\n¿Estás seguro de transferir a este jugador y TODO su historial a otro plantel?\nDesaparecerá de tu vista actual.')) return
+    
+    setTransfering(true)
+    try {
+      const r = await fetch(`/api/players/${player.id}/transfer`, {
+        method: 'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({ target_club_id: transferClubId })
+      })
+      if (!r.ok) {
+        const d = await r.json()
+        alert('Error: ' + d.error)
+        setTransfering(false)
+        return
+      }
+      onRefresh() // Refresca y el jugador ya no aparecerá
+    } catch(e) {
+      alert('Error de conexión')
+      setTransfering(false)
+    }
   }
 
   return (
@@ -6727,7 +6837,33 @@ function ManageRow({ player, last, onRefresh }) {
                   }} disabled={loading} className="btn-ghost" style={{ fontSize:12, padding:'7px 14px', color:'#ef4444', borderColor:'rgba(239,68,68,.3)' }}>
                     🗑️ Eliminar
                   </button>
+                  <button className="hover-scale" onClick={loadClubsDestino} className="btn-ghost" style={{ fontSize:12, padding:'7px 14px', color:'#a855f7', borderColor:'rgba(168,85,247,.3)' }}>
+                    🔄 Transferir
+                  </button>
                 </div>
+                
+                {showTransfer && (
+                  <div style={{ marginTop:14, padding:14, background:'rgba(168,85,247,.08)', border:'1px solid rgba(168,85,247,.2)', borderRadius:8 }}>
+                    <p style={{ fontSize:11, fontWeight:700, color:'#c084fc', marginBottom:8, textTransform:'uppercase', letterSpacing:'0.06em' }}>Transferir a otro plantel</p>
+                    <p style={{ fontSize:11, color:'var(--silver)', marginBottom:12 }}>Mueve a este jugador y todo su historial numérico a otro plantel.</p>
+                    {clubsDestino.length === 0 ? (
+                      <p style={{ fontSize:11, color:'#f87171' }}>No tienes acceso a otros planteles.</p>
+                    ) : (
+                      <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+                        <select className="wp-input" value={transferClubId} onChange={(e) => setTransferClubId(e.target.value)} style={{ flex:1 }}>
+                          <option value="" disabled style={{ background:'var(--ink2)' }}>Seleccionar plantel destino...</option>
+                          {clubsDestino.map((c:any) => (
+                            <option key={c.id} value={c.id} style={{ background:'var(--ink2)' }}>{c.nombre}</option>
+                          ))}
+                        </select>
+                        <button onClick={transferirJugador} disabled={!transferClubId || transfering} className="btn-lime" style={{ padding:'8px 16px', fontSize:12 }}>
+                          {transfering ? 'Migrando...' : 'Confirmar'}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {editOk && <p style={{ fontSize:11, color:'#4ade80', marginTop:8 }}>✓ Datos actualizados</p>}
               </div>
             </div>
@@ -8968,7 +9104,9 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
             {key:'distSprint', label:'Dist. Sprint (m)',color:'#f97316'},
             {key:'nSprints',   label:'Nº Sprint',       color:'#a78bfa'},
             {key:'nAcel',      label:'ACE >2 (n)',      color:'#ec4899'},
+            {key:'distAcel',   label:'ACE >2 (m)',      color:'#ec4899'},
             {key:'nDecel',     label:'DEC >2 (n)',      color:'#14b8a6'},
+            {key:'distDecel',  label:'DEC >2 (m)',      color:'#14b8a6'},
             {key:'nAcel3',     label:'ACE >3 (n)',      color:'#f43f5e'},
             {key:'nDecel3',    label:'DEC >3 (n)',      color:'#0ea5e9'},
             {key:'dist_acc_hi',label:'ACE >3 (m)',      color:'#ec4899'},

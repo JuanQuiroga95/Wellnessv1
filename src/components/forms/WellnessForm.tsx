@@ -21,7 +21,7 @@ const FIELDS_PANAMA = [
   { key:'nivel_estres',   label:'¿QUÉ NIVEL DE ENERGÍA TIENES ESTA MAÑANA?', low:'Muy cansado', high:'Con mucha energía', colors: ['#ef4444','#f97316','#eab308','#84cc16','#22c55e'] },
 ]
 
-const COLORS_HIDRATACION = ['#c8f135', '#c8f135', '#c8f135', '#eab308', '#eab308', '#eab308', '#f97316', '#ef4444']
+const COLORS_HIDRATACION = ['#ef4444', '#eab308', '#fef08a', '#fef9c3', '#ffffff']
 
 // TQR: 1=muy mal(rojo) → 10=completamente recuperado(verde) — invertido
 const TQR_LABELS = {
@@ -517,10 +517,6 @@ function AlreadyCompleted({ isPanama, data, onBack, canAddSecond, onAddSecond }:
           </div>
         )}
         <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
-          <span style={{ fontSize:12, padding:'5px 12px', borderRadius:20, background:data.entrena_grupo?'rgba(34,197,94,.12)':'rgba(239,68,68,.12)', color:data.entrena_grupo?'#4ade80':'#f87171', border:`1px solid ${data.entrena_grupo?'rgba(34,197,94,.3)':'rgba(239,68,68,.3)'}`, fontWeight:600 }}>
-            {data.entrena_grupo ? '✓ Entrena con el grupo' : '✗ No entrena con el grupo'}
-          </span>
-          {data.fue_gimnasio && <span style={{ fontSize:12, padding:'5px 12px', borderRadius:20, background:'rgba(200,241,53,.08)', color:'var(--lime)', border:'1px solid rgba(200,241,53,.2)', fontWeight:600 }}>🏋 Fue al gimnasio</span>}
           {data.dolor_zona && (() => { let zonas: string[]; try { const p = JSON.parse(data.dolor_zona); zonas = Array.isArray(p) ? p : [data.dolor_zona] } catch { zonas = [data.dolor_zona] }; return zonas.map(z => <span key={z} style={{ fontSize:12, padding:'5px 12px', borderRadius:20, background:'rgba(239,68,68,.08)', color:'#f87171', border:'1px solid rgba(239,68,68,.25)', fontWeight:600 }}>📍 {z}</span>) })()}
           {data.dolor_eva != null && data.dolor_eva > 0 && <span style={{ fontSize:12, padding:'5px 12px', borderRadius:20, background:'rgba(239,68,68,.08)', color:'#f87171', border:'1px solid rgba(239,68,68,.25)', fontWeight:600 }}>EVA: {data.dolor_eva}/10</span>}
           {data.dolor_descripcion && <p style={{ fontSize:11, color:'#f87171', marginTop:6, fontStyle:'italic' }}>💬 {data.dolor_descripcion}</p>}
@@ -544,8 +540,8 @@ export default function WellnessForm({ isPanama, jugadorId, onSuccess, todayWell
   const [zonasSeleccionadas, setZonasSeleccionadas] = useState<string[]>([])
   const [dolorDescripcion, setDolorDescripcion] = useState('')
   const [dolorEva, setDolorEva] = useState(null)
-  const [entrenaGrupo, setEntrenaGrupo] = useState(null)
-  const [fueGimnasio, setFueGimnasio] = useState(null)
+  const [entrenaGrupo, setEntrenaGrupo] = useState(true)
+  const [fueGimnasio, setFueGimnasio] = useState(false)
   const [gruposMusculares, setGruposMusculares] = useState('')
   const [loading, setLoading] = useState(false)
   const [done, setDone] = useState(false)
@@ -587,12 +583,11 @@ export default function WellnessForm({ isPanama, jugadorId, onSuccess, todayWell
   const allFilled = Object.values(vals).every(v => v !== null) 
     && (isPanama ? tieneMolestia !== null : horasSueno !== '') 
     && (isPanama ? true : tqr !== null)
-    && entrenaGrupo !== null && fueGimnasio !== null 
     && (!showBodyMap || zonasSeleccionadas.length > 0)
     && (!showEVA || dolorEva !== null)
 
-  const filledCount = Object.values(vals).filter(v=>v!==null).length + (isPanama && tieneMolestia!==null?1:horasSueno!==''?1:0) + (isPanama?0:tqr?1:0) + (entrenaGrupo!==null?1:0) + (fueGimnasio!==null?1:0)
-  const totalFields = 5 + (isPanama?1:2) + 1 + 1 // wellness + (molestia/horas+tqr) + entrena + gimnasio
+  const filledCount = Object.values(vals).filter(v=>v!==null).length + (isPanama && tieneMolestia!==null?1:horasSueno!==''?1:0) + (isPanama?0:tqr?1:0)
+  const totalFields = 5 + (isPanama?1:2) // wellness + (molestia/horas+tqr)
 
   async function submit(e) {
     e.preventDefault()
@@ -654,8 +649,8 @@ export default function WellnessForm({ isPanama, jugadorId, onSuccess, todayWell
             </div>
           ))}
           <div>
-            <label style={{ display:'block', fontSize:11, fontWeight:600, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:8 }}>NIVEL DE HIDRATACIÓN (1=Hidratado, 8=Severamente deshidratado)</label>
-            <ScaleInput id="estado_animo" value={vals.estado_animo} onChange={(v:any) => setVals(p=>({...p,estado_animo:v}))} min={1} max={8} lowLabel="Hidratado" highLabel="Severamente Deshidratado" customColors={COLORS_HIDRATACION} />
+            <label style={{ display:'block', fontSize:11, fontWeight:600, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:8 }}>NIVEL DE HIDRATACIÓN (1=Deshidratado, 5=Sobrehidratado)</label>
+            <ScaleInput id="estado_animo" value={vals.estado_animo} onChange={(v:any) => setVals(p=>({...p,estado_animo:v}))} min={1} max={5} lowLabel="Deshidratado" highLabel="Sobrehidratado" customColors={COLORS_HIDRATACION} />
           </div>
           <div style={{ marginTop:14 }}>
             <label style={{ display:'block', fontSize:11, fontWeight:600, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:10 }}>¿TENÉS ALGUNA MOLESTIA O DOLOR MUSCULAR/ARTICULAR?</label>
@@ -743,28 +738,6 @@ export default function WellnessForm({ isPanama, jugadorId, onSuccess, todayWell
             </div>
           </div>
         </>
-      )}
-
-      {sectionHead('Disponibilidad del Día')}
-      <div>
-        <label style={{ display:'block', fontSize:11, fontWeight:600, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:10 }}>¿Entrenás con el grupo hoy?</label>
-        <div style={{ display:'flex', gap:10 }}>
-          {radioBtn('✓  SÍ — Con el grupo', entrenaGrupo===true, ()=>setEntrenaGrupo(true), '#22c55e')}
-          {radioBtn('✗  NO — Diferenciado', entrenaGrupo===false, ()=>setEntrenaGrupo(false), '#ef4444')}
-        </div>
-      </div>
-      <div>
-        <label style={{ display:'block', fontSize:11, fontWeight:600, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:10 }}>¿Fuiste al gimnasio esta mañana?</label>
-        <div style={{ display:'flex', gap:10 }}>
-          {radioBtn('✓  SÍ', fueGimnasio===true, ()=>setFueGimnasio(true), 'var(--lime)')}
-          {radioBtn('✗  NO', fueGimnasio===false, ()=>setFueGimnasio(false), 'var(--silver)')}
-        </div>
-      </div>
-      {fueGimnasio === true && (
-        <div>
-          <label style={{ display:'block', fontSize:11, fontWeight:600, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:8 }}>Grupos musculares trabajados</label>
-          <input className="wp-input" value={gruposMusculares} onChange={e=>setGruposMusculares(e.target.value)} placeholder="ej: Cuádriceps, Core, Isquiotibiales..." />
-        </div>
       )}
 
       {error && <p style={{ fontSize:12, color:'#f87171' }}>{error}</p>}
