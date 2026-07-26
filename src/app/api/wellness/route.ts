@@ -99,24 +99,33 @@ export async function POST(req: NextRequest) {
     clubId = (rows[0] as any)?.club_id ?? null
   }
 
-  // Manual upsert: no depende de UNIQUE INDEX (que puede no existir si hay duplicados históricos)
-  // 1) Buscar si ya existe un registro para hoy
-  const existing = await sql`
+  // Manual upsert: supports up to 2 records per day (doble turno)
+  // 1) Count existing records for today and get the most recent one
+  const existingAll = await sql`
     SELECT id, created_at FROM wellness_logs
     WHERE jugador_id = ${jugador_id} AND fecha = ${fecha}
-    ORDER BY id DESC LIMIT 1`
+    ORDER BY id DESC`
+  
+  const existingCount = existingAll.length;
+  const existing = existingAll.length > 0 ? [existingAll[0]] : [];
 
+  // If already 2+ records, don't allow more (only update the latest within 1h window)
   let shouldUpdate = false;
   if (existing.length > 0) {
     const createdAt = (existing[0] as any).created_at;
     if (createdAt) {
       const msSince = Date.now() - new Date(createdAt).getTime();
-      if (msSince < 1000 * 60 * 60) { // menos de 1 hora
+      if (msSince < 1000 * 60 * 60) { // menos de 1 hora: correction window
         shouldUpdate = true;
       }
     } else {
       shouldUpdate = true;
     }
+  }
+
+  // If not updating and already at max (2), reject
+  if (!shouldUpdate && existingCount >= 2) {
+    return NextResponse.json({ error: 'Ya completaste los 2 turnos de wellness del día' }, { status: 400 })
   }
 
   let r: any

@@ -32,7 +32,7 @@ function getReadiness(total) {
   return { label:'Descarga recomendada', msg:'Tu bienestar está bajo. Contale al preparador cómo estás hoy.', col:'#ef4444', emoji:'🔴' }
 }
 
-export default function PlayerDashboard({ isPanama, session, jugador, jugadorId, acuteLoad, recentLogs, recentWellness, todayWellness, today, gpsStats, wellnessStreak, totalSesiones, totalUA, mejorRpe }: any) {
+export default function PlayerDashboard({ isPanama, session, jugador, jugadorId, acuteLoad, recentLogs, recentWellness, todayWellness, todayWellnessCount, today, gpsStats, wellnessStreak, totalSesiones, totalUA, mejorRpe }: any) {
   const [activeTab, setActiveTab] = useState('dashboard')
   const router = useRouter()
   const lastWellness = recentWellness[0]
@@ -201,7 +201,7 @@ export default function PlayerDashboard({ isPanama, session, jugador, jugadorId,
               <p style={{ color:'var(--silver)', fontSize:14, marginTop:4 }}>Completá ANTES del entrenamiento de hoy.</p>
             </div>
             <div className="card" style={{ padding:28 }}>
-              <WellnessForm isPanama={isPanama} jugadorId={jugadorId} todayWellness={todayWellness} onSuccess={() => { setActiveTab('dashboard'); router.refresh() }} />
+              <WellnessForm isPanama={isPanama} jugadorId={jugadorId} todayWellness={todayWellness} todayWellnessCount={todayWellnessCount || 0} onSuccess={() => { setActiveTab('dashboard'); router.refresh() }} />
             </div>
           </div>
         )}

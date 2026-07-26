@@ -475,15 +475,15 @@ function BodyMap({ onSelect, selected }) {
 
 
 // ── Already completed today ───────────────────────────────────────────────────
-function AlreadyCompleted({ isPanama, data, onBack }: any) {
+function AlreadyCompleted({ isPanama, data, onBack, canAddSecond, onAddSecond }: any) {
   const total = WK.reduce((s,k) => s + (Number(data[k])||0), 0)
   const rd = !total ? null : total <= 12 ? {label:'Listo para entrenar',color:'#c8f135'} : total <= 18 ? {label:'Atención Wellness',color:'#f59e0b'} : {label:'Bajar Carga',color:'#ef4444'}
 
   return (
     <div className="anim-up" style={{ textAlign:'center' }}>
       <div style={{ width:72, height:72, borderRadius:'50%', background:'rgba(200,241,53,.1)', border:'2px solid var(--lime)', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 16px', fontSize:32 }}>✓</div>
-      <h3 className="display" style={{ fontSize:32, color:'var(--lime)', marginBottom:6 }}>YA COMPLETASTE HOY</h3>
-      <p style={{ fontSize:13, color:'var(--silver)', marginBottom:20 }}>Solo podés completar el wellness una vez por día.</p>
+      <h3 className="display" style={{ fontSize:32, color:'var(--lime)', marginBottom:6 }}>{canAddSecond ? 'TURNO 1 COMPLETADO' : 'YA COMPLETASTE HOY'}</h3>
+      <p style={{ fontSize:13, color:'var(--silver)', marginBottom:20 }}>{canAddSecond ? 'Podés completar el wellness del 2do turno.' : 'Ya completaste los 2 turnos de wellness del día.'}</p>
 
       {rd && (
         <div style={{ marginBottom:16, padding:'10px 20px', borderRadius:12, background:`${rd.color}15`, border:`1px solid ${rd.color}44`, display:'inline-block' }}>
@@ -526,13 +526,18 @@ function AlreadyCompleted({ isPanama, data, onBack }: any) {
           {data.dolor_descripcion && <p style={{ fontSize:11, color:'#f87171', marginTop:6, fontStyle:'italic' }}>💬 {data.dolor_descripcion}</p>}
         </div>
       </div>
-      <button className="btn-ghost" onClick={onBack} style={{ width:'100%', padding:12 }}>← Volver al inicio</button>
+      <div style={{ display:'flex', gap:10 }}>
+        <button className="btn-ghost" onClick={onBack} style={{ flex:1, padding:12 }}>← Volver al inicio</button>
+        {canAddSecond && (
+          <button className="btn-lime" onClick={onAddSecond} style={{ flex:1, padding:12 }}>📋 Completar Turno 2 →</button>
+        )}
+      </div>
     </div>
   )
 }
 
 // ── Main Form ─────────────────────────────────────────────────────────────────
-export default function WellnessForm({ isPanama, jugadorId, onSuccess, todayWellness }: any) {
+export default function WellnessForm({ isPanama, jugadorId, onSuccess, todayWellness, todayWellnessCount = 0 }: any) {
   const [vals, setVals] = useState({ fatiga:null, calidad_sueno:null, dolor_muscular:null, nivel_estres:null, estado_animo:null })
   const [horasSueno, setHorasSueno] = useState('')
   const [tqr, setTqr] = useState(null)
@@ -545,10 +550,15 @@ export default function WellnessForm({ isPanama, jugadorId, onSuccess, todayWell
   const [loading, setLoading] = useState(false)
   const [done, setDone] = useState(false)
   const [error, setError] = useState('')
+  const [showSecondTurn, setShowSecondTurn] = useState(false)
 
   const [tieneMolestia, setTieneMolestia] = useState<boolean|null>(null) // Para Panamá
 
-  if (todayWellness) return <AlreadyCompleted isPanama={isPanama} data={todayWellness} onBack={onSuccess} />
+  // Allow 2nd survey on double-session days
+  if (todayWellness && !showSecondTurn) {
+    const canAddSecond = todayWellnessCount < 2
+    return <AlreadyCompleted isPanama={isPanama} data={todayWellness} onBack={onSuccess} canAddSecond={canAddSecond} onAddSecond={() => setShowSecondTurn(true)} />
+  }
 
   // Mostrar mapa corporal
   const showBodyMap = isPanama 

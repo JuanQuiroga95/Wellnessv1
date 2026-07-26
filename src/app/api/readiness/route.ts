@@ -79,19 +79,22 @@ export async function GET(req: NextRequest) {
     ORDER BY semana DESC`
 
   // Bug fix: 2-day window handles UTC-3 (Argentina) timezone offset.
-  // DISTINCT ON ensures one row per player (most recent submission).
+  // Uses AVG to handle double-session days (2 wellness per day).
   const todayRows = await sql`
-    SELECT DISTINCT ON (j.id)
-           j.id AS jugador_id, u.nombre, j.posicion, j.foto_url,
-           COALESCE(w.fatiga+w.calidad_sueno+w.dolor_muscular+w.nivel_estres+w.estado_animo, null) AS total_wellness,
-           w.fatiga, w.calidad_sueno, w.dolor_muscular, w.nivel_estres, w.estado_animo,
-           w.tqr, w.dolor_zona, w.dolor_eva, w.entrena_grupo, w.fue_gimnasio,
-           w.fecha AS registro_fecha
+    SELECT j.id AS jugador_id, u.nombre, j.posicion, j.foto_url,
+           COALESCE(ROUND(AVG(w.fatiga))::int+ROUND(AVG(w.calidad_sueno))::int+ROUND(AVG(w.dolor_muscular))::int+ROUND(AVG(w.nivel_estres))::int+ROUND(AVG(w.estado_animo))::int, null) AS total_wellness,
+           ROUND(AVG(w.fatiga))::int AS fatiga, ROUND(AVG(w.calidad_sueno))::int AS calidad_sueno,
+           ROUND(AVG(w.dolor_muscular))::int AS dolor_muscular, ROUND(AVG(w.nivel_estres))::int AS nivel_estres,
+           ROUND(AVG(w.estado_animo))::int AS estado_animo,
+           ROUND(AVG(w.tqr))::int AS tqr, MAX(w.dolor_zona) AS dolor_zona, MAX(w.dolor_eva)::int AS dolor_eva,
+           BOOL_AND(w.entrena_grupo::boolean) AS entrena_grupo, BOOL_OR(w.fue_gimnasio::boolean) AS fue_gimnasio,
+           MAX(w.fecha) AS registro_fecha
     FROM jugadores j JOIN usuarios u ON u.id=j.usuario_id
     LEFT JOIN wellness_logs w ON w.jugador_id=j.id AND w.fecha >= CURRENT_DATE - 2
     WHERE u.rol='jugador' AND u.activo=true
       AND (${isMaster}::boolean OR (u.club_id=${clubId} OR j.club_id=${clubId}))
-    ORDER BY j.id, w.fecha DESC NULLS LAST`
+    GROUP BY j.id, u.nombre, j.posicion, j.foto_url
+    ORDER BY j.id`
 
   return NextResponse.json({ wRows, rpeRows, todayRows })
 }

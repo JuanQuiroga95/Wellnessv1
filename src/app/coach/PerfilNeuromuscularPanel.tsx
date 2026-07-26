@@ -307,7 +307,7 @@ export default function PerfilNeuromuscularPanel() {
                               <thead>
                                 <tr>
                                   <th style={thStyle}>DT (m)</th><th style={thStyle}>HIR (m)</th><th style={thStyle}>HSR (m)</th><th style={thStyle}>Dist Sprint (m)</th>
-                                  <th style={thStyle}>Acc Int Tot</th><th style={thStyle}>ACC (n)</th><th style={thStyle}>DEC (n)</th>
+                                  <th style={thStyle}>Acc Int Tot</th><th style={thStyle}>ACE &gt;2 (n)</th><th style={thStyle}>DEC &gt;2 (n)</th>
                                   <th style={thStyle}>Sprint (n)</th><th style={thStyle}>Player Load</th>
                                 </tr>
                               </thead>
@@ -362,7 +362,7 @@ export default function PerfilNeuromuscularPanel() {
                               <thead>
                                 <tr>
                                   <th style={thStyle}>DT (m)</th><th style={thStyle}>HIR (m)</th><th style={thStyle}>HSR (m)</th><th style={thStyle}>Dist Sprint (m)</th>
-                                  <th style={thStyle}>Acc Int Tot</th><th style={thStyle}>ACC (n)</th><th style={thStyle}>DEC (n)</th>
+                                  <th style={thStyle}>Acc Int Tot</th><th style={thStyle}>ACE &gt;2 (n)</th><th style={thStyle}>DEC &gt;2 (n)</th>
                                   <th style={thStyle}>Sprint (n)</th><th style={thStyle}>Player Load</th>
                                 </tr>
                               </thead>

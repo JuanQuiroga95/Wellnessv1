@@ -171,15 +171,15 @@ export async function DELETE(req: NextRequest) {
   const clubId = s.clubId ? Number(s.clubId) : null
 
   if (id) {
-    await sql`DELETE FROM entrenamiento_logs WHERE id = ${id} AND club_id = ${clubId}`
+    await sql`DELETE FROM entrenamiento_logs WHERE id = ${id} AND (club_id = ${clubId} OR jugador_id IN (SELECT id FROM jugadores WHERE club_id = ${clubId}))`
     return NextResponse.json({ success: true })
   }
 
   if (fecha) {
     if (jugador_id) {
-      await sql`DELETE FROM entrenamiento_logs WHERE fecha = ${fecha} AND jugador_id = ${jugador_id} AND club_id = ${clubId}`
+      await sql`DELETE FROM entrenamiento_logs WHERE fecha = ${fecha} AND jugador_id = ${jugador_id} AND (club_id = ${clubId} OR jugador_id IN (SELECT id FROM jugadores WHERE club_id = ${clubId}))`
     } else {
-      await sql`DELETE FROM entrenamiento_logs WHERE fecha = ${fecha} AND club_id = ${clubId}`
+      await sql`DELETE FROM entrenamiento_logs WHERE fecha = ${fecha} AND (club_id = ${clubId} OR jugador_id IN (SELECT id FROM jugadores WHERE club_id = ${clubId}))`
     }
     return NextResponse.json({ success: true })
   }

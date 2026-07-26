@@ -102,7 +102,7 @@ export default function InicioPanel({ teamData, session, today }: { teamData: an
         const mandamientos = mandD.mandamientos || []
         setFuerzaMandamientos(mandamientos)
 
-        const calRes = await fetch(`/api/calendario?desde=${past14Days}&hasta=${weekEnd}`)
+        const calRes = await fetch(`/api/calendario?desde=${past14Days}&hasta=${tomorrow > weekEnd ? tomorrow : weekEnd}`)
         const calData = await calRes.json()
         const allEvents = [...(calData.sesiones || []), ...(calData.partidos || [])]
         const hoy = allEvents.filter((d: any) => d.fecha.startsWith(today))
