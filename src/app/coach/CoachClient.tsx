@@ -2792,9 +2792,9 @@ function CalendarioPanel({ teamData }) {
                     
                     {/* Carga Total Absoluta de la Sesión (GPS Calc) */}
                     {(() => {
-                      const metricKeys = ['distTotal','distSprint','distMP','distAcel','distDecel','nSprints','nAcel','dist_acc_hi','nDecel','dist_dec_hi']
-                      const metricLabels = ['Dist. total','Sprint >21km/h','Alta pot. >20W/kg','Acel. >2m/s²','Decel. >-2m/s²','Nº sprints','Nº acel. >3m/s²','ACE >3 (m)','Nº decel. >-3m/s²','DEC >3 (m)']
-                      const metricUnits = ['m','m','m','m','m','','','m','','m']
+                      const metricKeys = ['distTotal','distSprint','distMP','distAcel','distDecel','nSprints','nAcel','nAcel3','dist_acc_hi','nDecel','nDecel3','dist_dec_hi']
+                      const metricLabels = ['Dist. total','Sprint >21km/h','Alta pot. >20W/kg','Acel. >2m/s²','Decel. >-2m/s²','Nº sprints','ACE >2 (n)','ACE >3 (n)','ACE >3 (m)','DEC >2 (n)','DEC >3 (n)','DEC >3 (m)']
+                      const metricUnits = ['m','m','m','m','m','','','','m','','','m']
                       const totals: Record<string,number> = {}
                       metricKeys.forEach(k => { totals[k] = 0 })
                       let hasCarga = false
@@ -2813,7 +2813,7 @@ function CalendarioPanel({ teamData }) {
                       return (
                         <div style={{ marginTop:12, background:'rgba(59,130,246,.06)', border:'1px solid rgba(59,130,246,.2)', borderRadius:10, padding:'12px 14px' }}>
                           <strong style={{ fontSize:10, color:'#3b82f6', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:8 }}>📊 Carga absoluta simulada (GPS Calc)</strong>
-                          <div style={{ display:'grid', gridTemplateColumns:'repeat(5,1fr)', gap:6 }}>
+                          <div style={{ display:'grid', gridTemplateColumns:'repeat(6,1fr)', gap:6 }}>
                             {metricKeys.map((k,i) => (
                               <div key={k} style={{ textAlign:'center', background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:6, padding:'6px' }}>
                                 <div style={{ fontSize:8, color:'var(--silver)', marginBottom:2, lineHeight:1.2 }}>{metricLabels[i]}</div>
@@ -3657,8 +3657,8 @@ function BloqueMetodologia({ bloque, index, onChangeProp, onRemoveProp, onMoveUp
                 {editingMetrics ? '✓ Listo' : '✏️ Editar GPS'}
               </button>
             </div>
-            <div style={{ display:'grid', gridTemplateColumns:'repeat(5,1fr)', gap:5 }}>
-              {[['Dist. total','distTotal','m'],['Sprint >21km/h','distSprint','m'],['Alta pot. >20W/kg','distMP','m'],['Acel. >2m/s²','distAcel','m'],['Decel. >-2m/s²','distDecel','m'],['Nº sprints','nSprints',''],['Nº acel. >3m/s²','nAcel',''],['ACE >3 (m)','dist_acc_hi','m'],['Nº decel. >-3m/s²','nDecel',''],['DEC >3 (m)','dist_dec_hi','m']].map(([label,key,unit])=>{
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(6,1fr)', gap:5 }}>
+              {[['Dist. total','distTotal','m'],['Sprint >21km/h','distSprint','m'],['Alta pot. >20W/kg','distMP','m'],['Acel. >2m/s²','distAcel','m'],['Decel. >-2m/s²','distDecel','m'],['Nº sprints','nSprints',''],['ACE >2 (n)','nAcel',''],['ACE >3 (n)','nAcel3',''],['ACE >3 (m)','dist_acc_hi','m'],['DEC >2 (n)','nDecel',''],['DEC >3 (n)','nDecel3',''],['DEC >3 (m)','dist_dec_hi','m']].map(([label,key,unit])=>{
                 const rawVal = Math.round(calc[key])
                 return (
                   <div key={key} style={{ textAlign:'center', background:'var(--ink2)', borderRadius:6, padding:'5px 4px' }}>
@@ -3723,9 +3723,9 @@ const BloqueMetodologiaMemo = React.memo(BloqueMetodologia, (prev: any, next: an
          prev.teamPlayers === next.teamPlayers
 })
 async function imprimirSesion(f: any, bloques: any[], teamPlayers: any[] = []) {
-  const metricKeys = ['distTotal','distSprint','distMP','distAcel','distDecel','nSprints','nAcel','dist_acc_hi','nDecel','dist_dec_hi']
-  const metricLabels = ['Dist. total','Sprint >21km/h','Alta pot. >20W/kg','Acel. >2m/s²','Decel. >-2m/s²','Nº sprints','Nº acel. >3m/s²','ACE >3 (m)','Nº decel. >-3m/s²','DEC >3 (m)']
-  const metricUnits = ['m','m','m','m','m','','','m','','m']
+  const metricKeys = ['distTotal','distSprint','distMP','distAcel','distDecel','nSprints','nAcel','nAcel3','dist_acc_hi','nDecel','nDecel3','dist_dec_hi']
+  const metricLabels = ['Dist. total','Sprint >21km/h','Alta pot. >20W/kg','Acel. >2m/s²','Decel. >-2m/s²','Nº sprints','ACE >2 (n)','ACE >3 (n)','ACE >3 (m)','DEC >2 (n)','DEC >3 (n)','DEC >3 (m)']
+  const metricUnits = ['m','m','m','m','m','','','','m','','','m']
   const totals: Record<string,number> = {}
   metricKeys.forEach(k => { totals[k] = 0 })
   
