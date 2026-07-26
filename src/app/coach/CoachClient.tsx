@@ -8182,12 +8182,14 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
   const mondayShift = new Date().getDay() === 1 ? -7 : 0
   const getWeekStart = (offsetWeeks = 0) => {
     const d = new Date()
-    d.setDate(d.getDate() - d.getDay() + 1 + offsetWeeks * 7 + mondayShift)
+    const currentDay = d.getDay() === 0 ? 7 : d.getDay()
+    d.setDate(d.getDate() - currentDay + 1 + offsetWeeks * 7 + mondayShift)
     return localDateStr(d)
   }
   const getWeekEnd = (offsetWeeks = 0) => {
     const d = new Date()
-    d.setDate(d.getDate() - d.getDay() + 7 + offsetWeeks * 7 + mondayShift)
+    const currentDay = d.getDay() === 0 ? 7 : d.getDay()
+    d.setDate(d.getDate() - currentDay + 7 + offsetWeeks * 7 + mondayShift)
     return localDateStr(d)
   }
   const [microcicloOffset, setMicrocicloOffset] = useState(0)
@@ -8965,8 +8967,8 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
             {key:'distTotal',  label:'DT (m)',          color:'#f59e0b'},
             {key:'distSprint', label:'Dist. Sprint (m)',color:'#f97316'},
             {key:'nSprints',   label:'Nº Sprint',       color:'#a78bfa'},
-            {key:'nAcel',      label:'ACE >2',          color:'#ec4899'},
-            {key:'nDecel',     label:'DEC >2',          color:'#14b8a6'},
+            {key:'nAcel',      label:'ACE >2 (n)',      color:'#ec4899'},
+            {key:'nDecel',     label:'DEC >2 (n)',      color:'#14b8a6'},
             {key:'nAcel3',     label:'ACE >3 (n)',      color:'#f43f5e'},
             {key:'nDecel3',    label:'DEC >3 (n)',      color:'#0ea5e9'},
             {key:'dist_acc_hi',label:'ACE >3 (m)',      color:'#ec4899'},
