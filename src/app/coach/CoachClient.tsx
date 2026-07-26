@@ -1337,7 +1337,7 @@ function CambioCargaPanel() {
     { key:'calc_nDecel3',      label:'DEC >3 n°',     color:'#0ea5e9', src:'calc' },
     { key:'calc_distMP',       label:'Alta Pot. m',   color:'#fb923c', src:'calc' },
     { key:'calc_distTotal',    label:'Dist. Total m', color:'#f59e0b', src:'calc' },
-    { key:'calc_distSprint',   label:'Sprint (m)',    color:'#38bdf8', src:'calc' },
+    { key:'calc_distSprint',   label:'HSR (21 km/h)', color:'#38bdf8', src:'calc' },
   ]
   const CHART_VARS_GPS = [
     { key:'rpe',         label:'RPE',           color:'#60a5fa', src:'gps' },
@@ -2798,7 +2798,7 @@ function CalendarioPanel({ teamData }) {
                     {/* Carga Total Absoluta de la Sesión (GPS Calc) */}
                     {(() => {
                       const metricKeys = ['distTotal','distSprint','distMP','distAcel','distDecel','nSprints','nAcel','nAcel3','dist_acc_hi','nDecel','nDecel3','dist_dec_hi']
-                      const metricLabels = ['Dist. total','Sprint >21km/h','Alta pot. >20W/kg','ACE >2 (m)','DEC >2 (m)','Nº sprints','ACE >2 (n)','ACE >3 (n)','ACE >3 (m)','DEC >2 (n)','DEC >3 (n)','DEC >3 (m)']
+                      const metricLabels = ['Dist. total','HSR (21 km/h)','Alta pot. >20W/kg','ACE >2 (m)','DEC >2 (m)','Nº sprints','ACE >2 (n)','ACE >3 (n)','ACE >3 (m)','DEC >2 (n)','DEC >3 (n)','DEC >3 (m)']
                       const metricUnits = ['m','m','m','m','m','','','','m','','','m']
                       const totals: Record<string,number> = {}
                       metricKeys.forEach(k => { totals[k] = 0 })
@@ -3666,7 +3666,7 @@ function BloqueMetodologia({ bloque, index, onChangeProp, onRemoveProp, onMoveUp
               </button>
             </div>
             <div style={{ display:'grid', gridTemplateColumns:'repeat(6,1fr)', gap:5 }}>
-              {[['Dist. total','distTotal','m'],['Sprint >21km/h','distSprint','m'],['Alta pot. >20W/kg','distMP','m'],['ACE >2 (m)','distAcel','m'],['DEC >2 (m)','distDecel','m'],['Nº sprints','nSprints',''],['ACE >2 (n)','nAcel',''],['ACE >3 (n)','nAcel3',''],['ACE >3 (m)','dist_acc_hi','m'],['DEC >2 (n)','nDecel',''],['DEC >3 (n)','nDecel3',''],['DEC >3 (m)','dist_dec_hi','m']].map(([label,key,unit])=>{
+              {[['Dist. total','distTotal','m'],['HSR (21 km/h)','distSprint','m'],['Alta pot. >20W/kg','distMP','m'],['ACE >2 (m)','distAcel','m'],['DEC >2 (m)','distDecel','m'],['Nº sprints','nSprints',''],['ACE >2 (n)','nAcel',''],['ACE >3 (n)','nAcel3',''],['ACE >3 (m)','dist_acc_hi','m'],['DEC >2 (n)','nDecel',''],['DEC >3 (n)','nDecel3',''],['DEC >3 (m)','dist_dec_hi','m']].map(([label,key,unit])=>{
                 const rawVal = Math.round(calc[key])
                 return (
                   <div key={key} style={{ textAlign:'center', background:'var(--ink2)', borderRadius:6, padding:'5px 4px' }}>
@@ -3732,7 +3732,7 @@ const BloqueMetodologiaMemo = React.memo(BloqueMetodologia, (prev: any, next: an
 })
 async function imprimirSesion(f: any, bloques: any[], teamPlayers: any[] = []) {
   const metricKeys = ['distTotal','distSprint','distMP','distAcel','distDecel','nSprints','nAcel','nAcel3','dist_acc_hi','nDecel','nDecel3','dist_dec_hi']
-  const metricLabels = ['Dist. total','Sprint >21km/h','Alta pot. >20W/kg','ACE >2 (m)','DEC >2 (m)','Nº sprints','ACE >2 (n)','ACE >3 (n)','ACE >3 (m)','DEC >2 (n)','DEC >3 (n)','DEC >3 (m)']
+  const metricLabels = ['Dist. total','HSR (21 km/h)','Alta pot. >20W/kg','ACE >2 (m)','DEC >2 (m)','Nº sprints','ACE >2 (n)','ACE >3 (n)','ACE >3 (m)','DEC >2 (n)','DEC >3 (n)','DEC >3 (m)']
   const metricUnits = ['m','m','m','m','m','','','','m','','','m']
   const totals: Record<string,number> = {}
   metricKeys.forEach(k => { totals[k] = 0 })
@@ -9101,7 +9101,7 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
           const mdTeamAvg: any = perSessionTeamAvg[md] || {}
           const SESSION_VARS = [
             {key:'distTotal',  label:'DT (m)',          color:'#f59e0b'},
-            {key:'distSprint', label:'Dist. Sprint (m)',color:'#f97316'},
+            {key:'distSprint', label:'HSR (21 km/h)',   color:'#f97316'},
             {key:'nSprints',   label:'Nº Sprint',       color:'#a78bfa'},
             {key:'nAcel',      label:'ACE >2 (n)',      color:'#ec4899'},
             {key:'distAcel',   label:'ACE >2 (m)',      color:'#ec4899'},
