@@ -11,10 +11,10 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     }
 
     const { target_club_id } = await req.json()
-    const jugadorId = Number(params.id)
+    const usuarioId = Number(params.id)
     const targetClubId = Number(target_club_id)
 
-    if (!jugadorId || !targetClubId) {
+    if (!usuarioId || !targetClubId) {
       return NextResponse.json({ error: 'Faltan parámetros' }, { status: 400 })
     }
 
@@ -28,12 +28,12 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       }
     }
 
-    // Buscamos el usuario asociado al jugador
-    const jug = await sql`SELECT usuario_id FROM jugadores WHERE id = ${jugadorId}`
+    // Buscamos el jugador asociado al usuario
+    const jug = await sql`SELECT id FROM jugadores WHERE usuario_id = ${usuarioId}`
     if (jug.length === 0) {
       return NextResponse.json({ error: 'Jugador no encontrado' }, { status: 404 })
     }
-    const usuarioId = jug[0].usuario_id
+    const jugadorId = jug[0].id
 
     // Transferir al jugador y todo su historial de datos al nuevo club.
     await sql.begin(async (tx) => {
