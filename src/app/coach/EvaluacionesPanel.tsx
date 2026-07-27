@@ -518,6 +518,26 @@ function HidratacionPanel({ jugador }: { jugador: Jugador }) {
   const [hidPre, setHidPre]           = useState('')
   const [hidPost, setHidPost]         = useState('')
   const [hidDurMin, setHidDurMin]     = useState('')
+  const [saving, setSaving]           = useState(false)
+  const [savedOk, setSavedOk]         = useState(false)
+
+  const loadToday = useCallback(async () => {
+    try {
+      const r = await fetch(`/api/evaluaciones/hidratacion?jugador_id=${jugador.id}`)
+      if (r.ok) {
+        const data = await r.json()
+        const todayStr = new Date().toISOString().split('T')[0]
+        const todayLog = data.find((d: any) => d.fecha.startsWith(todayStr))
+        if (todayLog) {
+          setHidPre(String(todayLog.peso_pre || ''))
+          setHidPost(String(todayLog.peso_post || ''))
+          setHidDurMin(String(todayLog.duracion_min || ''))
+        }
+      }
+    } catch(e) {}
+  }, [jugador.id])
+
+  useEffect(() => { loadToday() }, [loadToday])
 
   const perdidaMl = hidPre && hidPost && Number(hidPre) > Number(hidPost)
     ? Math.round((Number(hidPre) - Number(hidPost)) * 1000)
@@ -559,6 +579,41 @@ function HidratacionPanel({ jugador }: { jugador: Jugador }) {
       )}
       {!hidPre && !hidPost && (
         <div style={{ fontSize: 12, color: '#334155' }}>Ingresá el peso antes y después del entrenamiento para obtener la pérdida de fluidos y la recomendación de reposición.</div>
+      )}
+
+      {perdidaMl !== null && (
+        <div style={{ marginTop: 16, display: 'flex', alignItems: 'center', gap: 12 }}>
+          <button 
+            onClick={async () => {
+              setSaving(true)
+              setSavedOk(false)
+              const body = {
+                jugador_id: jugador.id,
+                peso_pre: Number(hidPre),
+                peso_post: Number(hidPost),
+                duracion_min: hidDurMin ? Number(hidDurMin) : null,
+                perdida_ml: perdidaMl,
+                pct_perdida: Number(pctPerdida),
+                reposicion_ml: reposicion,
+                tasa_sudoracion: hidDurMin && Number(hidDurMin) > 0 ? Math.round(perdidaMl / Number(hidDurMin) * 60) : null,
+                estado: Number(pctPerdida) >= 2 ? 'Alta' : 'Normal'
+              }
+              await fetch('/api/evaluaciones/hidratacion', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+              })
+              setSaving(false)
+              setSavedOk(true)
+              setTimeout(() => setSavedOk(false), 3000)
+            }}
+            disabled={saving}
+            style={{ padding: '8px 16px', background: 'var(--blue)', color: '#fff', border: 'none', borderRadius: 6, fontWeight: 600, cursor: saving ? 'wait' : 'pointer' }}
+          >
+            {saving ? 'Guardando...' : '💾 Guardar Resultado'}
+          </button>
+          {savedOk && <span style={{ color: 'var(--green)', fontSize: 12, fontWeight: 700 }}>¡Guardado correctamente!</span>}
+        </div>
       )}
     </Card>
   )

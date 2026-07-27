@@ -96,6 +96,10 @@ export const SCHEMA_STATEMENTS = [
   `CREATE TABLE IF NOT EXISTS pesajes (id SERIAL PRIMARY KEY, jugador_id INTEGER NOT NULL REFERENCES jugadores(id) ON DELETE CASCADE, club_id INTEGER, fecha DATE NOT NULL DEFAULT CURRENT_DATE, peso_kg NUMERIC(5,1) NOT NULL, registrado_por VARCHAR(50) DEFAULT 'coach', notas TEXT, created_at TIMESTAMPTZ DEFAULT NOW())`,
   `CREATE INDEX IF NOT EXISTS idx_pesajes_jugador ON pesajes(jugador_id, fecha DESC)`,
   `CREATE INDEX IF NOT EXISTS idx_pesajes_club ON pesajes(club_id, fecha DESC)`,
+  // Historial de Hidratacion
+  `CREATE TABLE IF NOT EXISTS hidratacion_logs (id SERIAL PRIMARY KEY, jugador_id INTEGER NOT NULL REFERENCES jugadores(id) ON DELETE CASCADE, club_id INTEGER, fecha DATE NOT NULL DEFAULT CURRENT_DATE, peso_pre NUMERIC(5,2), peso_post NUMERIC(5,2), duracion_min INTEGER, perdida_ml INTEGER, pct_perdida NUMERIC(5,2), reposicion_ml INTEGER, tasa_sudoracion INTEGER, estado VARCHAR(50), created_at TIMESTAMPTZ DEFAULT NOW())`,
+  `CREATE INDEX IF NOT EXISTS idx_hidratacion_jugador ON hidratacion_logs(jugador_id, fecha DESC)`,
+  `CREATE INDEX IF NOT EXISTS idx_hidratacion_fecha ON hidratacion_logs(club_id, fecha DESC)`,
   // Evaluaciones InBody (Panamá)
   `CREATE TABLE IF NOT EXISTS inbody_tests (id SERIAL PRIMARY KEY, jugador_id INTEGER NOT NULL REFERENCES jugadores(id) ON DELETE CASCADE, club_id INTEGER, fecha DATE NOT NULL DEFAULT CURRENT_DATE, peso_kg NUMERIC(5,1) NOT NULL, mme_kg NUMERIC(5,1) NOT NULL, masa_grasa_kg NUMERIC(5,1) NOT NULL, imc NUMERIC(5,1) NOT NULL, pgc_pct NUMERIC(5,1) NOT NULL, notas TEXT, created_at TIMESTAMPTZ DEFAULT NOW())`,
   `CREATE INDEX IF NOT EXISTS idx_inbody_jugador ON inbody_tests(jugador_id, fecha DESC)`,

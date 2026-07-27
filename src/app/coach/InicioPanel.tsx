@@ -83,6 +83,7 @@ export default function InicioPanel({ teamData, session, today }: { teamData: an
   const [orientacionData, setOrientacionData] = useState<any[]>([])
   const [fuerzaMandamientos, setFuerzaMandamientos] = useState<any[]>([])
   const [distribucionTareas, setDistribucionTareas] = useState<any>(null)
+  const [todayDehydrated, setTodayDehydrated] = useState<any[]>([])
 
   useEffect(() => {
     async function fetchData() {
@@ -312,6 +313,15 @@ export default function InicioPanel({ teamData, session, today }: { teamData: an
           }))
           setReadinessData(dailyReadiness)
         }
+
+        // Fetch dehydrated players for today
+        const hidRes = await fetch(`/api/evaluaciones/hidratacion?fecha=${today}`)
+        if (hidRes.ok) {
+          const hidData = await hidRes.json()
+          if (Array.isArray(hidData)) {
+            setTodayDehydrated(hidData.filter(h => h.estado === 'Alta' || h.estado === 'Deshidratado' || Number(h.pct_perdida) >= 2))
+          }
+        }
       } catch (err) {
         console.error("Error fetching dashboard data", err)
       } finally {
@@ -375,6 +385,28 @@ export default function InicioPanel({ teamData, session, today }: { teamData: an
           </div>
         </div>
       </AnimateOnScroll>
+
+      {/* Alertas Rápidas: Deshidratación */}
+      {todayDehydrated.length > 0 && (
+        <AnimateOnScroll delay={200}>
+          <div style={{ background: 'rgba(239,68,68,0.05)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 16, padding: 20, marginTop: 16 }}>
+            <h2 style={{ fontSize: 13, fontWeight: 700, color: '#ef4444', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+              ⚠️ Jugadores Deshidratados Hoy
+            </h2>
+            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+              {todayDehydrated.map((d: any) => (
+                <div key={d.id} style={{ background: 'var(--ink2)', border: '1px solid rgba(239,68,68,0.4)', borderRadius: 8, padding: '10px 14px', display: 'flex', flexDirection: 'column', minWidth: 160 }}>
+                  <span style={{ fontSize: 14, fontWeight: 600, color: '#ef4444' }}>{d.j_nombre || `Jugador #${d.jugador_id}`}</span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8, fontSize: 11, color: 'var(--silver)' }}>
+                    <span>Pérdida: <strong style={{color:'#f87171'}}>{d.pct_perdida}%</strong></span>
+                    <span>Reponer: <strong style={{color:'#f87171'}}>{d.reposicion_ml}mL</strong></span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </AnimateOnScroll>
+      )}
 
       {/* Distribucion de Tareas */}
       {distribucionTareas && (

@@ -303,6 +303,7 @@ export default function CoachDashboard({ isPanama, session, teamData, today }: a
   const [proxyMode, setProxyMode] = useState(false)
   const [showGlobalDeleteModal, setShowGlobalDeleteModal] = useState(false)
   const [ciclo, setCiclo] = useState<'microciclo'|'mesociclo'|'macrociclo'>('microciclo')
+  const [todayDehydrated, setTodayDehydrated] = useState<number[]>([])
   const router = useRouter()
 
   // Auto-refresh server data when a wellness survey is submitted
@@ -325,6 +326,18 @@ export default function CoachDashboard({ isPanama, session, teamData, today }: a
         }
       })
       .catch((e) => console.error('[Settings load error]', e))
+      .catch((e) => console.error('[Settings load error]', e))
+
+    // Fetch dehydrated players for today
+    fetch(`/api/evaluaciones/hidratacion?fecha=${today}`)
+      .then(r => r.json())
+      .then(d => {
+        if (Array.isArray(d)) {
+          const dehydrated = d.filter(h => h.estado === 'Alta' || h.estado === 'Deshidratado').map(h => h.jugador_id)
+          setTodayDehydrated(dehydrated)
+        }
+      })
+      .catch((e) => console.error('[Hydration load error]', e))
   }, [])
 
   async function saveTeamName() {
@@ -607,7 +620,7 @@ export default function CoachDashboard({ isPanama, session, teamData, today }: a
               <div key={posKey} style={{ marginBottom:20 }}>
                 {secHead(PG[Number(posKey)]||'SIN POSICIÓN', byPos[Number(posKey)].length)}
                 <div style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:16, overflow:'hidden', marginBottom:4 }}>
-                  {byPos[Number(posKey)].map((p,i,arr)=><PlayerRow key={p.id} player={p} last={i===arr.length-1} onOpen={()=>openPlayer(p)} isInjured={false} proxyMode={proxyMode} />)}
+                  {byPos[Number(posKey)].map((p,i,arr)=><PlayerRow key={p.id} player={p} last={i===arr.length-1} onOpen={()=>openPlayer(p)} isInjured={false} isDehydrated={todayDehydrated.includes(p.id)} proxyMode={proxyMode} />)}
                 </div>
               </div>
             ))}
@@ -615,7 +628,7 @@ export default function CoachDashboard({ isPanama, session, teamData, today }: a
               <div>
                 {secHead('🏥 LESIONADOS', injured.length, '#ef4444')}
                 <div style={{ background:'var(--ink2)', border:'1px solid rgba(239,68,68,.2)', borderRadius:16, overflow:'hidden', opacity:.8 }}>
-                  {injured.map((p,i)=><PlayerRow key={p.id} player={p} last={i===injured.length-1} onOpen={()=>openPlayer(p)} isInjured={true} proxyMode={proxyMode} />)}
+                  {injured.map((p,i)=><PlayerRow key={p.id} player={p} last={i===injured.length-1} onOpen={()=>openPlayer(p)} isInjured={true} isDehydrated={todayDehydrated.includes(p.id)} proxyMode={proxyMode} />)}
                 </div>
               </div>
             )}
@@ -623,7 +636,7 @@ export default function CoachDashboard({ isPanama, session, teamData, today }: a
               <div>
                 {secHead('✗ DIFERENCIADOS', unavailable.length, '#f59e0b')}
                 <div style={{ background:'var(--ink2)', border:'1px solid rgba(245,158,11,.2)', borderRadius:16, overflow:'hidden', opacity:.75 }}>
-                  {unavailable.map((p,i)=><PlayerRow key={p.id} player={p} last={i===unavailable.length-1} onOpen={()=>openPlayer(p)} isInjured={false} proxyMode={proxyMode} />)}
+                  {unavailable.map((p,i)=><PlayerRow key={p.id} player={p} last={i===unavailable.length-1} onOpen={()=>openPlayer(p)} isInjured={false} isDehydrated={todayDehydrated.includes(p.id)} proxyMode={proxyMode} />)}
                 </div>
               </div>
             )}
@@ -709,7 +722,7 @@ export default function CoachDashboard({ isPanama, session, teamData, today }: a
   )
 }
 
-function PlayerRow({ player:p, last, onOpen, isInjured, proxyMode }: any) {
+function PlayerRow({ player:p, last, onOpen, isInjured, isDehydrated, proxyMode }: any) {
   const col = SC[p.acwr?.status]||'#555'
   return (
     <button className="hover-scale" onClick={onOpen} style={{ width:'100%', display:'flex', alignItems:'center', gap:12, padding:'12px 18px', background:'transparent', border:'none', cursor:'pointer', textAlign:'left', borderBottom:last?'none':'1px solid var(--mist)', transition:'background .12s' }}
@@ -717,7 +730,7 @@ function PlayerRow({ player:p, last, onOpen, isInjured, proxyMode }: any) {
       onMouseLeave={e=>e.currentTarget.style.background='transparent'}
     >
       <div style={{ position: 'relative', flexShrink: 0 }}>
-        <div style={{ width: 40, height: 40, borderRadius: '50%', overflow: 'hidden', background: 'var(--mist)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: 'var(--silver)', border: '1px solid var(--fog)' }}>
+        <div style={{ width: 40, height: 40, borderRadius: '50%', overflow: 'hidden', background: 'var(--mist)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: 'var(--silver)', border: isDehydrated ? '2px solid #ef4444' : '1px solid var(--fog)' }}>
           {p.foto_url
             ? <img src={p.foto_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt=""/>
             : (p.nombre||'').split(' ').map((w: string)=>w[0]).slice(0,2).join('')
@@ -729,7 +742,7 @@ function PlayerRow({ player:p, last, onOpen, isInjured, proxyMode }: any) {
         }
       </div>
       <div style={{ flex:1, minWidth:0 }}>
-        <div style={{ fontWeight:500, fontSize:14, color:isInjured?'#f87171':'var(--snow)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', display:'flex', alignItems:'center', gap:6 }}>{p.nacionalidad && <FlagImg country={p.nacionalidad} size={16} />}{p.nombre}</div>
+        <div style={{ fontWeight:500, fontSize:14, color:isInjured?'#f87171':isDehydrated?'#ef4444':'var(--snow)', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', display:'flex', alignItems:'center', gap:6 }}>{p.nacionalidad && <FlagImg country={p.nacionalidad} size={16} />}{p.nombre} {isDehydrated && '💧'}</div>
         <div style={{ display:'flex', alignItems:'center', gap:6, fontSize:11, color:'var(--silver)', marginTop:1 }}>
           <span>{p.posicion||'—'}</span>
           <span>-</span>
