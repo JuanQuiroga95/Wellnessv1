@@ -788,45 +788,43 @@ export default function InicioPanel({ teamData, session, today }: { teamData: an
         )}
 
         {/* Charts Section */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-          <AnimateOnScroll delay={600}>
-            <div style={{ background: 'var(--ink2)', border: '1px solid var(--mist)', borderRadius: 16, padding: 20, height: 240 }}>
-              <CuadroHeader title="TENDENCIA READINESS" subtitle="Últimos 7 días (Promedio Plantel)" icon={Icons.neuromuscular} description="Evolución del estado de recuperación, estrés, sueño y fatiga del equipo." />
-              <div style={{ width: '100%', height: 160, marginTop: 16 }}>
-                {!loading && readinessData.length > 0 ? (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={readinessData} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
-                      <defs>
-                        <linearGradient id="colorReadiness" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#22c55e" stopOpacity={0.3} />
-                          <stop offset="95%" stopColor="#22c55e" stopOpacity={0} />
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" stroke="var(--mist)" vertical={false} />
-                      <XAxis dataKey="name" stroke="var(--silver)" fontSize={10} tickLine={false} axisLine={false} />
-                      <YAxis stroke="var(--silver)" fontSize={10} tickLine={false} axisLine={false} domain={[0, 100]} />
-                      <Tooltip content={<CustomTooltip isReadiness={true} />} />
-                      <Area 
-                        isAnimationActive={true} 
-                        animationDuration={15000} 
-                        type="monotone" 
-                        dataKey="readiness" 
-                        stroke="#22c55e" 
-                        strokeWidth={3}
-                        fillOpacity={1} 
-                        fill="url(#colorReadiness)" 
-                      />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                ) : (
-                  <div style={{ display: 'flex', height: '100%', alignItems: 'center', justifyContent: 'center', color: 'var(--fog)', fontSize: 13 }}>
-                    {loading ? 'Cargando...' : 'No hay datos recientes de readiness'}
-                  </div>
-                )}
-              </div>
+        <AnimateOnScroll delay={600}>
+          <div style={{ background: 'var(--ink2)', border: '1px solid var(--mist)', borderRadius: 16, padding: 20, height: '100%', minHeight: 350, display: 'flex', flexDirection: 'column' }}>
+            <CuadroHeader title="TENDENCIA READINESS" subtitle="Últimos 7 días (Promedio Plantel)" icon={Icons.neuromuscular} description="Evolución del estado de recuperación, estrés, sueño y fatiga del equipo." />
+            <div style={{ width: '100%', flex: 1, minHeight: 160, marginTop: 16 }}>
+              {!loading && readinessData.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={readinessData} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="colorReadiness" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#22c55e" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="#22c55e" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--mist)" vertical={false} />
+                    <XAxis dataKey="name" stroke="var(--silver)" fontSize={10} tickLine={false} axisLine={false} />
+                    <YAxis stroke="var(--silver)" fontSize={10} tickLine={false} axisLine={false} domain={[0, 100]} />
+                    <Tooltip content={<CustomTooltip isReadiness={true} />} />
+                    <Area 
+                      isAnimationActive={true} 
+                      animationDuration={15000} 
+                      type="monotone" 
+                      dataKey="readiness" 
+                      stroke="#22c55e" 
+                      strokeWidth={3}
+                      fillOpacity={1} 
+                      fill="url(#colorReadiness)" 
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              ) : (
+                <div style={{ display: 'flex', height: '100%', alignItems: 'center', justifyContent: 'center', color: 'var(--fog)', fontSize: 13 }}>
+                  {loading ? 'Cargando...' : 'No hay datos recientes de readiness'}
+                </div>
+              )}
             </div>
-          </AnimateOnScroll>
-        </div>
+          </div>
+        </AnimateOnScroll>
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 24, marginTop: 24 }}>
