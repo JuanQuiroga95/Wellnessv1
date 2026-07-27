@@ -2,7 +2,7 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-:root{--lime:#c8f135;--ink:#080808;--ink2:#111;--ink3:#1a1a1a;--mist:#252525;--fog:#333;--silver:#888;--snow:#eee;--green:#22c55e;--amber:#f59e0b;--red:#ef4444}
+:root{--lime:#c8f135;--ink:#080808;--ink2:#111;--ink3:#1a1a1a;--mist:#252525;--fog:#777;--silver:#aaa;--snow:#eee;--green:#22c55e;--amber:#f59e0b;--red:#ef4444}
 *{box-sizing:border-box;margin:0;padding:0}
 html{font-size:16px}body{font-family:'DM Sans',system-ui,sans-serif;background:var(--ink);color:var(--snow);min-height:100vh;-webkit-font-smoothing:antialiased}
 ::-webkit-scrollbar{width:3px}::-webkit-scrollbar-thumb{background:var(--fog);border-radius:2px}

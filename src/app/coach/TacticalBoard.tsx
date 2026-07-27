@@ -27,7 +27,7 @@ const ARR_COLS = ['#ffffff','#eab308','#ef4444','#3b82f6','#22c55e','#f97316']
 // Field configs: real proportions (width x height in meters)
 const FIELD_CFG: Record<FieldType, { mW:number; mH:number; label:string; penaltyScale:number; hasCorners:boolean; futsal:boolean }> = {
   F11:      { mW:105, mH:68, label:'F11 Completa', penaltyScale:1, hasCorners:true, futsal:false },
-  F11_half: { mW:52.5, mH:68, label:'F11 Mitad', penaltyScale:1, hasCorners:true, futsal:false },
+  F11_half: { mW:68, mH:52.5, label:'F11 Mitad', penaltyScale:1, hasCorners:true, futsal:false },
   F9:       { mW:75, mH:55, label:'F9', penaltyScale:0.8, hasCorners:true, futsal:false },
   F7:       { mW:60, mH:40, label:'F7', penaltyScale:0.65, hasCorners:true, futsal:false },
   F5:       { mW:40, mH:20, label:'F5 Futsal', penaltyScale:0.5, hasCorners:false, futsal:true },
@@ -121,11 +121,25 @@ function FieldSVG({ type, vbW, vbH, showGrid }: { type:FieldType; vbW:number; vb
   }
 
   if (type === 'F11_half') {
+    const b_paW = fw * .44, b_paH = fh * .256
+    const b_gaW = fw * .22, b_gaH = fh * .096
+    const b_arcR = fw * .12, b_goalW = fw * .155, b_goalH = 13
+    const py = m + fh - b_paH, gy = m + fh - b_gaH
+    const dotY = m + fh - b_paH * .77, arcY = m + fh - b_paH
+    const centerR_half = fw * .128
+    const sh2 = fh/7
+    const stripesEl = Array.from({length:7},(_,i) => (
+      <rect key={i} x={m} y={m+i*sh2} width={fw} height={sh2+.5} fill={i%2===0?'#2d8c4e':'#339956'} />
+    ))
     return (<g>
-      {stripes}{grid}{outline}
-      {penalty('L')}{goal('L')}
-      <path d={`M ${m+fw},${cy-centerR} A ${centerR},${centerR} 0 0,0 ${m+fw},${cy+centerR}`} fill="none" stroke={s} strokeWidth={lw} />
-      <circle cx={m+fw} cy={cy} r={dotR} fill={s} />
+      {stripesEl}{grid}{outline}
+      <rect x={cx - b_paW/2} y={py} width={b_paW} height={b_paH} fill="none" stroke={s} strokeWidth={lw} />
+      <rect x={cx - b_gaW/2} y={gy} width={b_gaW} height={b_gaH} fill="none" stroke={s} strokeWidth={lw} />
+      <circle cx={cx} cy={dotY} r={dotR} fill={s} />
+      <path d={`M ${cx - b_arcR},${arcY} A ${b_arcR},${b_arcR} 0 0,1 ${cx + b_arcR},${arcY}`} fill="none" stroke={s} strokeWidth={lw} />
+      <rect x={cx - b_goalW/2} y={m + fh} width={b_goalW} height={b_goalH} fill="none" stroke={s} strokeWidth={1} strokeDasharray="3 2" />
+      <path d={`M ${cx - centerR_half},${m} A ${centerR_half},${centerR_half} 0 0,0 ${cx + centerR_half},${m}`} fill="none" stroke={s} strokeWidth={lw} />
+      <circle cx={cx} cy={m} r={dotR} fill={s} />
       {corners}
     </g>)
   }
@@ -331,10 +345,14 @@ export default function TacticalBoard({ initialData, onSave, onClose, readOnly, 
     const gkColor = isRival ? '#dc2626' : '#16a34a'
     const startNum = isRival ? 1 : pNum
     const newEls:El[] = f.positions.map((pos,i)=>{
-      // Mirror X position for rival team
-      const px = isRival ? 1 - pos[0] : pos[0]
+      let px = isRival ? 1 - pos[0] : pos[0]
+      let py = pos[1]
+      if (field === 'F11_half') {
+        px = pos[1]
+        py = isRival ? pos[0] : 1 - pos[0]
+      }
       return {
-        id:uid(), type:'player', x:m2+px*fw, y:m2+pos[1]*fh,
+        id:uid(), type:'player', x:m2+px*fw, y:m2+py*fh,
         color: i===0 ? gkColor : teamColor, number:startNum+i,
       }
     })
