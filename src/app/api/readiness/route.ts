@@ -95,6 +95,18 @@ export async function GET(req: NextRequest) {
       AND (${isMaster}::boolean OR (u.club_id=${clubId} OR j.club_id=${clubId}))
     GROUP BY j.id, u.nombre, j.posicion, j.foto_url
     ORDER BY j.id`
+  const daily = await sql`
+    SELECT w.fecha::text AS date,
+           ROUND(AVG(w.fatiga + w.calidad_sueno + w.dolor_muscular + w.nivel_estres + w.estado_animo) * 4, 1)::float AS "avgReadiness"
+    FROM wellness_logs w
+    JOIN jugadores j ON j.id=w.jugador_id
+    JOIN usuarios u  ON u.id=j.usuario_id
+    WHERE w.fecha >= ${desde}::date AND w.fecha < ${hastaInc}::date
+      AND w.fatiga IS NOT NULL
+      AND u.activo=true AND u.rol='jugador'
+      AND (${isMaster}::boolean OR (u.club_id=${clubId} OR j.club_id=${clubId}))
+    GROUP BY w.fecha
+    ORDER BY w.fecha ASC`
 
-  return NextResponse.json({ wRows, rpeRows, todayRows })
+  return NextResponse.json({ wRows, rpeRows, todayRows, daily })
 }
