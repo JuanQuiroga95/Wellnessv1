@@ -3225,8 +3225,20 @@ function calcularDistancias(jugadores: number, largo: number, ancho: number, ser
   const distMP = Math.max(0, (7.0421 * Math.log(densidad) - 15.255) * tiempoTotal)
   const distAcel = Math.max(0, (1.321 * Math.log(densidad) - 0.629) * tiempoTotal)
   const distDecel = Math.max(0, (1.157 * Math.log(densidad) - 0.418) * tiempoTotal)
-  const rawNSprints = Math.max(0, (0.001 * densidad - 0.005) * tiempoTotal)
-  const nSprints = rawNSprints > 0 ? Math.max(1, Math.round(rawNSprints)) : 0
+  
+  // HSR (n) calculation based on user's reference table averages
+  let hsrNRate = 0;
+  if (densidad < 100) {
+    hsrNRate = 0.03; // 0.01 a 0.05
+  } else if (densidad <= 180) {
+    hsrNRate = 0.115; // 0.08 a 0.15
+  } else if (densidad <= 280) {
+    hsrNRate = 0.275; // 0.20 a 0.35
+  } else {
+    hsrNRate = 0.55; // Competición: 0.40 a 0.70
+  }
+  const rawNSprints = hsrNRate * tiempoTotal
+  const nSprints = Math.round(rawNSprints)
   let nAcelRate = 0;
   let nDecelRate = 0;
   if (densidad < 100) { nAcelRate = 3.0; nDecelRate = 3.3; }
