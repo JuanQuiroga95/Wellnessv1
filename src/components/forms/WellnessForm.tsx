@@ -737,6 +737,19 @@ export default function WellnessForm({ isPanama, jugadorId, onSuccess, todayWell
               <span style={{ fontSize:10, color:'var(--silver)' }}>Completamente recuperado</span>
             </div>
           </div>
+
+          {!isPanama && (
+            <div style={{ display:'flex', flexDirection:'column', gap:16, marginTop:24, padding:16, background:'var(--ink2)', borderRadius:12, border:'1px solid var(--mist)' }}>
+              <label style={{ display:'flex', alignItems:'center', gap:10, cursor:'pointer' }}>
+                <input type="checkbox" checked={entrenaGrupo} onChange={e=>setEntrenaGrupo(e.target.checked)} style={{ width:18, height:18, accentColor:'var(--lime)' }} />
+                <span style={{ fontSize:14, fontWeight:600, color:entrenaGrupo?'var(--lime)':'var(--silver)' }}>¿Hoy entrenas con el grupo?</span>
+              </label>
+              <label style={{ display:'flex', alignItems:'center', gap:10, cursor:'pointer' }}>
+                <input type="checkbox" checked={fueGimnasio} onChange={e=>setFueGimnasio(e.target.checked)} style={{ width:18, height:18, accentColor:'var(--lime)' }} />
+                <span style={{ fontSize:14, fontWeight:600, color:fueGimnasio?'var(--lime)':'var(--silver)' }}>¿Has ido al gimnasio por la mañana?</span>
+              </label>
+            </div>
+          )}
         </>
       )}
 

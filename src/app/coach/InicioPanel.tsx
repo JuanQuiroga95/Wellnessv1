@@ -110,7 +110,7 @@ export default function InicioPanel({ teamData, session, today }: { teamData: an
         setAgenda({ hoy, manana })
 
         const sessionVolMap: Record<string, number> = {}
-        const orientacionCounts: Record<string, number> = { 'A-R': 0, 'Fuerza': 0, 'Resistencia': 0, 'Velocidad': 0, 'S/D': 0 }
+        const orientacionCounts: Record<string, number> = { 'A-R': 0, 'Fuerza': 0, 'Resistencia': 0, 'Velocidad': 0, 'Analitico Integrado': 0 }
         let totalBloquesOrientacion = 0
 
         allEvents.forEach(ev => {
@@ -137,7 +137,7 @@ export default function InicioPanel({ teamData, session, today }: { teamData: an
                    }
                    if (ori && ori.includes('Activación')) ori = 'A-R'
                    if (orientacionCounts[ori] !== undefined) orientacionCounts[ori]++
-                   else orientacionCounts['S/D']++
+                   else orientacionCounts['Analitico Integrado']++
                    totalBloquesOrientacion++
                  }
                })
@@ -467,15 +467,32 @@ export default function InicioPanel({ teamData, session, today }: { teamData: an
                       <YAxis dataKey="name" type="category" stroke="var(--fog)" fontSize={10} tickLine={false} axisLine={false} width={80} />
                       <Tooltip cursor={{fill: 'rgba(255,255,255,0.05)'}} content={({ active, payload }: any) => {
                         if (active && payload && payload.length) {
+                          const name = payload[0].payload.name
+                          let color = '#ffffff'
+                          if (name === 'A-R') color = '#22c55e'
+                          else if (name === 'Fuerza') color = '#a855f7'
+                          else if (name === 'Resistencia') color = '#f97316'
+                          else if (name === 'Velocidad') color = '#3b82f6'
                           return (
                             <div style={{ background:'rgba(8,8,8,0.9)', border:'1px solid var(--mist)', padding:'8px 12px', borderRadius:8, fontSize:12 }}>
-                              <p style={{ margin:0, color:'var(--snow)', fontWeight:700 }}>{payload[0].payload.name}: <span style={{color: '#3b82f6'}}>{payload[0].payload.percent}%</span></p>
+                              <p style={{ margin:0, color:'var(--snow)', fontWeight:700 }}>{name}: <span style={{color}}>{payload[0].payload.percent}%</span></p>
                             </div>
                           )
                         }
                         return null
                       }} />
-                      <Bar dataKey="percent" fill="#3b82f6" radius={[0, 4, 4, 0]} barSize={20} />
+                      <Bar dataKey="percent" radius={[0, 4, 4, 0]} barSize={20}>
+                        {
+                          orientacionData.map((entry: any, index: number) => {
+                            let fill = '#ffffff'
+                            if (entry.name === 'A-R') fill = '#22c55e'
+                            else if (entry.name === 'Fuerza') fill = '#a855f7'
+                            else if (entry.name === 'Resistencia') fill = '#f97316'
+                            else if (entry.name === 'Velocidad') fill = '#3b82f6'
+                            return <Cell key={`cell-${index}`} fill={fill} />
+                          })
+                        }
+                      </Bar>
                     </BarChart>
                   </ResponsiveContainer>
                 ) : (
@@ -813,36 +830,7 @@ export default function InicioPanel({ teamData, session, today }: { teamData: an
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 24, marginTop: 24 }}>
-          <AnimateOnScroll delay={650}>
-            <div style={{ background: 'var(--ink2)', border: '1px solid var(--mist)', borderRadius: 16, padding: 20 }}>
-              <CuadroHeader title="DISTRIBUCIÓN DE CARGA" subtitle="Orientación Física (Semana Actual)" icon={Icons.metricas || '📊'} description="Porcentaje de tareas asignadas a cada capacidad física durante esta semana." />
-              <div style={{ width: '100%', marginTop: 24, padding: 12 }}>
-                {!loading && orientacionData.length > 0 ? (
-                  <>
-                    <div style={{ width: '100%', height: 24, display:'flex', borderRadius:4, overflow:'hidden', gap:1 }}>
-                       {orientacionData.map(d => (
-                         <div key={d.name} title={`${d.name}: ${d.value} tareas (${d.percent}%)`} style={{ width: `${d.percent}%`, background: d.name==='A-R'?'#10b981':d.name==='Fuerza'?'#a855f7':d.name==='Resistencia'?'#f59e0b':d.name==='Velocidad'?'#3b82f6':'var(--mist)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:10, fontWeight:700, color:'white', transition:'width 0.3s' }}>
-                           {d.percent >= 3 ? `${d.percent}%` : ''}
-                         </div>
-                       ))}
-                    </div>
-                    <div style={{ display:'flex', gap:16, marginTop:16, flexWrap:'wrap', justifyContent:'center' }}>
-                       {orientacionData.map(d => (
-                         <div key={d.name} style={{ display:'flex', alignItems:'center', gap:4, fontSize:11, color:'var(--silver)', fontWeight:600 }}>
-                           <div style={{ width:10, height:10, borderRadius:'50%', background: d.name==='A-R'?'#10b981':d.name==='Fuerza'?'#a855f7':d.name==='Resistencia'?'#f59e0b':d.name==='Velocidad'?'#3b82f6':'var(--mist)' }} />
-                           {d.name} ({d.value})
-                         </div>
-                       ))}
-                    </div>
-                  </>
-                ) : (
-                  <div style={{ display: 'flex', height: 160, alignItems: 'center', justifyContent: 'center', color: 'var(--fog)', fontSize: 13, textAlign:'center', padding:'0 20px' }}>
-                    {loading ? 'Cargando...' : 'No hay tareas planificadas esta semana para analizar'}
-                  </div>
-                )}
-              </div>
-            </div>
-          </AnimateOnScroll>
+
           <AnimateOnScroll delay={700}>
             <div style={{ background: 'var(--ink2)', border: '1px solid var(--mist)', borderRadius: 16, padding: 20, height: 240 }}>
               <CuadroHeader title="TENDENCIA CARGA (RPE)" subtitle="Últimos 7 días (Promedio Sesiones)" icon={Icons.metricas} description="Evolución del esfuerzo percibido (RPE) por el plantel en los últimos entrenamientos." />

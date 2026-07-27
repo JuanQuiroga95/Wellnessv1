@@ -50,6 +50,10 @@ export async function POST(req: NextRequest) {
           clubId: clubIdNum,
           clubNombre: String((club[0] as any).nombre),
         })
+        
+        // Update usuarios.club_id for master_admin so the DB matches the new session
+        await sql`UPDATE usuarios SET club_id = ${clubIdNum} WHERE id = ${s.userId}`
+
     const response = NextResponse.json({ ok: true, clubId: clubIdNum, clubNombre: String((club[0] as any).nombre) })
         response.cookies.set('wp_token', token, {
           httpOnly: true, secure: true, sameSite: 'strict', maxAge: 604800, path: '/',

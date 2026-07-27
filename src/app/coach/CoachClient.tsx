@@ -2799,9 +2799,9 @@ function CalendarioPanel({ teamData }) {
                     
                     {/* Carga Total Absoluta de la Sesión (GPS Calc) */}
                     {(() => {
-                      const metricKeys = ['distTotal','distSprint','distMP','distAcel','distDecel','nSprints','nAcel','nAcel3','dist_acc_hi','nDecel','nDecel3','dist_dec_hi','sprintN25','distSprint25']
-                      const metricLabels = ['Dist. total','HSR (m)','Alta pot. >20W/kg','ACE >2 (m)','DEC >2 (m)','HSR (n)','ACE >2 (n)','ACE >3 (n)','ACE >3 (m)','DEC >2 (n)','DEC >3 (n)','DEC >3 (m)','Sprint (n)','Dist Sprint (m)']
-                      const metricUnits = ['m','m','m','m','m','','','','m','','','m','','m']
+                      const metricKeys = ['distTotal','distMP','nAcel','distAcel','nDecel','distDecel','nAcel3','dist_acc_hi','nDecel3','dist_dec_hi','nSprints','distSprint','sprintN25','distSprint25']
+                      const metricLabels = ['Dist. total','Alta pot. >20W/kg','Acc > 2 (Cant)','Acc > 2 (Metros)','Desac > 2 (Cant)','Desac > 2 (Metros)','Acc > 3 (Cant)','Acc > 3 (Metros)','Desac > 3 (Cant)','Desac > 3 (Metros)','HSR Cantidad','HSR Metros','Sprint Cantidad','Sprint Metros']
+                      const metricUnits = ['m','m','','m','','m','','m','','m','','m','','m']
                       const totals: Record<string,number> = {}
                       metricKeys.forEach(k => { totals[k] = 0 })
                       let hasCarga = false
@@ -3205,81 +3205,46 @@ function getJugadoresBloque(bl: any, esConEquipo: boolean): number {
   return Number(bl.jugadores) || 0
 }
 
+const DENSITY_TABLE: any = {
+  acc_2: { "<10": { cant: 1.00, m: 5.80 }, "10-30": { cant: 2.10, m: 11.00 }, "30-50": { cant: 2.65, m: 13.90 }, "50-70": { cant: 3.10, m: 16.30 }, "70-100": { cant: 2.70, m: 14.50 }, "100-150": { cant: 2.30, m: 12.30 }, "150-180": { cant: 1.80, m: 9.60 }, "180-200": { cant: 1.50, m: 8.00 }, ">200": { cant: 1.25, m: 6.60 } },
+  dec_2: { "<10": { cant: 1.30, m: 6.90 }, "10-30": { cant: 2.20, m: 11.80 }, "30-50": { cant: 2.90, m: 15.60 }, "50-70": { cant: 3.35, m: 18.00 }, "70-100": { cant: 2.95, m: 15.80 }, "100-150": { cant: 2.45, m: 13.20 }, "150-180": { cant: 1.95, m: 10.50 }, "180-200": { cant: 1.65, m: 8.80 }, ">200": { cant: 1.40, m: 7.50 } },
+  acc_3: { "<10": { cant: 0.15, m: 1.20 }, "10-30": { cant: 0.30, m: 2.40 }, "30-50": { cant: 0.45, m: 3.60 }, "50-70": { cant: 0.60, m: 4.80 }, "70-100": { cant: 0.50, m: 4.00 }, "100-150": { cant: 0.40, m: 3.20 }, "150-180": { cant: 0.35, m: 2.80 }, "180-200": { cant: 0.30, m: 2.40 }, ">200": { cant: 0.28, m: 2.20 } },
+  dec_3: { "<10": { cant: 0.20, m: 1.50 }, "10-30": { cant: 0.40, m: 3.00 }, "30-50": { cant: 0.60, m: 4.50 }, "50-70": { cant: 0.75, m: 5.60 }, "70-100": { cant: 0.65, m: 4.90 }, "100-150": { cant: 0.55, m: 4.10 }, "150-180": { cant: 0.45, m: 3.40 }, "180-200": { cant: 0.40, m: 3.00 }, ">200": { cant: 0.35, m: 2.60 } },
+  hsr: { "<10": { cant: 0.00, m: 0.00 }, "10-30": { cant: 0.00, m: 0.00 }, "30-50": { cant: 0.05, m: 0.50 }, "50-70": { cant: 0.15, m: 2.50 }, "70-100": { cant: 0.35, m: 5.50 }, "100-150": { cant: 0.60, m: 10.00 }, "150-180": { cant: 0.75, m: 12.50 }, "180-200": { cant: 0.85, m: 14.20 }, ">200": { cant: 1.00, m: 16.50 } },
+  sprint: { "<10": { cant: 0.00, m: 0.00 }, "10-30": { cant: 0.00, m: 0.00 }, "30-50": { cant: 0.00, m: 0.00 }, "50-70": { cant: 0.00, m: 0.00 }, "70-100": { cant: 0.00, m: 0.00 }, "100-150": { cant: 0.05, m: 1.50 }, "150-180": { cant: 0.12, m: 3.50 }, "180-200": { cant: 0.20, m: 5.80 }, ">200": { cant: 0.30, m: 8.50 } }
+};
+
 function calcularDistancias(jugadores: number, largo: number, ancho: number, series: number, minutos: number) {
   if (!jugadores || !largo || !ancho || !series || !minutos) return null
   const espacioM2 = largo * ancho
   const densidad = espacioM2 / jugadores
   const tiempoTotal = series * minutos
   const distTotal = Math.max(0, (19.243 * Math.log(densidad) - 5.029) * tiempoTotal)
-  
-  // HSR (m) calculation based on user's reference table averages
-  let hsrRate = 0;
-  if (densidad < 100) {
-    hsrRate = 0.5; // 0.2 a 0.8
-  } else if (densidad <= 180) {
-    hsrRate = 1.85; // 1.2 a 2.5
-  } else if (densidad <= 280) {
-    hsrRate = 4.5; // 3.0 a 6.0
-  } else {
-    hsrRate = 9.5; // Competición: 7.0 a 12.0
-  }
-  const distSprint = Number((hsrRate * tiempoTotal).toFixed(1))
   const distMP = Math.max(0, (7.0421 * Math.log(densidad) - 15.255) * tiempoTotal)
-  const distAcel = Math.max(0, (1.321 * Math.log(densidad) - 0.629) * tiempoTotal)
-  const distDecel = Math.max(0, (1.157 * Math.log(densidad) - 0.418) * tiempoTotal)
   
-  // HSR (n) calculation based on user's reference table averages
-  let hsrNRate = 0;
-  if (densidad < 100) {
-    hsrNRate = 0.03; // 0.01 a 0.05
-  } else if (densidad <= 180) {
-    hsrNRate = 0.115; // 0.08 a 0.15
-  } else if (densidad <= 280) {
-    hsrNRate = 0.275; // 0.20 a 0.35
-  } else {
-    hsrNRate = 0.55; // Competición: 0.40 a 0.70
-  }
-  const rawNSprints = hsrNRate * tiempoTotal
-  const nSprints = Math.round(rawNSprints)
-  let nAcelRate = 0;
-  let nDecelRate = 0;
-  if (densidad < 100) { nAcelRate = 3.0; nDecelRate = 3.3; }
-  else if (densidad <= 200) { nAcelRate = 2.1; nDecelRate = 2.3; }
-  else { nAcelRate = 1.25; nDecelRate = 1.4; }
-  const nAcel = nAcelRate * tiempoTotal;
-  const nDecel = nDecelRate * tiempoTotal;
-  // ACE>3 and DEC>3 (high intensity efforts): approx 22% of B2-3 based on Casamichana (2013)
-  const nAcel3 = Math.max(0, Math.round(nAcel * 0.22))
-  const nDecel3 = Math.max(0, Math.round(nDecel * 0.22))
+  let r = ">200";
+  if (densidad < 10) r = "<10";
+  else if (densidad <= 30) r = "10-30";
+  else if (densidad <= 50) r = "30-50";
+  else if (densidad <= 70) r = "50-70";
+  else if (densidad <= 100) r = "70-100";
+  else if (densidad <= 150) r = "100-150";
+  else if (densidad <= 180) r = "150-180";
+  else if (densidad <= 200) r = "180-200";
 
-  let factorAcc = 0;
-  let factorDec = 0;
-  if (densidad < 100) {
-    factorAcc = 1.0;
-    factorDec = 1.8;
-  } else if (densidad <= 180) {
-    factorAcc = 3.0;
-    factorDec = 1.5;
-  } else {
-    factorAcc = 4.25;
-    factorDec = 0.85;
-  }
-  
-  const dist_acc_hi = Number((factorAcc * tiempoTotal).toFixed(1));
-  const dist_dec_hi = Number((factorDec * tiempoTotal).toFixed(1));
-
-  // Sprint >25 km/h (n) and (m) based on density table
-  let sprintN25Rate = 0;
-  let distSprint25Rate = 0;
-  if (densidad < 100) {
-    sprintN25Rate = 0; distSprint25Rate = 0;
-  } else if (densidad <= 180) {
-    sprintN25Rate = 0.075; distSprint25Rate = 1.15; // 0.05-0.1 / 0.8-1.5
-  } else {
-    sprintN25Rate = 0.225; distSprint25Rate = 4.5; // 0.15-0.3 / 3.0-6.0
-  }
-  const sprintN25 = Math.round(sprintN25Rate * tiempoTotal)
-  const distSprint25 = Number((distSprint25Rate * tiempoTotal).toFixed(1))
+  const t = DENSITY_TABLE;
+  const nAcel = Math.round(t.acc_2[r].cant * tiempoTotal);
+  const distAcel = Number((t.acc_2[r].m * tiempoTotal).toFixed(1));
+  const nDecel = Math.round(t.dec_2[r].cant * tiempoTotal);
+  const distDecel = Number((t.dec_2[r].m * tiempoTotal).toFixed(1));
+  const nAcel3 = Math.round(t.acc_3[r].cant * tiempoTotal);
+  const dist_acc_hi = Number((t.acc_3[r].m * tiempoTotal).toFixed(1));
+  const nDecel3 = Math.round(t.dec_3[r].cant * tiempoTotal);
+  const dist_dec_hi = Number((t.dec_3[r].m * tiempoTotal).toFixed(1));
+  const nSprints = Math.round(t.hsr[r].cant * tiempoTotal);
+  const distSprint = Number((t.hsr[r].m * tiempoTotal).toFixed(1));
+  const sprintN25 = Math.round(t.sprint[r].cant * tiempoTotal);
+  const distSprint25 = Number((t.sprint[r].m * tiempoTotal).toFixed(1));
 
   return { distTotal, distSprint, distMP, distAcel, distDecel, nSprints, nAcel, nDecel, nAcel3, nDecel3, dist_acc_hi, dist_dec_hi, sprintN25, distSprint25, densidad, tiempoTotal }
 }
@@ -3703,7 +3668,22 @@ function BloqueMetodologia({ bloque, index, onChangeProp, onRemoveProp, onMoveUp
               </button>
             </div>
             <div style={{ display:'grid', gridTemplateColumns:'repeat(6,1fr)', gap:5 }}>
-              {[['Dist. total','distTotal','m'],['HSR (m)','distSprint','m'],['Alta pot. >20W/kg','distMP','m'],['ACE >2 (m)','distAcel','m'],['DEC >2 (m)','distDecel','m'],['HSR (n)','nSprints',''],['ACE >2 (n)','nAcel',''],['ACE >3 (n)','nAcel3',''],['ACE >3 (m)','dist_acc_hi','m'],['DEC >2 (n)','nDecel',''],['DEC >3 (n)','nDecel3',''],['DEC >3 (m)','dist_dec_hi','m'],['Sprint (n)','sprintN25',''],['Dist Sprint (m)','distSprint25','m']].map(([label,key,unit])=>{
+              {[
+                ['Dist. total','distTotal','m'],
+                ['Alta pot. >20W/kg','distMP','m'],
+                ['Acc > 2 (Cant)','nAcel',''],
+                ['Acc > 2 (Metros)','distAcel','m'],
+                ['Desac > 2 (Cant)','nDecel',''],
+                ['Desac > 2 (Metros)','distDecel','m'],
+                ['Acc > 3 (Cant)','nAcel3',''],
+                ['Acc > 3 (Metros)','dist_acc_hi','m'],
+                ['Desac > 3 (Cant)','nDecel3',''],
+                ['Desac > 3 (Metros)','dist_dec_hi','m'],
+                ['HSR Cantidad','nSprints',''],
+                ['HSR Metros','distSprint','m'],
+                ['Sprint Cantidad','sprintN25',''],
+                ['Sprint Metros','distSprint25','m']
+              ].map(([label,key,unit])=>{
                 const rawVal = Math.round(calc[key])
                 return (
                   <div key={key} style={{ textAlign:'center', background:'var(--ink2)', borderRadius:6, padding:'5px 4px' }}>
@@ -3768,9 +3748,9 @@ const BloqueMetodologiaMemo = React.memo(BloqueMetodologia, (prev: any, next: an
          prev.teamPlayers === next.teamPlayers
 })
 async function imprimirSesion(f: any, bloques: any[], teamPlayers: any[] = []) {
-  const metricKeys = ['distTotal','distSprint','distMP','distAcel','distDecel','nSprints','nAcel','nAcel3','dist_acc_hi','nDecel','nDecel3','dist_dec_hi']
-  const metricLabels = ['Dist. total','HSR (m)','Alta pot. >20W/kg','ACE >2 (m)','DEC >2 (m)','HSR (n)','ACE >2 (n)','ACE >3 (n)','ACE >3 (m)','DEC >2 (n)','DEC >3 (n)','DEC >3 (m)']
-  const metricUnits = ['m','m','m','m','m','','','','m','','','m']
+  const metricKeys = ['distTotal','distMP','nAcel','distAcel','nDecel','distDecel','nAcel3','dist_acc_hi','nDecel3','dist_dec_hi','nSprints','distSprint','sprintN25','distSprint25']
+  const metricLabels = ['Dist. total','Alta pot. >20W/kg','Acc > 2 (Cant)','Acc > 2 (Metros)','Desac > 2 (Cant)','Desac > 2 (Metros)','Acc > 3 (Cant)','Acc > 3 (Metros)','Desac > 3 (Cant)','Desac > 3 (Metros)','HSR Cantidad','HSR Metros','Sprint Cantidad','Sprint Metros']
+  const metricUnits = ['m','m','','m','','m','','m','','m','','m','','m']
   const totals: Record<string,number> = {}
   metricKeys.forEach(k => { totals[k] = 0 })
   
@@ -3830,7 +3810,7 @@ async function imprimirSesion(f: any, bloques: any[], teamPlayers: any[] = []) {
           <strong style="color:${objColor};font-size:11px;text-transform:uppercase">${cuad!.label} · ${calc.densidad.toFixed(1)} m²/jug</strong>
           <span style="font-size:12px;font-weight:800;color:${objColor};text-transform:uppercase">🎯 ${cuad!.objetivo} <span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:${objColor};color:#fff;font-size:12px;font-weight:900;vertical-align:middle;margin-left:4px">${cuad!.intensidad}</span></span>
         </div>
-        <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:4px;margin-top:6px">
+        <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:4px;margin-top:6px">
           ${metricKeys.map((k,mi) => {
             const val = bl.manualMetrics?.[k] !== undefined ? bl.manualMetrics[k] : Math.round(calc[k])
             return `<div style="text-align:center;background:#f8f8f8;border-radius:4px;padding:4px 2px"><div style="font-size:8px;color:#666">${metricLabels[mi]}</div><div style="font-size:12px;font-weight:700">${val}${metricUnits[mi]}</div></div>`
@@ -3881,7 +3861,7 @@ async function imprimirSesion(f: any, bloques: any[], teamPlayers: any[] = []) {
   const totalResumenHtml = hasCarga ? `
     <div style="background:#eff6ff;border:1px solid #93c5fd;border-radius:8px;padding:12px;margin-bottom:12px">
       <strong style="font-size:12px;color:#1d4ed8">📊 Carga total de la sesión</strong>
-      <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-top:8px">
+      <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin-top:8px">
         ${metricKeys.map((k,i) => `<div style="text-align:center;background:white;border-radius:4px;padding:6px"><div style="font-size:9px;color:#555">${metricLabels[i]}</div><div style="font-size:14px;font-weight:700;color:#1d4ed8">${Math.round(totals[k])}${metricUnits[i]}</div></div>`).join('')}
       </div>
     </div>` : ''
@@ -4340,7 +4320,7 @@ function SesionEditor({ sesion, defaultFecha, rpeReal = 0, onSave, onDelete, onC
         return (
           <div style={{ background:'rgba(96,165,250,.06)', border:'1px solid rgba(96,165,250,.2)', borderRadius:10, padding:'12px 16px', marginBottom:16 }}>
             <p style={{ fontSize:10, fontWeight:700, color:'#60a5fa', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:8 }}>📊 Resumen de carga total (todas las tareas)</p>
-            <div style={{ display:'grid', gridTemplateColumns:'repeat(5,1fr)', gap:6 }}>
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(6,1fr)', gap:6 }}>
               {metricKeys.map((k,i) => (
                 <div key={k} style={{ textAlign:'center', background:'var(--ink2)', borderRadius:8, padding:'8px 6px' }}>
                   <div style={{ fontSize:8, color:'var(--silver)', marginBottom:3, lineHeight:1.3 }}>{metricLabels[i]}</div>
