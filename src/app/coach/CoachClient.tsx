@@ -1806,7 +1806,7 @@ const OBJETIVOS_FISICOS = [
   'Competición'
 ]
 const OBJETIVOS_SECUNDARIOS = ['Táctico','Técnico','Técnico-Táctico']
-const TITULOS_SESION = ['MD+1','MD+2','MD+3','MD-4','MD-3','MD-2','MD-1','MD']
+const TITULOS_SESION = ['MD+1','MD+2','MD+3','MD-4','MD-3','MD-2','MD-1','MD','No MD']
 const ENTRENAMIENTO_OPTIMIZADOR = {
   COMPETITIVO: ['PARTIDO COMPETICIÓN', 'PARTIDO AMISTOSO', 'PARTIDO ENTRENAMIENTO', 'PARTIDO SITUACIÓN 11c11-8c8', 'PARTIDO REDUCIDO 7c7-3c3'],
   ESPECIAL: ['JUEGO POSICIÓN GRANDE 8c8-11c11', 'JUEGO POSICIÓN REDUCIDO 7c7-3c3', 'EVOLUCIÓN CON OPOSICIÓN', 'ABP CON OPOSICIÓN', 'EVOLUCIÓN SIN OPOSICIÓN', 'ABP SIN OPOSICIÓN', 'RONDOS', 'TRANSICIONES']
@@ -4970,7 +4970,7 @@ function CargaExternaPanel() {
   const allMetricCols: string[] = data?.allMetricCols || []
   const sesionesInfo: any[] = data?.sesionesInfo || []
   // Only show MD columns that actually exist in sesionesInfo (no ghost columns)
-  const MD_ORDER_LOCAL = ['MD+1','MD+2','MD+3','MD-4','MD-3','MD-2','MD-1','MD']
+  const MD_ORDER_LOCAL = ['MD+1','MD+2','MD+3','MD-4','MD-3','MD-2','MD-1','MD','No MD']
   // Filter sesionesInfo to only sessions the calendar actually shows.
   // calSesiones is built from /api/calendario (same source of truth as the UI).
   // This prevents "ghost" MD sessions that exist in sesiones_plan but are not
@@ -7266,7 +7266,7 @@ function AcumPanel({ teamData }) {
   const miciSesionesInfo: any[] = miciData?.sesionesInfo || []
   const miciExistingMds = new Set(miciSesionesInfo.map((s:any) => s.titulo))
   // Training MDs only (exclude 'MD' = partido)
-  const miciTrainingMds = ['MD+1','MD+2','MD+3','MD-4','MD-3','MD-2','MD-1'].filter(md => miciExistingMds.has(md))
+  const miciTrainingMds = ['MD+1','MD+2','MD+3','MD-4','MD-3','MD-2','MD-1','No MD'].filter(md => miciExistingMds.has(md))
 
   // Calc GPS vars: same for all players (from session plan), summed across training MDs only
   const getMiciSessionVal = (vk: string) =>
@@ -7385,7 +7385,7 @@ function AcumPanel({ teamData }) {
               const thL = (c: string) => `padding:4px 12px;text-align:left;font-size:8px;font-weight:700;text-transform:uppercase;border-bottom:2px solid #e5e7eb;color:${c};background:#f8fafc;`
               const tdL = (c: string, b=false) => `padding:5px 12px;color:${c};font-weight:${b?700:400};border-bottom:1px solid #f0f0f0;font-size:10px;`
 
-              const allMDs = ['MD+1','MD+2','MD+3','MD-4','MD-3','MD-2','MD-1']
+              const allMDs = ['MD+1','MD+2','MD+3','MD-4','MD-3','MD-2','MD-1','No MD']
               const activeMDs = allMDs.filter(md => miciExistingMds.has(md))
               const RPE_VARS = [{key:'rpe',label:'RPE',color:'#c8f135'},{key:'ua_total',label:'UA',color:'#60a5fa'},{key:'minActivo',label:'Min',color:'#34d399'}]
 
@@ -8326,7 +8326,7 @@ function GpsPanel({ teamData }: { teamData: any }) {
 // ═══════════════════════════════════════════════════════════════════
 // CONTROL DE CARGA — CALC (datos RPE + calculadora desde Calendario)
 // ═══════════════════════════════════════════════════════════════════
-const MD_ORDER = ['MD+1','MD+2','MD+3','MD-4','MD-3','MD-2','MD-1','MD']
+const MD_ORDER = ['MD+1','MD+2','MD+3','MD-4','MD-3','MD-2','MD-1','MD','No MD']
 
 function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
   const today = todayLocal()
@@ -8523,7 +8523,7 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
     nAcel:'acc3', nDecel:'dec3', distMP:'dist_v4', nAcel3:'acc3', nDecel3:'dec3',
   }
   // Always show all 8 MD slots (skeleton view) — existingMdLabels controls opacity/hasData
-  const MD_ORDER_LOCAL = ['MD+1','MD+2','MD+3','MD-4','MD-3','MD-2','MD-1','MD']
+  const MD_ORDER_LOCAL = ['MD+1','MD+2','MD+3','MD-4','MD-3','MD-2','MD-1','MD','No MD']
   const existingMdLabels = new Set(sesionesInfo.map((s:any) => s.titulo))
   const mdCols = [
     ...MD_ORDER_LOCAL,
@@ -10069,7 +10069,7 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
       }
     })
   })()
-  const MD_ORDER_LOCAL = ['MD+1','MD+2','MD+3','MD-4','MD-3','MD-2','MD-1','MD']
+  const MD_ORDER_LOCAL = ['MD+1','MD+2','MD+3','MD-4','MD-3','MD-2','MD-1','MD','No MD']
   const existingMdLabels = new Set(sesionesInfo.map((s:any) => s.titulo))
   const mdCols = MD_ORDER_LOCAL
 
@@ -10234,7 +10234,7 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
             const thL = (c: string) => `padding:4px 12px;text-align:left;font-size:8px;font-weight:700;text-transform:uppercase;border-bottom:2px solid #e5e7eb;color:${c};background:#f8fafc;`
             const tdL = (c: string, b=false) => `padding:5px 12px;color:${c};font-weight:${b?700:400};border-bottom:1px solid #f0f0f0;font-size:10px;`
 
-            const allMDs = ['MD+1','MD+2','MD+3','MD-4','MD-3','MD-2','MD-1','MD']
+            const allMDs = ['MD+1','MD+2','MD+3','MD-4','MD-3','MD-2','MD-1','MD','No MD']
             const dateDates = Object.keys(gpsPerMD).filter(k => !allMDs.includes(k)).sort()
             const allSecs = [
               ...dateDates.map(d => ({key:d, label:`📅 ${d}`, isDate:true})),
@@ -11650,7 +11650,7 @@ function ExpoAIPanel({ teamData }: { teamData: any[] }) {
   const gpsReal: any[] = data?.gpsReal || []
   const gpsPerMD: Record<string,any[]> = data?.gpsPerMD || {}
   const sesionesInfo: any[] = data?.sesionesInfo || []
-  const MD_ORDER_LOCAL = ['MD+1','MD+2','MD-4','MD-3','MD-2','MD-1']
+  const MD_ORDER_LOCAL = ['MD+1','MD+2','MD-4','MD-3','MD-2','MD-1','No MD']
   const existingMd = new Set(sesionesInfo.map((s:any)=>s.titulo))
 
   // Ref media (avg of selected matches)

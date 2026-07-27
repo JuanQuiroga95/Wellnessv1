@@ -280,7 +280,7 @@ export default function InicioPanel({ teamData, session, today }: { teamData: an
           setLoadData(dailyLoad.slice(-7)) // Last 7 for trend
           
           const mdMap = new Map<string, { md:string; actual:number; anterior:number }>()
-          const mdLabels = ['MD-4','MD-3','MD-2','MD-1','MD','MD+1','MD+2']
+          const mdLabels = ['MD-4','MD-3','MD-2','MD-1','MD','MD+1','MD+2','No MD']
           mdLabels.forEach(md => mdMap.set(md, { md, actual:0, anterior:0 }))
           
           const sorted = [...dailyLoad].sort((a,b)=>a.fecha.localeCompare(b.fecha))

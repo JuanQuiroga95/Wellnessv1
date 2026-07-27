@@ -14,7 +14,7 @@ export default function PerfilNeuromuscularPanel() {
   const [showPartidosDropdown, setShowPartidosDropdown] = useState(false)
   const [selectedMD, setSelectedMD] = useState('MD')
   
-  const MD_OPTIONS = ['MD+1', 'MD+2', 'MD-4', 'MD-3', 'MD-2', 'MD-1', 'MD']
+  const MD_OPTIONS = ['MD+1', 'MD+2', 'MD-4', 'MD-3', 'MD-2', 'MD-1', 'MD', 'No MD']
 
   useEffect(() => { load() }, [desde, hasta, partidosBase])
 
