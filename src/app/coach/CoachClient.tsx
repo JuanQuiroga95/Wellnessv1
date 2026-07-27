@@ -1338,6 +1338,8 @@ function CambioCargaPanel() {
     { key:'calc_distMP',       label:'Alta Pot. m',   color:'#fb923c', src:'calc' },
     { key:'calc_distTotal',    label:'Dist. Total m', color:'#f59e0b', src:'calc' },
     { key:'calc_distSprint',   label:'HSR (m)',       color:'#38bdf8', src:'calc' },
+    { key:'calc_sprintN25',    label:'Sprint (n)',    color:'#e879f9', src:'calc' },
+    { key:'calc_distSprint25', label:'Dist Sprint (m)', color:'#e879f9', src:'calc' },
   ]
   const CHART_VARS_GPS = [
     { key:'rpe',         label:'RPE',           color:'#60a5fa', src:'gps' },
@@ -2797,9 +2799,9 @@ function CalendarioPanel({ teamData }) {
                     
                     {/* Carga Total Absoluta de la Sesión (GPS Calc) */}
                     {(() => {
-                      const metricKeys = ['distTotal','distSprint','distMP','distAcel','distDecel','nSprints','nAcel','nAcel3','dist_acc_hi','nDecel','nDecel3','dist_dec_hi']
-                      const metricLabels = ['Dist. total','HSR (m)','Alta pot. >20W/kg','ACE >2 (m)','DEC >2 (m)','HSR (n)','ACE >2 (n)','ACE >3 (n)','ACE >3 (m)','DEC >2 (n)','DEC >3 (n)','DEC >3 (m)']
-                      const metricUnits = ['m','m','m','m','m','','','','m','','','m']
+                      const metricKeys = ['distTotal','distSprint','distMP','distAcel','distDecel','nSprints','nAcel','nAcel3','dist_acc_hi','nDecel','nDecel3','dist_dec_hi','sprintN25','distSprint25']
+                      const metricLabels = ['Dist. total','HSR (m)','Alta pot. >20W/kg','ACE >2 (m)','DEC >2 (m)','HSR (n)','ACE >2 (n)','ACE >3 (n)','ACE >3 (m)','DEC >2 (n)','DEC >3 (n)','DEC >3 (m)','Sprint (n)','Dist Sprint (m)']
+                      const metricUnits = ['m','m','m','m','m','','','','m','','','m','','m']
                       const totals: Record<string,number> = {}
                       metricKeys.forEach(k => { totals[k] = 0 })
                       let hasCarga = false
@@ -3266,7 +3268,20 @@ function calcularDistancias(jugadores: number, largo: number, ancho: number, ser
   const dist_acc_hi = Number((factorAcc * tiempoTotal).toFixed(1));
   const dist_dec_hi = Number((factorDec * tiempoTotal).toFixed(1));
 
-  return { distTotal, distSprint, distMP, distAcel, distDecel, nSprints, nAcel, nDecel, nAcel3, nDecel3, dist_acc_hi, dist_dec_hi, densidad, tiempoTotal }
+  // Sprint >25 km/h (n) and (m) based on density table
+  let sprintN25Rate = 0;
+  let distSprint25Rate = 0;
+  if (densidad < 100) {
+    sprintN25Rate = 0; distSprint25Rate = 0;
+  } else if (densidad <= 180) {
+    sprintN25Rate = 0.075; distSprint25Rate = 1.15; // 0.05-0.1 / 0.8-1.5
+  } else {
+    sprintN25Rate = 0.225; distSprint25Rate = 4.5; // 0.15-0.3 / 3.0-6.0
+  }
+  const sprintN25 = Math.round(sprintN25Rate * tiempoTotal)
+  const distSprint25 = Number((distSprint25Rate * tiempoTotal).toFixed(1))
+
+  return { distTotal, distSprint, distMP, distAcel, distDecel, nSprints, nAcel, nDecel, nAcel3, nDecel3, dist_acc_hi, dist_dec_hi, sprintN25, distSprint25, densidad, tiempoTotal }
 }
 
 function BloqueMetodologia({ bloque, index, onChangeProp, onRemoveProp, onMoveUpProp, onMoveDownProp, teamPlayers = [], isFirst, isLast }) {
@@ -3688,7 +3703,7 @@ function BloqueMetodologia({ bloque, index, onChangeProp, onRemoveProp, onMoveUp
               </button>
             </div>
             <div style={{ display:'grid', gridTemplateColumns:'repeat(6,1fr)', gap:5 }}>
-              {[['Dist. total','distTotal','m'],['HSR (m)','distSprint','m'],['Alta pot. >20W/kg','distMP','m'],['ACE >2 (m)','distAcel','m'],['DEC >2 (m)','distDecel','m'],['HSR (n)','nSprints',''],['ACE >2 (n)','nAcel',''],['ACE >3 (n)','nAcel3',''],['ACE >3 (m)','dist_acc_hi','m'],['DEC >2 (n)','nDecel',''],['DEC >3 (n)','nDecel3',''],['DEC >3 (m)','dist_dec_hi','m']].map(([label,key,unit])=>{
+              {[['Dist. total','distTotal','m'],['HSR (m)','distSprint','m'],['Alta pot. >20W/kg','distMP','m'],['ACE >2 (m)','distAcel','m'],['DEC >2 (m)','distDecel','m'],['HSR (n)','nSprints',''],['ACE >2 (n)','nAcel',''],['ACE >3 (n)','nAcel3',''],['ACE >3 (m)','dist_acc_hi','m'],['DEC >2 (n)','nDecel',''],['DEC >3 (n)','nDecel3',''],['DEC >3 (m)','dist_dec_hi','m'],['Sprint (n)','sprintN25',''],['Dist Sprint (m)','distSprint25','m']].map(([label,key,unit])=>{
                 const rawVal = Math.round(calc[key])
                 return (
                   <div key={key} style={{ textAlign:'center', background:'var(--ink2)', borderRadius:6, padding:'5px 4px' }}>
@@ -9133,6 +9148,8 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
             {key:'nDecel3',    label:'DEC >3 (n)',      color:'#0ea5e9'},
             {key:'dist_acc_hi',label:'ACE >3 (m)',      color:'#ec4899'},
             {key:'dist_dec_hi',label:'DEC >3 (m)',      color:'#14b8a6'},
+            {key:'sprintN25',  label:'Sprint (n)',      color:'#e879f9'},
+            {key:'distSprint25',label:'Dist Sprint (m)',color:'#e879f9'},
             {key:'distMP',     label:'Alta Pot.',       color:'#fbbf24'},
           ]
           return (
