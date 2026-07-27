@@ -134,49 +134,14 @@ export async function DELETE(req: NextRequest) {
 
     const { searchParams } = new URL(req.url)
     const id = searchParams.get('id')
-    const action = searchParams.get('action')
-    const jugadorId = searchParams.get('jugador_id')
-    const fecha = searchParams.get('fecha')
+    if (!id) return NextResponse.json({ error: 'Falta ID' }, { status: 400 })
 
     const sql = getDb()
+    await sql`DELETE FROM fuerza_rutinas WHERE id = ${Number(id)}`
 
-    if (id) {
-      await sql`DELETE FROM fuerza_rutinas WHERE id = ${Number(id)}`
-      return NextResponse.json({ success: true })
-    } 
-    
-    if (action === 'dia' && jugadorId && fecha) {
-      if (jugadorId === 'todos') {
-        const clubId = s.clubId ? Number(s.clubId) : null
-        if (clubId) {
-          await sql`DELETE FROM fuerza_rutinas WHERE fecha = ${fecha} AND club_id = ${clubId}`
-        } else {
-          await sql`DELETE FROM fuerza_rutinas WHERE fecha = ${fecha} AND club_id IS NULL`
-        }
-      } else {
-        await sql`DELETE FROM fuerza_rutinas WHERE jugador_id = ${Number(jugadorId)} AND fecha = ${fecha}`
-      }
-      return NextResponse.json({ success: true })
-    }
-
-    if (action === 'semana' && jugadorId && fecha) {
-      if (jugadorId === 'todos') {
-        const clubId = s.clubId ? Number(s.clubId) : null
-        if (clubId) {
-          await sql`DELETE FROM fuerza_rutinas WHERE club_id = ${clubId} AND fecha >= date_trunc('week', ${fecha}::date) AND fecha < date_trunc('week', ${fecha}::date) + interval '1 week'`
-        } else {
-          await sql`DELETE FROM fuerza_rutinas WHERE club_id IS NULL AND fecha >= date_trunc('week', ${fecha}::date) AND fecha < date_trunc('week', ${fecha}::date) + interval '1 week'`
-        }
-      } else {
-        await sql`DELETE FROM fuerza_rutinas WHERE jugador_id = ${Number(jugadorId)} AND fecha >= date_trunc('week', ${fecha}::date) AND fecha < date_trunc('week', ${fecha}::date) + interval '1 week'`
-      }
-      return NextResponse.json({ success: true })
-    }
-
-    return NextResponse.json({ error: 'Parámetros inválidos' }, { status: 400 })
+    return NextResponse.json({ success: true })
   } catch (err) {
     console.error('[DELETE /api/fuerza/rutinas]', err)
     return NextResponse.json({ error: String(err) }, { status: 500 })
   }
 }
-

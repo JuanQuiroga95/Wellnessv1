@@ -220,34 +220,6 @@ export default function FuerzaPanel({ teamData, session }: { teamData: any[], se
     }
   }
 
-  const handleBorrarDia = async () => {
-    if (!selectedJugador || !selectedFecha) return
-    if (!confirm('¿Estás seguro de que quieres borrar TODA la rutina de ESTE DÍA?')) return
-    try {
-      await fetch(`/api/fuerza/rutinas?action=dia&jugador_id=${selectedJugador}&fecha=${selectedFecha}`, { method: 'DELETE' })
-      loadRutinas()
-      if (selectedJugador === 'todos') {
-        alert('Se borró la rutina del día para todos los jugadores.')
-      }
-    } catch (err) {
-      console.error(err)
-    }
-  }
-
-  const handleBorrarSemana = async () => {
-    if (!selectedJugador || !selectedFecha) return
-    if (!confirm('¿Estás seguro de que quieres borrar TODA la rutina de ESTA SEMANA (Lunes a Domingo)?')) return
-    try {
-      await fetch(`/api/fuerza/rutinas?action=semana&jugador_id=${selectedJugador}&fecha=${selectedFecha}`, { method: 'DELETE' })
-      loadRutinas()
-      if (selectedJugador === 'todos') {
-        alert('Se borró la rutina de la semana para todos los jugadores.')
-      }
-    } catch (err) {
-      console.error(err)
-    }
-  }
-
   return (
     <div style={{ padding: 24, maxWidth: 1000, margin: '0 auto' }}>
       <PanelHeader icon={<span style={{fontSize: 28}}>💪</span>} title="RUTINA DE FUERZA" subtitle="Los 10 Mandamientos" color="#ec4899" />
@@ -539,13 +511,7 @@ export default function FuerzaPanel({ teamData, session }: { teamData: any[], se
           <div style={{ flex:1.5, minWidth:300 }}>
             {selectedJugador && selectedFecha ? (
               <div style={{ background:'var(--ink2)', padding:24, borderRadius:16, border:'1px solid var(--mist)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                  <h3 style={{ margin:0, fontSize:16, color:'var(--snow)' }}>Rutina del Día</h3>
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    <button onClick={handleBorrarDia} className="hover-scale" style={{ background:'rgba(239,68,68,0.1)', color:'#ef4444', border:'1px solid rgba(239,68,68,0.2)', borderRadius:8, padding:'4px 10px', fontSize:12, cursor:'pointer' }}>Borrar Día</button>
-                    <button onClick={handleBorrarSemana} className="hover-scale" style={{ background:'rgba(239,68,68,0.1)', color:'#ef4444', border:'1px solid rgba(239,68,68,0.2)', borderRadius:8, padding:'4px 10px', fontSize:12, cursor:'pointer' }}>Borrar Semana</button>
-                  </div>
-                </div>
+                <h3 style={{ margin:'0 0 4px 0', fontSize:16, color:'var(--snow)' }}>Rutina del Día</h3>
                 <p style={{ margin:'0 0 16px 0', fontSize:12, color:'var(--silver)' }}>
                   {selectedJugador === 'todos' ? 'Asignación Masiva (Selecciona un jugador para ver su rutina)' : teamData.find(p=>p.id===Number(selectedJugador))?.nombre} - {selectedFecha}
                 </p>
