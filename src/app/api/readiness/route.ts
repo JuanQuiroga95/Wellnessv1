@@ -97,7 +97,7 @@ export async function GET(req: NextRequest) {
     ORDER BY j.id`
   const daily = await sql`
     SELECT w.fecha::text AS date,
-           ROUND(AVG(w.fatiga + w.calidad_sueno + w.dolor_muscular + w.nivel_estres + w.estado_animo) * 4, 1)::float AS "avgReadiness"
+           ROUND((25.0 - AVG(w.fatiga + w.calidad_sueno + w.dolor_muscular + w.nivel_estres + w.estado_animo)) * 5.0, 1)::float AS "avgReadiness"
     FROM wellness_logs w
     JOIN jugadores j ON j.id=w.jugador_id
     JOIN usuarios u  ON u.id=j.usuario_id
