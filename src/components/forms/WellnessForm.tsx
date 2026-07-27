@@ -739,15 +739,36 @@ export default function WellnessForm({ isPanama, jugadorId, onSuccess, todayWell
           </div>
 
           {!isPanama && (
-            <div style={{ display:'flex', flexDirection:'column', gap:16, marginTop:24, padding:16, background:'var(--ink2)', borderRadius:12, border:'1px solid var(--mist)' }}>
-              <label style={{ display:'flex', alignItems:'center', gap:10, cursor:'pointer' }}>
-                <input type="checkbox" checked={entrenaGrupo} onChange={e=>setEntrenaGrupo(e.target.checked)} style={{ width:18, height:18, accentColor:'var(--lime)' }} />
-                <span style={{ fontSize:14, fontWeight:600, color:entrenaGrupo?'var(--lime)':'var(--silver)' }}>¿Hoy entrenas con el grupo?</span>
-              </label>
-              <label style={{ display:'flex', alignItems:'center', gap:10, cursor:'pointer' }}>
-                <input type="checkbox" checked={fueGimnasio} onChange={e=>setFueGimnasio(e.target.checked)} style={{ width:18, height:18, accentColor:'var(--lime)' }} />
-                <span style={{ fontSize:14, fontWeight:600, color:fueGimnasio?'var(--lime)':'var(--silver)' }}>¿Has ido al gimnasio por la mañana?</span>
-              </label>
+            <div style={{ display:'flex', flexDirection:'column', gap:20, marginTop:24, padding:16, background:'var(--ink2)', borderRadius:12, border:'1px solid var(--mist)' }}>
+              <div>
+                <label style={{ display:'block', fontSize:11, fontWeight:600, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:10 }}>¿HOY ENTRENAS CON EL GRUPO?</label>
+                <div style={{ display:'flex', gap:10 }}>
+                  {radioBtn('SÍ', entrenaGrupo===true, ()=>setEntrenaGrupo(true), 'var(--lime)')}
+                  {radioBtn('NO', entrenaGrupo===false, ()=>setEntrenaGrupo(false), '#ef4444')}
+                </div>
+              </div>
+              
+              <div>
+                <label style={{ display:'block', fontSize:11, fontWeight:600, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:10 }}>¿HAS IDO AL GIMNASIO POR LA MAÑANA?</label>
+                <div style={{ display:'flex', gap:10 }}>
+                  {radioBtn('SÍ', fueGimnasio===true, ()=>setFueGimnasio(true), 'var(--lime)')}
+                  {radioBtn('NO', fueGimnasio===false, ()=>setFueGimnasio(false), '#ef4444')}
+                </div>
+                {fueGimnasio && (
+                  <div style={{ marginTop:14 }} className="anim-up">
+                    <label style={{ display:'block', fontSize:11, fontWeight:600, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:8 }}>
+                      BREVE DESCRIPCIÓN DE LO QUE HAS HECHO
+                    </label>
+                    <textarea 
+                      className="wp-input" 
+                      value={gruposMusculares} 
+                      onChange={e=>setGruposMusculares(e.target.value)} 
+                      placeholder="Ej: Tren superior, ejercicios preventivos..." 
+                      style={{ height:80, resize:'none' }}
+                    />
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </>
