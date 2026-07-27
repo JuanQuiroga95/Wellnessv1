@@ -12237,6 +12237,7 @@ ${secciones_data.map(sec => `
             { icon:'📅', title:'Paso 2 — Planificá tu semana', desc:'Usá "Calendario" para crear sesiones y partidos. Dentro de cada sesión podés armar bloques de tareas y ver la estimación de carga para cada una.' },
             { icon:'💊', title:'Paso 3 — Monitoreá el wellness', desc:'Cada jugador completa su formulario diario desde la vista de jugador. En la pestaña "Equipo" ves en tiempo real quién respondió y el ACWR de cada uno.' },
             { icon:'📡', title:'Paso 4 — Importá GPS (opcional)', desc:'Si usás Catapult, exportá el Session Summary y subilo desde "GPS". El sistema detecta automáticamente a los jugadores y las variables disponibles.' },
+            { icon:'🔄', title:'Multi-Club', desc:'Si administrás varios clubes, usá el botón superior para cambiar de equipo rápidamente manteniendo tus sesiones y datos 100% aislados.' },
           ].map(item => (
             <div key={item.title} style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:14, padding:18 }}>
               <div style={{ fontSize:24, marginBottom:8 }}>{item.icon}</div>
@@ -12260,6 +12261,7 @@ ${secciones_data.map(sec => `
           <ManualRow label="Plantel" desc="Número total de jugadores registrados, con desglose de disponibles, diferenciados y lesionados." />
           <ManualRow label="Wellness Hoy" desc="Cuántos jugadores completaron el formulario de bienestar hoy. La barra de progreso se actualiza en tiempo real. Los jugadores pendientes se muestran en rojo." />
           <ManualRow label="EN RIESGO / PRECAUCIÓN / ÓPTIMOS" desc="Cantidad de jugadores en cada categoría de ACWR. Verde = óptimo (0.8–1.3), amarillo = precaución (1.3–1.5), rojo = riesgo (>1.5 o <0.8)." />
+          <ManualRow label="Tendencia Readiness" desc="Gráfico de evolución (0-100%) del bienestar del plantel a lo largo del tiempo. Mayor porcentaje indica un equipo más recuperado y listo para entrenar." />
         </ManualSection>
         <ManualSection title="Lista de jugadores">
           <ManualRow label="Punto de color" desc="Verde si el jugador completó el wellness hoy, rojo si no lo hizo todavía." />
@@ -12272,7 +12274,7 @@ ${secciones_data.map(sec => `
           <p style={{ fontSize:12, color:'var(--silver)', lineHeight:1.65, marginBottom:10 }}>Hacé clic en un jugador para ver su vista detallada. Podés cambiar el ciclo entre Microciclo (7 días), Mesociclo (28 días) y Macrociclo (temporada).</p>
           <ManualRow label="Gráfico ACWR" desc="Evolución del ratio a lo largo del ciclo. La banda verde sombreada = zona óptima (0.8–1.3)." />
           <ManualRow label="Tabla de carga" desc="Historial día a día con la UA de cada sesión, el ACWR calculado y el estado resultante." />
-          <ManualRow label="Último Wellness" desc="Detalle del último registro: barras de cada parámetro, TQR, zona de dolor y si fue al gimnasio." />
+          <ManualRow label="Último Wellness" desc="Detalle del último registro: barras de cada parámetro, TQR, si fue al gimnasio y si entrenó con el grupo. (El sistema adapta automáticamente la escala para clubes como Panamá)." />
           <ManualRow label="RPE — Últimas sesiones" desc="Barras con el RPE de las últimas 12 sesiones. El color indica la intensidad percibida." />
         </ManualSection>
         <ManualSection title="Escudo y nombre del equipo">
@@ -12308,7 +12310,7 @@ ${secciones_data.map(sec => `
         <ManualSection title="Calculadora de carga en bloques de tarea">
           <p style={{ fontSize:12, color:'var(--silver)', lineHeight:1.65, marginBottom:10 }}>Cuando una tarea tiene dimensiones de espacio (Rondo, Partido reducido, Juego de posición, etc.), la calculadora se activa automáticamente y muestra:</p>
           <ManualRow label="Objetivo de la tarea + Número" desc="Categoría según Sangnier et al. (2018): Fuerza, Activación, Resistencia o Velocidad. El número (1–4) indica intensidad dentro de esa categoría: 1 es la más intensa, 4 la menos intensa." />
-          <ManualRow label="Estimación de carga GPS" desc="Distancia total, sprint (>21 km/h), alta potencia (>20 W/kg), aceleraciones, deceleraciones y número de sprints, calculados según densidad (m²/jugador) y tiempo activo total." />
+          <ManualRow label="Estimación de carga GPS" desc="Calculada automáticamente usando la Matriz de Densidad Oficial según m²/jugador y tiempo activo. Incluye Distancia Total, HSR (N) y (m) (>21 km/h), Sprints (>25 km/h), Alta Potencia, y Aceleraciones/Deceleraciones de alta intensidad (>2 y >3 m/s²)." />
           <ManualRow label="✏️ Editar GPS" desc="Podés sobrescribir manualmente cualquier métrica calculada con el dato real de GPS. Los valores editados se muestran en azul." />
           <ManualRow label="Imagen de la tarea" desc="Subí una foto o diagrama. Se guarda junto a la sesión y aparece en la vista de impresión." />
         </ManualSection>
@@ -12437,7 +12439,7 @@ ${secciones_data.map(sec => `
         <h2 style={{ fontFamily:'Bebas Neue,sans-serif', fontSize:34, color:'var(--snow)', marginBottom:4, letterSpacing:'0.04em' }}>📋 Evaluaciones</h2>
         <p style={{ fontSize:12, color:'var(--silver)', marginBottom:20, lineHeight:1.65 }}>Registro de tests físicos individuales. Historial de evaluaciones de cada jugador a lo largo de la temporada.</p>
         <ManualSection title="Tests disponibles">
-          {[['PFV','Pico de Fuerza Vertical (N o kg). Test de salto con plataforma de fuerza.'],['DSI','Dynamic Strength Index. Ratio entre fuerza dinámica e isométrica máxima.'],['CMJ','Countermovement Jump (cm). Altura de salto con contramovimiento.'],['RSI','Reactive Strength Index. Índice de fuerza reactiva en saltos continuos.'],['I/Q','Ratio isquiotibiales/cuádriceps. Evaluación de equilibrio muscular.'],['Aduc. ISO','Fuerza isométrica de aductores (kg). Prevención de lesión inguinal.'],['FMS','Functional Movement Screen. Puntuación de calidad de movimiento (máx. 21).'],['Vel. Lineal','Velocidad lineal en sprint (segundos en distancia fija).'],['Vel. Fuerza','Test de velocidad-fuerza.'],['YO-YO','Test YO-YO de resistencia intermitente. Nivel y metros alcanzados.']].map(([t,d])=><ManualRow key={t} label={t} desc={d} />)}
+          {[['PFV','Pico de Fuerza Vertical (N o kg). Test de salto con plataforma de fuerza.'],['DSI','Dynamic Strength Index. Ratio entre fuerza dinámica e isométrica máxima.'],['CMJ','Countermovement Jump (cm). Altura de salto con contramovimiento.'],['RSI','Reactive Strength Index. Índice de fuerza reactiva en saltos continuos.'],['I/Q','Ratio isquiotibiales/cuádriceps. Evaluación de equilibrio muscular.'],['Aduc. ISO','Fuerza isométrica de aductores (kg). Prevención de lesión inguinal.'],['FMS','Functional Movement Screen. Puntuación de calidad de movimiento (máx. 21).'],['InBody', 'Composición corporal mediante bioimpedancia. Incluye alertas de estado de hidratación, peso y % de grasa.'],['Vel. Lineal','Velocidad lineal en sprint (segundos en distancia fija).'],['Vel. Fuerza','Test de velocidad-fuerza.'],['YO-YO','Test YO-YO de resistencia intermitente. Nivel y metros alcanzados.']].map(([t,d])=><ManualRow key={t} label={t} desc={d} />)}
         </ManualSection>
         <ManualSection title="Cómo registrar">
           <p style={{ fontSize:12, color:'var(--silver)', lineHeight:1.65 }}>Hacé clic en <strong style={{ color:'var(--lime)' }}>+ Nueva Evaluación</strong>, seleccioná el jugador y la fecha, completá los tests que correspondan (no es necesario completar todos) y guardá.</p>
