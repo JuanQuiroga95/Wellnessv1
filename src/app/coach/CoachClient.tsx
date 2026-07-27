@@ -3209,9 +3209,19 @@ function calcularDistancias(jugadores: number, largo: number, ancho: number, ser
   const densidad = espacioM2 / jugadores
   const tiempoTotal = series * minutos
   const distTotal = Math.max(0, (19.243 * Math.log(densidad) - 5.029) * tiempoTotal)
-  // distSprint y nSprints usan intercepto reducido para producir valores realistas
-  // en tareas de alta densidad (partidos reducidos, rondos, etc.)
-  const distSprint = Math.max(0, (0.018 * densidad - 0.1) * tiempoTotal)
+  
+  // HSR (m) calculation based on user's reference table averages
+  let hsrRate = 0;
+  if (densidad < 100) {
+    hsrRate = 0.5; // 0.2 a 0.8
+  } else if (densidad <= 180) {
+    hsrRate = 1.85; // 1.2 a 2.5
+  } else if (densidad <= 280) {
+    hsrRate = 4.5; // 3.0 a 6.0
+  } else {
+    hsrRate = 9.5; // Competición: 7.0 a 12.0
+  }
+  const distSprint = Number((hsrRate * tiempoTotal).toFixed(1))
   const distMP = Math.max(0, (7.0421 * Math.log(densidad) - 15.255) * tiempoTotal)
   const distAcel = Math.max(0, (1.321 * Math.log(densidad) - 0.629) * tiempoTotal)
   const distDecel = Math.max(0, (1.157 * Math.log(densidad) - 0.418) * tiempoTotal)
