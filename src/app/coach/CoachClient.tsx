@@ -652,7 +652,7 @@ export default function CoachDashboard({ isPanama, session, teamData, today }: a
         {tab==='control-carga-gps' && <ControlCargaGpsPanel teamData={teamData} />}
         {tab==='acumulado' && <AcumPanel teamData={teamData} />}
         {tab==='expo-ai' && <ExpoAIPanel teamData={teamData} />}
-        {tab==='evaluaciones' && <EvaluacionesPanel teamData={teamData} />}
+        {tab==='evaluaciones' && <EvaluacionesPanel teamData={teamData} teamName={teamName} />}
         {tab==='biblioteca' && <BibliotecaPanel />}
         {tab==='cambio-carga' && <CambioCargaPanel />}
         {tab==='comparativa' && <ComparativaPanel teamData={teamData} />}
@@ -12019,8 +12019,8 @@ function ExpoAIPanel({ teamData }: { teamData: any[] }) {
 // EvaluacionesPanel — implementado en ./EvaluacionesPanel.tsx
 // El componente completo (Variables, Pesajes, CMJ, Isométrico) vive en ese archivo.
 // CoachClient simplemente lo re-exporta aquí para no duplicar código.
-function EvaluacionesPanel({ teamData }: { teamData: any[] }) {
-  return <EvaluacionesPanelFull teamData={teamData} />
+function EvaluacionesPanel({ teamData, teamName }: { teamData: any[], teamName: string }) {
+  return <EvaluacionesPanelFull teamData={teamData} teamName={teamName} />
 }
 
 // ═══════════════════════════════════════════════════════════════════

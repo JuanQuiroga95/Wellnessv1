@@ -415,6 +415,104 @@ function AntropometriaPanel({ jugador }: { jugador: Jugador }) {
   )
 }
 
+// ─── 1b.2 InBody (Panamá) ────────────────────────────────────────────────────────
+function InBodyPanel({ jugador }: { jugador: Jugador }) {
+  const [historial, setHistorial] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [form, setForm] = useState({ fecha: new Date().toISOString().split('T')[0], peso_kg: '', mme_kg: '', masa_grasa_kg: '', imc: '', pgc_pct: '', notas: '' })
+  const [saving, setSaving] = useState(false)
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    try {
+      const r = await fetch(`/api/evaluaciones/inbody?jugador_id=${jugador.id}`)
+      if (r.ok) setHistorial(await r.json())
+    } catch {}
+    setLoading(false)
+  }, [jugador.id])
+
+  useEffect(() => { load() }, [load])
+
+  const handleSave = async () => {
+    if (!form.peso_kg || !form.mme_kg || !form.masa_grasa_kg || !form.imc || !form.pgc_pct) return alert('Faltan datos (Peso, MME, Masa Grasa, IMC o PGC)')
+    setSaving(true)
+    await fetch('/api/evaluaciones/inbody', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ jugador_id: jugador.id, ...form }),
+    })
+    setSaving(false)
+    setForm(p => ({ ...p, peso_kg: '', mme_kg: '', masa_grasa_kg: '', imc: '', pgc_pct: '', notas: '' }))
+    load()
+  }
+
+  const handleDelete = async (id: number) => {
+    if (!confirm('¿Eliminar medición?')) return
+    await fetch(`/api/evaluaciones/inbody?id=${id}`, { method: 'DELETE' })
+    load()
+  }
+
+  const clasifPGC = (pgc: number) => {
+    if (pgc <= 10.5) return { label: 'Bajo', color: '#22c55e', icon: '🟢' }
+    if (pgc <= 15) return { label: 'Normal', color: '#f59e0b', icon: '🟡' }
+    return { label: 'Alto', color: '#ef4444', icon: '🔴' }
+  }
+
+  return (
+    <Card title="Composición Corporal — InBody" accent="#a78bfa">
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: 10, marginBottom: 14 }}>
+        <Field label="Fecha" type="date" value={form.fecha} onChange={v => setForm(p => ({ ...p, fecha: v }))} />
+        <Field label="Peso" value={form.peso_kg} onChange={v => setForm(p => ({ ...p, peso_kg: v }))} unit="kg" />
+        <Field label="MME (Músculo)" value={form.mme_kg} onChange={v => setForm(p => ({ ...p, mme_kg: v }))} unit="kg" />
+        <Field label="Masa Grasa" value={form.masa_grasa_kg} onChange={v => setForm(p => ({ ...p, masa_grasa_kg: v }))} unit="kg" />
+        <Field label="IMC" value={form.imc} onChange={v => setForm(p => ({ ...p, imc: v }))} />
+        <Field label="PGC (%)" value={form.pgc_pct} onChange={v => setForm(p => ({ ...p, pgc_pct: v }))} unit="%" />
+        <div style={{ gridColumn: '1 / -1' }}>
+          <Field label="Notas" type="text" value={form.notas} onChange={v => setForm(p => ({ ...p, notas: v }))} placeholder="Opcional..." />
+        </div>
+      </div>
+      <Btn onClick={handleSave} disabled={saving || !form.peso_kg || !form.pgc_pct}>Guardar InBody</Btn>
+
+      <hr style={{ borderColor: '#1e293b', margin: '24px 0' }} />
+
+      {/* History table */}
+      {loading ? (
+        <div style={{ color: '#64748b', fontSize: 13, textAlign: 'center', padding: 20 }}>Cargando...</div>
+      ) : historial.length === 0 ? (
+        <div style={{ color: '#475569', fontSize: 13, textAlign: 'center', padding: 20 }}>Sin mediciones InBody.</div>
+      ) : (
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+          <thead>
+            <tr style={{ borderBottom: '1px solid #1e293b' }}>
+              {['Fecha', 'Peso', 'MME', 'M. Grasa', 'IMC', 'PGC (%)', 'Clasif.', 'Notas', ''].map(h => (
+                <th key={h} style={{ textAlign: 'left', padding: '6px 8px', color: '#64748b', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', whiteSpace: 'nowrap' }}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {historial.map((r: any) => {
+              const cl = clasifPGC(Number(r.pgc_pct))
+              return (
+                <tr key={r.id} style={{ borderBottom: '1px solid #0f172a' }}>
+                  <td style={{ padding: '7px 8px', color: '#94a3b8' }}>{r.fecha?.split('T')[0] ?? r.fecha}</td>
+                  <td style={{ padding: '7px 8px', color: '#f1f5f9', fontWeight: 600 }}>{r.peso_kg} kg</td>
+                  <td style={{ padding: '7px 8px', color: '#22c55e', fontWeight: 600 }}>{r.mme_kg} kg</td>
+                  <td style={{ padding: '7px 8px', color: '#f97316' }}>{r.masa_grasa_kg} kg</td>
+                  <td style={{ padding: '7px 8px', color: '#94a3b8' }}>{r.imc}</td>
+                  <td style={{ padding: '7px 8px', color: cl.color, fontWeight: 800, fontSize: 14 }}>{r.pgc_pct}%</td>
+                  <td style={{ padding: '7px 8px', color: cl.color, fontSize: 11 }}>{cl.icon} {cl.label}</td>
+                  <td style={{ padding: '7px 8px', color: '#64748b' }}>{r.notas ?? '—'}</td>
+                  <td style={{ padding: '7px 8px' }}><Btn onClick={() => handleDelete(r.id)} variant="ghost" small>✕</Btn></td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      )}
+    </Card>
+  )
+}
+
 // ─── 1c. Calculadora de Hidratación ───────────────────────────────────────────
 function HidratacionPanel({ jugador }: { jugador: Jugador }) {
   const [hidPre, setHidPre]           = useState('')
@@ -445,7 +543,7 @@ function HidratacionPanel({ jugador }: { jugador: Jugador }) {
           {[
             { label: 'Pérdida de líquidos', value: `${perdidaMl} mL`, sub: `(${pctPerdida}% del peso corporal)`, color: perdidaMl > 2000 ? '#ef4444' : perdidaMl > 1000 ? '#f59e0b' : '#22c55e' },
             { label: 'Reposición recomendada', value: `${reposicion} mL`, sub: '150% de la pérdida (Sawka et al.)', color: '#06b6d4' },
-            { label: 'Nivel de deshidratación', value: Number(pctPerdida) >= 3 ? 'Alta ⚠' : Number(pctPerdida) >= 2 ? 'Moderada' : 'Leve', sub: Number(pctPerdida) >= 3 ? 'Riesgo rendimiento' : Number(pctPerdida) >= 2 ? 'Atención' : 'Aceptable', color: Number(pctPerdida) >= 3 ? '#ef4444' : Number(pctPerdida) >= 2 ? '#f59e0b' : '#22c55e' },
+            { label: 'Nivel de deshidratación', value: Number(pctPerdida) >= 2 ? 'Alta ⚠' : 'Normal', sub: Number(pctPerdida) >= 2 ? `Recuperar ${reposicion} mL` : 'Aceptable', color: Number(pctPerdida) >= 2 ? '#ef4444' : '#22c55e' },
             ...(hidDurMin && Number(hidDurMin) > 0 ? [{ label: 'Tasa de sudoración', value: `${Math.round(perdidaMl / Number(hidDurMin) * 60)} mL/h`, sub: 'Pérdida por hora estimada', color: '#a3e635' }] : []),
           ].map((item, i) => (
             <div key={i} style={{ background: '#0f172a', borderRadius: 10, padding: '12px 16px', border: `1px solid ${item.color}33` }}>
@@ -1941,7 +2039,7 @@ interface TeamPlayer {
   [key: string]: any
 }
 
-export default function EvaluacionesPanel({ teamData }: { teamData: TeamPlayer[] }) {
+export default function EvaluacionesPanel({ teamData, teamName }: { teamData: TeamPlayer[], teamName?: string }) {
   const [selectedJugadorId, setSelectedJugadorId] = useState<number | null>(
     teamData.length > 0 ? (teamData[0].jugador_id ?? teamData[0].id ?? null) : null
   )
@@ -1977,10 +2075,14 @@ export default function EvaluacionesPanel({ teamData }: { teamData: TeamPlayer[]
       .finally(() => setDashLoading(false))
   }, [activeTest, refreshKey])
 
+  const isPanama = teamName?.toLowerCase().includes('panam') || teamName?.toLowerCase().includes('sub 16') || teamName?.toLowerCase().includes('sub 17')
+
   const MENU: { key: TestKey; label: string; icon: string; desc: string }[] = [
     { key: 'todos',         label: 'Todos',          icon: '👥', desc: 'Dashboard equipo' },
     { key: 'variables',     label: 'Variables',      icon: '📊', desc: 'Datos antropométricos' },
-    { key: 'antropometria', label: 'Comp. Corporal', icon: '📐', desc: 'Faulkner 4 pliegues' },
+    isPanama 
+      ? { key: 'antropometria', label: 'InBody', icon: '⚡', desc: 'Composición Corporal' }
+      : { key: 'antropometria', label: 'Comp. Corporal', icon: '📐', desc: 'Faulkner 4 pliegues' },
     { key: 'pesajes',       label: 'Pesajes',        icon: '⚖️', desc: 'Historial vs ideal' },
     { key: 'hidratacion',   label: 'Hidratación',    icon: '💧', desc: 'Calculadora reposición' },
     { key: 'cmj',           label: 'CMJ',            icon: '🦘', desc: 'Salto + índice fatiga' },
@@ -2160,7 +2262,7 @@ export default function EvaluacionesPanel({ teamData }: { teamData: TeamPlayer[]
         ) : (
           <>
             {activeTest === 'variables'     && <VariablesPanel     jugador={jugadorData} onRefresh={() => setRefreshKey(k => k + 1)} />}
-            {activeTest === 'antropometria'  && <AntropometriaPanel jugador={jugadorData} />}
+            {activeTest === 'antropometria'  && (isPanama ? <InBodyPanel jugador={jugadorData} /> : <AntropometriaPanel jugador={jugadorData} />)}
             {activeTest === 'pesajes'        && <PesajesPanel       jugador={jugadorData} onRefresh={() => setRefreshKey(k => k + 1)} />}
             {activeTest === 'hidratacion'    && <HidratacionPanel    jugador={jugadorData} />}
             {activeTest === 'cmj'            && <CMJPanel           jugador={jugadorData} />}

@@ -96,6 +96,9 @@ export const SCHEMA_STATEMENTS = [
   `CREATE TABLE IF NOT EXISTS pesajes (id SERIAL PRIMARY KEY, jugador_id INTEGER NOT NULL REFERENCES jugadores(id) ON DELETE CASCADE, club_id INTEGER, fecha DATE NOT NULL DEFAULT CURRENT_DATE, peso_kg NUMERIC(5,1) NOT NULL, registrado_por VARCHAR(50) DEFAULT 'coach', notas TEXT, created_at TIMESTAMPTZ DEFAULT NOW())`,
   `CREATE INDEX IF NOT EXISTS idx_pesajes_jugador ON pesajes(jugador_id, fecha DESC)`,
   `CREATE INDEX IF NOT EXISTS idx_pesajes_club ON pesajes(club_id, fecha DESC)`,
+  // Evaluaciones InBody (Panamá)
+  `CREATE TABLE IF NOT EXISTS inbody_tests (id SERIAL PRIMARY KEY, jugador_id INTEGER NOT NULL REFERENCES jugadores(id) ON DELETE CASCADE, club_id INTEGER, fecha DATE NOT NULL DEFAULT CURRENT_DATE, peso_kg NUMERIC(5,1) NOT NULL, mme_kg NUMERIC(5,1) NOT NULL, masa_grasa_kg NUMERIC(5,1) NOT NULL, imc NUMERIC(5,1) NOT NULL, pgc_pct NUMERIC(5,1) NOT NULL, notas TEXT, created_at TIMESTAMPTZ DEFAULT NOW())`,
+  `CREATE INDEX IF NOT EXISTS idx_inbody_jugador ON inbody_tests(jugador_id, fecha DESC)`,
   // CMJ — Countermovement Jump (3 saltos, promedio generado, flag baseline)
   `CREATE TABLE IF NOT EXISTS cmj_sessions (id SERIAL PRIMARY KEY, jugador_id INTEGER NOT NULL REFERENCES jugadores(id) ON DELETE CASCADE, club_id INTEGER, fecha DATE NOT NULL DEFAULT CURRENT_DATE, salto1_cm NUMERIC(5,2) NOT NULL, salto2_cm NUMERIC(5,2) NOT NULL, salto3_cm NUMERIC(5,2) NOT NULL, promedio_cm NUMERIC(5,2) GENERATED ALWAYS AS (ROUND((salto1_cm + salto2_cm + salto3_cm) / 3.0, 2)) STORED, es_baseline BOOLEAN DEFAULT FALSE, notas TEXT, created_at TIMESTAMPTZ DEFAULT NOW())`,
   `CREATE INDEX IF NOT EXISTS idx_cmj_jugador ON cmj_sessions(jugador_id, fecha DESC)`,
