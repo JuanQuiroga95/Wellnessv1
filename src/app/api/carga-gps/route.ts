@@ -6,7 +6,7 @@ import { getSessionFromRequest } from '@/lib/auth'
 function isAdmin(s: any) { return s?.rol === 'admin' || s?.rol === 'master_admin' }
 
 function sumarMetricasBloques(ejercicios: any[]): Record<string, number> {
-  const t: Record<string, number> = { distTotal:0, distSprint:0, distMP:0, distAcel:0, distDecel:0, nSprints:0, nAcel:0, nDecel:0, nAcel3:0, nDecel3:0, dist_acc_hi:0, dist_dec_hi:0, minActivo:0, minPausa:0 }
+  const t: Record<string, number> = { distTotal:0, distSprint:0, distMP:0, distAcel:0, distDecel:0, nSprints:0, nAcel:0, nDecel:0, nAcel3:0, nDecel3:0, dist_acc_hi:0, dist_dec_hi:0, sprintN25:0, distSprint25:0, minActivo:0, minPausa:0 }
   if (!Array.isArray(ejercicios)) return t
   for (const bl of ejercicios) {
     const series  = Number(bl.series)  || 0
@@ -53,6 +53,8 @@ function sumarMetricasBloques(ejercicios: any[]): Record<string, number> {
       t.nDecel3    += Number(ov.nDecel3    ?? 0)
       t.dist_acc_hi+= Number(ov.dist_acc_hi ?? 0)
       t.dist_dec_hi+= Number(ov.dist_dec_hi ?? 0)
+      t.sprintN25  += Number(ov.sprintN25  ?? 0)
+      t.distSprint25 += Number(ov.distSprint25 ?? 0)
     } else if (series && minutos && jug && largo && ancho) {
       const densidad   = (largo * ancho) / jug
       const tiempoAct  = series * minutos
@@ -71,14 +73,22 @@ function sumarMetricasBloques(ejercicios: any[]): Record<string, number> {
       t.nDecel     += calcNDecel;
       t.nAcel3     += calcNAcel * 0.22;
       t.nDecel3    += calcNDecel * 0.22;
-      // distSprint y nSprints: intercepto ajustado para producir valores realistas
-      // en tareas de alta densidad (partidos reducidos, rondos).
-      // La fórmula original (0.018d-0.844) da 0 para densidades <47m²/jug.
-      // Usamos intercepto reducido (−0.1 / −0.005) que es proporcional al espacio
-      // y produce valores razonables desde rondos hasta partidos oficiales.
-      t.distSprint += Math.max(0, (0.018 * densidad - 0.1)  * tiempoAct)
-      const rawNSprints = Math.max(0, (0.001 * densidad - 0.005) * tiempoAct)
-      t.nSprints += rawNSprints > 0 ? Math.max(1, rawNSprints) : 0
+
+      // HSR (m) — density-based rate
+      let hsrRate = 0;
+      if (densidad < 100) { hsrRate = 0.5; }
+      else if (densidad <= 180) { hsrRate = 1.85; }
+      else if (densidad <= 280) { hsrRate = 4.5; }
+      else { hsrRate = 9.5; }
+      t.distSprint += hsrRate * tiempoAct;
+
+      // HSR (n) — density-based rate
+      let hsrNRate = 0;
+      if (densidad < 100) { hsrNRate = 0.03; }
+      else if (densidad <= 180) { hsrNRate = 0.115; }
+      else if (densidad <= 280) { hsrNRate = 0.275; }
+      else { hsrNRate = 0.55; }
+      t.nSprints += hsrNRate * tiempoAct;
       
       let factorAcc = 0;
       let factorDec = 0;
@@ -87,9 +97,17 @@ function sumarMetricasBloques(ejercicios: any[]): Record<string, number> {
       else { factorAcc = 4.25; factorDec = 0.85; }
       t.dist_acc_hi += factorAcc * tiempoAct;
       t.dist_dec_hi += factorDec * tiempoAct;
+
+      // Sprint >25 km/h (n) and (m)
+      let sprintN25Rate = 0;
+      let distSprint25Rate = 0;
+      if (densidad < 100) { sprintN25Rate = 0; distSprint25Rate = 0; }
+      else if (densidad <= 180) { sprintN25Rate = 0.075; distSprint25Rate = 1.15; }
+      else { sprintN25Rate = 0.225; distSprint25Rate = 4.5; }
+      t.sprintN25 += sprintN25Rate * tiempoAct;
+      t.distSprint25 += distSprint25Rate * tiempoAct;
     }
   }
-  // nSprints ya viene con mínimo 1 por bloque — solo redondear el resto
   const nSprintsRounded = Math.round(t.nSprints)
   return {
     ...Object.fromEntries(Object.entries(t).filter(([k]) => k !== 'nSprints').map(([k,v]) => [k, Math.round(v as number)])),
@@ -157,11 +175,12 @@ export async function GET(req: NextRequest) {
     for (const ses of sesiones as any[]) {
       const m = getMetrics(ses)
       if (!gpsPorFecha[ses.fecha]) {
-        gpsPorFecha[ses.fecha] = { distTotal:0, distSprint:0, distMP:0, distAcel:0, distDecel:0, nSprints:0, nAcel:0, nDecel:0, nAcel3:0, nDecel3:0, minActivo:0, minPausa:0, rpe_objetivo:0, tipo_sesion:'entrenamiento' }
+        gpsPorFecha[ses.fecha] = { distTotal:0, distSprint:0, distMP:0, distAcel:0, distDecel:0, nSprints:0, nAcel:0, nDecel:0, nAcel3:0, nDecel3:0, sprintN25:0, distSprint25:0, minActivo:0, minPausa:0, rpe_objetivo:0, tipo_sesion:'entrenamiento' }
       }
       const g = gpsPorFecha[ses.fecha]
       g.distTotal += m.distTotal; g.distSprint += m.distSprint; g.distMP += m.distMP; g.distAcel += m.distAcel; g.distDecel += m.distDecel
       g.nSprints += m.nSprints; g.nAcel += m.nAcel; g.nDecel += m.nDecel; g.nAcel3 += m.nAcel3||0; g.nDecel3 += m.nDecel3||0
+      g.sprintN25 += m.sprintN25||0; g.distSprint25 += m.distSprint25||0
       g.minActivo += m.minActivo; g.minPausa += m.minPausa
       if (Number(ses.rpe_objetivo) > 0) g.rpe_objetivo = Number(ses.rpe_objetivo)
       if (ses.tipo === 'partido') g.tipo_sesion = 'partido'
@@ -169,7 +188,7 @@ export async function GET(req: NextRequest) {
 
     const byPlayer: Record<number, any> = {}
     for (const p of todosJugadores as any[]) {
-      byPlayer[p.jugador_id] = { jugador_id: p.jugador_id, nombre: p.nombre, posicion: p.posicion || '—', sesiones: 0, total_rpe: 0, total_ua: 0, minActivo: 0, distTotal:0, distSprint:0, distMP:0, distAcel:0, distDecel:0, nSprints:0, nAcel:0, nDecel:0, nAcel3:0, nDecel3:0, diasConGps: 0 }
+      byPlayer[p.jugador_id] = { jugador_id: p.jugador_id, nombre: p.nombre, posicion: p.posicion || '—', sesiones: 0, total_rpe: 0, total_ua: 0, minActivo: 0, distTotal:0, distSprint:0, distMP:0, distAcel:0, distDecel:0, nSprints:0, nAcel:0, nDecel:0, nAcel3:0, nDecel3:0, sprintN25:0, distSprint25:0, diasConGps: 0 }
     }
 
     const rpeByPlayer: Record<number, any[]> = {}
@@ -195,6 +214,7 @@ export async function GET(req: NextRequest) {
         p.distTotal += Math.round(gps.distTotal * scale); p.distSprint += Math.round(gps.distSprint * scale); p.distMP += Math.round(gps.distMP * scale)
         p.distAcel += Math.round(gps.distAcel * scale); p.distDecel += Math.round(gps.distDecel * scale); p.nSprints += Math.round(gps.nSprints * scale)
         p.nAcel += Math.round(gps.nAcel * scale); p.nDecel += Math.round(gps.nDecel * scale); p.nAcel3 += Math.round((gps.nAcel3||0) * scale); p.nDecel3 += Math.round((gps.nDecel3||0) * scale)
+        p.sprintN25 += Math.round((gps.sprintN25||0) * scale); p.distSprint25 += Math.round((gps.distSprint25||0) * scale)
         if (!playerLogDates.has(fecha)) p.minActivo += plannedMinutes
         p.diasConGps += 1
       }
@@ -207,7 +227,8 @@ export async function GET(req: NextRequest) {
       ua_total: Math.round(p.total_ua), minActivo: p.minActivo, distTotal: Math.round(p.distTotal),
       distSprint: Math.round(p.distSprint), distMP: Math.round(p.distMP), distAcel: Math.round(p.distAcel),
       distDecel: Math.round(p.distDecel), nSprints: Math.round(p.nSprints), nAcel: Math.round(p.nAcel),
-      nDecel: Math.round(p.nDecel), nAcel3: Math.round(p.nAcel3||0), nDecel3: Math.round(p.nDecel3||0), hasGps: p.distTotal > 0
+      nDecel: Math.round(p.nDecel), nAcel3: Math.round(p.nAcel3||0), nDecel3: Math.round(p.nDecel3||0),
+      sprintN25: Math.round(p.sprintN25||0), distSprint25: Math.round(p.distSprint25||0), hasGps: p.distTotal > 0
     })).sort((a: any, b: any) => a.nombre.localeCompare(b.nombre))
 
     const activePlayers = players.filter((p: any) => p.sesiones > 0)
@@ -230,7 +251,7 @@ export async function GET(req: NextRequest) {
       const ua_total = Number(ses.rpe_objetivo) > 0 ? Math.round(Number(ses.rpe_objetivo) * m.minActivo) : 0
       if (perSession[label]) {
         const p = perSession[label]
-        const numKeys = ['distTotal','distSprint','distMP','distAcel','distDecel','nSprints','nAcel','nDecel','nAcel3','nDecel3','minActivo','minPausa']
+        const numKeys = ['distTotal','distSprint','distMP','distAcel','distDecel','nSprints','nAcel','nDecel','nAcel3','nDecel3','sprintN25','distSprint25','minActivo','minPausa']
         for (const k of numKeys) p[k] = (p[k] || 0) + (m[k] || 0)
         p.ua_total = (p.ua_total || 0) + ua_total
       } else {
