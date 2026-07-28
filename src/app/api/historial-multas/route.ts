@@ -87,7 +87,8 @@ export async function GET(request: Request) {
       const isAbsent = ausenciasMap.has(`${p.jugador_id}_${dateStr}`)
       if (isAbsent) continue // Skip absent players
 
-      const missedWellness = !wellnessMap.has(`${p.jugador_id}_${dateStr}`)
+      // Solo reportar faltas en días donde SÍ hubo sesión (hasSession = true)
+      const missedWellness = hasSession && !wellnessMap.has(`${p.jugador_id}_${dateStr}`)
       const missedRpe = hasSession && !rpeMap.has(`${p.jugador_id}_${dateStr}`)
 
       if (missedWellness) {
