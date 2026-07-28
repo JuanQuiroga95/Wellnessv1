@@ -39,7 +39,7 @@ export async function GET(request: Request) {
     SELECT jugador_id::int, fecha::text
     FROM wellness_logs
     WHERE jugador_id IN (SELECT unnest(${playerIds}::int[]))
-      AND fecha >= CURRENT_DATE - ${dias}
+      AND fecha::date >= CURRENT_DATE - INTERVAL '30 days'
   `
 
   // 3. Get RPE logs for the last 30 days
@@ -49,13 +49,13 @@ export async function GET(request: Request) {
     SELECT jugador_id::int, fecha::text
     FROM entrenamiento_logs
     WHERE jugador_id IN (SELECT unnest(${playerIds}::int[]))
-      AND fecha >= CURRENT_DATE - ${dias}
+      AND fecha::date >= CURRENT_DATE - INTERVAL '30 days'
   `
 
   // 4. Get training sessions for the last 30 days
   const sesiones = await (filterByClub
-    ? sql`SELECT DISTINCT fecha::text FROM sesiones_plan WHERE fecha >= CURRENT_DATE - ${dias} AND club_id = ${clubId}`
-    : sql`SELECT DISTINCT fecha::text FROM sesiones_plan WHERE fecha >= CURRENT_DATE - ${dias}`)
+    ? sql`SELECT DISTINCT fecha::text FROM sesiones_plan WHERE fecha::date >= CURRENT_DATE - INTERVAL '30 days' AND club_id = ${clubId}`
+    : sql`SELECT DISTINCT fecha::text FROM sesiones_plan WHERE fecha::date >= CURRENT_DATE - INTERVAL '30 days'`)
 
   const sessionDates = new Set(sesiones.map((s: any) => String(s.fecha)))
   
@@ -64,7 +64,7 @@ export async function GET(request: Request) {
     SELECT jugador_id::int, fecha::text
     FROM ausencias
     WHERE jugador_id IN (SELECT unnest(${playerIds}::int[]))
-      AND fecha >= CURRENT_DATE - ${dias}
+      AND fecha::date >= CURRENT_DATE - INTERVAL '30 days'
   `.catch(() => [])
 
   // Create fast lookup maps
