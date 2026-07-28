@@ -2,16 +2,19 @@ import { NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth'
 import { getDb } from '@/lib/db'
 
+export const dynamic = 'force-dynamic'
+
 export async function GET(request: Request) {
-  const session = await getSession()
-  if (!session || (session.rol !== 'admin' && session.rol !== 'master_admin')) {
-    return new NextResponse('Unauthorized', { status: 401 })
-  }
-  
-  const sql = getDb()
-  const clubId = session.clubId ? Number(session.clubId) : null
-  const isMaster = session.rol === 'master_admin'
-  const filterByClub = !isMaster || clubId !== null
+  try {
+    const session = await getSession()
+    if (!session || (session.rol !== 'admin' && session.rol !== 'master_admin')) {
+      return new NextResponse('Unauthorized', { status: 401 })
+    }
+    
+    const sql = getDb()
+    const clubId = session.clubId ? Number(session.clubId) : null
+    const isMaster = session.rol === 'master_admin'
+    const filterByClub = !isMaster || clubId !== null
 
   // We will pull data for the last 30 days
   const dias = 30
@@ -96,11 +99,15 @@ export async function GET(request: Request) {
     }
   }
 
-  // Return as downloadable file
-  return new NextResponse(csv, {
-    headers: {
-      'Content-Type': 'text/csv; charset=utf-8',
-      'Content-Disposition': 'attachment; filename="historial_faltas.csv"',
-    },
-  })
+    // Return as downloadable file
+    return new NextResponse(csv, {
+      headers: {
+        'Content-Type': 'text/csv; charset=utf-8',
+        'Content-Disposition': 'attachment; filename="historial_faltas.csv"',
+      },
+    })
+  } catch (error: any) {
+    console.error('Error in historial-multas:', error)
+    return new NextResponse(JSON.stringify({ error: error.message, stack: error.stack }), { status: 500 })
+  }
 }
