@@ -284,7 +284,7 @@ const AnimatedPieChart = (props: any) => {
   )
 }
 
-export default function CoachDashboard({ isPanama, session, teamData, today }: any) {
+export default function CoachDashboard({ isPanama, session, teamData, today, hasSessionToday }: any) {
   const [tab, setTab] = useState('inicio')
   const [selected, setSelected] = useState(null)
   const [sidebarOpen, setSidebarOpen] = useState(true)
