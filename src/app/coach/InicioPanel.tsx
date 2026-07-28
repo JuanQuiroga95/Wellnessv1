@@ -84,6 +84,7 @@ export default function InicioPanel({ teamData, session, today }: { teamData: an
   const [fuerzaMandamientos, setFuerzaMandamientos] = useState<any[]>([])
   const [distribucionTareas, setDistribucionTareas] = useState<any>(null)
   const [todayDehydrated, setTodayDehydrated] = useState<any[]>([])
+  const [acwrData, setAcwrData] = useState<any[]>([])
 
   useEffect(() => {
     async function fetchData() {
@@ -320,6 +321,49 @@ export default function InicioPanel({ teamData, session, today }: { teamData: an
           const hidData = await hidRes.json()
           if (Array.isArray(hidData)) {
             setTodayDehydrated(hidData.filter(h => h.estado === 'Alta' || h.estado === 'Deshidratado' || Number(h.pct_perdida) >= 2))
+          }
+        }
+
+        // Fetch 12 weeks for ACWR Chart
+        const past12Weeks = addDays(today, -84)
+        const acwrRes = await fetch(`/api/carga-gps?desde=${past12Weeks}&hasta=${today}&ciclo=microciclo`)
+        if (acwrRes.ok) {
+          const acwrD = await acwrRes.json()
+          if (acwrD.sesionesInfo) {
+            const byWeek: Record<string, { distTotal:number, mec:number }> = {}
+            acwrD.sesionesInfo.forEach((s: any) => {
+              const date = new Date(s.fecha + 'T12:00:00Z')
+              const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+              const dayNum = d.getUTCDay() || 7;
+              d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+              const yearStart = new Date(Date.UTC(d.getUTCFullYear(),0,1));
+              const wNum = Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1)/7);
+              const wStr = 'S' + wNum
+              
+              if (!byWeek[wStr]) byWeek[wStr] = { distTotal: 0, mec: 0 }
+              
+              const avg = acwrD.perSessionTeamAvg?.[s.titulo]
+              if (avg) {
+                byWeek[wStr].distTotal += Number(avg.distTotal || 0)
+                byWeek[wStr].mec += Number(avg.acc3 || 0) + Number(avg.dec3 || 0)
+              }
+            })
+            
+            const weeks = Object.keys(byWeek).sort((a,b) => {
+              const numA = parseInt(a.slice(1))
+              const numB = parseInt(b.slice(1))
+              return numA - numB
+            })
+            
+            const finalAcwr = weeks.map((w, i) => {
+              const prev = i > 0 ? byWeek[weeks[i-1]] : null
+              return {
+                name: w,
+                loc: prev && prev.distTotal > 0 ? Math.round(((byWeek[w].distTotal - prev.distTotal) / prev.distTotal) * 100) : 0,
+                mec: prev && prev.mec > 0 ? Math.round(((byWeek[w].mec - prev.mec) / prev.mec) * 100) : 0
+              }
+            })
+            setAcwrData(finalAcwr.slice(1)) // remove first week since it has no previous to compare
           }
         }
       } catch (err) {
@@ -637,6 +681,60 @@ export default function InicioPanel({ teamData, session, today }: { teamData: an
           </div>
         </AnimateOnScroll>
       </div>
+
+      {/* Variación Semanal ACWR Chart */}
+      {acwrData.length > 0 && (
+        <AnimateOnScroll delay={450}>
+          <div style={{ background: 'var(--ink2)', border: '1px solid var(--mist)', borderRadius: 16, padding: 20, position: 'relative' }}>
+            <CuadroHeader title="VARIACIÓN SEMANAL DE LA CARGA" subtitle="Fluctuación vs Semana Anterior" icon="📊" description="Porcentaje de cambio semanal en Distancia Total (Locomotora) y Σ ACC/DEC >3m/s² (Mecánica). Rango normal de -15% a +15%." />
+            
+            <div style={{ display:'flex', gap:16, marginTop:20, fontSize:11, color:'var(--silver)', justifyContent: 'center' }}>
+              <div style={{ display:'flex', alignItems:'center', gap:6 }}><div style={{ width:12, height:12, background:'#3b82f6', borderRadius:2 }}/> Locomotora (Dist. Total)</div>
+              <div style={{ display:'flex', alignItems:'center', gap:6 }}><div style={{ width:12, height:12, background:'#ef4444', borderRadius:2 }}/> Mecánica (Σ ACC/DEC &gt;3)</div>
+            </div>
+
+            <div style={{ height: 260, width: '100%', marginTop: 20 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={acwrData} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                  <XAxis dataKey="name" stroke="var(--fog)" fontSize={11} tickLine={false} axisLine={false} />
+                  <YAxis stroke="var(--fog)" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(v) => `${v}%`} />
+                  
+                  {/* Zonas Normales (-15 a 15) */}
+                  <defs>
+                    <linearGradient id="colorNormal" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#22c55e" stopOpacity={0.05}/>
+                      <stop offset="100%" stopColor="#22c55e" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+
+                  <Tooltip contentStyle={{ background:'rgba(8,8,8,0.9)', border:'1px solid var(--mist)', borderRadius:8, fontSize:12 }}
+                           itemStyle={{ color:'var(--snow)', fontWeight:700 }}
+                           labelStyle={{ color:'var(--silver)', marginBottom:4 }}
+                           formatter={(val: number, name: string) => {
+                             const lbl = name === 'loc' ? 'Locomotora' : 'Mecánica'
+                             const color = name === 'loc' ? '#3b82f6' : '#ef4444'
+                             return [<span style={{color}}>{val > 0 ? `+${val}` : val}%</span>, lbl]
+                           }}
+                           labelFormatter={(label) => `Semana ${label.replace('S','')}`}
+                  />
+                  
+                  <Area type="monotone" dataKey="loc" stroke="#3b82f6" strokeWidth={3} fillOpacity={0} activeDot={{ r: 6, fill: '#3b82f6' }} />
+                  <Area type="monotone" dataKey="mec" stroke="#ef4444" strokeWidth={3} fillOpacity={0} activeDot={{ r: 6, fill: '#ef4444' }} />
+                  
+                  {/* Reference lines for bounds */}
+                  <rect x="0" y="0" width="100%" height="100%" fill="url(#colorNormal)" />
+                  <line x1="0" y1="50%" x2="100%" y2="50%" stroke="rgba(255,255,255,0.1)" strokeWidth={1} />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+            
+            <div style={{ display:'flex', gap:16, marginTop:16, fontSize:10, color:'var(--fog)', justifyContent: 'center' }}>
+              <div style={{ display:'flex', alignItems:'center', gap:6 }}><div style={{ width:8, height:8, background:'#22c55e', borderRadius:2 }}/> -15% a +15%: Sweet Spot (Normal)</div>
+            </div>
+          </div>
+        </AnimateOnScroll>
+      )}
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 24 }}>
         {/* Agenda Section */}
