@@ -68,8 +68,8 @@ export default async function CoachPage() {
   // instead of 3 queries × N players (N+1 problem)
   const jugadorIds = players.map(p => p.jugador_id)
 
-  const [allLogs, allLastSessions, allLastWellness, allAusencias] = jugadorIds.length === 0
-    ? [[], [], [], []]
+  const [allLogs, allLastSessions, allLastWellness, allAusencias, sessionTodayRows] = jugadorIds.length === 0
+    ? [[], [], [], [], []]
     : await Promise.all([
         sql`SELECT id, jugador_id::int, fecha::text, carga_ua::int, rpe::int, rpe_gimnasio::int, duracion_min::int
             FROM entrenamiento_logs
@@ -103,7 +103,12 @@ export default async function CoachPage() {
             WHERE jugador_id IN (SELECT unnest(${jugadorIds}::int[]))
               AND fecha >= CURRENT_DATE - 28
             ORDER BY jugador_id, fecha ASC`.catch(() => []),
+        filterByClub 
+          ? sql`SELECT 1 FROM sesiones_plan WHERE fecha = CURRENT_DATE AND club_id = ${clubId} LIMIT 1`
+          : sql`SELECT 1 FROM sesiones_plan WHERE fecha = CURRENT_DATE LIMIT 1`
       ])
+
+  const hasSessionToday = Array.isArray(sessionTodayRows) && sessionTodayRows.length > 0;
 
   // Index by jugador_id for O(1) lookup
   const logsByPlayer: Record<number, any[]> = {}
@@ -157,5 +162,5 @@ export default async function CoachPage() {
   })
 
   const sorted = [...teamData].sort((a,b) => a.posicion_orden!==b.posicion_orden ? a.posicion_orden-b.posicion_orden : a.nombre.localeCompare(b.nombre))
-  return <CoachClient isPanama={isPanama} session={session} teamData={sorted} today={today} />
+  return <CoachClient isPanama={isPanama} session={session} teamData={sorted} today={today} hasSessionToday={hasSessionToday} />
 }

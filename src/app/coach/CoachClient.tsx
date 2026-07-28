@@ -365,8 +365,14 @@ export default function CoachDashboard({ isPanama, session, teamData, today }: a
   const available = filteredTeamData.filter(p=>!p.lesion && p.entrena_grupo!==false)
   const unavailable = filteredTeamData.filter(p=>p.entrena_grupo===false && !p.lesion)
   const injured = filteredTeamData.filter(p=>p.lesion)
-  const responded = filteredTeamData.filter(p=>p.respondedToday)
-  const pending = filteredTeamData.filter(p=>!p.respondedToday)
+  const respondedWellness = filteredTeamData.filter(p=>p.respondedToday)
+  const pendingWellness = filteredTeamData.filter(p=>!p.respondedToday)
+  
+  // Pending RPE only matters if there's a session today.
+  // A player has responded RPE if p.rpeToday is true.
+  const respondedRpe = filteredTeamData.filter(p=>p.rpeToday)
+  const pendingRpe = hasSessionToday ? filteredTeamData.filter(p=>!p.rpeToday) : []
+
   const atRisk = filteredTeamData.filter(p=>p.acwr?.status==='peligro').length
   const caution = filteredTeamData.filter(p=>p.acwr?.status==='precaucion').length
   const optimal = filteredTeamData.filter(p=>p.acwr?.status==='optimo').length
@@ -492,16 +498,45 @@ export default function CoachDashboard({ isPanama, session, teamData, today }: a
                 </div>
                 <p style={{ fontSize:11, color:'var(--silver)', marginTop:6 }}>{available.filter(p=>p.posicion_orden!==1).length} de campo + {available.filter(p=>p.posicion_orden===1).length} portero/s</p>
               </div>
-              <div style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:14, padding:16, gridColumn:'span 2' }}>
-                <p style={{ fontSize:10, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:8 }}>Wellness Hoy</p>
-                <div style={{ display:'flex', alignItems:'baseline', gap:6 }}>
-                  <span className="display" style={{ fontSize:52, color:'var(--lime)', lineHeight:1 }}>{responded.length}</span>
-                  <span className="display" style={{ fontSize:28, color:'var(--fog)', lineHeight:1 }}>/ {teamData.length}</span>
+              <div style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:14, padding:16, gridColumn:'span 2', display: 'flex', flexDirection: 'column' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                  <div style={{ flex: 1, paddingRight: 10 }}>
+                    <p style={{ fontSize:10, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:8 }}>Wellness Hoy</p>
+                    <div style={{ display:'flex', alignItems:'baseline', gap:6 }}>
+                      <span className="display" style={{ fontSize:40, color:'var(--lime)', lineHeight:1 }}>{respondedWellness.length}</span>
+                      <span className="display" style={{ fontSize:22, color:'var(--fog)', lineHeight:1 }}>/ {teamData.length}</span>
+                    </div>
+                    <div style={{ marginTop:10, height:5, background:'var(--mist)', borderRadius:3, overflow:'hidden' }}>
+                      <div style={{ height:'100%', width:`${teamData.length?(respondedWellness.length/teamData.length)*100:0}%`, background:'var(--lime)', borderRadius:3 }} />
+                    </div>
+                    {pendingWellness.length>0 && <p style={{ fontSize:11, color:'#f87171', marginTop:6 }}>⚠ Faltan: {pendingWellness.map(p=>p.nombre.split(' ')[0]).join(', ')}</p>}
+                  </div>
+                  
+                  <div style={{ width: 1, background: 'var(--mist)', alignSelf: 'stretch', margin: '0 10px' }} />
+                  
+                  <div style={{ flex: 1, paddingLeft: 10 }}>
+                    <p style={{ fontSize:10, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:8 }}>RPE Hoy</p>
+                    {hasSessionToday ? (
+                      <>
+                        <div style={{ display:'flex', alignItems:'baseline', gap:6 }}>
+                          <span className="display" style={{ fontSize:40, color:'var(--lime)', lineHeight:1 }}>{respondedRpe.length}</span>
+                          <span className="display" style={{ fontSize:22, color:'var(--fog)', lineHeight:1 }}>/ {teamData.length}</span>
+                        </div>
+                        <div style={{ marginTop:10, height:5, background:'var(--mist)', borderRadius:3, overflow:'hidden' }}>
+                          <div style={{ height:'100%', width:`${teamData.length?(respondedRpe.length/teamData.length)*100:0}%`, background:'var(--lime)', borderRadius:3 }} />
+                        </div>
+                        {pendingRpe.length>0 && <p style={{ fontSize:11, color:'#f87171', marginTop:6 }}>⚠ Faltan: {pendingRpe.map(p=>p.nombre.split(' ')[0]).join(', ')}</p>}
+                      </>
+                    ) : (
+                      <div style={{ display:'flex', alignItems:'center', height:'100%', fontSize:12, color:'var(--silver)' }}>No hay sesión hoy</div>
+                    )}
+                  </div>
                 </div>
-                <div style={{ marginTop:10, height:5, background:'var(--mist)', borderRadius:3, overflow:'hidden' }}>
-                  <div style={{ height:'100%', width:`${teamData.length?(responded.length/teamData.length)*100:0}%`, background:'var(--lime)', borderRadius:3 }} />
+                <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--mist)', display: 'flex', justifyContent: 'center' }}>
+                  <button onClick={() => window.open('/api/historial-multas', '_blank')} style={{ background: 'transparent', border: '1px solid var(--fog)', color: 'var(--silver)', padding: '6px 12px', borderRadius: 8, fontSize: 11, cursor: 'pointer', transition: 'all 0.2s' }} onMouseEnter={e => { e.currentTarget.style.color = 'var(--snow)'; e.currentTarget.style.borderColor = 'var(--snow)' }} onMouseLeave={e => { e.currentTarget.style.color = 'var(--silver)'; e.currentTarget.style.borderColor = 'var(--fog)' }}>
+                    📥 Descargar Historial de Faltas (Multas)
+                  </button>
                 </div>
-                {pending.length>0 && <p style={{ fontSize:11, color:'#f87171', marginTop:6 }}>⚠ Pendientes: {pending.map(p=>p.nombre.split(' ')[0]).join(', ')}</p>}
               </div>
               {[{label:'EN RIESGO',val:atRisk,col:'#ef4444',bg:'rgba(239,68,68,.06)',border:'rgba(239,68,68,.2)'},{label:'PRECAUCIÓN',val:caution,col:'#f59e0b',bg:'rgba(245,158,11,.06)',border:'rgba(245,158,11,.2)'},{label:'ÓPTIMOS',val:optimal,col:'#22c55e',bg:'rgba(34,197,94,.06)',border:'rgba(34,197,94,.2)'}].map(s=>(
                 <div key={s.label} style={{ background:s.bg, border:`1px solid ${s.border}`, borderRadius:14, padding:16, textAlign:'center' }}>
