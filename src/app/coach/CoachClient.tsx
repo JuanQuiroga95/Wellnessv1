@@ -1188,7 +1188,7 @@ function PlayerDetail({ isPanama, player:p, logs, wellness, loading, onBack, cic
       {logs.length>0 && (
         <div style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:16, padding:20 }}>
           <p style={{ fontSize:11, fontWeight:600, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:14 }}>Últimas sesiones <span style={{ fontSize:10, color:'var(--fog)', fontWeight:400, textTransform:'none' }}>— click en ✏️ para editar minutos y recalcular UA</span></p>
-          {[...logs].slice(-8).reverse().map((l,i)=>(<CoachSessionRow key={i} log={l} />))}
+          {[...logs].slice(-8).reverse().map((l,i)=>(<CoachSessionRow key={i} log={l} onRefresh={onRefreshData} />))}
         </div>
       )}
       <HistorialLesivo jugadorId={p.jugador_id || p.id} />
@@ -4862,7 +4862,7 @@ function AddMatchForm({ teamData, onSuccess, onCancel }) {
   )
 }
 
-function CoachSessionRow({ log }) {
+function CoachSessionRow({ log, onRefresh }: { log: any, onRefresh?: () => void }) {
   const [editing, setEditing] = useState(false)
   const [mins, setMins] = useState(String(log.duracion_min || '90'))
   const [displayMins, setDisplayMins] = useState(Number(log.duracion_min) || 90)
@@ -4886,8 +4886,23 @@ function CoachSessionRow({ log }) {
       setUa(updated.carga_ua || 0)
       setDisplayMins(updated.duracion_min || m)
       setEditing(false)
+      if (onRefresh) onRefresh()
     } catch { setError('Error de conexión') }
     finally { setSaving(false) }
+  }
+
+  async function deleteLog() {
+    if (!confirm(`¿Eliminar la sesión del ${log.fecha}?`)) return
+    setSaving(true); setError('')
+    try {
+      const res = await fetch(`/api/logs?id=${log.id}`, { method: 'DELETE' })
+      if (!res.ok) { const d = await res.json(); setError(d.error||'Error'); return }
+      if (onRefresh) onRefresh()
+    } catch {
+      setError('Error de conexión')
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
@@ -4921,6 +4936,8 @@ function CoachSessionRow({ log }) {
             {displayMins ? `${displayMins} min` : <span style={{ fontSize:11 }}>⚠ sin mins</span>}
           </span>
           <button className="hover-scale" onClick={()=>setEditing(true)} title="Editar minutos" style={{ fontSize:13, background:'transparent', border:'none', cursor:'pointer', color:'var(--fog)', padding:'0 2px', lineHeight:1 }}>✏️</button>
+          <button className="hover-scale" onClick={deleteLog} disabled={saving} title="Eliminar sesión" style={{ fontSize:13, background:'transparent', border:'none', cursor:'pointer', color:'#ef4444', padding:'0 2px', lineHeight:1, opacity: saving ? 0.5 : 1 }}>🗑️</button>
+          {error && <span style={{ fontSize:11, color:'#f87171', marginLeft: 4 }}>{error}</span>}
         </div>
       )}
       <span className="mono" style={{ color: ua > 0 ? 'var(--lime)' : 'var(--fog)', fontWeight:600 }}>

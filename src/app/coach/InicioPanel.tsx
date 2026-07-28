@@ -269,12 +269,12 @@ export default function InicioPanel({ teamData, session, today }: { teamData: an
             const avg = loadD.perSessionTeamAvg && loadD.perSessionTeamAvg[s.titulo];
             const dateStr = s.fecha.slice(0, 10)
             const minProgramados = sessionVolMap[dateStr] || 60
-            const relVol = avg && avg.avg_minActivo ? Math.round((parseFloat(avg.avg_minActivo) / minProgramados) * 100) : 0
+            const relVol = avg && avg.minActivo ? Math.round((parseFloat(avg.minActivo) / minProgramados) * 100) : 0
             return {
               fecha: s.fecha,
               titulo: s.titulo || '',
               name: s.fecha.slice(5, 10),
-              load: avg && avg.avg_rpe ? parseFloat(avg.avg_rpe) : 0,
+              load: avg && avg.rpe ? parseFloat(avg.rpe) : 0,
               volumen: relVol
             }
           })
@@ -300,7 +300,7 @@ export default function InicioPanel({ teamData, session, today }: { teamData: an
           setMdHistoryData(Array.from(mdMap.values()).filter(x => x.actual > 0 || x.anterior > 0))
         }
         if (loadD.players) {
-          setTopPerformers(loadD.players.filter((p:any) => p.ua_total > 0).sort((a:any, b:any) => b.ua_total - a.ua_total))
+          setTopPerformers(loadD.players.filter((p:any) => p.hasGps && p.distTotal > 0).sort((a:any, b:any) => b.distTotal - a.distTotal))
         }
 
         // Fetch Readiness Trend
@@ -715,34 +715,34 @@ export default function InicioPanel({ teamData, session, today }: { teamData: an
                   <>
                     <details style={{ background: 'var(--ink3)', border: '1px solid var(--mist)', borderRadius: 8, overflow: 'hidden' }}>
                       <summary style={{ padding: '12px 16px', fontSize: 13, fontWeight: 700, color: '#10b981', cursor: 'pointer', listStyle: 'none', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <span>🚀 TOP 3 HIGH PERFORMANCE</span>
+                        <span>🚀 TOP 3 HIGH WORKLOAD (GPS)</span>
                         <span style={{ fontSize: 10, color: 'var(--silver)' }}>Ver listado ▼</span>
                       </summary>
                       <div style={{ padding: '0 16px 12px 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
                         {topPerformers.slice(0, 3).map((p, i) => (
                           <div key={i} style={{ background: 'var(--ink2)', border: '1px solid rgba(16,185,129,0.2)', borderRadius: 8, padding: 10, display: 'flex', alignItems: 'center', gap: 12 }}>
-                            <div style={{ fontSize: 18 }}>🔥</div>
+                            <div style={{ fontSize: 18 }}>🛰️</div>
                             <div style={{ flex: 1 }}>
                               <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--snow)' }}>{p.nombre}</div>
-                              <div style={{ fontSize: 11, color: 'var(--silver)' }}>Carga Semanal (UA): <span style={{color: '#10b981', fontWeight: 600}}>{p.ua_total}</span></div>
+                              <div style={{ fontSize: 11, color: 'var(--silver)' }}>Distancia Total: <span style={{color: '#10b981', fontWeight: 600}}>{p.distTotal}m</span></div>
                             </div>
                           </div>
                         ))}
                       </div>
                     </details>
                     
-                    <details style={{ background: 'var(--ink3)', border: '1px solid var(--mist)', borderRadius: 8, overflow: 'hidden' }}>
+                    <details style={{ background: 'var(--ink3)', border: '1px solid var(--mist)', borderRadius: 8, overflow: 'hidden', marginTop: 12 }}>
                       <summary style={{ padding: '12px 16px', fontSize: 13, fontWeight: 700, color: '#ef4444', cursor: 'pointer', listStyle: 'none', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <span>📉 TOP 3 LOW PERFORMANCE</span>
+                        <span>📉 TOP 3 LOW WORKLOAD (GPS)</span>
                         <span style={{ fontSize: 10, color: 'var(--silver)' }}>Ver listado ▼</span>
                       </summary>
                       <div style={{ padding: '0 16px 12px 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
                         {[...topPerformers].slice(-3).reverse().map((p, i) => (
                           <div key={i} style={{ background: 'var(--ink2)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 8, padding: 10, display: 'flex', alignItems: 'center', gap: 12 }}>
-                            <div style={{ fontSize: 18 }}>❄️</div>
+                            <div style={{ fontSize: 18 }}>📉</div>
                             <div style={{ flex: 1 }}>
                               <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--snow)' }}>{p.nombre}</div>
-                              <div style={{ fontSize: 11, color: 'var(--silver)' }}>Carga Semanal (UA): <span style={{color: '#ef4444', fontWeight: 600}}>{p.ua_total}</span></div>
+                              <div style={{ fontSize: 11, color: 'var(--silver)' }}>Distancia Total: <span style={{color: '#ef4444', fontWeight: 600}}>{p.distTotal}m</span></div>
                             </div>
                           </div>
                         ))}
@@ -787,13 +787,13 @@ export default function InicioPanel({ teamData, session, today }: { teamData: an
 
                 {top3.length > 0 && (
                   <div>
-                    <h4 style={{ margin: '0 0 12px 0', fontSize: 12, color: '#22c55e', textTransform: 'uppercase', letterSpacing: '0.1em' }}>🚀 TOP 3 HIGH PERFORMANCE</h4>
+                    <h4 style={{ margin: '0 0 12px 0', fontSize: 12, color: '#22c55e', textTransform: 'uppercase', letterSpacing: '0.1em' }}>🔥 TOP 3 ALTA CARGA (RPE)</h4>
                     {top3.map((p, i) => (
                       <div key={i} style={{ background: 'var(--ink3)', border: '1px solid rgba(34,197,94,0.2)', borderRadius: 8, padding: 12, display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
                         <div style={{ fontSize: 20 }}>🔥</div>
                         <div>
                           <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--snow)' }}>{p.nombre}</div>
-                          <div style={{ fontSize: 11, color: 'var(--silver)', marginTop: 2 }}>Carga UA Semanal: {Math.round(p.totalCarga)}</div>
+                          <div style={{ fontSize: 11, color: 'var(--silver)', marginTop: 2 }}>Carga UA Semanal: <span style={{color: '#10b981', fontWeight: 600}}>{Math.round(p.totalCarga)}</span></div>
                         </div>
                       </div>
                     ))}
@@ -802,13 +802,13 @@ export default function InicioPanel({ teamData, session, today }: { teamData: an
 
                 {bottom3.length > 0 && (
                   <div>
-                    <h4 style={{ margin: '0 0 12px 0', fontSize: 12, color: '#ef4444', textTransform: 'uppercase', letterSpacing: '0.1em' }}>📉 TOP 3 LOW PERFORMANCE</h4>
+                    <h4 style={{ margin: '0 0 12px 0', fontSize: 12, color: '#ef4444', textTransform: 'uppercase', letterSpacing: '0.1em' }}>⚠️ TOP 3 BAJA CARGA (RPE)</h4>
                     {bottom3.map((p, i) => (
                       <div key={i} style={{ background: 'var(--ink3)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 8, padding: 12, display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
                         <div style={{ fontSize: 20 }}>⚠️</div>
                         <div>
                           <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--snow)' }}>{p.nombre}</div>
-                          <div style={{ fontSize: 11, color: 'var(--silver)', marginTop: 2 }}>Carga UA Semanal: {Math.round(p.totalCarga)}</div>
+                          <div style={{ fontSize: 11, color: 'var(--silver)', marginTop: 2 }}>Carga UA Semanal: <span style={{color: '#ef4444', fontWeight: 600}}>{Math.round(p.totalCarga)}</span></div>
                         </div>
                       </div>
                     ))}
