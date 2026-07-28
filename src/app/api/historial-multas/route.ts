@@ -73,7 +73,8 @@ export async function GET(request: Request) {
   const ausenciasMap = new Set((ausencias as any[]).map(a => `${a.jugador_id}_${a.fecha}`))
 
   // Build CSV
-  let csv = 'Jugador,Fecha,Falta\n'
+  // Usar BOM y punto y coma (;) para que Excel en español lo abra en columnas automáticamente
+  let csv = '\uFEFFJugador;Fecha;Falta\n'
 
   // Go through the last 30 days
   const today = new Date()
@@ -82,6 +83,8 @@ export async function GET(request: Request) {
     d.setDate(d.getDate() - i)
     const dateStr = d.toISOString().split('T')[0]
     const hasSession = sessionDates.has(dateStr)
+
+    let dayHadFaltas = false
 
     for (const p of players) {
       const isAbsent = ausenciasMap.has(`${p.jugador_id}_${dateStr}`)
@@ -92,11 +95,18 @@ export async function GET(request: Request) {
       const missedRpe = hasSession && !rpeMap.has(`${p.jugador_id}_${dateStr}`)
 
       if (missedWellness) {
-        csv += `"${p.nombre}","${dateStr}","Wellness"\n`
+        csv += `"${p.nombre}";"${dateStr}";"Wellness"\n`
+        dayHadFaltas = true
       }
       if (missedRpe) {
-        csv += `"${p.nombre}","${dateStr}","RPE"\n`
+        csv += `"${p.nombre}";"${dateStr}";"RPE"\n`
+        dayHadFaltas = true
       }
+    }
+    
+    // Dejar un espacio en blanco después de cada día que tuvo faltas para que sea más legible
+    if (dayHadFaltas && i < dias - 1) {
+      csv += '\n'
     }
   }
 
