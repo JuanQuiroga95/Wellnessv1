@@ -363,7 +363,7 @@ export default function InicioPanel({ teamData, session, today }: { teamData: an
                 mec: prev && prev.mec > 0 ? Math.round(((byWeek[w].mec - prev.mec) / prev.mec) * 100) : 0
               }
             })
-            setAcwrData(finalAcwr.slice(1)) // remove first week since it has no previous to compare
+            setAcwrData(finalAcwr) // Include all weeks so chart doesn't disappear if only 1 week exists
           }
         }
       } catch (err) {
@@ -683,15 +683,16 @@ export default function InicioPanel({ teamData, session, today }: { teamData: an
       </div>
 
       {/* Variación Semanal ACWR Chart */}
-      {acwrData.length > 0 && (
-        <AnimateOnScroll delay={450}>
-          <div style={{ background: 'var(--ink2)', border: '1px solid var(--mist)', borderRadius: 16, padding: 20, position: 'relative' }}>
-            <CuadroHeader title="VARIACIÓN SEMANAL DE LA CARGA" subtitle="Fluctuación vs Semana Anterior" icon="📊" description="Porcentaje de cambio semanal en Distancia Total (Locomotora) y Σ ACC/DEC >3m/s² (Mecánica). Rango normal de -15% a +15%." />
-            
-            <div style={{ display:'flex', gap:16, marginTop:20, fontSize:11, color:'var(--silver)', justifyContent: 'center' }}>
-              <div style={{ display:'flex', alignItems:'center', gap:6 }}><div style={{ width:12, height:12, background:'#3b82f6', borderRadius:2 }}/> Locomotora (Dist. Total)</div>
-              <div style={{ display:'flex', alignItems:'center', gap:6 }}><div style={{ width:12, height:12, background:'#ef4444', borderRadius:2 }}/> Mecánica (Σ ACC/DEC &gt;3)</div>
-            </div>
+      <AnimateOnScroll delay={450}>
+        <div style={{ background: 'var(--ink2)', border: '1px solid var(--mist)', borderRadius: 16, padding: 20, position: 'relative' }}>
+          <CuadroHeader title="VARIACIÓN SEMANAL DE LA CARGA" subtitle="Fluctuación vs Semana Anterior" icon="📊" description="Porcentaje de cambio semanal en Distancia Total (Locomotora) y Σ ACC/DEC >3m/s² (Mecánica). Rango normal de -15% a +15%." />
+          
+          {acwrData.length > 0 ? (
+            <>
+              <div style={{ display:'flex', gap:16, marginTop:20, fontSize:11, color:'var(--silver)', justifyContent: 'center' }}>
+                <div style={{ display:'flex', alignItems:'center', gap:6 }}><div style={{ width:12, height:12, background:'#3b82f6', borderRadius:2 }}/> Locomotora (Dist. Total)</div>
+                <div style={{ display:'flex', alignItems:'center', gap:6 }}><div style={{ width:12, height:12, background:'#ef4444', borderRadius:2 }}/> Mecánica (Σ ACC/DEC &gt;3)</div>
+              </div>
 
             <div style={{ height: 260, width: '100%', marginTop: 20 }}>
               <ResponsiveContainer width="100%" height="100%">
@@ -732,9 +733,14 @@ export default function InicioPanel({ teamData, session, today }: { teamData: an
             <div style={{ display:'flex', gap:16, marginTop:16, fontSize:10, color:'var(--fog)', justifyContent: 'center' }}>
               <div style={{ display:'flex', alignItems:'center', gap:6 }}><div style={{ width:8, height:8, background:'#22c55e', borderRadius:2 }}/> -15% a +15%: Sweet Spot (Normal)</div>
             </div>
-          </div>
-        </AnimateOnScroll>
-      )}
+            </>
+          ) : (
+            <div style={{ padding: 40, textAlign: 'center', color: 'var(--silver)' }}>
+              Faltan datos de GPS para generar el gráfico de variación semanal.
+            </div>
+          )}
+        </div>
+      </AnimateOnScroll>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 24 }}>
         {/* Agenda Section */}
