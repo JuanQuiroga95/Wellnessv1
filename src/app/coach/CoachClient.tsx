@@ -1119,9 +1119,14 @@ function PlayerDetail({ isPanama, player:p, logs, wellness, loading, onBack, cic
             }} style={{ background:'transparent', border:'none', color:'#ef4444', cursor:'pointer', fontSize:12, opacity:0.8, padding:'4px 8px' }} title="Eliminar registro">✕ Borrar</button>
           </div>
           <div style={{ display:'flex', flexDirection:'column', gap:8, marginBottom:12 }}>
-            {['fatiga','calidad_sueno','dolor_muscular','nivel_estres','estado_animo'].map((k,i)=>{ const v=Number(lastW[k])||0; const c=wCol(v); return (
+            {['fatiga','calidad_sueno','dolor_muscular','nivel_estres','estado_animo'].map((k,i)=>{ 
+              const rawV=Number(lastW[k])||0; 
+              const v = (isPanama && i < 4 && rawV > 0) ? (6 - rawV) : rawV;
+              const c=wCol(v); 
+              const label = isPanama ? ['Recuperación','Sueño','Músculos','Energía','Hidratación'][i] : WL[i];
+              return (
               <div key={k} style={{ display:'flex', alignItems:'center', gap:10 }}>
-                <span style={{ fontSize:12, color:'var(--silver)', minWidth:52 }}>{WL[i]}</span>
+                <span style={{ fontSize:12, color:'var(--silver)', minWidth:75 }}>{label}</span>
                 <div style={{ flex:1, height:5, background:'var(--mist)', borderRadius:3, overflow:'hidden' }}><div style={{ width:`${v*20}%`, height:'100%', background:c, borderRadius:3 }} /></div>
                 <span className="mono" style={{ fontSize:12, color:c, minWidth:14 }}>{v}</span>
               </div>
@@ -1193,6 +1198,7 @@ function PlayerDetail({ isPanama, player:p, logs, wellness, loading, onBack, cic
         </div>
       )}
       <HistorialLesivo jugadorId={p.jugador_id || p.id} />
+      <PlayerInBodyProfile jugadorId={p.jugador_id || p.id} />
 
       {/* PROXY MODALS */}
       {showProxyWellness && (
@@ -13220,4 +13226,81 @@ function DeleteDataModal({ isGlobal, jugadorId, playerName, defaultFecha, onClos
       </div>
     </div>
   )
+}
+
+
+
+function PlayerInBodyProfile({ jugadorId }: { jugadorId: number }) {
+  const [inbodyLogs, setInbodyLogs] = React.useState<any[] | null>(null);
+  
+  React.useEffect(() => {
+    fetch(`/api/evaluaciones/inbody?jugador_id=${jugadorId}`)
+      .then(r => r.ok ? r.json() : [])
+      .then(data => setInbodyLogs(data))
+      .catch(() => setInbodyLogs([]));
+  }, [jugadorId]);
+
+  if (!inbodyLogs || inbodyLogs.length === 0) return null;
+
+  return (
+    <div style={{ background:'var(--ink2)', borderRadius:16, border:'1px solid var(--border)', overflow:'hidden', marginTop: 20 }}>
+      <div style={{ padding:'20px 20px 16px', borderBottom:'1px solid var(--border)', background:'linear-gradient(to right, rgba(168,85,247,0.1), transparent)' }}>
+        <h3 style={{ fontSize:15, color:'var(--snow)', fontWeight:700, margin:0, display:'flex', alignItems:'center', gap:8 }}>
+          <span style={{ color:'#a855f7' }}>⚡</span> Composición Corporal InBody
+        </h3>
+        <p style={{ fontSize:12, color:'var(--silver)', margin:'4px 0 0' }}>Evolución de pesajes y recomendaciones.</p>
+      </div>
+      
+      <div style={{ padding:20, display:'flex', flexDirection:'column', gap:20 }}>
+        <div style={{ display:'flex', flexDirection:'column', gap:12, background:'rgba(255,255,255,0.03)', padding:16, borderRadius:12 }}>
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+            <span style={{ fontSize:11, color:'var(--silver)', textTransform:'uppercase', letterSpacing:1 }}>Último Pesaje</span>
+            <span style={{ fontSize:11, color:'var(--lime)', fontWeight:600, background:'rgba(200,241,53,0.1)', padding:'4px 8px', borderRadius:4 }}>{String(inbodyLogs[0].fecha).substring(0, 10)}</span>
+          </div>
+          
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:12 }}>
+            <div>
+              <p style={{ fontSize:11, color:'var(--silver)', marginBottom:4 }}>Peso</p>
+              <p style={{ fontSize:16, color:'var(--snow)', fontWeight:700 }}>{inbodyLogs[0].peso_kg}<span style={{fontSize:11, fontWeight:400, color:'var(--silver)'}}> kg</span></p>
+            </div>
+            <div>
+              <p style={{ fontSize:11, color:'var(--silver)', marginBottom:4 }}>Músculo</p>
+              <p style={{ fontSize:16, color:'var(--snow)', fontWeight:700 }}>{inbodyLogs[0].mme_kg}<span style={{fontSize:11, fontWeight:400, color:'var(--silver)'}}> kg</span></p>
+            </div>
+            <div>
+              <p style={{ fontSize:11, color:'var(--silver)', marginBottom:4 }}>% Grasa</p>
+              <p style={{ fontSize:16, color:'#f87171', fontWeight:700 }}>{inbodyLogs[0].pgc_pct}<span style={{fontSize:11, fontWeight:400, color:'var(--silver)'}}> %</span></p>
+            </div>
+          </div>
+
+          {inbodyLogs[0].notas && (
+            <div style={{ marginTop:8, padding:12, background:'rgba(168,85,247,0.1)', borderLeft:'3px solid #a855f7', borderRadius:'0 8px 8px 0' }}>
+              <p style={{ fontSize:11, fontWeight:700, color:'#c084fc', marginBottom:4, textTransform:'uppercase' }}>Recomendación Médica</p>
+              <p style={{ fontSize:13, color:'var(--snow)', lineHeight:1.4 }}>{inbodyLogs[0].notas}</p>
+            </div>
+          )}
+        </div>
+
+        {inbodyLogs.length > 1 && (
+          <div>
+            <p style={{ fontSize:12, color:'var(--silver)', marginBottom:12, fontWeight:600 }}>Historial de Pesajes</p>
+            <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+              {inbodyLogs.slice(1).map((log: any, idx: number) => (
+                <div key={idx} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'12px', background:'rgba(255,255,255,0.02)', borderRadius:8, border:'1px solid rgba(255,255,255,0.05)' }}>
+                  <div style={{ display:'flex', flexDirection:'column', gap:4 }}>
+                    <span style={{ fontSize:12, color:'var(--snow)', fontWeight:600 }}>{String(log.fecha).substring(0, 10)}</span>
+                    <span style={{ fontSize:11, color:'var(--silver)' }}>Peso: {log.peso_kg}kg • Grasa: {log.pgc_pct}%</span>
+                  </div>
+                  <div style={{ textAlign:'right' }}>
+                    <span style={{ fontSize:11, color:'var(--silver)' }}>Músculo</span>
+                    <p style={{ fontSize:13, color:'var(--snow)', fontWeight:600 }}>{log.mme_kg}kg</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }

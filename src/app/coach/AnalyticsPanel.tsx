@@ -162,7 +162,12 @@ export default function AnalyticsPanel() {
                       {p.dolor_eva>0 && <span style={{ fontSize:11, padding:'3px 8px', borderRadius:6, background:'rgba(239,68,68,.1)', color:'#f87171', border:'1px solid rgba(239,68,68,.25)' }}>EVA {p.dolor_eva}/10</span>}
                     </div>
                   )}
-                </>
+   
+                  {p.fue_gimnasio && (
+                    <div style={{ marginTop: 5 }}>
+                      <span style={{ fontSize:10, background:'rgba(200,241,53,.1)', color:'var(--lime)', border:'1px solid rgba(200,241,53,.2)', borderRadius:5, padding:'2px 6px' }}>🏋️ Fue al gimnasio</span>
+                    </div>
+                  )}             </>
               )}
             </div>
           )
