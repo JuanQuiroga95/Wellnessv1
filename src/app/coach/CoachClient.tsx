@@ -12110,7 +12110,7 @@ ${secciones_data.map(sec => `
 </body></html>`
 
     openPrintOverlay(html)
-    setTimeout(() => win.print(), 600)
+    
   }
 
   const s: Record<string, React.ReactNode> = {
