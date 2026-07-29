@@ -1,5 +1,41 @@
 'use client'
 import { mkBars, ENTRENAMIENTO_OPTIMIZADOR, ENTRENAMIENTO_COADYUVANTE, TODAS_LAS_NUEVAS, TAREAS_CON_ESPACIO, TAREAS_CON_EQUIPO, TAREAS_PARTIDO_SIMPLE, TAREAS_MOSTRAR_FORM, NE_DEFAULT, OBJETIVOS_FISICOS, OBJETIVOS_SECUNDARIOS, TITULOS_SESION, SUBTAREAS, getCuadrante } from './utils'
+
+export function openPrintOverlay(html: string) {
+  const printDiv = document.createElement('div');
+  printDiv.id = 'print-overlay';
+  printDiv.style.position = 'fixed';
+  printDiv.style.top = '0';
+  printDiv.style.left = '0';
+  printDiv.style.width = '100vw';
+  printDiv.style.height = '100vh';
+  printDiv.style.background = '#fff';
+  printDiv.style.zIndex = '999999';
+  printDiv.style.overflow = 'auto';
+  printDiv.style.color = '#111';
+
+  let scopedHtml = html.replace(/body\{/g, '#print-overlay {').replace(/@media print\{body\{/g, '@media print{#print-overlay{');
+  printDiv.innerHTML = scopedHtml;
+
+  const closeBtn = document.createElement('button');
+  closeBtn.innerText = '⬅ Volver al sistema';
+  closeBtn.className = 'no-print';
+  closeBtn.style.cssText = 'position:sticky;top:10px;left:10px;padding:10px 20px;background:#ef4444;color:#fff;border:none;border-radius:8px;font-weight:bold;cursor:pointer;z-index:1000;margin-bottom:20px;box-shadow:0 4px 6px rgba(0,0,0,0.3);';
+  closeBtn.onclick = () => {
+    document.body.removeChild(printDiv);
+    const s = document.getElementById('print-overlay-style');
+    if (s) s.remove();
+  };
+  printDiv.insertBefore(closeBtn, printDiv.firstChild);
+
+  const style = document.createElement('style');
+  style.id = 'print-overlay-style';
+  style.innerHTML = `@media print { body > *:not(#print-overlay) { display: none !important; } #print-overlay { position: static !important; overflow: visible !important; height: auto !important; } }`;
+  document.head.appendChild(style);
+  document.body.appendChild(printDiv);
+
+  setTimeout(() => window.print(), 500);
+}
 import React, { useState, useEffect, useCallback, useRef, ReactNode } from 'react'
 import * as XLSX from 'xlsx'
 import { useRouter } from 'next/navigation'
@@ -3809,8 +3845,7 @@ async function imprimirSesion(f: any, bloques: any[], teamPlayers: any[] = []) {
   ${f.notas ? `<div style="margin-top:12px;background:#fffbeb;border:1px solid #fde68a;border-radius:6px;padding:10px"><strong>Notas:</strong> ${f.notas}</div>` : ''}
   </body></html>`
 
-  const win = window.open('', '_blank')
-  if (win) { win.document.write(html); win.document.close() }
+  openPrintOverlay(html)
 }
 
 function SesionEditor({ sesion, defaultFecha, rpeReal = 0, onSave, onDelete, onCancel, onTransfer, teamPlayers = [], canchas = [] }) {
@@ -5526,7 +5561,7 @@ function ComparativaPanel({ teamData }: { teamData: any[] }) {
             <input className="wp-input" type="date" value={hasta} onChange={e=>setHasta(e.target.value)} />
           </div>
           <button className="hover-scale" onClick={()=>{
-            const win = window.open('', '_blank'); if (!win) return
+            
 
             // SVG bar chart builder (portrait-friendly, pure HTML)
             const mkChartBlock = (title: string, color: string, svgHtml: string, legendItems: {label:string,color:string}[]) => `
@@ -5601,7 +5636,7 @@ function ComparativaPanel({ teamData }: { teamData: any[] }) {
                 <div class="grid3">${chartsHtml}</div>
               </div>
             </body></html>`
-            win.document.write(html); win.document.close()
+            openPrintOverlay(html)
           }} >🖨️ PDF</button>
         </div>
       </div>
@@ -7176,7 +7211,7 @@ function AcumPanel({ teamData }) {
               <input className="wp-input" type="date" value={miciHasta} onChange={e=>setMiciHasta(e.target.value)} />
             </div>
             <button className="hover-scale" onClick={()=>{
-              const win = window.open('', '_blank'); if (!win) return
+              
 
             // SVG bar chart builder (portrait-friendly, pure HTML)
             const mkBars = (items: {name:string, val:number, sub?:string}[], bars: {key:string,label:string,color:string}[], lineKey?: string, lineColor?: string) => {
@@ -7338,7 +7373,7 @@ function AcumPanel({ teamData }) {
                   <div class="grid3">${charts2}</div>
                 </div>
               </body></html>`
-              win.document.write(html); win.document.close()
+              openPrintOverlay(html)
             }} >🖨️ PDF</button>
           </div>
         </div>
@@ -8554,7 +8589,7 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
           <div><label style={{ fontSize:10, color:'var(--fog)', display:'block', marginBottom:3, textTransform:'uppercase' }}>Desde</label><input className="wp-input" type="date" value={dateRange.desde} onChange={e=>setDateRange(r=>({ ...r, desde: e.target.value }))} /></div>
           <div><label style={{ fontSize:10, color:'var(--fog)', display:'block', marginBottom:3, textTransform:'uppercase' }}>Hasta</label><input className="wp-input" type="date" value={dateRange.hasta} onChange={e=>setDateRange(r=>({ ...r, hasta: e.target.value }))} /></div>
           <button className="hover-scale" onClick={()=>{
-            const win = window.open('', '_blank'); if (!win) return
+            
 
             // SVG bar chart builder (portrait-friendly, pure HTML)
             const mkBars = (items: {name:string, val:number, sub?:string}[], bars: {key:string,label:string,color:string}[], lineKey?: string, lineColor?: string) => {
@@ -8820,7 +8855,7 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
                 <div class="grid3" style="margin-top:16px;">${charts3}</div>
               </div>` : ''}
             </body></html>`
-            win.document.write(html); win.document.close()
+            openPrintOverlay(html)
           }} >🖨️ PDF</button>
           <button  onClick={()=>cargar()} disabled={loading} title="Actualizar datos" className="hover-scale btn-ghost-blue">🔄 {loading?'Cargando…':'Actualizar'}</button>
         </div>
@@ -10075,8 +10110,7 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
           <div><label style={{ fontSize:10, color:'var(--fog)', display:'block', marginBottom:3, textTransform:'uppercase' }}>Desde</label><input className="wp-input" type="date" value={dateRange.desde} onChange={e=>setDateRange(r=>({ ...r, desde: e.target.value }))} /></div>
           <div><label style={{ fontSize:10, color:'var(--fog)', display:'block', marginBottom:3, textTransform:'uppercase' }}>Hasta</label><input className="wp-input" type="date" value={dateRange.hasta} onChange={e=>setDateRange(r=>({ ...r, hasta: e.target.value }))} /></div>
           <button className="hover-scale" onClick={()=>{
-            const win = window.open('', '_blank')
-            if (!win) return
+            
 
             const CM: Record<string,string> = {
               dist_total:'#1d4ed8', dist_per_min:'#059669', dist_hir:'#b45309',
@@ -10515,8 +10549,7 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
               
             </body></html>`
 
-            win.document.write(html)
-            win.document.close()
+            openPrintOverlay(html)
           }} >🖨️ PDF</button>
         </div>
       </div>
@@ -11890,8 +11923,7 @@ function ManualPanel() {
   ]
 
   function generarPDF() {
-    const win = window.open('', '_blank')
-    if (!win) return
+    
     const estilos = `
       body { font-family: Arial, sans-serif; color: #111; background: #fff; margin: 0; padding: 0; }
       h1 { font-size: 28px; color: #1a1a1a; margin-bottom: 4px; }
@@ -12077,8 +12109,7 @@ ${secciones_data.map(sec => `
 </div>
 </body></html>`
 
-    win.document.write(html)
-    win.document.close()
+    openPrintOverlay(html)
     setTimeout(() => win.print(), 600)
   }
 

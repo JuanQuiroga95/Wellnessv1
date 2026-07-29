@@ -114,7 +114,7 @@ export default function AnalyticsPanel() {
         {sorted.map(p => {
           const total = p.fatiga != null ? p.fatiga+p.calidad_sueno+p.dolor_muscular+p.nivel_estres+p.estado_animo : null
           const rd = readiness(total)
-          const hasDolor = p.dolor_zona || (p.dolor_eva && p.dolor_eva > 0)
+          const hasDolor = Boolean(p.dolor_zona || (p.dolor_eva && p.dolor_eva > 0))
           return (
             <div key={p.jugador_id} style={{ background:'var(--ink2)', border:`1px solid ${rd.border}`, borderRadius:14, padding:'14px 18px' }}>
               <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom: total ? 10 : 0 }}>
