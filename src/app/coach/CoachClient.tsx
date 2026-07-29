@@ -20,7 +20,7 @@ export function openPrintOverlay(html: string) {
   const doc = iframe.contentWindow?.document || iframe.contentDocument;
   if (doc) {
     doc.open();
-    const finalHtml = html.replace('</body>', '<script>window.onload = function() { setTimeout(function(){ window.print(); }, 500); }</script></body>');
+    const finalHtml = html.replace('</body>', '<script>let p=false; function doP(){if(!p){p=true; window.print();}} window.onload=function(){setTimeout(doP,500);}; setTimeout(doP, 3000);</script></body>');
     doc.write(finalHtml);
     doc.close();
   }
