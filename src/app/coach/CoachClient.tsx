@@ -5579,7 +5579,7 @@ function ComparativaPanel({ teamData }: { teamData: any[] }) {
               .grid3{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
               @media print{@page{size:A4 landscape;margin:.8cm;}body{padding:0;}.np{display:none;}.pb{page-break-before:always;}.grid3{grid-template-columns:1fr 1fr;}}</style></head><body>
               <div class="np" style="margin-bottom:12px;display:flex;gap:10px;align-items:center;">
-                <button  onClick={() => window.print()} className="hover-scale btn-ghost-blue" style={{ padding: "8px 20px" }}>🖨️ Imprimir / Guardar PDF</button>
+                <button  onclick="window.print()" className="hover-scale btn-ghost-blue" style={{ padding: "8px 20px" }}>🖨️ Imprimir / Guardar PDF</button>
                 <span style="font-size:11px;color:#666;">Orientación: Horizontal (Landscape)</span>
               </div>
               <div style="background:#0f172a;color:#c8f135;padding:8px 16px;border-radius:6px;margin-bottom:12px;display:flex;justify-content:space-between;">
@@ -7314,7 +7314,7 @@ function AcumPanel({ teamData }) {
               .grid3{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
               @media print{@page{size:A4 landscape;margin:.8cm;}body{padding:0;}.np{display:none;}.pb{page-break-before:always;}.grid3{grid-template-columns:1fr 1fr;}}</style></head><body>
                 <div class="np" style="margin-bottom:12px;display:flex;gap:10px;align-items:center;">
-                <button  onClick={() => window.print()} className="hover-scale btn-ghost-blue" style={{ padding: "8px 20px" }}>🖨️ Imprimir / Guardar PDF</button>
+                <button  onclick="window.print()" className="hover-scale btn-ghost-blue" style={{ padding: "8px 20px" }}>🖨️ Imprimir / Guardar PDF</button>
                 <span style="font-size:11px;color:#666;">Orientación: Horizontal (Landscape)</span>
               </div>
                 <div style="background:#0f172a;color:#c8f135;padding:8px 16px;border-radius:6px;margin-bottom:12px;display:flex;justify-content:space-between;">
@@ -8789,7 +8789,7 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
               .grid3{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
               @media print{@page{size:A4 landscape;margin:.8cm;}body{padding:0;}.np{display:none;}.pb{page-break-before:always;}.grid3{grid-template-columns:1fr 1fr;}}</style></head><body>
               <div class="np" style="margin-bottom:12px;display:flex;gap:10px;align-items:center;">
-                <button  onClick={() => window.print()} className="hover-scale btn-ghost-blue" style={{ padding: "8px 20px" }}>🖨️ Imprimir / Guardar PDF</button>
+                <button  onclick="window.print()" className="hover-scale btn-ghost-blue" style={{ padding: "8px 20px" }}>🖨️ Imprimir / Guardar PDF</button>
                 <span style="font-size:11px;color:#666;">Orientación: Horizontal (Landscape)</span>
               </div>
               <div style="background:#0f172a;color:#c8f135;padding:8px 16px;border-radius:6px;margin-bottom:12px;display:flex;justify-content:space-between;">
@@ -10466,7 +10466,7 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
               <style>${css}</style>
             </head><body>
               <div class="np" style="margin-bottom:14px;display:flex;gap:10px;align-items:center;">
-                <button  onClick={() => window.print()} className="hover-scale btn-ghost-blue" style={{ padding: "8px 20px" }}>🖨️ Imprimir / Guardar PDF</button>
+                <button  onclick="window.print()" className="hover-scale btn-ghost-blue" style={{ padding: "8px 20px" }}>🖨️ Imprimir / Guardar PDF</button>
                 <span style="font-size:11px;color:#666;">Orientación: Horizontal (Landscape)</span>
               </div>
               <div style="background:#0f172a;color:#c8f135;padding:8px 16px;border-radius:6px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;">
