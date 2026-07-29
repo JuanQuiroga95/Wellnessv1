@@ -2,39 +2,28 @@
 import { mkBars, ENTRENAMIENTO_OPTIMIZADOR, ENTRENAMIENTO_COADYUVANTE, TODAS_LAS_NUEVAS, TAREAS_CON_ESPACIO, TAREAS_CON_EQUIPO, TAREAS_PARTIDO_SIMPLE, TAREAS_MOSTRAR_FORM, NE_DEFAULT, OBJETIVOS_FISICOS, OBJETIVOS_SECUNDARIOS, TITULOS_SESION, SUBTAREAS, getCuadrante } from './utils'
 
 export function openPrintOverlay(html: string) {
-  const printDiv = document.createElement('div');
-  printDiv.id = 'print-overlay';
-  printDiv.style.position = 'fixed';
-  printDiv.style.top = '0';
-  printDiv.style.left = '0';
-  printDiv.style.width = '100vw';
-  printDiv.style.height = '100vh';
-  printDiv.style.background = '#fff';
-  printDiv.style.zIndex = '999999';
-  printDiv.style.overflow = 'auto';
-  printDiv.style.color = '#111';
+  let iframe = document.getElementById('print-iframe') as HTMLIFrameElement;
+  if (!iframe) {
+    iframe = document.createElement('iframe');
+    iframe.id = 'print-iframe';
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '1px';
+    iframe.style.height = '1px';
+    iframe.style.opacity = '0.01';
+    iframe.style.pointerEvents = 'none';
+    iframe.style.zIndex = '-9999';
+    document.body.appendChild(iframe);
+  }
 
-  let scopedHtml = html.replace(/body\{/g, '#print-overlay {').replace(/@media print\{body\{/g, '@media print{#print-overlay{');
-  printDiv.innerHTML = scopedHtml;
-
-  const closeBtn = document.createElement('button');
-  closeBtn.innerText = '⬅ Volver al sistema';
-  closeBtn.className = 'no-print';
-  closeBtn.style.cssText = 'position:sticky;top:10px;left:10px;padding:10px 20px;background:#ef4444;color:#fff;border:none;border-radius:8px;font-weight:bold;cursor:pointer;z-index:1000;margin-bottom:20px;box-shadow:0 4px 6px rgba(0,0,0,0.3);';
-  closeBtn.onclick = () => {
-    document.body.removeChild(printDiv);
-    const s = document.getElementById('print-overlay-style');
-    if (s) s.remove();
-  };
-  printDiv.insertBefore(closeBtn, printDiv.firstChild);
-
-  const style = document.createElement('style');
-  style.id = 'print-overlay-style';
-  style.innerHTML = `@media print { body > *:not(#print-overlay) { display: none !important; } #print-overlay { position: static !important; overflow: visible !important; height: auto !important; } }`;
-  document.head.appendChild(style);
-  document.body.appendChild(printDiv);
-
-  setTimeout(() => window.print(), 500);
+  const doc = iframe.contentWindow?.document || iframe.contentDocument;
+  if (doc) {
+    doc.open();
+    const finalHtml = html.replace('</body>', '<script>window.onload = function() { setTimeout(function(){ window.print(); }, 500); }</script></body>');
+    doc.write(finalHtml);
+    doc.close();
+  }
 }
 import React, { useState, useEffect, useCallback, useRef, ReactNode } from 'react'
 import * as XLSX from 'xlsx'
