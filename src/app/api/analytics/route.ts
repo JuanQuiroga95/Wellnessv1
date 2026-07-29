@@ -75,7 +75,9 @@ export async function GET(req: NextRequest) {
              j.id AS jugador_id, u.nombre, j.posicion, j.foto_url,
              w.fecha::text,
              w.fatiga::int, w.calidad_sueno::int, w.dolor_muscular::int,
-             w.nivel_estres::int, w.estado_animo::int, w.dolor_zona, w.dolor_eva::int, w.fue_gimnasio, w.tqr::int,
+             w.nivel_estres::int, w.estado_animo::int, w.dolor_zona, w.dolor_eva::int,
+             (COALESCE(w.fue_gimnasio, false) OR EXISTS(SELECT 1 FROM entrenamiento_logs el WHERE el.jugador_id = j.id AND el.fecha >= CURRENT_DATE - 1 AND el.rpe_gimnasio > 0)) AS fue_gimnasio, 
+             w.tqr::int,
              (COALESCE(w.fatiga,0)+COALESCE(w.calidad_sueno,0)+COALESCE(w.dolor_muscular,0)+COALESCE(w.nivel_estres,0)+COALESCE(w.estado_animo,0))::int AS total_wellness
       FROM jugadores j JOIN usuarios u ON u.id=j.usuario_id
       LEFT JOIN wellness_logs w ON w.jugador_id=j.id AND w.fecha >= CURRENT_DATE - 1
