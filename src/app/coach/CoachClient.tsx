@@ -34,10 +34,10 @@ export function openPrintOverlay(html: string) {
     };
     
     if (iframe.contentWindow) {
-      iframe.contentWindow.onload = () => setTimeout(doP, 500);
+      iframe.contentWindow.onload = () => setTimeout(doP, 100);
     }
     // Main window timeout - won't be throttled
-    setTimeout(doP, 2500);
+    setTimeout(doP, 800);
   }
 }
 import React, { useState, useEffect, useCallback, useRef, ReactNode } from 'react'
@@ -6994,7 +6994,9 @@ function ReadinessPanel({ teamData }) {
                      return <span style={{ fontSize:11, padding:'2px 7px', borderRadius:6, background:'rgba(239,68,68,.1)', color:'#f87171', border:'1px solid rgba(239,68,68,.25)', whiteSpace:'nowrap', textOverflow:'ellipsis', overflow:'hidden', maxWidth:180 }} title={`EVA: ${p.dolor_eva||'—'}${p.dolor_descripcion ? ' · ' + p.dolor_descripcion : ''}`}>📍 {z}</span>
                   })()}
                   {p.tqr > 0 && <span style={{ fontSize:11, padding:'2px 7px', borderRadius:6, background:p.tqr>=8?'rgba(200,241,53,.1)':p.tqr>=6?'rgba(34,197,94,.1)':p.tqr>=4?'rgba(245,158,11,.1)':'rgba(239,68,68,.1)', color:p.tqr>=8?'#c8f135':p.tqr>=6?'#22c55e':p.tqr>=4?'#f59e0b':'#ef4444', border:`1px solid ${p.tqr>=8?'rgba(200,241,53,.25)':p.tqr>=6?'rgba(34,197,94,.25)':p.tqr>=4?'rgba(245,158,11,.25)':'rgba(239,68,68,.25)'}` }}>TQR {p.tqr}</span>}
-                  {p.fue_gimnasio && <span style={{ fontSize:11, padding:'2px 7px', borderRadius:6, background:'rgba(200,241,53,.1)', color:'var(--lime)', border:'1px solid rgba(200,241,53,.25)' }}>🏋️ Gim</span>}
+                  <span style={{ fontSize:11, padding:'2px 7px', borderRadius:6, background:p.fue_gimnasio?'rgba(200,241,53,.1)':'rgba(255,255,255,.05)', color:p.fue_gimnasio?'var(--lime)':'var(--fog)', border:`1px solid ${p.fue_gimnasio?'rgba(200,241,53,.25)':'rgba(255,255,255,.1)'}` }}>
+                    {p.fue_gimnasio ? '🏋️ Gimnasio: SÍ' : '❌ Gimnasio: NO'}
+                  </span>
                 </div>
               </div>
             )

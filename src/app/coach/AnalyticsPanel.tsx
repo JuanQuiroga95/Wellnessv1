@@ -156,7 +156,7 @@ export default function AnalyticsPanel() {
                   <div style={{ display:'flex', justifyContent:'space-between', marginBottom: hasDolor?8:0 }}>
                     {WL.map(l => <span key={l} style={{ fontSize:8, color:'var(--fog)' }}>{l}</span>)}
                   </div>
-                  <div style={{ display:'flex', flexWrap:'wrap', gap:5, marginTop: hasDolor || p.fue_gimnasio || p.tqr > 0 ? 5 : 0 }}>
+                  <div style={{ display:'flex', flexWrap:'wrap', gap:5, marginTop: 5 }}>
                     {p.dolor_zona && (() => {
                       let z = p.dolor_zona;
                       try { z = JSON.parse(p.dolor_zona).join(', ') } catch(e){}
@@ -164,7 +164,9 @@ export default function AnalyticsPanel() {
                     })()}
                     {p.dolor_eva>0 && <span style={{ fontSize:11, padding:'3px 8px', borderRadius:6, background:'rgba(239,68,68,.1)', color:'#f87171', border:'1px solid rgba(239,68,68,.25)' }}>EVA {p.dolor_eva}/10</span>}
                     {p.tqr>0 && <span style={{ fontSize:11, padding:'3px 8px', borderRadius:6, background:p.tqr>=8?'rgba(200,241,53,.1)':p.tqr>=6?'rgba(34,197,94,.1)':p.tqr>=4?'rgba(245,158,11,.1)':'rgba(239,68,68,.1)', color:p.tqr>=8?'#c8f135':p.tqr>=6?'#22c55e':p.tqr>=4?'#f59e0b':'#ef4444', border:`1px solid ${p.tqr>=8?'rgba(200,241,53,.25)':p.tqr>=6?'rgba(34,197,94,.25)':p.tqr>=4?'rgba(245,158,11,.25)':'rgba(239,68,68,.25)'}` }}>TQR {p.tqr}</span>}
-                    {p.fue_gimnasio && <span style={{ fontSize:11, padding:'3px 8px', borderRadius:6, background:'rgba(200,241,53,.1)', color:'var(--lime)', border:'1px solid rgba(200,241,53,.25)' }}>🏋️ Gim</span>}
+                    <span style={{ fontSize:11, padding:'3px 8px', borderRadius:6, background:p.fue_gimnasio?'rgba(200,241,53,.1)':'rgba(255,255,255,.05)', color:p.fue_gimnasio?'var(--lime)':'var(--fog)', border:`1px solid ${p.fue_gimnasio?'rgba(200,241,53,.25)':'rgba(255,255,255,.1)'}` }}>
+                      {p.fue_gimnasio ? '🏋️ Gimnasio: SÍ' : '❌ Gimnasio: NO'}
+                    </span>
                   </div>
                 </>
               )}
