@@ -9,9 +9,10 @@ export function openPrintOverlay(html: string) {
     iframe.style.position = 'fixed';
     iframe.style.right = '0';
     iframe.style.bottom = '0';
-    iframe.style.width = '1px';
-    iframe.style.height = '1px';
-    iframe.style.opacity = '0.01';
+    // Make iframe large enough so browser doesn't consider it fully hidden/tiny which could throttle it
+    iframe.style.width = '800px';
+    iframe.style.height = '100vh';
+    iframe.style.opacity = '0.001';
     iframe.style.pointerEvents = 'none';
     iframe.style.zIndex = '-9999';
     document.body.appendChild(iframe);
@@ -20,9 +21,23 @@ export function openPrintOverlay(html: string) {
   const doc = iframe.contentWindow?.document || iframe.contentDocument;
   if (doc) {
     doc.open();
-    const finalHtml = html.replace('</body>', '<script>let p=false; function doP(){if(!p){p=true; window.stop(); window.print();}} window.onload=function(){setTimeout(doP,500);}; setTimeout(doP, 3000);</script></body>');
-    doc.write(finalHtml);
+    doc.write(html);
     doc.close();
+    
+    let p = false;
+    const doP = () => {
+      if (!p) {
+        p = true;
+        try { iframe.contentWindow?.stop(); } catch(e){}
+        try { iframe.contentWindow?.print(); } catch(e){}
+      }
+    };
+    
+    if (iframe.contentWindow) {
+      iframe.contentWindow.onload = () => setTimeout(doP, 500);
+    }
+    // Main window timeout - won't be throttled
+    setTimeout(doP, 2500);
   }
 }
 import React, { useState, useEffect, useCallback, useRef, ReactNode } from 'react'
