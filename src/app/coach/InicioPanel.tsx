@@ -1,18 +1,10 @@
 import React, { useState, useEffect } from 'react'
-import { getCuadrante } from './CoachClient'
+import { getCuadrante, ENTRENAMIENTO_OPTIMIZADOR, ENTRENAMIENTO_COADYUVANTE } from './utils'
 import { Icons, PanelHeader, CuadroHeader } from './Headers'
 import { AnimateOnScroll } from '@/components/AnimateOnScroll'
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Legend, Cell, PieChart as AnimatedPieChart, Pie } from 'recharts'
 
-const ENTRENAMIENTO_OPTIMIZADOR = {
-  COMPETITIVO: ['PARTIDO COMPETICIÓN', 'PARTIDO AMISTOSO', 'PARTIDO ENTRENAMIENTO', 'PARTIDO SITUACIÓN 11c11-8c8', 'PARTIDO REDUCIDO 7c7-3c3'],
-  ESPECIAL: ['JUEGO POSICIÓN GRANDE 8c8-11c11', 'JUEGO POSICIÓN REDUCIDO 7c7-3c3', 'EVOLUCIÓN CON OPOSICIÓN', 'ABP CON OPOSICIÓN', 'EVOLUCIÓN SIN OPOSICIÓN', 'ABP SIN OPOSICIÓN', 'RONDOS', 'TRANSICIONES']
-}
 
-const ENTRENAMIENTO_COADYUVANTE = {
-  DIRIGIDO: ['CIRCUITO TÉCNICO CON FINALIZACIÓN', 'CIRCUITO DIRIGIDO CON FINALIZACIÓN', 'CIRCUITO TÉCNICO', 'CIRCUITO DIRIGIDO', 'JUEGO LÚDICO'],
-  GENERAL: ['DOMINIO BALÓN', 'CIRCUITO PROPIOCEPCIÓN', 'CIRCUITO CONDICIONAL', 'ACTIVACIÓN NEUROMUSCULAR', 'CUALIDADES ESPECÍFICAS', 'PREVENTIVO', 'ESTRUCTURAL', 'RESTAURACIÓN']
-}
 
 const getSubtareasArr = (bloque: any) => {
   try {
@@ -392,7 +384,7 @@ export default function InicioPanel({ teamData, session, today }: { teamData: an
     // If birthday passed this year, check next year
     if (bday < today) bday.setFullYear(parseInt(ty) + 1);
     
-    const diffTime = Math.abs(bday - today);
+    const diffTime = Math.abs(bday.getTime() - today.getTime());
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
     return diffDays <= 7;
   }

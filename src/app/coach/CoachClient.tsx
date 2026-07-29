@@ -1,4 +1,5 @@
 'use client'
+import { mkBars, ENTRENAMIENTO_OPTIMIZADOR, ENTRENAMIENTO_COADYUVANTE, TODAS_LAS_NUEVAS, TAREAS_CON_ESPACIO, TAREAS_CON_EQUIPO, TAREAS_PARTIDO_SIMPLE, TAREAS_MOSTRAR_FORM, NE_DEFAULT, OBJETIVOS_FISICOS, OBJETIVOS_SECUNDARIOS, TITULOS_SESION, SUBTAREAS, getCuadrante } from './utils'
 import React, { useState, useEffect, useCallback, useRef, ReactNode } from 'react'
 import * as XLSX from 'xlsx'
 import { useRouter } from 'next/navigation'
@@ -110,7 +111,7 @@ function compressImage(dataUrl: string, maxSize = 400, quality = 0.7): Promise<s
   })
 }
 
-const TABS = [{id:'inicio',label:'🏠 Inicio'},{id:'team',label:'Equipo'},{id:'calendario',label:'📅 Calendario'},{id:'fuerza',label:'💪 Rutina Fuerza'},{id:'analytics',label:'Analytics'},{id:'neuromuscular',label:'Neuromuscular'},{id:'minutos',label:'Minutaje'},{id:'control-carga-calc',label:'📊 Ctrl. Carga Calc'},{id:'control-carga-gps',label:'📡 Ctrl. Carga GPS'},{id:'acumulado',label:'📈 Acumulado Ind.'},{id:'expo-ai',label:'🤖 Expo. AI'},{id:'evaluaciones',label:'📋 Evaluaciones'},{id:'comparativa',label:'⚖️ Comparativa'},{id:'tactica',label:'♟️ Táctica'},{id:'lesiones',label:'🏥 Enfermería'},{id:'gps',label:'📡 GPS'},{id:'vinculaciones',label:'🔗 ACWR'},{id:'canchas',label:'🏟️ Estadios'},{id:'players',label:'Jugadores'},{id:'biblioteca',label:'📚 Biblioteca'},{id:'manual',label:'📖 Manual'},{id:'notificaciones',label:'🔔 Notificaciones'}]
+const TABS = [{id:'inicio',label:'🏠 Inicio'},{id:'team',label:'Equipo'},{id:'calendario',label:'📅 Calendario'},{id:'fuerza',label:'💪 Rutina Fuerza'},{id:'analytics',label:'Analytics'},{id:'neuromuscular',label:'Neuromuscular'},{id:'minutos',label:'Minutaje'},{id:'control-carga-calc',label:'📊 Ctrl. Carga Calc'},{id:'control-carga-gps',label:'📡 Ctrl. Carga GPS'},{id:'acumulado',label:'📈 Acumulado Ind.'},{id:'cambio-carga',label:'Cambio de Carga'},{id:'expo-ai',label:'🤖 Expo. AI'},{id:'evaluaciones',label:'📋 Evaluaciones'},{id:'comparativa',label:'⚖️ Comparativa'},{id:'tactica',label:'♟️ Táctica'},{id:'lesiones',label:'🏥 Enfermería'},{id:'gps',label:'📡 GPS'},{id:'vinculaciones',label:'🔗 ACWR'},{id:'canchas',label:'🏟️ Estadios'},{id:'players',label:'Jugadores'},{id:'biblioteca',label:'📚 Biblioteca'},{id:'manual',label:'📖 Manual'},{id:'notificaciones',label:'🔔 Notificaciones'}]
 
 const SIDEBAR_GROUPS = [
   { label:'General', icon:'🏠', items:[
@@ -124,7 +125,7 @@ const SIDEBAR_GROUPS = [
   { label:'Control de Carga', icon:'📊', items:[
     {id:'control-carga-calc',label:'Ctrl. Carga Calc',icon:'🏋️'},
     {id:'control-carga-gps',label:'Ctrl. Carga GPS',icon:'📡'},
-    
+    {id:'cambio-carga',label:'Cambio de Carga',icon:'🔄'},
     {id:'acumulado',label:'Acumulado Ind.',icon:'📈'},
   ]},
   { label:'Análisis', icon:'🔍', items:[
@@ -284,7 +285,7 @@ const AnimatedPieChart = (props: any) => {
   )
 }
 
-export default function CoachDashboard({ isPanama, session, teamData, today, hasSessionToday }: any) {
+export default function CoachDashboard({ isPanama, session, teamData, today }: any) {
   const [tab, setTab] = useState('inicio')
   const [selected, setSelected] = useState(null)
   const [sidebarOpen, setSidebarOpen] = useState(true)
@@ -349,7 +350,7 @@ export default function CoachDashboard({ isPanama, session, teamData, today, has
   const CICLO_DAYS = { microciclo:7, mesociclo:28, macrociclo:365 }
   const CICLO_WELLNESS_DAYS = { microciclo:28, mesociclo:56, macrociclo:120 }
 
-  async function openPlayer(p, c) {
+  async function openPlayer(p: any, c?: string) {
     const cycle = c || ciclo
     setLoadingDetail(true); setSelected(p)
     const days = CICLO_DAYS[cycle]
@@ -365,14 +366,8 @@ export default function CoachDashboard({ isPanama, session, teamData, today, has
   const available = filteredTeamData.filter(p=>!p.lesion && p.entrena_grupo!==false)
   const unavailable = filteredTeamData.filter(p=>p.entrena_grupo===false && !p.lesion)
   const injured = filteredTeamData.filter(p=>p.lesion)
-  const respondedWellness = filteredTeamData.filter(p=>p.respondedToday)
-  const pendingWellness = filteredTeamData.filter(p=>!p.respondedToday)
-  
-  // Pending RPE only matters if there's a session today.
-  // A player has responded RPE if p.rpeToday is true.
-  const respondedRpe = filteredTeamData.filter(p=>p.rpeToday)
-  const pendingRpe = hasSessionToday ? filteredTeamData.filter(p=>!p.rpeToday) : []
-
+  const responded = filteredTeamData.filter(p=>p.respondedToday)
+  const pending = filteredTeamData.filter(p=>!p.respondedToday)
   const atRisk = filteredTeamData.filter(p=>p.acwr?.status==='peligro').length
   const caution = filteredTeamData.filter(p=>p.acwr?.status==='precaucion').length
   const optimal = filteredTeamData.filter(p=>p.acwr?.status==='optimo').length
@@ -498,45 +493,16 @@ export default function CoachDashboard({ isPanama, session, teamData, today, has
                 </div>
                 <p style={{ fontSize:11, color:'var(--silver)', marginTop:6 }}>{available.filter(p=>p.posicion_orden!==1).length} de campo + {available.filter(p=>p.posicion_orden===1).length} portero/s</p>
               </div>
-              <div style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:14, padding:16, gridColumn:'span 2', display: 'flex', flexDirection: 'column' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                  <div style={{ flex: 1, paddingRight: 10 }}>
-                    <p style={{ fontSize:10, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:8 }}>Wellness Hoy</p>
-                    <div style={{ display:'flex', alignItems:'baseline', gap:6 }}>
-                      <span className="display" style={{ fontSize:40, color:'var(--lime)', lineHeight:1 }}>{respondedWellness.length}</span>
-                      <span className="display" style={{ fontSize:22, color:'var(--fog)', lineHeight:1 }}>/ {teamData.length}</span>
-                    </div>
-                    <div style={{ marginTop:10, height:5, background:'var(--mist)', borderRadius:3, overflow:'hidden' }}>
-                      <div style={{ height:'100%', width:`${teamData.length?(respondedWellness.length/teamData.length)*100:0}%`, background:'var(--lime)', borderRadius:3 }} />
-                    </div>
-                    {pendingWellness.length>0 && <p style={{ fontSize:11, color:'#f87171', marginTop:6 }}>⚠ Faltan: {pendingWellness.map(p=>p.nombre.split(' ')[0]).join(', ')}</p>}
-                  </div>
-                  
-                  <div style={{ width: 1, background: 'var(--mist)', alignSelf: 'stretch', margin: '0 10px' }} />
-                  
-                  <div style={{ flex: 1, paddingLeft: 10 }}>
-                    <p style={{ fontSize:10, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:8 }}>RPE Hoy</p>
-                    {hasSessionToday ? (
-                      <>
-                        <div style={{ display:'flex', alignItems:'baseline', gap:6 }}>
-                          <span className="display" style={{ fontSize:40, color:'var(--lime)', lineHeight:1 }}>{respondedRpe.length}</span>
-                          <span className="display" style={{ fontSize:22, color:'var(--fog)', lineHeight:1 }}>/ {teamData.length}</span>
-                        </div>
-                        <div style={{ marginTop:10, height:5, background:'var(--mist)', borderRadius:3, overflow:'hidden' }}>
-                          <div style={{ height:'100%', width:`${teamData.length?(respondedRpe.length/teamData.length)*100:0}%`, background:'var(--lime)', borderRadius:3 }} />
-                        </div>
-                        {pendingRpe.length>0 && <p style={{ fontSize:11, color:'#f87171', marginTop:6 }}>⚠ Faltan: {pendingRpe.map(p=>p.nombre.split(' ')[0]).join(', ')}</p>}
-                      </>
-                    ) : (
-                      <div style={{ display:'flex', alignItems:'center', height:'100%', fontSize:12, color:'var(--silver)' }}>No hay sesión hoy</div>
-                    )}
-                  </div>
+              <div style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:14, padding:16, gridColumn:'span 2' }}>
+                <p style={{ fontSize:10, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:8 }}>Wellness Hoy</p>
+                <div style={{ display:'flex', alignItems:'baseline', gap:6 }}>
+                  <span className="display" style={{ fontSize:52, color:'var(--lime)', lineHeight:1 }}>{responded.length}</span>
+                  <span className="display" style={{ fontSize:28, color:'var(--fog)', lineHeight:1 }}>/ {teamData.length}</span>
                 </div>
-                <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--mist)', display: 'flex', justifyContent: 'center' }}>
-                  <button onClick={() => window.open('/api/historial-multas', '_blank')} style={{ background: 'transparent', border: '1px solid var(--fog)', color: 'var(--silver)', padding: '6px 12px', borderRadius: 8, fontSize: 11, cursor: 'pointer', transition: 'all 0.2s' }} onMouseEnter={e => { e.currentTarget.style.color = 'var(--snow)'; e.currentTarget.style.borderColor = 'var(--snow)' }} onMouseLeave={e => { e.currentTarget.style.color = 'var(--silver)'; e.currentTarget.style.borderColor = 'var(--fog)' }}>
-                    📥 Descargar Historial de Faltas (Multas)
-                  </button>
+                <div style={{ marginTop:10, height:5, background:'var(--mist)', borderRadius:3, overflow:'hidden' }}>
+                  <div style={{ height:'100%', width:`${teamData.length?(responded.length/teamData.length)*100:0}%`, background:'var(--lime)', borderRadius:3 }} />
                 </div>
+                {pending.length>0 && <p style={{ fontSize:11, color:'#f87171', marginTop:6 }}>⚠ Pendientes: {pending.map(p=>p.nombre.split(' ')[0]).join(', ')}</p>}
               </div>
               {[{label:'EN RIESGO',val:atRisk,col:'#ef4444',bg:'rgba(239,68,68,.06)',border:'rgba(239,68,68,.2)'},{label:'PRECAUCIÓN',val:caution,col:'#f59e0b',bg:'rgba(245,158,11,.06)',border:'rgba(245,158,11,.2)'},{label:'ÓPTIMOS',val:optimal,col:'#22c55e',bg:'rgba(34,197,94,.06)',border:'rgba(34,197,94,.2)'}].map(s=>(
                 <div key={s.label} style={{ background:s.bg, border:`1px solid ${s.border}`, borderRadius:14, padding:16, textAlign:'center' }}>
@@ -675,11 +641,11 @@ export default function CoachDashboard({ isPanama, session, teamData, today, has
                 </div>
               </div>
             )}
-            {pendingWellness.length>0 && (
+            {pending.length>0 && (
               <div style={{ background:'rgba(239,68,68,.05)', border:'1px solid rgba(239,68,68,.15)', borderRadius:14, padding:'14px 18px' }}>
-                <p style={{ fontSize:11, fontWeight:600, color:'#f87171', marginBottom:8 }}>⚠ Sin wellness hoy ({pendingWellness.length})</p>
+                <p style={{ fontSize:11, fontWeight:600, color:'#f87171', marginBottom:8 }}>⚠ Sin wellness hoy ({pending.length})</p>
                 <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
-                  {pendingWellness.map(p=><span key={p.id} onClick={()=>openPlayer(p)} style={{ fontSize:12, padding:'4px 10px', borderRadius:6, background:'rgba(239,68,68,.1)', color:'#f87171', border:'1px solid rgba(239,68,68,.2)', cursor:'pointer' }}>{p.nombre}</span>)}
+                  {pending.map(p=><span key={p.id} onClick={()=>openPlayer(p)} style={{ fontSize:12, padding:'4px 10px', borderRadius:6, background:'rgba(239,68,68,.1)', color:'#f87171', border:'1px solid rgba(239,68,68,.2)', cursor:'pointer' }}>{p.nombre}</span>)}
                 </div>
               </div>
             )}
@@ -702,7 +668,7 @@ export default function CoachDashboard({ isPanama, session, teamData, today, has
         {tab==='expo-ai' && <ExpoAIPanel teamData={teamData} />}
         {tab==='evaluaciones' && <EvaluacionesPanel teamData={teamData} teamName={teamName} />}
         {tab==='biblioteca' && <BibliotecaPanel />}
-        
+        {tab==='cambio-carga' && <CambioCargaPanel />}
         {tab==='comparativa' && <ComparativaPanel teamData={teamData} />}
         {tab==='tactica' && <TacticaPanel teamData={teamData} session={session} today={todayLocal()} />}
         {tab==='lesiones' && <EnfermeriaPanel teamData={teamData} onRefresh={()=>router.refresh()} />}
@@ -1223,7 +1189,7 @@ function PlayerDetail({ isPanama, player:p, logs, wellness, loading, onBack, cic
       {logs.length>0 && (
         <div style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:16, padding:20 }}>
           <p style={{ fontSize:11, fontWeight:600, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:14 }}>Últimas sesiones <span style={{ fontSize:10, color:'var(--fog)', fontWeight:400, textTransform:'none' }}>— click en ✏️ para editar minutos y recalcular UA</span></p>
-          {[...logs].slice(-8).reverse().map((l,i)=>(<CoachSessionRow key={i} log={l} onRefresh={onRefreshData} />))}
+          {[...logs].slice(-8).reverse().map((l,i)=>(<CoachSessionRow key={i} log={l} />))}
         </div>
       )}
       <HistorialLesivo jugadorId={p.jugador_id || p.id} />
@@ -1355,6 +1321,503 @@ function HistorialLesivo({ jugadorId }: { jugadorId: number }) {
       </div>
     </div>
   )
+}
+
+function CambioCargaPanel() {
+  const now = new Date()
+  const defaultDesde = addDays(todayLocal(), -28)
+  const [desde, setDesde] = useState(defaultDesde)
+  const [hasta, setHasta] = useState(todayLocal())
+  const [minEnt, setMinEnt] = useState(60)
+  const [minPart, setMinPart] = useState(0)
+  const [data, setData] = useState<any>(null)
+  const [loading, setLoading] = useState(false)
+  const [view, setView] = useState<'diario'|'semanal'>('diario')
+  const [chartVar, setChartVar] = useState<string>('ua')
+  const [gpsData, setGpsData] = useState<any>(null)
+
+  const CHART_VARS_CALC = [
+    { key:'ua',                label:'UA',            color:'#c8f135', src:'rpe' },
+    { key:'uce',               label:'UCE',           color:'#f59e0b', src:'rpe' },
+    { key:'rpe',               label:'RPE',           color:'#60a5fa', src:'rpe' },
+    { key:'tiempo',            label:'Tiempo MIN',    color:'#34d399', src:'rpe' },
+    { key:'calc_mMin',         label:'m/min (Int. Rel.)', color:'#84cc16', src:'calc' },
+    { key:'calc_nSprints',     label:'HSR (n)',       color:'#a78bfa', src:'calc' },
+    { key:'calc_nAcel',        label:'ACE >2 (n)',      color:'#ec4899', src:'calc' },
+    { key:'calc_distAcel',     label:'ACE >2 (m)',      color:'#ec4899', src:'calc' },
+    { key:'calc_nDecel',       label:'DEC >2 (n)',      color:'#14b8a6', src:'calc' },
+    { key:'calc_distDecel',    label:'DEC >2 (m)',      color:'#14b8a6', src:'calc' },
+    { key:'calc_nAcel3',       label:'ACE >3 n°',     color:'#f43f5e', src:'calc' },
+    { key:'calc_nDecel3',      label:'DEC >3 n°',     color:'#0ea5e9', src:'calc' },
+    { key:'calc_distMP',       label:'Alta Pot. m',   color:'#fb923c', src:'calc' },
+    { key:'calc_distTotal',    label:'Dist. Total m', color:'#f59e0b', src:'calc' },
+    { key:'calc_distSprint',   label:'HSR (m)',       color:'#38bdf8', src:'calc' },
+    { key:'calc_sprintN25',    label:'Sprint (n)',    color:'#e879f9', src:'calc' },
+    { key:'calc_distSprint25', label:'Dist Sprint (m)', color:'#e879f9', src:'calc' },
+  ]
+  const CHART_VARS_GPS = [
+    { key:'rpe',         label:'RPE',           color:'#60a5fa', src:'gps' },
+    { key:'distTotal',   label:'Dist. Total m',  color:'#fbbf24', src:'gps' },
+    { key:'distPerMin',  label:'m/min',          color:'#84cc16', src:'gps' },
+    { key:'distV4',      label:'Vel B4 m',       color:'#a78bfa', src:'gps' },
+    { key:'distHir',     label:'HSR m',          color:'#f97316', src:'gps' },
+    { key:'distV5',      label:'Vel B6 m',       color:'#e879f9', src:'gps' },
+    { key:'maxVelocity', label:'Vel Max',        color:'#ef4444', src:'gps' },
+    { key:'nSprintsGps', label:'N° Sprint',      color:'#22d3ee', src:'gps' },
+    { key:'acc3',        label:'ACE >3 n',       color:'#ec4899', src:'gps' },
+    { key:'dec3',        label:'DEC >3 n',       color:'#14b8a6', src:'gps' },
+    { key:'playerLoad',  label:'Player Load',    color:'#fbbf24', src:'gps' },
+  ]
+  const CHART_VARS = [...CHART_VARS_CALC, ...CHART_VARS_GPS]
+
+  async function load(d = desde, h = hasta, me = minEnt, mp = minPart) {
+    setLoading(true)
+    setData(null)
+    setGpsData(null)
+    try {
+      const [r1, r2] = await Promise.all([
+        fetch(`/api/cambio-carga?desde=${d}&hasta=${h}&minEntrenamiento=${me}&minPartido=${mp}`),
+        fetch(`/api/carga-gps?desde=${d}&hasta=${h}&ciclo=microciclo`),
+      ])
+      setData(await r1.json())
+      setGpsData(await r2.json())
+    } finally { setLoading(false) }
+  }
+
+  useEffect(() => { load(desde, hasta, minEnt, minPart) }, [desde, hasta, minEnt, minPart])
+
+  const daily = data?.daily || []
+  const weekly = data?.weekly || []
+  const rows = view === 'diario' ? daily : weekly
+
+  const pctColor = (pct: number | null) => {
+    if (pct === null) return 'var(--silver)'
+    if (pct > 15) return '#ef4444'          // rojo: >15%
+    if (pct >= -5) return '#22c55e'         // verde: -5% a 15%
+    return '#60a5fa'                        // azul: < -5%
+  }
+
+  const pctBg = (pct: number | null) => {
+    if (pct === null) return 'transparent'
+    if (pct > 15) return 'rgba(239,68,68,.1)'
+    if (pct >= -5) return 'rgba(34,197,94,.1)'
+    return 'rgba(96,165,250,.1)'
+  }
+
+  // Build GPS daily map from perSession (keyed by MD label) — we match by fecha
+  const gpsDailyMap: Record<string,any> = {}
+  const gpsPerSession = gpsData?.perSession || {}
+  const gpsSesionesInfo = gpsData?.sesionesInfo || []
+  gpsSesionesInfo.forEach((s:any) => {
+    if (!s.fecha) return
+    // Buscar por titulo primero, luego por fecha (cuando la sesión no tiene título asignado)
+    const key = s.titulo || s.fecha
+    const entry = gpsPerSession[key]
+    if (!entry) return
+    if (gpsDailyMap[s.fecha]) {
+      // Acumular si hay 2+ sesiones el mismo día
+      Object.keys(entry).forEach((k: string) => {
+        if (typeof entry[k] === 'number') {
+          gpsDailyMap[s.fecha][k] = (gpsDailyMap[s.fecha][k] || 0) + entry[k]
+        }
+      })
+    } else {
+      gpsDailyMap[s.fecha] = { ...entry }
+    }
+  })
+
+  // Merge real GPS aggregates (dist_hir, dist_v4, dist_v5, max_velocity, dist_per_min, acc2, dec2)
+  // from gpsPerMD into gpsDailyMap so GPS-source chart vars work correctly
+  const gpsPerMDCC: Record<string,any[]> = gpsData?.gpsPerMD || {}
+  const gpsSesInfoCC: any[] = gpsData?.sesionesInfo || []
+  gpsSesInfoCC.forEach((s:any) => {
+    if (!s.fecha || !s.titulo) return
+    const mdPlayers: any[] = gpsPerMDCC[s.titulo] || []
+    if (!mdPlayers.length) return
+    const n = mdPlayers.length
+    const avgField = (key: string) => {
+      const vals = mdPlayers.map((p:any) => Number(p[key])||0).filter(x=>x>0)
+      return vals.length ? Math.round(vals.reduce((a,b)=>a+b,0)/n*10)/10 : 0
+    }
+    const realGps = {
+      dist_total:   avgField('dist_total'),
+      dist_hir:     avgField('dist_hir'),
+      dist_v4:      avgField('dist_v4'),
+      dist_v5:      avgField('dist_v5'),
+      max_velocity: avgField('max_velocity'),
+      dist_per_min: avgField('dist_per_min'),
+      n_sprints:    avgField('n_sprints'),
+      acc2_real:    avgField('acc2'),
+      dec2_real:    avgField('dec2'),
+      acc3_real:    avgField('acc3'),
+      dec3_real:    avgField('dec3'),
+      player_load:  avgField('player_load'),
+    }
+    if (gpsDailyMap[s.fecha]) {
+      Object.assign(gpsDailyMap[s.fecha], realGps)
+    } else {
+      gpsDailyMap[s.fecha] = realGps
+    }
+  })
+
+  // Also merge GPS data keyed by date (when GPS was imported without sesion_id link)
+  // gpsPerMDCC may have keys like "2026-04-12" instead of "MD"
+  Object.entries(gpsPerMDCC).forEach(([key, mdPlayers]: [string, any]) => {
+    // Only process date-format keys (YYYY-MM-DD), not MD labels
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(key)) return
+    const fecha = key
+    const players = mdPlayers as any[]
+    if (!players.length) return
+    const n = players.length
+    const avgField = (k: string) => {
+      const vals = players.map((p:any) => Number(p[k])||0).filter(x=>x>0)
+      return vals.length ? Math.round(vals.reduce((a,b)=>a+b,0)/n*10)/10 : 0
+    }
+    const realGps = {
+      dist_total:   avgField('dist_total'),
+      dist_hir:     avgField('dist_hir'),
+      dist_v4:      avgField('dist_v4'),
+      dist_v5:      avgField('dist_v5'),
+      max_velocity: avgField('max_velocity'),
+      dist_per_min: avgField('dist_per_min'),
+      n_sprints:    avgField('n_sprints'),
+      acc2_real:    avgField('acc2'),
+      dec2_real:    avgField('dec2'),
+      acc3_real:    avgField('acc3'),
+      dec3_real:    avgField('dec3'),
+      player_load:  avgField('player_load'),
+    }
+    if (gpsDailyMap[fecha]) {
+      Object.assign(gpsDailyMap[fecha], realGps)
+    } else {
+      gpsDailyMap[fecha] = realGps
+    }
+  })
+
+  // Construir mapa semanal acumulando GPS por semana ISO (para vista semanal)
+  const _fechaToWeekKey = (dateStr: string) => {
+    const d = new Date(dateStr + 'T12:00:00Z')
+    const day = d.getUTCDay() || 7
+    d.setUTCDate(d.getUTCDate() + 4 - day)
+    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1))
+    const week = Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7)
+    return `${d.getUTCFullYear()}-S${String(week).padStart(2, '0')}`
+  }
+  const gpsWeeklyMap: Record<string, any> = {}
+  Object.entries(gpsDailyMap).forEach(([fecha, gps]) => {
+    const wk = _fechaToWeekKey(fecha)
+    if (!gpsWeeklyMap[wk]) {
+      gpsWeeklyMap[wk] = { ...gps }
+    } else {
+      Object.keys(gps as any).forEach((k: string) => {
+        if (typeof (gps as any)[k] === 'number') {
+          gpsWeeklyMap[wk][k] = (gpsWeeklyMap[wk][k] || 0) + (gps as any)[k]
+        }
+      })
+    }
+  })
+
+  const GPS_KEYS = ['distTotal','distHir','distV4','distV5','nSprintsGps','acc3','dec3','maxVelocity','distPerMin','playerLoad']
+  // Keys as they appear in gpsDailyMap:
+  // - camelCase calc keys: distTotal, distSprint, nSprints, nAcel, nDecel
+  // - real GPS keys merged above: dist_hir, dist_v4, dist_v5, max_velocity, dist_per_min, acc2_real, dec2_real
+  const GPS_FIELD_MAP: Record<string,string> = {
+    distTotal:'dist_total',      distHir:'dist_hir',      distV4:'dist_v4',
+    distV5:'dist_v5',            nSprintsGps:'n_sprints', acc3:'acc3_real',
+    dec3:'dec3_real',            maxVelocity:'max_velocity',  distPerMin:'dist_per_min',
+    playerLoad:'player_load',
+  }
+  const getRowVal = (row: any) => {
+    if (chartVar === 'ua') return row.avg_ua||0
+    if (chartVar === 'uce') return row.avg_uce||0
+    if (chartVar === 'rpe') return row.avg_rpe||0
+    if (chartVar === 'tiempo') {
+      const rpe = row.avg_rpe || 0
+      return rpe > 0 ? Math.round((row.avg_ua || 0) / rpe) : 0
+    }
+    if (chartVar.startsWith('calc_')) {
+      const key = chartVar.replace('calc_','')
+      // Mapeo directo desde gpsDailyMap (datos reales de sesión planificada)
+      const SESSION_KEY_MAP: Record<string,string> = {
+        distTotal: 'distTotal', distSprint: 'distSprint', nSprints: 'nSprints',
+        nAcel: 'nAcel', nDecel: 'nDecel', distMP: 'distMP',
+        nAcel3: 'nAcel3', nDecel3: 'nDecel3', mMin: 'mMin'
+      }
+      const sessionKey = SESSION_KEY_MAP[key]
+      if (sessionKey) {
+        if (view === 'diario') {
+          const gps = gpsDailyMap[row.fecha]
+          return gps ? Math.round(Number(gps[sessionKey]) || 0) : 0
+        } else {
+          const gps = gpsWeeklyMap[row.semana]
+          return gps ? Math.round(Number(gps[sessionKey]) || 0) : 0
+        }
+      }
+      return 0
+    }
+    if (GPS_KEYS.includes(chartVar)) {
+      const field = GPS_FIELD_MAP[chartVar] || chartVar
+      if (view === 'diario') {
+        const gps = gpsDailyMap[row.fecha]
+        return gps ? Math.round(Number(gps[field]) || 0) : 0
+      } else {
+        // Vista semanal: usar acumulado de los días de esa semana
+        const gps = gpsWeeklyMap[row.semana]
+        return gps ? Math.round(Number(gps[field]) || 0) : 0
+      }
+    }
+    return 0
+  }
+  const maxUA = Math.max(...rows.map((r: any) => getRowVal(r)), 1)
+  const chartColor = CHART_VARS.find(v=>v.key===chartVar)?.color || '#c8f135'
+
+  // Recalculate pct_change based on the SELECTED variable (not always UA)
+  // Compare each row to the last row that had a non-zero value
+  const rowsWithPct = rows.map((row: any, i: number) => {
+    const val = getRowVal(row)
+    // Find the last PREVIOUS row that had training data (any non-zero value for this variable,
+    // or fall back to any previous row if none has this variable data)
+    let prevVal: number | null = null
+    // First try: last row where this variable had data > 0
+    for (let j = i - 1; j >= 0; j--) {
+      const pv = getRowVal(rows[j])
+      if (pv > 0) { prevVal = pv; break }
+    }
+    // If no previous row had this GPS variable > 0, but current > 0 → first occurrence
+    // Check if there was ANY previous row at all (even with val=0)
+    const hasPrevRow = i > 0
+    let pct: number | null = null
+    if (hasPrevRow) {
+      if (prevVal === null && val > 0) {
+        // Current is the first nonzero — compare to 0 = +100%
+        pct = 100
+      } else if (prevVal !== null) {
+        if (prevVal > 0 && val === 0) pct = -100
+        else if (prevVal > 0 && val > 0) pct = Math.round(((val - prevVal) / prevVal) * 100)
+        // prevVal > 0 handled above; prevVal null already handled
+      }
+    }
+    return { ...row, _pct: pct, _val: val }
+  })
+
+  return (
+    <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
+      <div>
+        <PanelHeader 
+          icon={Icons.velocimetro} 
+          title="CAMBIO DE CARGA" 
+          subtitle="CONTROL" 
+          description={`Variación de UCE acumulada — jugadores con ≥${minEnt}min entrenamiento y ≥${minPart}min en partido`}
+          color="#a855f7" 
+        />
+      </div>
+
+      {/* Filters */}
+      <div style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:14, padding:16 }}>
+        <div style={{ display:'flex', gap:12, flexWrap:'wrap', alignItems:'flex-end' }}>
+          {[['desde','Desde',desde,setDesde,'date'],['hasta','Hasta',hasta,setHasta,'date']].map(([id,lbl,val,setter,type]: any)=>(
+            <div key={id}>
+              <label style={{ display:'block', fontSize:10, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:5 }}>{lbl}</label>
+              <input type={type} className="wp-input" style={{ width:160, padding:'8px 12px', fontSize:13 }} value={val} onChange={e=>setter(e.target.value)} />
+            </div>
+          ))}
+          <div>
+            <label style={{ display:'block', fontSize:10, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:5 }}>Min. Entrenamiento</label>
+            <input type="number" min={0} max={180} className="wp-input" style={{ width:110, padding:'8px 12px', fontSize:13 }} value={minEnt} onChange={e=>setMinEnt(Number(e.target.value))} />
+          </div>
+          <div>
+            <label style={{ display:'block', fontSize:10, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:5 }}>Min. Partido</label>
+            <input type="number" min={0} max={120} className="wp-input" style={{ width:100, padding:'8px 12px', fontSize:13 }} value={minPart} onChange={e=>setMinPart(Number(e.target.value))} />
+          </div>
+          <button className="btn-ghost" style={{ fontSize:12, padding:'8px 14px' }} onClick={() => load()}>Actualizar</button>
+        </div>
+      </div>
+
+      {/* View toggle */}
+      <div style={{ display:'flex', gap:8 }}>
+        {(['diario','semanal'] as const).map(v=>(
+          <button className="hover-scale" key={v} onClick={()=>setView(v)} style={{ fontSize:12, padding:'7px 16px', borderRadius:10, cursor:'pointer', border: view===v?'2px solid var(--lime)':'1px solid var(--fog)', background: view===v?'rgba(200,241,53,.1)':'var(--ink2)', color: view===v?'var(--lime)':'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', fontWeight:600 }}>
+            {v === 'diario' ? 'Por Día' : 'Por Semana'}
+          </button>
+        ))}
+      </div>
+
+      {/* Variable selector — dos grupos: Calculadora y GPS */}
+      <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+        <div>
+          <div style={{ fontSize:10, color:'#c8f135', textTransform:'uppercase', letterSpacing:'0.06em', fontWeight:700, marginBottom:6 }}>🏋️ Calculadora</div>
+          <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
+            {CHART_VARS_CALC.map(v=>(
+              <button className="hover-scale" key={v.key} onClick={()=>setChartVar(v.key as any)}
+                style={{ fontSize:11, padding:'7px 16px', borderRadius:8, cursor:'pointer', textAlign:'center',
+                  border:chartVar===v.key?`2px solid ${v.color}`:'1px solid var(--mist)',
+                  background:chartVar===v.key?`${v.color}18`:'var(--ink2)',
+                  color:chartVar===v.key?v.color:'var(--silver)',
+                  fontWeight:chartVar===v.key?700:400 }}>
+                {v.label}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div>
+          <div style={{ fontSize:10, color:'#60a5fa', textTransform:'uppercase', letterSpacing:'0.06em', fontWeight:700, marginBottom:6 }}>📡 GPS</div>
+          <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
+            {CHART_VARS_GPS.map(v=>(
+              <button className="hover-scale" key={v.key} onClick={()=>setChartVar(v.key as any)}
+                style={{ fontSize:11, padding:'7px 16px', borderRadius:8, cursor:'pointer', textAlign:'center',
+                  border:chartVar===v.key?`2px solid ${v.color}`:'1px solid var(--mist)',
+                  background:chartVar===v.key?`${v.color}18`:'var(--ink2)',
+                  color:chartVar===v.key?v.color:'var(--silver)',
+                  fontWeight:chartVar===v.key?700:400 }}>
+                {v.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Legend */}
+      <div style={{ display:'flex', gap:14, flexWrap:'wrap', paddingLeft:4 }}>
+        {[['#22c55e','−5% a +15%: Normal'],['#ef4444','>+15%: Aumento alto'],['#60a5fa','<−5%: Reducción notable']].map(([c,l])=>(
+          <div key={l} style={{ display:'flex', alignItems:'center', gap:6, fontSize:11, color:'var(--silver)' }}>
+            <div style={{ width:10, height:10, borderRadius:2, background:c }} />{l}
+          </div>
+        ))}
+      </div>
+
+      {loading
+        ? <div style={{ padding:40, textAlign:'center', color:'var(--silver)' }}>Cargando...</div>
+        : rows.length === 0
+          ? <div style={{ padding:40, textAlign:'center', color:'var(--silver)' }}>Sin datos para el período seleccionado.<br /><span style={{ fontSize:11 }}>Verificá que haya jugadores con ≥{minEnt}min entrenamiento y ≥{minPart}min en partido.</span></div>
+          : <>
+              {/* Summary cards */}
+              {rowsWithPct.length >= 2 && (() => {
+                const last = rowsWithPct[rowsWithPct.length - 1]
+                const prev = rowsWithPct.slice(0, -1).reverse().find((r:any) => r._val > 0) || rowsWithPct[rowsWithPct.length - 2]
+                const pct = last._pct
+                return (
+                  <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(160px,1fr))', gap:10 }}>
+                    <div style={{ background:'var(--ink2)', border:`1px solid ${chartColor}33`, borderRadius:14, padding:16, textAlign:'center' }}>
+                      <div style={{ fontSize:10, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:6 }}>Último {CHART_VARS.find(v=>v.key===chartVar)?.label}</div>
+                      <div className="display" style={{ fontSize:36, color:chartColor, lineHeight:1 }}>{getRowVal(last)}</div>
+                      <div style={{ fontSize:11, color:'var(--silver)', marginTop:4 }}>{view==='diario' ? last.fecha : last.label}</div>
+                    </div>
+                    <div style={{ background:pctBg(pct), border:`1px solid ${pctColor(pct)}44`, borderRadius:14, padding:16, textAlign:'center' }}>
+                      <div style={{ fontSize:10, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:6 }}>Cambio vs anterior</div>
+                      <div className="display" style={{ fontSize:36, color:pctColor(pct), lineHeight:1 }}>{pct !== null ? `${pct > 0 ? '+' : ''}${pct}%` : '—'}</div>
+                      <div style={{ fontSize:11, color:'var(--silver)', marginTop:4 }}>{getRowVal(prev)} → {getRowVal(last)} {CHART_VARS.find(v=>v.key===chartVar)?.label}</div>
+                    </div>
+                    <div style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:14, padding:16, textAlign:'center' }}>
+                      <div style={{ fontSize:10, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:6 }}>Jugadores calificados</div>
+                      <div className="display" style={{ fontSize:36, color:'var(--lime)', lineHeight:1 }}>{data?.qualifyingCount || 0}</div>
+                      <div style={{ fontSize:11, color:'var(--silver)', marginTop:4 }}>con ≥{minPart}min en partido</div>
+                    </div>
+                    <div style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:14, padding:16, textAlign:'center' }}>
+                      <div style={{ fontSize:10, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:6 }}>{view==='diario' ? 'Días' : 'Semanas'} con datos</div>
+                      <div className="display" style={{ fontSize:36, color:'var(--snow)', lineHeight:1 }}>{rowsWithPct.length}</div>
+                      <div style={{ fontSize:11, color:'var(--silver)', marginTop:4 }}>{desde} – {hasta}</div>
+                    </div>
+                  </div>
+                )
+              })()}
+
+              {/* Bar chart */}
+              <div style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:16, padding:'16px 18px' }}>
+                <p style={{ fontSize:10, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:14 }}>
+                  {CHART_VARS.find(v=>v.key===chartVar)?.label} — {view === 'diario' ? 'por día' : 'por semana'}
+                </p>
+                <div style={{ display:'flex', alignItems:'flex-end', gap:4, height:140, overflowX:'auto', paddingBottom:4 }}>
+                  {rowsWithPct.map((row: any, i: number) => {
+                    const h = Math.max(Math.round((row._val / maxUA) * 110), row._val > 0 ? 24 : 4)
+                    const col = pctColor(row._pct)
+                    const pctLabel = row._pct !== null ? `${row._pct > 0 ? '+' : ''}${row._pct}%` : ''
+                    const label = view === 'diario'
+                      ? row.fecha.slice(5) // MM-DD
+                      : row.semana.replace(/\d{4}-/, '') // S01
+                    return (
+                      <div key={i} style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:3, minWidth:view==='diario'?28:48, flex:'1 0 auto' }}>
+                        <div title={`${row._val} ${CHART_VARS.find(v=>v.key===chartVar)?.label}${row._pct !== null ? ` (${pctLabel})` : ''}`}
+                          style={{ position:'relative', width:'100%', height:h, background:chartColor, borderRadius:'4px 4px 0 0', opacity:.85, minHeight:4, transition:'height .2s', display:'flex', alignItems:'center', justifyContent:'center' }}>
+                          {pctLabel && h >= 18 && (
+                            <span style={{ position:'absolute', top:'50%', left:'50%', transform:'translate(-50%,-50%)', fontSize:9, color:'#fff', fontFamily:'DM Mono,monospace', fontWeight:700, whiteSpace:'nowrap', textShadow:`0 1px 3px rgba(0,0,0,.8)` }}>
+                              {pctLabel}
+                            </span>
+                          )}
+                        </div>
+                        <span style={{ fontSize:8, color:'var(--fog)', fontFamily:'DM Mono,monospace', whiteSpace:'nowrap', transform:'rotate(-35deg)', transformOrigin:'top center', marginTop:4 }}>{label}</span>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {/* Table */}
+              <div style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:16, overflow:'hidden' }}>
+                <div style={{ display:'grid', gridTemplateColumns: view==='diario' ? '1fr 120px 120px 120px' : '1fr 1fr 120px 120px', gap:0, padding:'10px 18px', borderBottom:'1px solid var(--mist)' }}>
+                  {(view==='diario'
+                    ? ['Fecha','Jugadores', `Promedio ${CHART_VARS.find(v=>v.key===chartVar)?.label||'UCE'}`,'Cambio vs anterior']
+                    : ['Semana','Etiqueta', `Promedio ${CHART_VARS.find(v=>v.key===chartVar)?.label||'UCE'}`,'Cambio vs anterior']
+                  ).map(h=>(
+                    <span key={h} style={{ fontSize:9, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em' }}>{h}</span>
+                  ))}
+                </div>
+                {rowsWithPct.map((row: any, i: number) => (
+                  <div key={i} style={{ display:'grid', gridTemplateColumns: view==='diario' ? '1fr 120px 120px 120px' : '1fr 1fr 120px 120px', gap:0, padding:'11px 18px', borderBottom:i<rowsWithPct.length-1?'1px solid var(--mist)':'none', alignItems:'center' }}>
+                    <span className="mono" style={{ fontSize:13, color:'var(--snow)' }}>
+                      {view==='diario' ? row.fecha : row.semana}
+                    </span>
+                    {view === 'diario'
+                      ? <span style={{ fontSize:11, color:'var(--silver)' }} title={row.players?.join(', ')}>
+                          {row.count > 0 ? `${row.count} jugadores` : <span style={{ color:'var(--fog)', fontStyle:'italic' }}>Sin RPE</span>}
+                        </span>
+                      : <span style={{ fontSize:11, color:'var(--silver)' }}>{row.label}</span>
+                    }
+                    <span className="mono" style={{ fontSize:14, color: row.count > 0 ? chartColor : 'var(--fog)', fontWeight:600 }}>
+                      {row.count > 0 ? <>{getRowVal(row)} <span style={{ fontSize:10, color:'var(--silver)', fontWeight:400 }}>{CHART_VARS.find(v=>v.key===chartVar)?.label}</span></> : '—'}
+                    </span>
+                    <span style={{ fontSize:13, fontWeight:700, color:pctColor(row._pct), background:pctBg(row._pct), padding:'3px 8px', borderRadius:6, display:'inline-block', fontFamily:'DM Mono,monospace' }}>
+                      {row.count > 0 ? (row._pct !== null ? `${row._pct > 0 ? '+' : ''}${row._pct}%` : '—') : '—'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Interpretation guide */}
+              <div style={{ background:'rgba(200,241,53,.04)', border:'1px solid rgba(200,241,53,.12)', borderRadius:12, padding:'14px 18px' }}>
+                <p style={{ fontSize:10, fontWeight:700, color:'var(--lime)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:8 }}>Guía de interpretación</p>
+                <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(200px,1fr))', gap:6 }}>
+                  {[
+                    ['🔵','< −5%','Carga ha disminuido — posible descarga planificada'],
+                    ['🟢','−5% a +15%','Carga normal — rango óptimo de progresión'],
+                    ['🔴','> +15%','Aumento alto — riesgo de sobrecarga'],
+                  ].map(([icon,pct,desc])=>(
+                    <div key={pct} style={{ display:'flex', gap:8, alignItems:'flex-start' }}>
+                      <span style={{ fontSize:13 }}>{icon}</span>
+                      <div>
+                        <span className="mono" style={{ fontSize:11, color:'var(--snow)', fontWeight:600 }}>{pct}: </span>
+                        <span style={{ fontSize:11, color:'var(--silver)' }}>{desc}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </>
+      }
+    </div>
+  )
+}
+
+// ── CALENDARIO PANEL ──────────────────────────────────────────────────────────
+
+const TIPO_COLORES: Record<string, string> = { entrenamiento:'#c8f135', partido:'#3b82f6', recuperacion:'#f59e0b', descanso:'#555' }
+const TIPO_ICONOS: Record<string, string> = { entrenamiento:'⚽', partido:'🏆', recuperacion:'🔄', descanso:'😴' }
+
+// Map para formatear visualmente los MD.
+const formatMD = (md: string, tipo?: string) => {
+  if (tipo === 'descanso') {
+    return `🔋 ${md && md.startsWith('MD') ? `${md} OFF` : md ? md : 'OFF'}`
+  }
+  return md
 }
 
 function getSesionStyle(s: any, withWidth = true) {
@@ -1577,10 +2040,10 @@ function CalendarioPanel({ teamData }) {
   const diasSemana = viewMode === 'semana' ? getDiasSemana() : []
 
   // All event days sorted for recovery calculation
-  const allEventDays = [...new Set([
+  const allEventDays = Array.from(new Set([
     ...sesiones.filter(s => s.tipo !== 'descanso').map(s=>s.fecha),
     ...partidos.map(p=>p.fecha),
-  ])].sort()
+  ])).sort()
 
   // 1. Calcular volumen relativo de cada sesión (para semáforo)
   const sessionVolMap = new Map<number, number>()
@@ -1807,7 +2270,7 @@ function CalendarioPanel({ teamData }) {
               else { const b = await r.json().catch(()=>({})); alert('Error: ' + (b?.error||r.status)) }
             } catch { alert('Error de red.') }
           }} style={{ fontSize:12, padding:'10px 18px', borderRadius:8, background:'rgba(239,68,68,.1)', border:'1px solid rgba(239,68,68,.3)', color:'#f87171', cursor:'pointer' }}>🗑 Borrar todo</button>
-          <button className="hover-scale" onClick={()=>{setEditSesion(null);setShowEditor(true)}} className="btn-lime" style={{ fontSize:12, padding:'10px 18px' }}>+ Nueva sesión</button>
+          <button  onClick={()=>{setEditSesion(null);setShowEditor(true)}} className="hover-scale btn-lime" style={{ fontSize:12, padding:'10px 18px' }}>+ Nueva sesión</button>
         </div>
       </div>
 
@@ -1841,7 +2304,7 @@ function CalendarioPanel({ teamData }) {
           </span>
           <button onClick={nextNav} className="btn-ghost" style={{ padding:'6px 12px', fontSize:16 }}>›</button>
         </div>
-        <button className="hover-scale" onClick={()=>{ const d=new Date(); setYear(d.getFullYear()); setMonth(d.getMonth()); setWeekStart(()=>{ const w=new Date(); const day = w.getDay()||7; w.setDate(w.getDate()-day+1); return w }); }} className="btn-ghost" style={{ fontSize:11, padding:'6px 12px' }}>Hoy</button>
+        <button  onClick={()=>{ const d=new Date(); setYear(d.getFullYear()); setMonth(d.getMonth()); setWeekStart(()=>{ const w=new Date(); const day = w.getDay()||7; w.setDate(w.getDate()-day+1); return w }); }} className="hover-scale btn-ghost" style={{ fontSize:11, padding:'6px 12px' }}>Hoy</button>
       </div>
 
       {loading ? (
@@ -2092,7 +2555,7 @@ function CalendarioPanel({ teamData }) {
                     {ses.map(s=>{
                       const sProps = getSesionStyle(s, false)
                       return (
-                      <button className="hover-scale" key={s.id} onClick={()=>{setEditSesion(s);setShowEditor(true)}} className={sProps.className} style={{...sProps.style, fontSize:12, padding:(s.hora_inicio || s.objetivo)?'4px 12px':'6px 12px', flexDirection:'column', alignItems:'center', gap:2}}>
+                      <button >
                         <div style={{display:'flex', alignItems:'center', gap:4}}>
                           {s.tipo==='partido' && s.rival_foto ? <img src={s.rival_foto} style={{ width:14, height:14, objectFit:'contain', borderRadius:2, verticalAlign:'middle', marginRight:4 }} alt="" /> : null}
                           {s.tipo==='partido'
@@ -2198,8 +2661,8 @@ function CalendarioPanel({ teamData }) {
                 </div>
               </div>
               <div style={{ display:'flex', gap:8 }}>
-                <button className="hover-scale" onClick={()=>{setEditSesion(null);setShowEditor(true)}} className="btn-lime" style={{ fontSize:11, padding:'6px 14px' }}>+ Sesión</button>
-                <button className="hover-scale" onClick={()=>setSelectedDay(null)} className="btn-ghost" style={{ fontSize:11, padding:'6px 10px' }}>✕</button>
+                <button  onClick={()=>{setEditSesion(null);setShowEditor(true)}} className="hover-scale btn-lime" style={{ fontSize:11, padding:'6px 14px' }}>+ Sesión</button>
+                <button  onClick={()=>setSelectedDay(null)} className="hover-scale btn-ghost" style={{ fontSize:11, padding:'6px 10px' }}>✕</button>
               </div>
             </div>
             {ses.length===0 && parts.length===0 && <p style={{ color:'var(--fog)', fontSize:13 }}>Sin eventos planificados. Creá una sesión.</p>}
@@ -2479,7 +2942,7 @@ function CalendarioPanel({ teamData }) {
                     paddingAngle={5}
                     dataKey="value"
                     stroke="none"
-                    isAnimationActive={true}
+                    
                     animationDuration={2500}
                   >
                     { [
@@ -2635,76 +3098,6 @@ function CalendarioPanel({ teamData }) {
   )
 }
 
-export function getCuadrante(densidad: number, jugadores?: number) {
-  // Sangnier et al (2018) — clasificación EXACTA del Excel
-  // Eje Y (densidad m²/jug): <50 | 50-100 | 100-200 | >=200
-  // Eje X (total jugadores): <=4 | <=8 | <=14 | <=20
-  //
-  // Tabla completa:
-  // densidad\jug  | <=4           | <=8           | <=14          | <=20
-  // <50           | Fuerza 1      | Fuerza 2      | Act./Rec. 2   | Act./Rec. 4
-  // 50-100        | Fuerza 3      | Fuerza 4      | Act./Rec. 1   | Act./Rec. 3
-  // 100-200       | Resistencia 2 | Resistencia 4 | Velocidad 4   | Velocidad 2
-  // >=200         | Resistencia 1 | Resistencia 3 | Velocidad 3   | Velocidad 1
-
-  const d = densidad
-  const n = jugadores || 0
-
-  // Tabla completa incluyendo número de intensidad (Sangnier et al 2018)
-  // densidad\jug  | <=4              | <=8              | <=14             | <=20
-  // <50           | Fuerza 1         | Fuerza 2         | Act./Rec. 2      | Act./Rec. 4
-  // 50-100        | Fuerza 3         | Fuerza 4         | Act./Rec. 1      | Act./Rec. 3
-  // 100-200       | Resistencia 2    | Resistencia 4    | Velocidad 4      | Velocidad 2
-  // >=200         | Resistencia 1    | Resistencia 3    | Velocidad 3      | Velocidad 1
-  // Número: 1 = más intenso, 4 = menos intenso (dentro de su categoría)
-
-  let objetivo = 'Resistencia'
-  let intensidad = 1
-
-  if (d < 50) {
-    if (n <= 4)       { objetivo = 'Fuerza';     intensidad = 1 }
-    else if (n <= 8)  { objetivo = 'Fuerza';     intensidad = 2 }
-    else if (n <= 14) { objetivo = 'Activación/Recuperación'; intensidad = 2 }
-    else              { objetivo = 'Activación/Recuperación'; intensidad = 4 }
-  } else if (d < 100) {
-    if (n <= 4)       { objetivo = 'Fuerza';     intensidad = 3 }
-    else if (n <= 8)  { objetivo = 'Fuerza';     intensidad = 4 }
-    else if (n <= 14) { objetivo = 'Activación/Recuperación'; intensidad = 1 }
-    else              { objetivo = 'Activación/Recuperación'; intensidad = 3 }
-  } else if (d < 200) {
-    if (n <= 4)       { objetivo = 'Resistencia'; intensidad = 2 }
-    else if (n <= 8)  { objetivo = 'Resistencia'; intensidad = 4 }
-    else if (n <= 14) { objetivo = 'Velocidad';   intensidad = 4 }
-    else              { objetivo = 'Velocidad';   intensidad = 2 }
-  } else {
-    if (n <= 4)       { objetivo = 'Resistencia'; intensidad = 1 }
-    else if (n <= 8)  { objetivo = 'Resistencia'; intensidad = 3 }
-    else if (n <= 14) { objetivo = 'Velocidad';   intensidad = 3 }
-    else              { objetivo = 'Velocidad';   intensidad = 1 }
-  }
-
-  const colorMap: Record<string,{color:string,bg:string,border:string}> = {
-    'Fuerza':                  { color:'#a855f7', bg:'rgba(168,85,247,.1)',  border:'rgba(168,85,247,.3)' },
-    'Activación':              { color:'#22c55e', bg:'rgba(34,197,94,.1)',   border:'rgba(34,197,94,.3)'  },
-    'Activación/Recuperación': { color:'#22c55e', bg:'rgba(34,197,94,.1)',   border:'rgba(34,197,94,.3)'  },
-    'Resistencia':             { color:'#f59e0b', bg:'rgba(245,158,11,.1)',  border:'rgba(245,158,11,.3)' },
-    'Velocidad':               { color:'#3b82f6', bg:'rgba(59,130,246,.1)',  border:'rgba(59,130,246,.3)' },
-  }
-  const { color, bg, border } = colorMap[objetivo] ?? { color:'#888', bg:'rgba(128,128,128,.1)', border:'rgba(128,128,128,.3)' }
-
-  // Etiqueta de espacio relativa a la densidad
-  const espacioLabel = d < 100 ? 'Espacio Reducido' : d < 200 ? 'Espacio Medio' : 'Espacio Grande'
-
-  const descs: Record<string,string> = {
-    'Fuerza':                  'Acciones neuromusculares · Contactos frecuentes · Espacio limitado',
-    'Resistencia':             'Alta demanda aeróbica (FC) · Balance técnico-táctico · Densidad moderada',
-    'Activación':              'Activación y recuperación · Baja exigencia · SSG de alta densidad',
-    'Activación/Recuperación': 'Activación y recuperación · Baja exigencia · SSG de alta densidad',
-    'Velocidad':               'Demanda HSR y VHSR · Sprints frecuentes · Espacios amplios',
-  }
-
-  return { label: espacioLabel, objetivo, intensidad, color, bg, border, desc: descs[objetivo] }
-}
 
 function getJugadoresBloque(bl: any, esConEquipo: boolean): number {
   const atacantes = Number(bl.atacantes) || 0
@@ -4003,7 +4396,7 @@ function MinutosPanel({ teamData }) {
       </div>
       <div style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:14, padding:16 }}>
         <div style={{ display:'flex', gap:12, flexWrap:'wrap', alignItems:'flex-end' }}>
-          {[['desde','Desde',desde,setDesde],['hasta','Hasta',hasta,setHasta]].map(([id,lbl,val,setter])=>(
+          {[ {id:'desde',lbl:'Desde',val:desde,setter:setDesde}, {id:'hasta',lbl:'Hasta',val:hasta,setter:setHasta} ].map(({id,lbl,val,setter}: any)=>( 
             <div key={id}>
               <label style={{ display:'block', fontSize:10, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:5 }}>{lbl}</label>
               <input type="date" className="wp-input" style={{ width:160, padding:'8px 12px', fontSize:13 }} value={val} onChange={e=>setter(e.target.value)} />
@@ -4360,7 +4753,7 @@ function AddMatchForm({ teamData, onSuccess, onCancel }) {
   )
 }
 
-function CoachSessionRow({ log, onRefresh }: { log: any, onRefresh?: () => void }) {
+function CoachSessionRow({ log }) {
   const [editing, setEditing] = useState(false)
   const [mins, setMins] = useState(String(log.duracion_min || '90'))
   const [displayMins, setDisplayMins] = useState(Number(log.duracion_min) || 90)
@@ -4384,23 +4777,8 @@ function CoachSessionRow({ log, onRefresh }: { log: any, onRefresh?: () => void 
       setUa(updated.carga_ua || 0)
       setDisplayMins(updated.duracion_min || m)
       setEditing(false)
-      if (onRefresh) onRefresh()
     } catch { setError('Error de conexión') }
     finally { setSaving(false) }
-  }
-
-  async function deleteLog() {
-    if (!confirm(`¿Eliminar la sesión del ${log.fecha}?`)) return
-    setSaving(true); setError('')
-    try {
-      const res = await fetch(`/api/logs?id=${log.id}`, { method: 'DELETE' })
-      if (!res.ok) { const d = await res.json(); setError(d.error||'Error'); return }
-      if (onRefresh) onRefresh()
-    } catch {
-      setError('Error de conexión')
-    } finally {
-      setSaving(false)
-    }
   }
 
   return (
@@ -4434,8 +4812,6 @@ function CoachSessionRow({ log, onRefresh }: { log: any, onRefresh?: () => void 
             {displayMins ? `${displayMins} min` : <span style={{ fontSize:11 }}>⚠ sin mins</span>}
           </span>
           <button className="hover-scale" onClick={()=>setEditing(true)} title="Editar minutos" style={{ fontSize:13, background:'transparent', border:'none', cursor:'pointer', color:'var(--fog)', padding:'0 2px', lineHeight:1 }}>✏️</button>
-          <button className="hover-scale" onClick={deleteLog} disabled={saving} title="Eliminar sesión" style={{ fontSize:13, background:'transparent', border:'none', cursor:'pointer', color:'#ef4444', padding:'0 2px', lineHeight:1, opacity: saving ? 0.5 : 1 }}>🗑️</button>
-          {error && <span style={{ fontSize:11, color:'#f87171', marginLeft: 4 }}>{error}</span>}
         </div>
       )}
       <span className="mono" style={{ color: ua > 0 ? 'var(--lime)' : 'var(--fog)', fontWeight:600 }}>
@@ -5147,57 +5523,6 @@ function ComparativaPanel({ teamData }: { teamData: any[] }) {
             const win = window.open('', '_blank'); if (!win) return
 
             // SVG bar chart builder (portrait-friendly, pure HTML)
-            const mkBars = (items: {name:string, val:number, sub?:string}[], bars: {key:string,label:string,color:string}[], lineKey?: string, lineColor?: string) => {
-              if (!items.length) return '<p style="color:#aaa;font-size:10px;text-align:center;padding:8px">Sin datos</p>'
-              const BAR_H = 200, TOP = 24, BOT = 48, COL_W = Math.max(Math.floor(800/items.length), 60)
-              const W = items.length * COL_W
-              const allVals = items.flatMap(it => bars.map(b => Number((it as any)[b.key])||0))
-              const maxBar = Math.max(...allVals, 1)
-              const lineVals = lineKey ? items.map(it => Number((it as any)[lineKey])||0) : []
-              const maxLine = Math.max(...lineVals.filter(v=>v>0), 1)
-              let svg = `<svg viewBox="0 0 ${W} ${TOP+BAR_H+BOT}" width="100%" style="overflow:visible;display:block;">`
-              // grid lines
-              ;[0,25,50,75,100].forEach(p => {
-                const y = TOP + BAR_H - (p/100)*BAR_H
-                svg += `<line x1="0" y1="${y.toFixed(1)}" x2="${W}" y2="${y.toFixed(1)}" stroke="#e5e7eb" stroke-width="0.5"/>`
-              })
-              // bars
-              items.forEach((it, pi) => {
-                const x0 = pi * COL_W + 2
-                const bw = Math.max((COL_W - 4) / bars.length - 1, 6)
-                bars.forEach((b, bi) => {
-                  const val = Number((it as any)[b.key])||0
-                  const h = val > 0 ? Math.max((val/maxBar)*BAR_H, 4) : 0
-                  const bx = x0 + bi*(bw+1)
-                  const by = TOP + BAR_H - h
-                  svg += `<rect x="${bx.toFixed(1)}" y="${by.toFixed(1)}" width="${bw.toFixed(1)}" height="${Math.max(h,0).toFixed(1)}" fill="${b.color}" rx="2"/>`
-                  if (val > 0) {
-                    if (h > 16) svg += `<text x="${(bx+bw/2).toFixed(1)}" y="${(by+h/2+3).toFixed(1)}" text-anchor="middle" fill="#fff" font-size="7" font-weight="700" transform="rotate(-90,${(bx+bw/2).toFixed(1)},${(by+h/2).toFixed(1)})">${val}</text>`
-                    else svg += `<text x="${(bx+bw/2).toFixed(1)}" y="${(by-2).toFixed(1)}" text-anchor="middle" fill="${b.color}" font-size="7" font-weight="700">${val}</text>`
-                  }
-                })
-                // x label
-                const cx = x0 + (COL_W-4)/2
-                svg += `<text x="${cx.toFixed(1)}" y="${(TOP+BAR_H+12).toFixed(1)}" text-anchor="middle" fill="#333" font-size="8" font-weight="600">${it.name}</text>`
-                if (it.sub) svg += `<text x="${cx.toFixed(1)}" y="${(TOP+BAR_H+22).toFixed(1)}" text-anchor="middle" fill="#888" font-size="7">${it.sub}</text>`
-              })
-              // line overlay
-              if (lineKey && lineVals.some(v=>v>0)) {
-                const pts = items.map((it,pi) => {
-                  const val = Number((it as any)[lineKey])||0
-                  const cx = pi*COL_W + 2 + (COL_W-4)/2
-                  const cy = val > 0 ? TOP + BAR_H - (val/maxLine)*BAR_H*0.85 : null
-                  return {cx, cy, val}
-                }).filter(pt => pt.cy !== null)
-                if (pts.length > 1) svg += `<polyline points="${pts.map(p=>`${p.cx.toFixed(1)},${p.cy!.toFixed(1)}`).join(' ')}" fill="none" stroke="${lineColor||'#34d399'}" stroke-width="1.5" stroke-dasharray="4,2"/>`
-                pts.forEach(pt => {
-                  svg += `<circle cx="${pt.cx.toFixed(1)}" cy="${pt.cy!.toFixed(1)}" r="3" fill="${lineColor||'#34d399'}" stroke="#fff" stroke-width="1"/>`
-                  svg += `<text x="${pt.cx.toFixed(1)}" y="${(pt.cy!-5).toFixed(1)}" text-anchor="middle" fill="${lineColor||'#34d399'}" font-size="7" font-weight="700">${pt.val}</text>`
-                })
-              }
-              svg += '</svg>'
-              return svg
-            }
             const mkChartBlock = (title: string, color: string, svgHtml: string, legendItems: {label:string,color:string}[]) => `
               <div style="border:1px solid ${color}30;border-radius:8px;padding:10px;page-break-inside:avoid;">
                 <div style="font-size:9px;font-weight:800;color:${color};text-transform:uppercase;letter-spacing:.06em;text-align:center;padding-bottom:5px;border-bottom:1px solid ${color}20;margin-bottom:6px;">${title}</div>
@@ -5248,7 +5573,7 @@ function ComparativaPanel({ teamData }: { teamData: any[] }) {
               .grid3{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
               @media print{@page{size:A4 landscape;margin:.8cm;}body{padding:0;}.np{display:none;}.pb{page-break-before:always;}.grid3{grid-template-columns:1fr 1fr;}}</style></head><body>
               <div class="np" style="margin-bottom:12px;display:flex;gap:10px;align-items:center;">
-                <button className="hover-scale" onClick={() => window.print()} className="btn-ghost-blue" style={{ padding: "8px 20px" }}>🖨️ Imprimir / Guardar PDF</button>
+                <button  onClick={() => window.print()} className="hover-scale btn-ghost-blue" style={{ padding: "8px 20px" }}>🖨️ Imprimir / Guardar PDF</button>
                 <span style="font-size:11px;color:#666;">Orientación: Horizontal (Landscape)</span>
               </div>
               <div style="background:#0f172a;color:#c8f135;padding:8px 16px;border-radius:6px;margin-bottom:12px;display:flex;justify-content:space-between;">
@@ -5271,7 +5596,7 @@ function ComparativaPanel({ teamData }: { teamData: any[] }) {
               </div>
             </body></html>`
             win.document.write(html); win.document.close()
-          }} className="btn-ghost-lime">🖨️ PDF</button>
+          }} >🖨️ PDF</button>
         </div>
       </div>
 
@@ -5566,10 +5891,10 @@ function LesionesPanel({ teamData, onRefresh }) {
         </div>
         <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
           {vistaJugador !== null
-            ? <button className="hover-scale" onClick={()=>setVistaJugador(null)} className="btn-ghost" style={{ fontSize:12, padding:'10px 14px' }}>← Volver</button>
-            : <button className="hover-scale" onClick={()=>setHistorial(h=>!h)} className="btn-ghost" style={{ fontSize:12, padding:'10px 14px' }}>{historial?'Ver activas':'Ver historial'}</button>
+            ? <button  onClick={()=>setVistaJugador(null)} className="hover-scale btn-ghost" style={{ fontSize:12, padding:'10px 14px' }}>← Volver</button>
+            : <button  onClick={()=>setHistorial(h=>!h)} className="hover-scale btn-ghost" style={{ fontSize:12, padding:'10px 14px' }}>{historial?'Ver activas':'Ver historial'}</button>
           }
-          <button className="hover-scale" onClick={()=>setShowNew(true)} className="btn-lime" style={{ fontSize:12, padding:'10px 18px' }}>+ Nueva lesión</button>
+          <button  onClick={()=>setShowNew(true)} className="hover-scale btn-lime" style={{ fontSize:12, padding:'10px 18px' }}>+ Nueva lesión</button>
         </div>
       </div>
 
@@ -6066,7 +6391,7 @@ function BulkImportPanel({ onSuccess, onCancel }: { onSuccess: ()=>void; onCance
           </div>
 
           <div style={{ display:'flex', gap:10 }}>
-            <button className="hover-scale" onClick={()=>setStep('config')} className="btn-ghost" style={{ flex:1, fontSize:13 }}>← Volver</button>
+            <button  onClick={()=>setStep('config')} className="hover-scale btn-ghost" style={{ flex:1, fontSize:13 }}>← Volver</button>
             <button onClick={confirmar} disabled={saving||preview.length===0} className="btn-lime" style={{ flex:2, fontSize:13 }}>
               {saving?'Importando...': `✓ Confirmar e importar ${preview.length} jugador${preview.length!==1?'es':''}`}
             </button>
@@ -6099,7 +6424,7 @@ function BulkImportPanel({ onSuccess, onCancel }: { onSuccess: ()=>void; onCance
             <>
               <div style={{ fontSize:40, marginBottom:12 }}>❌</div>
               <p style={{ fontSize:14, color:'#f87171', marginBottom:16 }}>{result.error||'Error al importar'}</p>
-              <button className="hover-scale" onClick={()=>setStep('config')} className="btn-ghost" style={{ fontSize:13 }}>← Volver a intentar</button>
+              <button  onClick={()=>setStep('config')} className="hover-scale btn-ghost" style={{ fontSize:13 }}>← Volver a intentar</button>
             </>
           )}
         </div>
@@ -6130,7 +6455,7 @@ function NewPlayerForm({ onSuccess, onCancel }) {
         <p style={{ fontSize:15, fontWeight:700, color:'var(--lime)', marginBottom:24, textTransform:'uppercase', letterSpacing:'0.06em' }}>Nuevo Jugador</p>
         <form onSubmit={submit}>
         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:12 }}>
-          {[['nombre','Nombre completo','Juan Pérez',false],['usuario','Usuario','juan.perez',false],['password','Contraseña','Mín. 6 caracteres',true],['edad','Edad','22',false],['peso_kg','Peso (kg)','75.5',false],['estatura_cm','Estatura (cm)','178',false]].map(([k,lbl,ph,pw])=>(
+          {[ {k:'nombre',lbl:'Nombre completo',ph:'Juan Pérez',pw:false}, {k:'usuario',lbl:'Usuario',ph:'juan.perez',pw:false}, {k:'password',lbl:'Contraseña',ph:'Mín. 6 caracteres',pw:true}, {k:'edad',lbl:'Edad',ph:'22',pw:false}, {k:'peso_kg',lbl:'Peso (kg)',ph:'75.5',pw:false}, {k:'estatura_cm',lbl:'Estatura (cm)',ph:'178',pw:false} ].map(({k,lbl,ph,pw}: any)=>( 
             <div key={k}>
               <label style={{ display:'block', fontSize:11, fontWeight:600, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:5 }}>{lbl}</label>
               <input className="wp-input" type={pw?'password':'text'} value={f[k]} onChange={e=>set(k,e.target.value)} placeholder={ph} required={['nombre','usuario','password'].includes(k)} />
@@ -6366,7 +6691,7 @@ function ManageRow({ player, last, onRefresh }) {
                   )}
                 </div>
                 <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
-                  <button className="hover-scale" onClick={()=>{ setEditing(true); setEditOk(false); setEditError('') }} className="btn-ghost" style={{ fontSize:12, padding:'7px 14px' }}>
+                  <button  onClick={()=>{ setEditing(true); setEditOk(false); setEditError('') }} className="hover-scale btn-ghost" style={{ fontSize:12, padding:'7px 14px' }}>
                     ✏️ Editar datos
                   </button>
                   <button onClick={toggle} disabled={loading} className="btn-ghost" style={{ fontSize:12, padding:'7px 14px', color:player.activo?'#f87171':'#4ade80', borderColor:player.activo?'rgba(239,68,68,.3)':'rgba(34,197,94,.3)' }}>
@@ -6379,10 +6704,10 @@ function ManageRow({ player, last, onRefresh }) {
                       onRefresh();
                       setLoading(false);
                     }
-                  }} disabled={loading} className="btn-ghost" style={{ fontSize:12, padding:'7px 14px', color:'#ef4444', borderColor:'rgba(239,68,68,.3)' }}>
+                  }} disabled={loading}  style={{ fontSize:12, padding:'7px 14px', color:'#ef4444', borderColor:'rgba(239,68,68,.3)' }}>
                     🗑️ Eliminar
                   </button>
-                  <button className="hover-scale" onClick={loadClubsDestino} className="btn-ghost" style={{ fontSize:12, padding:'7px 14px', color:'#a855f7', borderColor:'rgba(168,85,247,.3)' }}>
+                  <button  onClick={loadClubsDestino} className="hover-scale btn-ghost" style={{ fontSize:12, padding:'7px 14px', color:'#a855f7', borderColor:'rgba(168,85,247,.3)' }}>
                     🔄 Transferir
                   </button>
                 </div>
@@ -6490,7 +6815,7 @@ function ManageRow({ player, last, onRefresh }) {
               </div>
               {editError && <p style={{ fontSize:12, color:'#f87171', marginBottom:10 }}>{editError}</p>}
               <div style={{ display:'flex', gap:10 }}>
-                <button className="hover-scale" onClick={()=>setEditing(false)} className="btn-ghost" style={{ flex:1, fontSize:12 }}>Cancelar</button>
+                <button  onClick={()=>setEditing(false)} className="hover-scale btn-ghost" style={{ flex:1, fontSize:12 }}>Cancelar</button>
                 <button onClick={saveEdit} disabled={editSaving||!ef.nombre.trim()} className="btn-lime" style={{ flex:1, fontSize:12 }}>
                   {editSaving ? 'Guardando...' : '✓ Guardar cambios'}
                 </button>
@@ -6527,7 +6852,7 @@ function ReadinessPanel({ teamData }) {
     for (const r of (data.rpeRows||[])) {
       if (!rpeMap[r.jugador_id] || r.semana > rpeMap[r.jugador_id].semana) rpeMap[r.jugador_id] = r
     }
-    return Object.values(wMap).map(w => ({
+    return Object.values(wMap).map((w: any) => ({
       jugador_id: w.jugador_id,
       nombre: w.nombre,
       posicion: w.posicion,
@@ -6983,7 +7308,7 @@ function AcumPanel({ teamData }) {
               .grid3{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
               @media print{@page{size:A4 landscape;margin:.8cm;}body{padding:0;}.np{display:none;}.pb{page-break-before:always;}.grid3{grid-template-columns:1fr 1fr;}}</style></head><body>
                 <div class="np" style="margin-bottom:12px;display:flex;gap:10px;align-items:center;">
-                <button className="hover-scale" onClick={() => window.print()} className="btn-ghost-blue" style={{ padding: "8px 20px" }}>🖨️ Imprimir / Guardar PDF</button>
+                <button  onClick={() => window.print()} className="hover-scale btn-ghost-blue" style={{ padding: "8px 20px" }}>🖨️ Imprimir / Guardar PDF</button>
                 <span style="font-size:11px;color:#666;">Orientación: Horizontal (Landscape)</span>
               </div>
                 <div style="background:#0f172a;color:#c8f135;padding:8px 16px;border-radius:6px;margin-bottom:12px;display:flex;justify-content:space-between;">
@@ -7008,7 +7333,7 @@ function AcumPanel({ teamData }) {
                 </div>
               </body></html>`
               win.document.write(html); win.document.close()
-            }} className="btn-ghost-lime">🖨️ PDF</button>
+            }} >🖨️ PDF</button>
           </div>
         </div>
         {miciLoading ? (
@@ -7250,10 +7575,10 @@ function CoachEmailSettings() {
           🧪 Probar envío de emails
         </p>
         <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
-          <button className="hover-scale" onClick={()=>testEmail('reminder')} disabled={!!testing} className="btn-ghost" style={{ fontSize:12, padding:'8px 14px' }}>
+          <button  onClick={()=>testEmail('reminder')} disabled={!!testing} className="hover-scale btn-ghost" style={{ fontSize:12, padding:'8px 14px' }}>
             {testing==='reminder' ? 'Enviando...' : '📋 Probar recordatorio'}
           </button>
-          <button className="hover-scale" onClick={()=>testEmail('birthday')} disabled={!!testing} className="btn-ghost" style={{ fontSize:12, padding:'8px 14px' }}>
+          <button  onClick={()=>testEmail('birthday')} disabled={!!testing} className="hover-scale btn-ghost" style={{ fontSize:12, padding:'8px 14px' }}>
             {testing==='birthday' ? 'Enviando...' : '🎂 Probar cumpleaños'}
           </button>
         </div>
@@ -7717,7 +8042,7 @@ function GpsPanel({ teamData }: { teamData: any }) {
               )}
 
               <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
-                <button className="hover-scale" onClick={() => setPreview(null)} className="btn-ghost" style={{ fontSize: 12, padding: '8px 16px' }}>Cancelar</button>
+                <button  onClick={() => setPreview(null)} className="hover-scale btn-ghost" style={{ fontSize: 12, padding: '8px 16px' }}>Cancelar</button>
                 <button
                   onClick={handleConfirm}
                   disabled={importing || validPlayers.length === 0}
@@ -8205,7 +8530,7 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
         </div>
         <div style={{ display:'flex', gap:8, flexWrap:'wrap', alignItems:'flex-end' }}>
           {/* Bug fix: manual refresh button */}
-          <button onClick={cargar} disabled={loading} title="Actualizar datos" className="btn-ghost-lime">
+          <button onClick={() => cargar()} disabled={loading} title="Actualizar datos" className="btn-ghost-lime">
             <span style={{ fontSize:14, display:'inline-block', animation: loading ? 'spin 1s linear infinite' : 'none' }}>🔄</span> Actualizar
           </button>
           {/* Microciclo navigator */}
@@ -8458,7 +8783,7 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
               .grid3{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
               @media print{@page{size:A4 landscape;margin:.8cm;}body{padding:0;}.np{display:none;}.pb{page-break-before:always;}.grid3{grid-template-columns:1fr 1fr;}}</style></head><body>
               <div class="np" style="margin-bottom:12px;display:flex;gap:10px;align-items:center;">
-                <button className="hover-scale" onClick={() => window.print()} className="btn-ghost-blue" style={{ padding: "8px 20px" }}>🖨️ Imprimir / Guardar PDF</button>
+                <button  onClick={() => window.print()} className="hover-scale btn-ghost-blue" style={{ padding: "8px 20px" }}>🖨️ Imprimir / Guardar PDF</button>
                 <span style="font-size:11px;color:#666;">Orientación: Horizontal (Landscape)</span>
               </div>
               <div style="background:#0f172a;color:#c8f135;padding:8px 16px;border-radius:6px;margin-bottom:12px;display:flex;justify-content:space-between;">
@@ -8490,8 +8815,8 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
               </div>` : ''}
             </body></html>`
             win.document.write(html); win.document.close()
-          }} className="btn-ghost-lime">🖨️ PDF</button>
-          <button className="hover-scale" onClick={()=>cargar()} disabled={loading} title="Actualizar datos" className="btn-ghost-blue">🔄 {loading?'Cargando…':'Actualizar'}</button>
+          }} >🖨️ PDF</button>
+          <button  onClick={()=>cargar()} disabled={loading} title="Actualizar datos" className="hover-scale btn-ghost-blue">🔄 {loading?'Cargando…':'Actualizar'}</button>
         </div>
       </div>
 
@@ -10135,7 +10460,7 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
               <style>${css}</style>
             </head><body>
               <div class="np" style="margin-bottom:14px;display:flex;gap:10px;align-items:center;">
-                <button className="hover-scale" onClick={() => window.print()} className="btn-ghost-blue" style={{ padding: "8px 20px" }}>🖨️ Imprimir / Guardar PDF</button>
+                <button  onClick={() => window.print()} className="hover-scale btn-ghost-blue" style={{ padding: "8px 20px" }}>🖨️ Imprimir / Guardar PDF</button>
                 <span style="font-size:11px;color:#666;">Orientación: Horizontal (Landscape)</span>
               </div>
               <div style="background:#0f172a;color:#c8f135;padding:8px 16px;border-radius:6px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;">
@@ -10186,7 +10511,7 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
 
             win.document.write(html)
             win.document.close()
-          }} className="btn-ghost-blue">🖨️ PDF</button>
+          }} >🖨️ PDF</button>
         </div>
       </div>
 
@@ -11546,7 +11871,7 @@ function ManualPanel() {
     { id:'ctrl-calc',      label:'Ctrl. Carga Calc',     icon:'🏋️' },
     { id:'ctrl-gps',       label:'Ctrl. Carga GPS',      icon:'📡' },
     { id:'acumulado',      label:'Acumulado Individual', icon:'📈' },
-    
+    { id:'cambio-carga',   label:'Cambio de Carga',      icon:'🔄' },
     { id:'expo-ai',        label:'Expo. Alta Intensidad',icon:'⚡' },
     { id:'evaluaciones',   label:'Evaluaciones',         icon:'📋' },
     { id:'comparativa',    label:'Comparativa GPS',      icon:'⚖️' },
@@ -11926,6 +12251,23 @@ ${secciones_data.map(sec => `
           <ManualRow label="Período" desc="Ajustá el rango de fechas para ver la evolución en distintos marcos de tiempo." />
           <ManualRow label="Gráfico de carga acumulada" desc="Línea con la suma de UA a lo largo de las sesiones del período." />
           <ManualRow label="ACWR individual" desc="Curva del ratio agudo:crónico con la zona óptima sombreada en verde (0.8–1.3)." />
+        </ManualSection>
+      </div>
+    ),
+
+    'cambio-carga': (
+      <div>
+        <h2 style={{ fontFamily:'Bebas Neue,sans-serif', fontSize:34, color:'var(--snow)', marginBottom:4, letterSpacing:'0.04em' }}>🔄 Cambio de Carga</h2>
+        <p style={{ fontSize:12, color:'var(--silver)', marginBottom:20, lineHeight:1.65 }}>Variación porcentual de cualquier variable de carga de una sesión a la siguiente. Detecta saltos de carga peligrosos.</p>
+        <ManualSection title="Filtros">
+          <ManualRow label="Desde / Hasta" desc="Rango de fechas a analizar." />
+          <ManualRow label="Min. Entrenamiento / Partido" desc="Mínimo de minutos para incluir al jugador en el análisis." />
+          <ManualRow label="Variable" desc="UA, RPE, Distancia Total, Sprints, Aceleraciones, Deceleraciones, Alta Potencia, Vel. máxima, Dist/min." />
+        </ManualSection>
+        <ManualSection title="Interpretación del % de cambio">
+          <ManualRow label="🟢 −5% a +15%" desc="Variación normal. Rango de progresión sostenible." />
+          <ManualRow label="🔴 > +15%" desc="Aumento alto. Riesgo si se mantiene. Revisá acumulación de sesiones exigentes." />
+          <ManualRow label="🔵 < −5%" desc="Reducción notable. Normal en semanas post-partido o antes de competición importante." />
         </ManualSection>
       </div>
     ),
@@ -12708,7 +13050,7 @@ function BibliotecaPanel() {
           <p style={{ fontSize:12, color:'var(--silver)' }}>Pizarra táctica + biblioteca · Se guarda automáticamente al crear sesiones</p>
         </div>
         <div style={{ display:'flex', gap:8 }}>
-          <button className="hover-scale" onClick={()=>{ setShowBoard(true); setEditBoardId(null); setEditBoardData(null); setBoardName(''); setBoardVentana(''); setBoardSubtarea(''); setBoardJugadores(''); setZoneInfo([]) }} className="btn-lime" style={{ padding:'10px 20px', fontSize:13 }}>
+          <button  onClick={()=>{ setShowBoard(true); setEditBoardId(null); setEditBoardData(null); setBoardName(''); setBoardVentana(''); setBoardSubtarea(''); setBoardJugadores(''); setZoneInfo([]) }} className="hover-scale btn-lime" style={{ padding:'10px 20px', fontSize:13 }}>
             🎨 Diseñar Tarea
           </button>
         </div>

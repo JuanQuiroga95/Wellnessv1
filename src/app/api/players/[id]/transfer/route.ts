@@ -36,29 +36,14 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     const jugadorId = jug[0].id
 
     // Transferir al jugador y todo su historial de datos al nuevo club.
-    await sql.begin(async (tx) => {
-      // 1. Entidades base
-      await tx`UPDATE jugadores SET club_id = ${targetClubId} WHERE id = ${jugadorId}`
-      if (usuarioId) {
-        await tx`UPDATE usuarios SET club_id = ${targetClubId} WHERE id = ${usuarioId}`
-      }
+    // 1. Entidades base
+    await sql`UPDATE jugadores SET club_id = ${targetClubId} WHERE id = ${jugadorId}`
+    if (usuarioId) {
+      await sql`UPDATE usuarios SET club_id = ${targetClubId} WHERE id = ${usuarioId}`
+    }
 
-      // 2. Logs diarios
-      await tx`UPDATE wellness_logs SET club_id = ${targetClubId} WHERE jugador_id = ${jugadorId}`
-      await tx`UPDATE entrenamiento_logs SET club_id = ${targetClubId} WHERE jugador_id = ${jugadorId}`
-      await tx`UPDATE partido_logs SET club_id = ${targetClubId} WHERE jugador_id = ${jugadorId}`
-      await tx`UPDATE lesiones SET club_id = ${targetClubId} WHERE jugador_id = ${jugadorId}`
-      await tx`UPDATE gps_logs SET club_id = ${targetClubId} WHERE jugador_id = ${jugadorId}`
-
-      // 3. Evaluaciones Físicas y Fuerza
-      await tx`UPDATE pesajes SET club_id = ${targetClubId} WHERE jugador_id = ${jugadorId}`
-      await tx`UPDATE cmj_sessions SET club_id = ${targetClubId} WHERE jugador_id = ${jugadorId}`
-      await tx`UPDATE iso_sessions SET club_id = ${targetClubId} WHERE jugador_id = ${jugadorId}`
-      await tx`UPDATE pfv_sesiones SET club_id = ${targetClubId} WHERE jugador_id = ${jugadorId}`
-      await tx`UPDATE rsi_tests SET club_id = ${targetClubId} WHERE jugador_id = ${jugadorId}`
-      await tx`UPDATE dsi_tests SET club_id = ${targetClubId} WHERE jugador_id = ${jugadorId}`
-      await tx`UPDATE fuerza_rutinas SET club_id = ${targetClubId} WHERE jugador_id = ${jugadorId}`
-    })
+    // 2. We don't need to update logs tables, as they don't have a club_id column.
+    // They are associated via jugador_id, so they will automatically follow the player.
 
     return NextResponse.json({ ok: true })
   } catch (err) {

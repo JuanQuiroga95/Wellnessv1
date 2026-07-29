@@ -66,5 +66,6 @@ export default async function PlayerPage() {
     notas: String(r.notas || '')
   }))
 
+  const acwrData = calcACWR(sl)
   return <PlayerClient isPanama={isPanama} session={session} jugador={j} jugadorId={jugadorId} acuteLoad={acwrData.acuteLoad} recentLogs={rl} recentWellness={wRows.map(pw)} todayWellness={todayRows[0]?pw(todayRows[0]):null} todayWellnessCount={todayRows.length} today={today} gpsStats={gpsStats} wellnessStreak={wellnessStreak} totalSesiones={totalSesiones} totalUA={totalUA} mejorRpe={mejorRpe} inbodyLogs={inbody} />
 }
