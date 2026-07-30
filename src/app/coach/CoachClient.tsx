@@ -66,6 +66,8 @@ import FuerzaPanel from './FuerzaPanel'
 import TacticaPanel from './TacticaPanel'
 import WellnessForm from '@/components/forms/WellnessForm'
 import RPEForm from '@/components/forms/RPEForm'
+import InBodyPlayerChart from '@/components/charts/InBodyPlayerChart'
+import InBodyComparativaPanel from './InBodyComparativaPanel'
 // ─── GPS METRIC METADATA (shared between GpsPanel and CargaExternaPanel) ──────
 // Maps metric key → { label, unit, group } for display purposes
 const GPS_METRIC_META: Record<string, { label: string; unit: string; group: string }> = {
@@ -172,6 +174,7 @@ const SIDEBAR_GROUPS = [
     {id:'analytics',label:'Analytics',icon:'📊'},
     {id:'expo-ai',label:'Expo. AI',icon:'⚡'},
     {id:'neuromuscular',label:'Neuromuscular',icon:'🧠'},
+    {id:'inbody',label:'InBody',icon:'⚡'},
     {id:'minutos',label:'Minutaje',icon:'⏱️'},
     {id:'comparativa',label:'Comparativa',icon:'⚖️'},
     {id:'tactica',label:'Métricas Tácticas',icon:'♟️'},
@@ -480,7 +483,7 @@ export default function CoachDashboard({ isPanama, session, teamData, today }: a
                     maxHeight: (!sidebarOpen || openGroups[g.label] !== false) ? 1000 : 0, 
                     transition: 'max-height 0.3s ease-in-out' 
                   }}>
-                    {g.items.map(item => {
+                    {g.items.filter(i => !(i.id === 'inbody' && !isPanama)).map(item => {
                       const active = tab === item.id
                       return (
                         <button className="hover-scale" key={item.id} onClick={()=>{
@@ -712,6 +715,7 @@ export default function CoachDashboard({ isPanama, session, teamData, today }: a
 
         {tab==='analytics' && <AnalyticsPanel />}
         {tab==='neuromuscular' && <PerfilNeuromuscularPanel />}
+        {tab==='inbody' && <InBodyComparativaPanel teamData={teamData} />}
         {tab==='calendario' && <CalendarioPanel teamData={teamData} />}
         {tab==='minutos' && <MinutosPanel teamData={teamData} />}
         {tab==='carga-externa' && <CargaExternaPanel />}
@@ -1185,7 +1189,7 @@ function PlayerDetail({ isPanama, player:p, logs, wellness, loading, onBack, cic
               </div>
             )})}
           </div>
-          {lastW.tqr>0 && (
+          {!isPanama && lastW.tqr>0 && (
             <div style={{ display:'flex', gap:10, marginBottom:12 }}>
               <div style={{ flex:1, background:'var(--ink3)', border:'1px solid var(--mist)', borderRadius:8, padding:10, textAlign:'center' }}>
                 <div className="mono" style={{ fontSize:20, color:lastW.tqr>=8?'#c8f135':lastW.tqr>=6?'#22c55e':lastW.tqr>=4?'#f59e0b':'#ef4444' }}>{lastW.tqr}</div>
@@ -1197,8 +1201,8 @@ function PlayerDetail({ isPanama, player:p, logs, wellness, loading, onBack, cic
             {lastW.dolor_zona && <span style={{ fontSize:11, padding:'3px 8px', borderRadius:6, background:'rgba(245,158,11,.1)', color:'#fbbf24', border:'1px solid rgba(245,158,11,.25)' }}>⚠ {lastW.dolor_zona}</span>}
             {lastW.dolor_descripcion && <span style={{ fontSize:11, padding:'3px 8px', borderRadius:6, background:'rgba(239,68,68,.07)', color:'#fca5a5', border:'1px solid rgba(239,68,68,.2)' }}>💬 {lastW.dolor_descripcion}</span>}
             {lastW.entrena_grupo===false && <span style={{ fontSize:11, padding:'3px 8px', borderRadius:6, background:'rgba(239,68,68,.1)', color:'#f87171', border:'1px solid rgba(239,68,68,.2)' }}>✗ No entrena con grupo</span>}
-            {lastW.fue_gimnasio && <span style={{ fontSize:11, padding:'3px 8px', borderRadius:6, background:'rgba(200,241,53,.08)', color:'var(--lime)', border:'1px solid rgba(200,241,53,.2)' }}>🏋 Fue al gimnasio</span>}
-            {lastW.grupos_musculares && <span style={{ fontSize:11, color:'var(--silver)' }}>💪 {lastW.grupos_musculares}</span>}
+            {!isPanama && lastW.fue_gimnasio && <span style={{ fontSize:11, padding:'3px 8px', borderRadius:6, background:'rgba(200,241,53,.08)', color:'var(--lime)', border:'1px solid rgba(200,241,53,.2)' }}>🏋 Fue al gimnasio</span>}
+            {!isPanama && lastW.grupos_musculares && <span style={{ fontSize:11, color:'var(--silver)' }}>💪 {lastW.grupos_musculares}</span>}
           </div>
         </div>
       )}
@@ -13339,23 +13343,11 @@ function PlayerInBodyProfile({ jugadorId }: { jugadorId: number }) {
           )}
         </div>
 
+        {/* History Chart */}
         {inbodyLogs.length > 1 && (
-          <div>
+          <div style={{ marginTop: 10 }}>
             <p style={{ fontSize:12, color:'var(--silver)', marginBottom:12, fontWeight:600 }}>Historial de Pesajes</p>
-            <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-              {inbodyLogs.slice(1).map((log: any, idx: number) => (
-                <div key={idx} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'12px', background:'rgba(255,255,255,0.02)', borderRadius:8, border:'1px solid rgba(255,255,255,0.05)' }}>
-                  <div style={{ display:'flex', flexDirection:'column', gap:4 }}>
-                    <span style={{ fontSize:12, color:'var(--snow)', fontWeight:600 }}>{String(log.fecha).substring(0, 10)}</span>
-                    <span style={{ fontSize:11, color:'var(--silver)' }}>Peso: {log.peso_kg}kg • Grasa: {log.pgc_pct}%</span>
-                  </div>
-                  <div style={{ textAlign:'right' }}>
-                    <span style={{ fontSize:11, color:'var(--silver)' }}>Músculo</span>
-                    <p style={{ fontSize:13, color:'var(--snow)', fontWeight:600 }}>{log.mme_kg}kg</p>
-                  </div>
-                </div>
-              ))}
-            </div>
+            <InBodyPlayerChart data={inbodyLogs} />
           </div>
         )}
       </div>

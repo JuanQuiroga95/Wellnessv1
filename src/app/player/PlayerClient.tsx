@@ -5,6 +5,7 @@ import Topbar from '@/components/ui/Topbar'
 import WellnessForm from '@/components/forms/WellnessForm'
 import RPEForm from '@/components/forms/RPEForm'
 import WellnessTrend from '@/components/charts/WellnessTrend'
+import InBodyPlayerChart from '@/components/charts/InBodyPlayerChart'
 import PushNotificationManager, { PushToggle } from '@/components/ui/PushNotificationManager'
 import RutinaFuerzaView from './RutinaFuerzaView'
 
@@ -265,24 +266,11 @@ export default function PlayerDashboard({ isPanama, session, jugador, jugadorId,
                     )}
                   </div>
 
-                  {/* History */}
+                  {/* History Chart */}
                   {inbodyLogs.length > 1 && (
-                    <div>
+                    <div style={{ marginTop: 10 }}>
                       <p style={{ fontSize:12, color:'var(--silver)', marginBottom:12, fontWeight:600 }}>Historial de Pesajes</p>
-                      <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-                        {inbodyLogs.slice(1).map((log:any, idx:number) => (
-                          <div key={idx} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'12px', background:'rgba(255,255,255,0.02)', borderRadius:8, border:'1px solid rgba(255,255,255,0.05)' }}>
-                            <div style={{ display:'flex', flexDirection:'column', gap:4 }}>
-                              <span style={{ fontSize:12, color:'var(--snow)', fontWeight:600 }}>{log.fecha}</span>
-                              <span style={{ fontSize:11, color:'var(--silver)' }}>Peso: {log.peso_kg}kg • Grasa: {log.pgc_pct}%</span>
-                            </div>
-                            <div style={{ textAlign:'right' }}>
-                              <span style={{ fontSize:11, color:'var(--silver)' }}>Músculo</span>
-                              <p style={{ fontSize:13, color:'var(--snow)', fontWeight:600 }}>{log.mme_kg}kg</p>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
+                      <InBodyPlayerChart data={inbodyLogs} />
                     </div>
                   )}
                 </div>
