@@ -368,18 +368,15 @@ export default function InicioPanel({ teamData, session, today }: { teamData: an
           if (Array.isArray(teamLogs)) {
             const finalRatioData = teamLogs.map((weekData, i) => {
               const acute = Number(weekData.avg_carga)
-              let chronic = 0
-              if (i > 0) {
-                let chronicSum = 0;
-                let count = 0;
-                for (let j = 1; j <= 3; j++) {
-                  if (i - j >= 0) {
-                    chronicSum += Number(teamLogs[i-j].avg_carga);
-                    count++;
-                  }
+              let chronicSum = acute;
+              let count = 1;
+              for (let j = 1; j <= 3; j++) {
+                if (i - j >= 0) {
+                  chronicSum += Number(teamLogs[i-j].avg_carga);
+                  count++;
                 }
-                chronic = chronicSum / count;
               }
+              const chronic = chronicSum / count;
               const ratio = chronic > 0 ? (acute / chronic) : 0
               
               // Format date: '2024-07-15' -> '15 jul 24'
