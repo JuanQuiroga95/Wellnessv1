@@ -1,90 +1,38 @@
-import { NextRequest, NextResponse } from 'next/server'
+export const dynamic = 'force-dynamic'
+import { NextResponse } from 'next/server'
 import { getDb } from '@/lib/db'
 
-export const dynamic = 'force-dynamic'
+export async function GET() {
+  const sql = getDb()
+  const clubId = 11 // Torrellano
+  
+  const desde = '2026-07-27'
+  const hastaInc = '2026-07-28'
 
-export async function GET(req: NextRequest) {
-  try {
-    const sql = getDb()
-    
-    // Find Franco Tosoni's club
-    const users = await sql`SELECT id, nombre, club_id FROM usuarios WHERE nombre ILIKE '%Franco Tosoni%' OR nombre ILIKE '%Tosoni%'`
-    if (users.length === 0) {
-      return NextResponse.json({ error: 'No user found' })
-    }
-    
-    const clubId = users[0].club_id
-    
-    if (!clubId) {
-      return NextResponse.json({ error: 'User has no club_id', user: users[0] })
-    }
-
-    const { searchParams } = new URL(req.url)
-    const fromDate = searchParams.get('from') // e.g. 2026-07-27
-    const toDate = searchParams.get('to')     // e.g. 2026-07-26
-
-    if (!fromDate || !toDate) {
-      // Find what dates are currently populated for his club
-      const eDates = await sql`
-        SELECT el.fecha::text, count(el.id)::int as cnt
-        FROM entrenamiento_logs el
-        JOIN jugadores j ON j.id = el.jugador_id
-        JOIN usuarios u ON u.id = j.usuario_id
-        WHERE (u.club_id = ${clubId} OR j.club_id = ${clubId})
-        GROUP BY el.fecha
-        ORDER BY el.fecha DESC
-        LIMIT 10
-      `
-      return NextResponse.json({ 
-        message: 'Need ?from=YYYY-MM-DD&to=YYYY-MM-DD',
-        club_id: clubId,
-        user: users[0].nombre,
-        recent_log_dates: eDates
-      })
-    }
-
-    // Get the logs to update for training
-    const eLogs = await sql`
-      SELECT el.id, el.fecha, u.nombre
-      FROM entrenamiento_logs el
-      JOIN jugadores j ON j.id = el.jugador_id
-      JOIN usuarios u ON u.id = j.usuario_id
-      WHERE (u.club_id = ${clubId} OR j.club_id = ${clubId})
-      AND el.fecha = ${fromDate}::date
-    `
-
-    // Update training logs
-    const eUpdate = await sql`
-      UPDATE entrenamiento_logs el
-      SET fecha = ${toDate}::date
-      FROM jugadores j
-      JOIN usuarios u ON u.id = j.usuario_id
-      WHERE el.jugador_id = j.id
-      AND (u.club_id = ${clubId} OR j.club_id = ${clubId})
-      AND el.fecha = ${fromDate}::date
-      RETURNING el.id
-    `
-
-    // Update wellness logs
-    const wUpdate = await sql`
-      UPDATE wellness_logs wl
-      SET fecha = ${toDate}::date
-      FROM jugadores j
-      JOIN usuarios u ON u.id = j.usuario_id
-      WHERE wl.jugador_id = j.id
-      AND (u.club_id = ${clubId} OR j.club_id = ${clubId})
-      AND wl.fecha = ${fromDate}::date
-      RETURNING wl.id
-    `
-
-    return NextResponse.json({
-      message: 'Success',
-      eLogsFound: eLogs,
-      eLogsUpdated: eUpdate.length,
-      wLogsUpdated: wUpdate.length
-    })
-
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message })
+  const sesiones = await sql`SELECT id, fecha::text, titulo FROM sesiones_plan WHERE club_id = ${clubId} AND fecha >= ${desde}::date AND fecha <= ${hastaInc}::timestamp ORDER BY fecha`
+  
+  const logs = await sql`SELECT el.jugador_id, el.fecha::text, el.rpe::int, el.duracion_min::int FROM entrenamiento_logs el JOIN jugadores j ON j.id = el.jugador_id JOIN usuarios u ON u.id = j.usuario_id WHERE el.fecha >= ${desde}::date AND el.fecha <= ${hastaInc}::timestamp AND u.activo = true AND (u.club_id = ${clubId} OR j.club_id = ${clubId}) ORDER BY el.fecha`
+  
+  const rpeByPlayerDate: Record<string, any> = {}
+  for (const log of logs as any[]) { 
+    rpeByPlayerDate[`${log.jugador_id}_${log.fecha}`] = log 
   }
+  
+  const perSessionPlayers: Record<string, any[]> = {}
+  for (const ses of sesiones) {
+    const sesLogs = logs.filter((l: any) => l.fecha === ses.fecha)
+    perSessionPlayers[ses.titulo] = {
+      sesFecha: ses.fecha,
+      matchCount: sesLogs.length,
+      exampleKeys: sesLogs.slice(0, 2).map((l:any) => `${l.jugador_id}_${l.fecha}`),
+      logsCount: logs.length
+    }
+  }
+
+  return NextResponse.json({
+    sesiones,
+    logsSample: logs.slice(0, 3),
+    rpeByPlayerDateSample: Object.keys(rpeByPlayerDate).slice(0, 3),
+    perSessionPlayers
+  })
 }
