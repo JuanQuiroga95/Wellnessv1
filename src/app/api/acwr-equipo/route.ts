@@ -17,7 +17,8 @@ export async function GET(req: NextRequest) {
     const data = await sql`
       SELECT 
         TO_CHAR(DATE_TRUNC('week', el.fecha), 'YYYY-MM-DD') AS semana,
-        ROUND(AVG(el.carga_ua)::numeric, 2) AS avg_carga
+        ROUND(AVG(el.carga_ua)::numeric, 2) AS avg_carga,
+        COUNT(*) as num_logs
       FROM entrenamiento_logs el
       JOIN jugadores j ON j.id = el.jugador_id
       JOIN usuarios u ON u.id = j.usuario_id
