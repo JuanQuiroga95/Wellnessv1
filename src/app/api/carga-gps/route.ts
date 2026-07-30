@@ -327,6 +327,9 @@ export async function GET(req: NextRequest) {
         minActivo: withMin.length ? Math.round(withMin.reduce((s: number, p: any) => s + p.minActivo, 0) / withMin.length) : null,
         ua_total: withUa.length ? Math.round(withUa.reduce((s: number, p: any) => s + p.ua_total, 0) / withUa.length) : null,
       }
+      if (cePerSession[ses.titulo]) {
+        cePerSession[ses.titulo].rpe_real = perSessionTeamAvg[ses.titulo].rpe
+      }
     }
 
     // ── GPS REAL desde gps_logs ─────────────────────────────────────────────

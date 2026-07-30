@@ -68,6 +68,7 @@ import WellnessForm from '@/components/forms/WellnessForm'
 import RPEForm from '@/components/forms/RPEForm'
 import InBodyPlayerChart from '@/components/charts/InBodyPlayerChart'
 import InBodyComparativaPanel from './InBodyComparativaPanel'
+import UceChart from './UceChart'
 // ─── GPS METRIC METADATA (shared between GpsPanel and CargaExternaPanel) ──────
 // Maps metric key → { label, unit, group } for display purposes
 const GPS_METRIC_META: Record<string, { label: string; unit: string; group: string }> = {
@@ -8904,11 +8905,13 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
         let ceTotalSemana = 0, uceTotalSemana = 0
         const rows = mdCols.map(md => {
           const ce = cePerSession[md]
-          if (!ce || !ce.ce_total) return { md, ce_total: 0, uce_total: 0, rpe: 0, bloques: [] }
-          const uce = ce.rpe_objetivo ? Math.round(ce.ce_total * ce.rpe_objetivo) : 0
+          if (!ce || !ce.ce_total) return { md, ce_total: 0, uce_total: 0, rpe: 0, rpe_is_real: false, bloques: [] }
+          const rpe = ce.rpe_real || ce.rpe_objetivo || 0
+          const rpe_is_real = !!ce.rpe_real
+          const uce = rpe > 0 ? Math.round(ce.ce_total * rpe) : 0
           ceTotalSemana += ce.ce_total
           uceTotalSemana += uce
-          return { md, ce_total: ce.ce_total, uce_total: uce, rpe: ce.rpe_objetivo, bloques: ce.bloques || [] }
+          return { md, ce_total: ce.ce_total, uce_total: uce, rpe: rpe, rpe_is_real, bloques: ce.bloques || [] }
         }).filter(r => r.ce_total > 0)
 
         const pctSemana = REF_UCE_SEMANA > 0 ? Math.round((uceTotalSemana / REF_UCE_SEMANA) * 100) : 0
@@ -8943,7 +8946,7 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
               <table className="wp-table" style={{ width:'100%', borderCollapse:'collapse', fontSize:12 }}>
                 <thead>
                   <tr style={{ borderBottom:'1px solid var(--mist)' }}>
-                    {['SESIÓN','RPE obj.','BLOQUES (TAREA · MIN · NE · CE)','CE TOTAL','UCE TOTAL','% REF'].map((h,i) => (
+                    {['SESIÓN','RPE (real/obj)','BLOQUES (TAREA · MIN · NE · CE)','CE TOTAL','UCE TOTAL','% REF'].map((h,i) => (
                       <th key={h} style={{ padding:'8px 12px', textAlign: i<=2?'left':'center', fontSize:9, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', whiteSpace:'nowrap' }}>{h}</th>
                     ))}
                   </tr>
@@ -8964,7 +8967,7 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
                           <span style={{ fontFamily:'Bebas Neue,sans-serif', fontSize:16, color:'var(--lime)', letterSpacing:'0.06em' }}>{row.md}</span>
                         </td>
                         <td style={{ padding:'10px 12px' }}>
-                          {row.rpe ? <span style={{ fontSize:13, fontWeight:700, color:'#f97316', fontFamily:'DM Mono,monospace' }}>{row.rpe}</span> : <span style={{ color:'var(--fog)' }}>—</span>}
+                          {row.rpe ? <span style={{ fontSize:13, fontWeight:700, color:row.rpe_is_real?'#22c55e':'#f97316', fontFamily:'DM Mono,monospace' }} title={row.rpe_is_real?'RPE Real (Promedio equipo)':'RPE Objetivo'}>{row.rpe}{row.rpe_is_real && '*'}</span> : <span style={{ color:'var(--fog)' }}>—</span>}
                         </td>
                         <td style={{ padding:'10px 12px' }}>
                           <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>

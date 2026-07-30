@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react'
-import { getCuadrante, ENTRENAMIENTO_OPTIMIZADOR, ENTRENAMIENTO_COADYUVANTE } from './utils'
-import { Icons, PanelHeader, CuadroHeader } from './Headers'
+import { CuadroHeader } from './Headers'
+import { getCuadrante } from './CargaExternaPanel'
+import { ENTRENAMIENTO_OPTIMIZADOR, ENTRENAMIENTO_COADYUVANTE } from '@/lib/metrics'
+import UceChart from './UceChart'
+import { Icons, PanelHeader } from './Headers'
 import { AnimateOnScroll } from '@/components/AnimateOnScroll'
 import ACWRLineChart from '@/components/charts/ACWRLineChart'
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Legend, Cell, PieChart as AnimatedPieChart, Pie } from 'recharts'
@@ -80,6 +83,8 @@ export default function InicioPanel({ teamData, session, today }: { teamData: an
   const [acwrData, setAcwrData] = useState<any[]>([])
   const [acwrRatioData, setAcwrRatioData] = useState<any[]>([])
 
+  const [uceChartData, setUceChartData] = useState<any[]>([])
+
   useEffect(() => {
     async function fetchData() {
       setLoading(true)
@@ -108,13 +113,26 @@ export default function InicioPanel({ teamData, session, today }: { teamData: an
         const sessionVolMap: Record<string, number> = {}
         const orientacionCounts: Record<string, number> = { 'A-R': 0, 'Fuerza': 0, 'Resistencia': 0, 'Velocidad': 0, 'Analitico Integrado': 0 }
         let totalBloquesOrientacion = 0
+        const uceDataMap: Record<string, any> = {}
+        const NE_DEFAULT: Record<string, number> = {
+          'Partido oficial': 10, 'Partido amistoso': 9, 'Partido de entrenamiento': 8,
+          'Partido modificado': 7, 'Partido reducido': 7, 'Juego de posición': 6,
+          'Juego de posesión': 6, 'Transiciones': 5, 'Rondo': 5, 'Trabajo analítico': 4,
+          'Activación en campo': 2, 'Activación en gimnasio': 2,
+        }
 
         allEvents.forEach(ev => {
           if (ev.fecha) {
             let totalMin = 0
+            let ce_total = 0
             if (ev.ejercicios && Array.isArray(ev.ejercicios)) {
                ev.ejercicios.forEach((ej: any) => {
-                 totalMin += (Number(ej.series) || 1) * (Number(ej.minutos) || 0)
+                 const m = (Number(ej.series) || 1) * (Number(ej.minutos) || 0)
+                 totalMin += m
+                 
+                 const ventana = ej.ventana || ej.tipo || 'Tarea'
+                 const ne = ej.ne ?? NE_DEFAULT[ventana] ?? 5
+                 ce_total += Math.round(m * ne)
                  
                  // Process Orientacion Física for the week
                  if (ev.fecha >= weekStart && ev.fecha <= weekEnd) {
@@ -142,8 +160,35 @@ export default function InicioPanel({ teamData, session, today }: { teamData: an
             }
             if (totalMin === 0) totalMin = 60
             sessionVolMap[ev.fecha.slice(0, 10)] = totalMin
+            
+            if (ev.fecha >= weekStart && ev.fecha <= weekEnd) {
+              const label = ev.titulo || ev.fecha
+              const rpeValues = teamData.map(p => {
+                const log = (p.teamLogs || []).find((l:any) => l.fecha === ev.fecha)
+                return log ? Number(log.rpe) : null
+              }).filter(r => r !== null && !isNaN(r))
+              
+              const rpe_real = rpeValues.length ? (rpeValues.reduce((a,b)=>a+b, 0) / rpeValues.length) : null
+              const rpe_obj = Number(ev.rpe_objetivo) || 0
+              const rpe = rpe_real || rpe_obj
+              const rpe_is_real = !!rpe_real
+              const uce_total = rpe > 0 ? Math.round(ce_total * rpe) : 0
+              
+              if (ce_total > 0) {
+                 uceDataMap[label] = {
+                   md: label,
+                   ce_total,
+                   uce_total,
+                   rpe: Math.round(rpe * 10) / 10,
+                   rpe_is_real
+                 }
+              }
+            }
           }
         })
+        
+        const uceChartDataArr = Object.values(uceDataMap)
+        setUceChartData(uceChartDataArr)
 
         let totalOptimizadorMin = 0
         let totalCoadyuvanteMin = 0
@@ -739,6 +784,13 @@ export default function InicioPanel({ teamData, session, today }: { teamData: an
             Análisis Global
           </h2>
           <div style={{ flex: 1, height: 1, background: 'linear-gradient(90deg, rgba(255,255,255,0.1) 0%, transparent 100%)' }} />
+        </div>
+      </AnimateOnScroll>
+
+      {/* UCE Chart */}
+      <AnimateOnScroll delay={410}>
+        <div style={{ marginBottom: 20 }}>
+          <UceChart data={uceChartData} />
         </div>
       </AnimateOnScroll>
 
