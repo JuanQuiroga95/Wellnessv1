@@ -369,8 +369,16 @@ export default function InicioPanel({ teamData, session, today }: { teamData: an
             const finalRatioData = teamLogs.map((weekData, i) => {
               const acute = Number(weekData.avg_carga)
               let chronic = 0
-              if (i >= 3) {
-                chronic = (Number(teamLogs[i-1].avg_carga) + Number(teamLogs[i-2].avg_carga) + Number(teamLogs[i-3].avg_carga)) / 3
+              if (i > 0) {
+                let chronicSum = 0;
+                let count = 0;
+                for (let j = 1; j <= 3; j++) {
+                  if (i - j >= 0) {
+                    chronicSum += Number(teamLogs[i-j].avg_carga);
+                    count++;
+                  }
+                }
+                chronic = chronicSum / count;
               }
               const ratio = chronic > 0 ? (acute / chronic) : 0
               
@@ -748,7 +756,7 @@ export default function InicioPanel({ teamData, session, today }: { teamData: an
           ) : (
             <div style={{ height: 260, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--fog)', fontSize: 13, flexDirection: 'column', gap: 8, marginTop: 20 }}>
               <div style={{ opacity: 0.5, fontSize: 32 }}>📊</div>
-              Faltan datos de RPE para calcular el Ratio (se requieren al menos 4 semanas previas).
+              Faltan datos de RPE para calcular el Ratio (se requieren al menos 2 semanas de historial).
             </div>
           )}
         </div>
