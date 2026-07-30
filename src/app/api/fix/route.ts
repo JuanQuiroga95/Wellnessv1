@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
     if (!fromDate || !toDate) {
       // Find what dates are currently populated for his club
       const eDates = await sql`
-        SELECT el.fecha, count(el.id) as cnt
+        SELECT el.fecha::text, count(el.id)::int as cnt
         FROM entrenamiento_logs el
         JOIN jugadores j ON j.id = el.jugador_id
         JOIN usuarios u ON u.id = j.usuario_id
