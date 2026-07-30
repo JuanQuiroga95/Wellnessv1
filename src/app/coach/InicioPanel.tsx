@@ -753,7 +753,7 @@ export default function InicioPanel({ teamData, session, today }: { teamData: an
           ) : (
             <div style={{ height: 260, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--fog)', fontSize: 13, flexDirection: 'column', gap: 8, marginTop: 20 }}>
               <div style={{ opacity: 0.5, fontSize: 32 }}>📊</div>
-              Faltan datos de RPE para calcular el Ratio (se requieren al menos 2 semanas de historial).
+              Faltan datos de RPE para graficar el ACWR. Carga sesiones recientes para comenzar.
             </div>
           )}
         </div>
