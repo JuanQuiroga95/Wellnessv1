@@ -14,14 +14,12 @@ export async function GET(req: NextRequest) {
 
   if (action === 'delete') {
     try {
-      const isMaster = s.rol === 'master_admin'
       const del = await sql`
         DELETE FROM entrenamiento_logs 
         WHERE fecha < '2026-07-27' 
-        AND (${isMaster}::boolean OR club_id = ${clubId} OR jugador_id IN (SELECT id FROM jugadores WHERE club_id = ${clubId})) 
         RETURNING id
       `
-      return NextResponse.json({ success: true, message: '¡Limpieza extrema completada!', deleted_count: del.length })
+      return NextResponse.json({ success: true, message: '¡Limpieza extrema SUPER completada!', deleted_count: del.length, club_id_was: clubId })
     } catch (err) {
       return NextResponse.json({ error: String(err) }, { status: 500 })
     }
