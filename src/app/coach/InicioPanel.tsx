@@ -358,21 +358,31 @@ export default function InicioPanel({ teamData, session, today }: { teamData: an
               }
             })
             setAcwrData(finalAcwr) // Include all weeks so chart doesn't disappear if only 1 week exists
+          }
+        }
 
-            // Ratio ACWR for line chart
-            const finalRatioData = weeks.map((w, i) => {
-              const acute = byWeek[w].distTotal
+        // Fetch Team RPE ACWR
+        const acwrTeamRes = await fetch(`/api/acwr-equipo`)
+        if (acwrTeamRes.ok) {
+          const teamLogs = await acwrTeamRes.json()
+          if (Array.isArray(teamLogs)) {
+            const finalRatioData = teamLogs.map((weekData, i) => {
+              const acute = Number(weekData.avg_carga)
               let chronic = 0
               if (i >= 3) {
-                chronic = (byWeek[weeks[i-1]].distTotal + byWeek[weeks[i-2]].distTotal + byWeek[weeks[i-3]].distTotal) / 3
+                chronic = (Number(teamLogs[i-1].avg_carga) + Number(teamLogs[i-2].avg_carga) + Number(teamLogs[i-3].avg_carga)) / 3
               }
               const ratio = chronic > 0 ? (acute / chronic) : 0
+              
+              // Format date: '2024-07-15' -> '15 jul 24'
+              const dateObj = new Date(weekData.semana + 'T12:00:00Z')
+              const name = new Intl.DateTimeFormat('es-ES', { day: 'numeric', month: 'short', year: '2-digit' }).format(dateObj)
+              
               return {
-                name: w,
+                name,
                 ratio: parseFloat(ratio.toFixed(4))
               }
             })
-            // Only keep weeks that actually have a ratio > 0 (or show them anyway if they want history)
             setAcwrRatioData(finalRatioData.filter(d => d.ratio > 0))
           }
         }
@@ -738,7 +748,7 @@ export default function InicioPanel({ teamData, session, today }: { teamData: an
           ) : (
             <div style={{ height: 260, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--fog)', fontSize: 13, flexDirection: 'column', gap: 8, marginTop: 20 }}>
               <div style={{ opacity: 0.5, fontSize: 32 }}>📊</div>
-              Faltan datos de GPS para calcular el Ratio (se requieren al menos 4 semanas previas).
+              Faltan datos de RPE para calcular el Ratio (se requieren al menos 4 semanas previas).
             </div>
           )}
         </div>
