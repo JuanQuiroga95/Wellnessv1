@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
 
   if (action === 'delete') {
     try {
-      await sql`DELETE FROM entrenamiento_logs WHERE sesion_id = -9999`
+      await sql`DELETE FROM entrenamiento_logs WHERE tipo_sesion = 'TEST_SEED_ACWR'`
       return NextResponse.json({ success: true, message: '¡Datos falsos eliminados con éxito!' })
     } catch (err) {
       return NextResponse.json({ error: String(err) }, { status: 500 })
@@ -43,8 +43,8 @@ export async function GET(req: NextRequest) {
           const carga_ua = rpe * duracion;
 
           await sql`
-            INSERT INTO entrenamiento_logs (jugador_id, fecha, rpe, duracion_min, carga_ua, tipo_sesion, sesion_id)
-            VALUES (${j.id}, ${fechaStr}, ${rpe}, ${duracion}, ${carga_ua}, 'Campo', -9999)
+            INSERT INTO entrenamiento_logs (jugador_id, fecha, rpe, duracion_min, carga_ua, tipo_sesion)
+            VALUES (${j.id}, ${fechaStr}, ${rpe}, ${duracion}, ${carga_ua}, 'TEST_SEED_ACWR')
           `
         }
       }
