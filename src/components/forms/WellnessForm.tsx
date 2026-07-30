@@ -533,7 +533,7 @@ function AlreadyCompleted({ isPanama, data, onBack, canAddSecond, onAddSecond }:
 }
 
 // ── Main Form ─────────────────────────────────────────────────────────────────
-export default function WellnessForm({ isPanama, jugadorId, onSuccess, todayWellness, todayWellnessCount = 0 }: any) {
+export default function WellnessForm({ isPanama, jugadorId, onSuccess, todayWellness, todayWellnessCount = 0, isProxy = false }: any) {
   const [vals, setVals] = useState({ fatiga:null, calidad_sueno:null, dolor_muscular:null, nivel_estres:null, estado_animo:null })
   const [horasSueno, setHorasSueno] = useState('')
   const [tqr, setTqr] = useState(null)
@@ -546,6 +546,7 @@ export default function WellnessForm({ isPanama, jugadorId, onSuccess, todayWell
   const [loading, setLoading] = useState(false)
   const [done, setDone] = useState(false)
   const [error, setError] = useState('')
+  const [fecha, setFecha] = useState(new Date().toISOString().split('T')[0])
   const [showSecondTurn, setShowSecondTurn] = useState(false)
 
   const [tieneMolestia, setTieneMolestia] = useState<boolean|null>(null) // Para Panamá
@@ -598,6 +599,7 @@ export default function WellnessForm({ isPanama, jugadorId, onSuccess, todayWell
         method:'POST', headers:{'Content-Type':'application/json'},
         body: JSON.stringify({
           jugador_id:jugadorId,
+          ...(isProxy ? { fecha } : {}),
           fatiga: isPanama ? (6 - (vals.fatiga as number)) : vals.fatiga,
           calidad_sueno: isPanama ? (6 - (vals.calidad_sueno as number)) : vals.calidad_sueno,
           dolor_muscular: isPanama ? (6 - (vals.dolor_muscular as number)) : vals.dolor_muscular,
@@ -639,6 +641,12 @@ export default function WellnessForm({ isPanama, jugadorId, onSuccess, todayWell
 
   return (
     <form onSubmit={submit} style={{ display:'flex', flexDirection:'column', gap:20 }}>
+      {isProxy && (
+        <div>
+          <label style={{ display:'block', fontSize:11, fontWeight:600, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:8 }}>Fecha (Proxy)</label>
+          <input type="date" className="wp-input" value={fecha} onChange={e=>setFecha(e.target.value)} style={{ width:'100%' }} />
+        </div>
+      )}
       {isPanama ? (
         <>
           <p style={{ fontSize:10, fontWeight:700, color:'var(--lime)', textTransform:'uppercase', letterSpacing:'0.1em' }}>Bienestar y Recuperación</p>

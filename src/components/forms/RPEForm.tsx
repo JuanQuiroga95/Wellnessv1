@@ -3,21 +3,23 @@ import { useState } from 'react'
 import ScaleInput from '@/components/ui/ScaleInput'
 const DESC = {0:'Reposo total',1:'Muy leve',2:'Leve',3:'Moderado',4:'Un poco duro',5:'Duro',6:'Duro+',7:'Muy duro',8:'Muy duro+',9:'Máximo',10:'Esfuerzo absoluto'}
 const TIPOS = [{value:'EQUIPO',label:'Equipo — Sesión completa'},{value:'PARCIAL',label:'Equipo — Sesión parcial'},{value:'READAPTACION',label:'Readaptación'}]
-export default function RPEForm({ jugadorId, onSuccess }) {
-  const [rpe, setRpe] = useState(null)
-  const [rpeGimnasio, setRpeGimnasio] = useState(null)
+export default function RPEForm({ jugadorId, onSuccess, isProxy = false }: { jugadorId: number, onSuccess: () => void, isProxy?: boolean }) {
+  const [rpe, setRpe] = useState<number | null>(null)
+  const [rpeGimnasio, setRpeGimnasio] = useState<number | null>(null)
   const [hizoFuerza, setHizoFuerza] = useState(false)
   const [tipo, setTipo] = useState('EQUIPO')
   const [duracion, setDuracion] = useState('90')
+  const [fecha, setFecha] = useState(new Date().toISOString().split('T')[0])
   const [loading, setLoading] = useState(false)
   const [done, setDone] = useState(false)
   const [error, setError] = useState('')
   const canSubmit = rpe !== null && duracion !== '' && Number(duracion) > 0
-  async function submit(e) {
+  async function submit(e: React.FormEvent) {
     e.preventDefault(); if (!canSubmit) return
     setLoading(true); setError('')
     try {
       const body: any = { jugador_id:jugadorId, rpe, duracion_min:Number(duracion), tipo_sesion:tipo }
+      if (isProxy) body.fecha = fecha
       if (hizoFuerza && rpeGimnasio !== null) body.rpe_gimnasio = rpeGimnasio
       const res = await fetch('/api/logs', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) })
       if (!res.ok) { const d=await res.json(); setError(d.error||'Error'); return }
@@ -39,6 +41,12 @@ export default function RPEForm({ jugadorId, onSuccess }) {
           {TIPOS.map(t=><option key={t.value} value={t.value} style={{ background:'var(--ink2)' }}>{t.label}</option>)}
         </select>
       </div>
+      {isProxy && (
+        <div>
+          <label style={{ display:'block', fontSize:11, fontWeight:600, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:8 }}>Fecha (Proxy)</label>
+          <input type="date" className="wp-input" value={fecha} onChange={e=>setFecha(e.target.value)} style={{ width:'100%' }} />
+        </div>
+      )}
       <div>
         <label style={{ display:'block', fontSize:11, fontWeight:600, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:8 }}>
           Duración <span style={{ color:'var(--fog)', fontWeight:400, textTransform:'none', letterSpacing:'normal' }}>(minutos)</span>

@@ -1260,21 +1260,21 @@ function PlayerDetail({ isPanama, player:p, logs, wellness, loading, onBack, cic
 
       {/* PROXY MODALS */}
       {showProxyWellness && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-          <div style={{ background: 'var(--ink)', width: '100%', maxWidth: 500, maxHeight: '90vh', overflowY: 'auto', borderRadius: 24, padding: 24, border: '1px solid var(--mist)', position: 'relative' }}>
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(10px)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          <div style={{ background: 'var(--ink)', width: '100%', maxWidth: 500, borderRadius: 20, border: '1px solid var(--mist)', position: 'relative', maxHeight: '90vh', overflowY: 'auto', padding: 30 }}>
             <button onClick={() => setShowProxyWellness(false)} style={{ position: 'absolute', top: 16, right: 16, background: 'var(--ink2)', border: 'none', width: 32, height: 32, borderRadius: 16, color: 'var(--silver)', cursor: 'pointer', zIndex: 10 }}>✕</button>
-            <h3 style={{ fontSize: 18, color: 'var(--snow)', marginBottom: 16, textAlign: 'center' }}>Cargar Wellness ({p.nombre})</h3>
-            <WellnessForm isPanama={isPanama} jugadorId={p.jugador_id} todayWellness={null} onSuccess={() => { setShowProxyWellness(false); onRefreshData?.() }} />
+            <h2 style={{ fontSize: 24, fontWeight: 800, color: 'var(--snow)', marginBottom: 20, textAlign: 'center' }}>Responder Wellness</h2>
+            <WellnessForm isPanama={isPanama} jugadorId={p.jugador_id} todayWellness={null} isProxy={true} onSuccess={() => { setShowProxyWellness(false); onRefreshData?.() }} />
           </div>
         </div>
       )}
 
       {showProxyRPE && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-          <div style={{ background: 'var(--ink)', width: '100%', maxWidth: 500, maxHeight: '90vh', overflowY: 'auto', borderRadius: 24, padding: 24, border: '1px solid var(--mist)', position: 'relative' }}>
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(10px)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          <div style={{ background: 'var(--ink)', width: '100%', maxWidth: 500, borderRadius: 20, border: '1px solid var(--mist)', position: 'relative', maxHeight: '90vh', overflowY: 'auto', padding: 30 }}>
             <button onClick={() => setShowProxyRPE(false)} style={{ position: 'absolute', top: 16, right: 16, background: 'var(--ink2)', border: 'none', width: 32, height: 32, borderRadius: 16, color: 'var(--silver)', cursor: 'pointer', zIndex: 10 }}>✕</button>
-            <h3 style={{ fontSize: 18, color: 'var(--snow)', marginBottom: 16, textAlign: 'center' }}>Cargar RPE ({p.nombre})</h3>
-            <RPEForm jugadorId={p.jugador_id} onSuccess={() => { setShowProxyRPE(false); onRefreshData?.() }} />
+            <h2 style={{ fontSize: 24, fontWeight: 800, color: 'var(--snow)', marginBottom: 20, textAlign: 'center' }}>Responder RPE</h2>
+            <RPEForm jugadorId={p.jugador_id} isProxy={true} onSuccess={() => { setShowProxyRPE(false); onRefreshData?.() }} />
           </div>
         </div>
       )}
