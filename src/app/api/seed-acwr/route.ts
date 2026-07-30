@@ -23,13 +23,17 @@ export async function GET(req: NextRequest) {
 
   if (action === 'inject') {
     try {
+      const isMaster = s.rol === 'master_admin'
+      
       const jugadores = await sql`
         SELECT j.id 
         FROM jugadores j 
         JOIN usuarios u ON u.id = j.usuario_id 
-        WHERE j.club_id = ${clubId} AND u.activo = true 
+        WHERE (${isMaster}::boolean OR j.club_id = ${clubId}) AND u.activo = true 
         LIMIT 20
       `
+      
+      let rowsInserted = 0;
       
       // Inject 3 weeks of past data for each player
       for (const j of jugadores) {
@@ -44,9 +48,10 @@ export async function GET(req: NextRequest) {
             INSERT INTO entrenamiento_logs (jugador_id, fecha, rpe, duracion_min, tipo_sesion, club_id)
             VALUES (${j.id}, ${fechaStr}, ${rpe}, ${duracion}, 'TEST_SEED_ACWR', ${clubId})
           `
+          rowsInserted++;
         }
       }
-      return NextResponse.json({ success: true, message: '¡Datos falsos inyectados! Refrescá el panel principal para ver el gráfico.' })
+      return NextResponse.json({ success: true, message: `¡Datos falsos inyectados! Se insertaron ${rowsInserted} registros para ${jugadores.length} jugadores. Refrescá el panel principal.` })
     } catch (err) {
       return NextResponse.json({ error: String(err) }, { status: 500 })
     }
