@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
     // en el ultimo año (52 semanas)
     const ts = Date.now()
     const data = await sql`
-      SELECT /* ${ts} */
+      SELECT 
         TO_CHAR(DATE_TRUNC('week', el.fecha), 'YYYY-MM-DD') AS semana,
         ROUND(AVG(el.carga_ua)::numeric, 2) AS avg_carga,
         COUNT(*) as num_logs
@@ -26,6 +26,7 @@ export async function GET(req: NextRequest) {
       WHERE el.fecha >= CURRENT_DATE - 365
         AND (${isMaster}::boolean OR j.club_id = ${clubId})
         AND u.activo = true
+        AND ${ts} = ${ts}
       GROUP BY DATE_TRUNC('week', el.fecha)
       ORDER BY DATE_TRUNC('week', el.fecha) ASC
     `

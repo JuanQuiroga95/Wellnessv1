@@ -16,13 +16,14 @@ export async function GET(req: NextRequest) {
     try {
       const isMaster = s.rol === 'master_admin'
       const ts = Date.now()
-      const beforeCount = await sql`SELECT /* ${ts} */ COUNT(*) as c FROM entrenamiento_logs WHERE fecha < '2026-07-27'`
+      const beforeCount = await sql`SELECT COUNT(*) as c FROM entrenamiento_logs WHERE fecha < '2026-07-27' AND ${ts} = ${ts}`
       const del = await sql`
-        DELETE /* ${ts} */ FROM entrenamiento_logs 
+        DELETE FROM entrenamiento_logs 
         WHERE fecha < '2026-07-27' 
+        AND ${ts} = ${ts}
         RETURNING id
       `
-      const afterCount = await sql`SELECT /* ${ts} */ COUNT(*) as c FROM entrenamiento_logs WHERE fecha < '2026-07-27'`
+      const afterCount = await sql`SELECT COUNT(*) as c FROM entrenamiento_logs WHERE fecha < '2026-07-27' AND ${ts} = ${ts}`
       return NextResponse.json({ 
         success: true, 
         message: '¡Limpieza extrema MEGA completada!', 
@@ -61,7 +62,7 @@ export async function GET(req: NextRequest) {
       const isMaster = s.rol === 'master_admin'
       const ts = Date.now()
       const data = await sql`
-        SELECT /* ${ts} */
+        SELECT 
           TO_CHAR(DATE_TRUNC('week', el.fecha), 'YYYY-MM-DD') AS semana,
           ROUND(AVG(el.carga_ua)::numeric, 2) AS avg_carga,
           COUNT(*) as num_logs
@@ -71,6 +72,7 @@ export async function GET(req: NextRequest) {
         WHERE el.fecha >= CURRENT_DATE - 365
           AND (${isMaster}::boolean OR j.club_id = ${clubId})
           AND u.activo = true
+          AND ${ts} = ${ts}
         GROUP BY DATE_TRUNC('week', el.fecha)
         ORDER BY DATE_TRUNC('week', el.fecha) ASC
       `
