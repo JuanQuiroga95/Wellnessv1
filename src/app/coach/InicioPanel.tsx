@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { getCuadrante, ENTRENAMIENTO_OPTIMIZADOR, ENTRENAMIENTO_COADYUVANTE } from './utils'
 import { Icons, PanelHeader, CuadroHeader } from './Headers'
 import { AnimateOnScroll } from '@/components/AnimateOnScroll'
+import ACWRLineChart from '@/components/charts/ACWRLineChart'
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Legend, Cell, PieChart as AnimatedPieChart, Pie } from 'recharts'
 
 
@@ -77,6 +78,7 @@ export default function InicioPanel({ teamData, session, today }: { teamData: an
   const [distribucionTareas, setDistribucionTareas] = useState<any>(null)
   const [todayDehydrated, setTodayDehydrated] = useState<any[]>([])
   const [acwrData, setAcwrData] = useState<any[]>([])
+  const [acwrRatioData, setAcwrRatioData] = useState<any[]>([])
 
   useEffect(() => {
     async function fetchData() {
@@ -356,6 +358,22 @@ export default function InicioPanel({ teamData, session, today }: { teamData: an
               }
             })
             setAcwrData(finalAcwr) // Include all weeks so chart doesn't disappear if only 1 week exists
+
+            // Ratio ACWR for line chart
+            const finalRatioData = weeks.map((w, i) => {
+              const acute = byWeek[w].distTotal
+              let chronic = 0
+              if (i >= 3) {
+                chronic = (byWeek[weeks[i-1]].distTotal + byWeek[weeks[i-2]].distTotal + byWeek[weeks[i-3]].distTotal) / 3
+              }
+              const ratio = chronic > 0 ? (acute / chronic) : 0
+              return {
+                name: w,
+                ratio: parseFloat(ratio.toFixed(4))
+              }
+            })
+            // Only keep weeks that actually have a ratio > 0 (or show them anyway if they want history)
+            setAcwrRatioData(finalRatioData.filter(d => d.ratio > 0))
           }
         }
       } catch (err) {
@@ -697,6 +715,34 @@ export default function InicioPanel({ teamData, session, today }: { teamData: an
           </div>
         </AnimateOnScroll>
       </div>
+
+      {/* Título de Análisis Global */}
+      <AnimateOnScroll delay={400}>
+        <div style={{ marginTop: 40, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ width: 4, height: 24, background: '#3b82f6', borderRadius: 2 }} />
+          <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text)', margin: 0, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+            Análisis Global
+          </h2>
+          <div style={{ flex: 1, height: 1, background: 'linear-gradient(90deg, rgba(255,255,255,0.1) 0%, transparent 100%)' }} />
+        </div>
+      </AnimateOnScroll>
+
+      {/* Nuevo Gráfico de Análisis Semanal de la Carga (ACWR Ratio) */}
+      <AnimateOnScroll delay={420}>
+        <div style={{ background: 'var(--ink2)', border: '1px solid var(--mist)', borderRadius: 16, padding: 20, position: 'relative', marginBottom: 20 }}>
+          <CuadroHeader title="ANÁLISIS SEMANAL DE LA CARGA" subtitle="Análisis descriptivo del ratio carga aguda: crónica" icon="📈" description="Se analiza la carga de la última semana en relación a las 3 anteriores. Los parámetros óptimos deben estar entre 0.8 y 1.2" />
+          {acwrRatioData.length > 0 ? (
+            <div style={{ marginTop: 20 }}>
+              <ACWRLineChart data={acwrRatioData} />
+            </div>
+          ) : (
+            <div style={{ height: 260, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--fog)', fontSize: 13, flexDirection: 'column', gap: 8, marginTop: 20 }}>
+              <div style={{ opacity: 0.5, fontSize: 32 }}>📊</div>
+              Faltan datos de GPS para calcular el Ratio (se requieren al menos 4 semanas previas).
+            </div>
+          )}
+        </div>
+      </AnimateOnScroll>
 
       {/* Variación Semanal ACWR Chart */}
       <AnimateOnScroll delay={450}>
