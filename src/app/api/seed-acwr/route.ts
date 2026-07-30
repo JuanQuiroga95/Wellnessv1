@@ -41,8 +41,8 @@ export async function GET(req: NextRequest) {
           const rpe = 5 + Math.floor(Math.random() * 4); // 5 to 8
           const duracion = 60 + Math.floor(Math.random() * 30); // 60 to 90
           await sql`
-            INSERT INTO entrenamiento_logs (jugador_id, fecha, rpe, duracion_min, tipo_sesion)
-            VALUES (${j.id}, ${fechaStr}, ${rpe}, ${duracion}, 'TEST_SEED_ACWR')
+            INSERT INTO entrenamiento_logs (jugador_id, fecha, rpe, duracion_min, tipo_sesion, club_id)
+            VALUES (${j.id}, ${fechaStr}, ${rpe}, ${duracion}, 'TEST_SEED_ACWR', ${clubId})
           `
         }
       }

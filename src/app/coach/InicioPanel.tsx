@@ -362,7 +362,7 @@ export default function InicioPanel({ teamData, session, today }: { teamData: an
         }
 
         // Fetch Team RPE ACWR
-        const acwrTeamRes = await fetch(`/api/acwr-equipo`)
+        const acwrTeamRes = await fetch(`/api/acwr-equipo?t=${Date.now()}`)
         if (acwrTeamRes.ok) {
           const teamLogs = await acwrTeamRes.json()
           if (Array.isArray(teamLogs)) {
