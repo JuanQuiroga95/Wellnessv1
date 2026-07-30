@@ -748,6 +748,9 @@ export default function InicioPanel({ teamData, session, today }: { teamData: an
           <CuadroHeader title="ANÁLISIS SEMANAL DE LA CARGA" subtitle="Análisis descriptivo del ratio carga aguda: crónica" icon="📈" description="Se analiza la carga de la última semana en relación a las 3 anteriores. Los parámetros óptimos deben estar entre 0.8 y 1.2" />
           {acwrRatioData.length > 0 ? (
             <div style={{ marginTop: 20 }}>
+              <div style={{ color: 'red', fontSize: '14px', marginBottom: 10 }}>
+                DEBUG: acwrRatioData = {JSON.stringify(acwrRatioData)}
+              </div>
               <ACWRLineChart data={acwrRatioData} />
             </div>
           ) : (
