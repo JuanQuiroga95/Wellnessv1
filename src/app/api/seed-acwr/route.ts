@@ -25,6 +25,29 @@ export async function GET(req: NextRequest) {
     }
   }
 
+  if (action === 'verify') {
+    try {
+      const isMaster = s.rol === 'master_admin'
+      const data = await sql`
+        SELECT 
+          TO_CHAR(DATE_TRUNC('week', el.fecha), 'YYYY-MM-DD') AS semana,
+          ROUND(AVG(el.carga_ua)::numeric, 2) AS avg_carga,
+          COUNT(*) as num_logs
+        FROM entrenamiento_logs el
+        JOIN jugadores j ON j.id = el.jugador_id
+        JOIN usuarios u ON u.id = j.usuario_id
+        WHERE el.fecha >= CURRENT_DATE - 365
+          AND (${isMaster}::boolean OR j.club_id = ${clubId})
+          AND u.activo = true
+        GROUP BY DATE_TRUNC('week', el.fecha)
+        ORDER BY DATE_TRUNC('week', el.fecha) ASC
+      `
+      return NextResponse.json({ success: true, data })
+    } catch (err) {
+      return NextResponse.json({ error: String(err) }, { status: 500 })
+    }
+  }
+
   if (action === 'test') {
     try {
       const isMaster = s.rol === 'master_admin'
