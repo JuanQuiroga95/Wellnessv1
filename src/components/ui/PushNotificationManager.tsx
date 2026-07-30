@@ -77,7 +77,7 @@ export default function PushNotificationManager() {
 
       const subscription = await swReady.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(vapidKey),
+        applicationServerKey: urlBase64ToUint8Array(vapidKey) as any,
       })
 
       // Send subscription to backend (non-blocking — don't let a backend error trap the user)
@@ -263,7 +263,7 @@ export function PushToggle({ onSubscriptionChange }: { onSubscriptionChange?: (s
         const reg = await navigator.serviceWorker.ready
         const subscription = await reg.pushManager.subscribe({
           userVisibleOnly: true,
-          applicationServerKey: urlBase64ToUint8Array(vapidKey),
+          applicationServerKey: urlBase64ToUint8Array(vapidKey) as any,
         })
 
         const res = await fetch('/api/push/subscribe', {

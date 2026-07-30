@@ -58,7 +58,7 @@ export default function RPEForm({ jugadorId, onSuccess }) {
         <label style={{ display:'block', fontSize:11, fontWeight:600, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:8 }}>
           RPE Campo — Escala de Borg (0–10) {rpe!==null && <span style={{ color:'var(--lime)', fontWeight:400, textTransform:'none', letterSpacing:'normal', marginLeft:8 }}>{DESC[rpe]}</span>}
         </label>
-        <ScaleInput id="rpe" value={rpe} onChange={setRpe} min={0} max={10} lowLabel="Reposo total" highLabel="Máximo absoluto" isRpe={true} />
+        <ScaleInput id="rpe" value={rpe} onChange={setRpe} min={0} max={10} lowLabel="Reposo total" highLabel="Máximo absoluto" isRpe={true} customColors={{}} />
       </div>
 
       <div style={{ background:'var(--ink2)', padding:16, borderRadius:12, border:'1px solid var(--mist)' }}>
@@ -71,7 +71,7 @@ export default function RPEForm({ jugadorId, onSuccess }) {
             <label style={{ display:'block', fontSize:11, fontWeight:600, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:8 }}>
               RPE Gimnasio (0-10) {rpeGimnasio!==null && <span style={{ color:'#f59e0b', fontWeight:400, textTransform:'none', letterSpacing:'normal', marginLeft:8 }}>{DESC[rpeGimnasio]}</span>}
             </label>
-            <ScaleInput id="rpeGimnasio" value={rpeGimnasio} onChange={setRpeGimnasio} min={0} max={10} lowLabel="Reposo total" highLabel="Máximo absoluto" isRpe={true} />
+            <ScaleInput id="rpeGimnasio" value={rpeGimnasio} onChange={setRpeGimnasio} min={0} max={10} lowLabel="Reposo total" highLabel="Máximo absoluto" isRpe={true} customColors={{}} />
           </div>
         )}
       </div>

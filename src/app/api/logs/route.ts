@@ -124,6 +124,20 @@ export async function POST(req: NextRequest) {
   // Ensure column exists
   try { await sql`ALTER TABLE entrenamiento_logs ADD COLUMN IF NOT EXISTS rpe_gimnasio SMALLINT` } catch {}
 
+  const existing = await sql`SELECT id, rpe, rpe_gimnasio FROM entrenamiento_logs WHERE jugador_id = ${jugador_id} AND fecha = ${fecha} AND tipo_sesion = ${tipo_sesion}`
+  
+  if (existing.length > 0) {
+    const ext = existing[0]
+    const newRpe = Math.max(ext.rpe || 0, rpe || 0)
+    const newRpeGym = Math.max(ext.rpe_gimnasio || 0, rpe_gimnasio || 0)
+    const [r] = await sql`
+      UPDATE entrenamiento_logs 
+      SET rpe = ${newRpe}, rpe_gimnasio = ${newRpeGym}, duracion_min = GREATEST(COALESCE(duracion_min,0), ${duracion_min})
+      WHERE id = ${ext.id}
+      RETURNING id, fecha::text, carga_ua::int`
+    return NextResponse.json(r)
+  }
+
   const [r] = await sql`
     INSERT INTO entrenamiento_logs(jugador_id, rpe, rpe_gimnasio, duracion_min, tipo_sesion, fecha, club_id)
     VALUES(${jugador_id}, ${rpe}, ${rpe_gimnasio}, ${duracion_min}, ${tipo_sesion}, ${fecha}, ${clubId})

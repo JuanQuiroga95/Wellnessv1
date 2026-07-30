@@ -2,19 +2,6 @@ const fs = require('fs');
 
 let coachClient = fs.readFileSync('src/app/coach/CoachClient.tsx', 'utf8');
 
-// Fix player form tuple arrays
-coachClient = coachClient.replace(
-  "{[['nombre','Nombre completo','Juan Pérez',false],['usuario','Usuario','juan.perez',false],['password','Contraseña','Mín. 6 caracteres',true],['edad','Edad','22',false],['peso_kg','Peso (kg)','75.5',false],['estatura_cm','Estatura (cm)','178',false]].map(([k,lbl,ph,pw])=>(",
-  "{[ {k:'nombre',lbl:'Nombre completo',ph:'Juan Pérez',pw:false}, {k:'usuario',lbl:'Usuario',ph:'juan.perez',pw:false}, {k:'password',lbl:'Contraseña',ph:'Mín. 6 caracteres',pw:true}, {k:'edad',lbl:'Edad',ph:'22',pw:false}, {k:'peso_kg',lbl:'Peso (kg)',ph:'75.5',pw:false}, {k:'estatura_cm',lbl:'Estatura (cm)',ph:'178',pw:false} ].map(({k,lbl,ph,pw}: any)=>( "
-);
-
-// Fix onClick={cargar} error
-coachClient = coachClient.replace(
-  '<button onClick={cargar} disabled={loading} title="Actualizar datos" className="btn-ghost-lime">',
-  '<button onClick={() => cargar()} disabled={loading} title="Actualizar datos" className="btn-ghost-lime">'
-);
-
-// Add mkBars at the top of the file
 const mkBarsImpl = `
 const mkBars = (items: {name:string, val:number, sub?:string}[], bars: {key:string,label:string,color:string}[], lineKey?: string, lineColor?: string) => {
   if (!items.length) return '<p style="color:#aaa;font-size:10px;text-align:center;padding:8px">Sin datos</p>'
@@ -66,10 +53,28 @@ const mkBars = (items: {name:string, val:number, sub?:string}[], bars: {key:stri
   svg += '</svg>'
   return svg
 }
-`;
+\n`;
 
 if (!coachClient.includes('const mkBars = (items: {name:string, val:number,')) {
-  coachClient = coachClient.replace('export default function CoachDashboard', mkBarsImpl + '\nexport default function CoachDashboard');
+  coachClient = coachClient.replace('export default function CoachDashboard', mkBarsImpl + 'export default function CoachDashboard');
 }
+
+// Fix Navbar
+coachClient = coachClient.replace(
+  '<Navbar nombre={session.user?.name} rol={session.user?.role} clubNombre={session.user?.club_nombre} onMenuClick={()=>setMenuOpen(true)} />',
+  '<Navbar nombre={session.user?.name} rol={session.user?.role} clubNombre={session.user?.club_nombre} onMenuClick={()=>setMenuOpen(true)} activeTab="" onTabChange={()=>{}} tabs={[]} />'
+);
+
+// Fix array tuples on line 6619
+coachClient = coachClient.replace(
+  "{[['nombre','Nombre completo','Juan Pérez',false],['usuario','Usuario','juan.perez',false],['password','Contraseña','Mín. 6 caracteres',true],['edad','Edad','22',false],['peso_kg','Peso (kg)','75.5',false],['estatura_cm','Estatura (cm)','178',false]].map(([k,lbl,ph,pw])=>(",
+  "{[ {k:'nombre',lbl:'Nombre completo',ph:'Juan Pérez',pw:false}, {k:'usuario',lbl:'Usuario',ph:'juan.perez',pw:false}, {k:'password',lbl:'Contraseña',ph:'Mín. 6 caracteres',pw:true}, {k:'edad',lbl:'Edad',ph:'22',pw:false}, {k:'peso_kg',lbl:'Peso (kg)',ph:'75.5',pw:false}, {k:'estatura_cm',lbl:'Estatura (cm)',ph:'178',pw:false} ].map(({k,lbl,ph,pw}: any)=>( "
+);
+
+// Fix testPush
+coachClient = coachClient.replace(
+  'onClick={testPush}',
+  'onClick={() => testPush()}'
+);
 
 fs.writeFileSync('src/app/coach/CoachClient.tsx', coachClient);

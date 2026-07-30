@@ -668,6 +668,11 @@ export default function InicioPanel({ teamData, session, today }: { teamData: an
                 <p style={{ margin: 0, fontSize: 12, color: 'var(--silver)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>Falta Wellness</p>
                 <div style={{ fontSize: 36, color: 'var(--snow)', fontWeight: 800, lineHeight: 1.2, marginTop: 8 }}>{missingWellness}</div>
                 <p style={{ margin: 0, fontSize: 12, color: 'var(--fog)', marginTop: 4 }}>{missingWellness === 1 ? 'jugador sin responder' : 'jugadores sin responder'}</p>
+                {missingWellness > 0 && (
+                  <div style={{ marginTop: 8, fontSize: 10, color: 'var(--fog)', lineHeight: 1.4, maxHeight: 60, overflowY: 'auto', paddingRight: 4 }}>
+                    {teamData.filter((p:any) => p.readiness === null && !p.lesion).map((p:any) => p.nombre.split(' ')[0]).join(', ')}
+                  </div>
+                )}
               </div>
               <div style={{ fontSize: 32, opacity: 0.2 }}>📱</div>
             </div>
@@ -681,6 +686,11 @@ export default function InicioPanel({ teamData, session, today }: { teamData: an
                 <p style={{ margin: 0, fontSize: 12, color: 'var(--silver)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>Falta RPE</p>
                 <div style={{ fontSize: 36, color: 'var(--snow)', fontWeight: 800, lineHeight: 1.2, marginTop: 8 }}>{missingRpe}</div>
                 <p style={{ margin: 0, fontSize: 12, color: 'var(--fog)', marginTop: 4 }}>{missingRpe === 1 ? 'jugador sin responder' : 'jugadores sin responder'}</p>
+                {missingRpe > 0 && (
+                  <div style={{ marginTop: 8, fontSize: 10, color: 'var(--fog)', lineHeight: 1.4, maxHeight: 60, overflowY: 'auto', paddingRight: 4 }}>
+                    {teamData.filter((p:any) => !p.rpeToday && !p.lesion && p.entrena_grupo !== false).map((p:any) => p.nombre.split(' ')[0]).join(', ')}
+                  </div>
+                )}
               </div>
               <div style={{ fontSize: 32, opacity: 0.2 }}>🏃</div>
             </div>

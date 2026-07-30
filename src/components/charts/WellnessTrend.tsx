@@ -17,7 +17,7 @@ export default function WellnessTrend({ data }) {
         <YAxis domain={[1,5]} ticks={[1,2,3,4,5]} tick={{ fill:'#555', fontSize:9 }} axisLine={false} tickLine={false} />
         <Tooltip contentStyle={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:10, fontSize:12 }} />
         <Legend wrapperStyle={{ fontSize:11, paddingTop:8 }} />
-        {LINES.map(l => <Line isAnimationActive={true} animationDuration={15000} key={l.key} type="monotone" dataKey={l.key} name={l.label} stroke={l.color} strokeWidth={1.5} dot={false} activeDot={{ r:3 }} />)}
+        {LINES.map(l => <Line isAnimationActive={true} animationDuration={1000} key={l.key} type="monotone" dataKey={l.key} name={l.label} stroke={l.color} strokeWidth={1.5} dot={false} activeDot={{ r:3 }} />)}
       </LineChart>
     </ResponsiveContainer>
   )

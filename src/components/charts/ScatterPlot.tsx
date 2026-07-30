@@ -73,7 +73,7 @@ export function ScatterPlot({ data, xLabel, yLabel, title }) {
             label={{ value:yLabel, angle:-90, position:'insideLeft', fill:'#555', fontSize:10 }}
           />
           <Tooltip content={<CustomTooltip />} cursor={{ strokeDasharray:'3 3', stroke:'#333' }} />
-          <Scatter isAnimationActive={true} animationDuration={15000} data={data} shape={<CustomDot />} />
+          <Scatter isAnimationActive={true} animationDuration={1000} data={data} shape={<CustomDot />} />
         </ScatterChart>
       </ResponsiveContainer>
     </div>

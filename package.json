@@ -20,6 +20,7 @@
     "react-dom": "^18",
     "recharts": "^2.12.7",
     "resend": "^6.12.2",
+    "ts-morph": "^28.0.0",
     "web-push": "^3.6.7",
     "xlsx": "^0.18.5"
   },

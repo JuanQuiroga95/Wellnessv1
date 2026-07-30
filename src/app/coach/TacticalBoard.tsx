@@ -429,7 +429,7 @@ export default function TacticalBoard({ initialData, onSave, onClose, readOnly, 
     const canvas=document.createElement('canvas');canvas.width=vbW*2;canvas.height=vbH*2
     const ctx=canvas.getContext('2d');if(!ctx)return ''
     const img=new Image()
-    return new Promise(r=>{img.onload=()=>{ctx.drawImage(img,0,0,canvas.width,canvas.height);r(canvas.toDataURL('image/png',.85))};img.onerror=()=>r('');img.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(d)})
+    return new Promise(r=>{img.onload=()=>{ctx.drawImage(img,0,0,canvas.width,canvas.height);r(canvas.toDataURL('image/webp',0.7))};img.onerror=()=>r('');img.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(d)})
   }
   const downloadPng = async()=>{
     const png=await getPng();if(!png)return
