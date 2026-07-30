@@ -35,6 +35,27 @@ export async function GET(req: NextRequest) {
     }
   }
 
+  if (action === 'seed_today') {
+    try {
+      // Conseguir un jugador al azar de este club
+      const j = await sql`
+        SELECT id FROM jugadores 
+        WHERE club_id = ${clubId}
+        LIMIT 1
+      `
+      if (j.length > 0) {
+        await sql`
+          INSERT INTO entrenamiento_logs (jugador_id, fecha, tipo_sesion, rpe, duracion_min, club_id)
+          VALUES (${j[0].id}, CURRENT_DATE, 'EQUIPO', 7, 60, ${clubId})
+        `
+        return NextResponse.json({ success: true, message: '¡Sesión de prueba insertada para HOY!' })
+      }
+      return NextResponse.json({ error: 'No se encontraron jugadores en el club' }, { status: 400 })
+    } catch (err) {
+      return NextResponse.json({ error: String(err) }, { status: 500 })
+    }
+  }
+
   if (action === 'verify') {
     try {
       const isMaster = s.rol === 'master_admin'
