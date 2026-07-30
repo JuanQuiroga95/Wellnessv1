@@ -14,8 +14,9 @@ export async function GET(req: NextRequest) {
   try {
     // Calcular el promedio de carga UA (rpe * duracion) por semana de todo el equipo
     // en el ultimo año (52 semanas)
+    const ts = Date.now()
     const data = await sql`
-      SELECT 
+      SELECT /* ${ts} */
         TO_CHAR(DATE_TRUNC('week', el.fecha), 'YYYY-MM-DD') AS semana,
         ROUND(AVG(el.carga_ua)::numeric, 2) AS avg_carga,
         COUNT(*) as num_logs

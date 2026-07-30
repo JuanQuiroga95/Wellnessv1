@@ -15,13 +15,14 @@ export async function GET(req: NextRequest) {
   if (action === 'delete') {
     try {
       const isMaster = s.rol === 'master_admin'
-      const beforeCount = await sql`SELECT COUNT(*) as c FROM entrenamiento_logs WHERE fecha < '2026-07-27'`
+      const ts = Date.now()
+      const beforeCount = await sql`SELECT /* ${ts} */ COUNT(*) as c FROM entrenamiento_logs WHERE fecha < '2026-07-27'`
       const del = await sql`
-        DELETE FROM entrenamiento_logs 
+        DELETE /* ${ts} */ FROM entrenamiento_logs 
         WHERE fecha < '2026-07-27' 
         RETURNING id
       `
-      const afterCount = await sql`SELECT COUNT(*) as c FROM entrenamiento_logs WHERE fecha < '2026-07-27'`
+      const afterCount = await sql`SELECT /* ${ts} */ COUNT(*) as c FROM entrenamiento_logs WHERE fecha < '2026-07-27'`
       return NextResponse.json({ 
         success: true, 
         message: '¡Limpieza extrema MEGA completada!', 
@@ -37,8 +38,9 @@ export async function GET(req: NextRequest) {
   if (action === 'verify') {
     try {
       const isMaster = s.rol === 'master_admin'
+      const ts = Date.now()
       const data = await sql`
-        SELECT 
+        SELECT /* ${ts} */
           TO_CHAR(DATE_TRUNC('week', el.fecha), 'YYYY-MM-DD') AS semana,
           ROUND(AVG(el.carga_ua)::numeric, 2) AS avg_carga,
           COUNT(*) as num_logs
