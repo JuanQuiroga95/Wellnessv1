@@ -152,7 +152,23 @@ export default async function CoachPage() {
       peso_ideal_min: p.peso_ideal_min ? String(p.peso_ideal_min) : null,
       peso_ideal_max: p.peso_ideal_max ? String(p.peso_ideal_max) : null,
       posicion_orden: posOrder(p.posicion), acwr: calcACWR(sl, new Date(), 'ua', jugadorAusencias),
-      recentLogs: logs.map(l => ({ id: Number(l.id), fecha: String(l.fecha), carga_ua: Number(l.carga_ua)||0, rpe: Number(l.rpe)||0, rpe_gimnasio: Number(l.rpe_gimnasio)||null, duracion_min: Number(l.duracion_min)||0 })),
+      recentLogs: (() => {
+        const uniqueLogsMap = new Map();
+        logs.forEach(l => {
+          const fechaStr = String(l.fecha);
+          const currentRpe = Number(l.rpe) || 0;
+          const currentUa = Number(l.carga_ua) || 0;
+          if (!uniqueLogsMap.has(fechaStr)) {
+            uniqueLogsMap.set(fechaStr, l);
+          } else {
+            const existing = uniqueLogsMap.get(fechaStr);
+            if (currentRpe > (Number(existing.rpe) || 0) || currentUa > (Number(existing.carga_ua) || 0)) {
+              uniqueLogsMap.set(fechaStr, l);
+            }
+          }
+        });
+        return Array.from(uniqueLogsMap.values()).map(l => ({ id: Number(l.id), fecha: String(l.fecha), carga_ua: Number(l.carga_ua)||0, rpe: Number(l.rpe)||0, rpe_gimnasio: Number(l.rpe_gimnasio)||null, duracion_min: Number(l.duracion_min)||0 }));
+      })(),
       lastWellness: lastW, respondedToday, rpeToday: logs.some(l => String(l.fecha) === today),
       entrena_grupo: respondedToday ? (lastW?.entrena_grupo ?? null) : null,
       lesion: lesionMap[p.jugador_id] || null,

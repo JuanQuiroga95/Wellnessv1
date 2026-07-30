@@ -334,10 +334,10 @@ export default function InicioPanel({ teamData, session, today }: { teamData: an
               
               if (!byWeek[wStr]) byWeek[wStr] = { distTotal: 0, mec: 0 }
               
-              const avg = acwrD.perSessionTeamAvg?.[s.titulo]
+              const avg = acwrD.perSession?.[s.titulo]
               if (avg) {
                 byWeek[wStr].distTotal += Number(avg.distTotal || 0)
-                byWeek[wStr].mec += Number(avg.acc3 || 0) + Number(avg.dec3 || 0)
+                byWeek[wStr].mec += Number(avg.nAcel3 || 0) + Number(avg.nDecel3 || 0)
               }
             })
             
@@ -371,6 +371,7 @@ export default function InicioPanel({ teamData, session, today }: { teamData: an
   const injured = teamData.filter(p => p.lesion).length
   const atRisk = teamData.filter(p => p.acwr?.status === 'peligro' || p.acwr?.status === 'precaucion').length
   const missingWellness = teamData.filter(p => !p.respondedToday && !p.lesion && p.entrena_grupo !== false).length
+  const missingRpe = teamData.filter(p => !p.rpeToday && !p.lesion && p.entrena_grupo !== false).length
 
   // Helper for birthdays
   function isBirthdayUpcoming(dateStr, todayStr) {
@@ -669,6 +670,19 @@ export default function InicioPanel({ teamData, session, today }: { teamData: an
                 <p style={{ margin: 0, fontSize: 12, color: 'var(--fog)', marginTop: 4 }}>{missingWellness === 1 ? 'jugador sin responder' : 'jugadores sin responder'}</p>
               </div>
               <div style={{ fontSize: 32, opacity: 0.2 }}>📱</div>
+            </div>
+          </div>
+        </AnimateOnScroll>
+        <AnimateOnScroll delay={500}>
+          <div style={{ background: 'var(--ink2)', border: '1px solid var(--mist)', borderRadius: 16, padding: 20, position: 'relative', overflow: 'hidden' }}>
+            <div style={{ position: 'absolute', top: 0, left: 0, width: 4, height: '100%', background: missingRpe > 0 ? '#f43f5e' : '#22c55e' }} />
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div>
+                <p style={{ margin: 0, fontSize: 12, color: 'var(--silver)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>Falta RPE</p>
+                <div style={{ fontSize: 36, color: 'var(--snow)', fontWeight: 800, lineHeight: 1.2, marginTop: 8 }}>{missingRpe}</div>
+                <p style={{ margin: 0, fontSize: 12, color: 'var(--fog)', marginTop: 4 }}>{missingRpe === 1 ? 'jugador sin responder' : 'jugadores sin responder'}</p>
+              </div>
+              <div style={{ fontSize: 32, opacity: 0.2 }}>🏃</div>
             </div>
           </div>
         </AnimateOnScroll>

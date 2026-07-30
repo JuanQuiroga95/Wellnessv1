@@ -408,6 +408,8 @@ export default function CoachDashboard({ isPanama, session, teamData, today }: a
   const injured = filteredTeamData.filter(p=>p.lesion)
   const responded = filteredTeamData.filter(p=>p.respondedToday)
   const pending = filteredTeamData.filter(p=>!p.respondedToday)
+  const respondedRpe = filteredTeamData.filter(p=>p.rpeToday)
+  const pendingRpe = filteredTeamData.filter(p=>!p.rpeToday)
   const atRisk = filteredTeamData.filter(p=>p.acwr?.status==='peligro').length
   const caution = filteredTeamData.filter(p=>p.acwr?.status==='precaucion').length
   const optimal = filteredTeamData.filter(p=>p.acwr?.status==='optimo').length
@@ -543,6 +545,17 @@ export default function CoachDashboard({ isPanama, session, teamData, today }: a
                   <div style={{ height:'100%', width:`${teamData.length?(responded.length/teamData.length)*100:0}%`, background:'var(--lime)', borderRadius:3 }} />
                 </div>
                 {pending.length>0 && <p style={{ fontSize:11, color:'#f87171', marginTop:6 }}>⚠ Pendientes: {pending.map(p=>p.nombre.split(' ')[0]).join(', ')}</p>}
+              </div>
+              <div style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:14, padding:16, gridColumn:'span 2' }}>
+                <p style={{ fontSize:10, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:8 }}>RPE Hoy</p>
+                <div style={{ display:'flex', alignItems:'baseline', gap:6 }}>
+                  <span className="display" style={{ fontSize:52, color:'var(--lime)', lineHeight:1 }}>{respondedRpe.length}</span>
+                  <span className="display" style={{ fontSize:28, color:'var(--fog)', lineHeight:1 }}>/ {teamData.length}</span>
+                </div>
+                <div style={{ marginTop:10, height:5, background:'var(--mist)', borderRadius:3, overflow:'hidden' }}>
+                  <div style={{ height:'100%', width:`${teamData.length?(respondedRpe.length/teamData.length)*100:0}%`, background:'var(--lime)', borderRadius:3 }} />
+                </div>
+                {pendingRpe.length>0 && <p style={{ fontSize:11, color:'#f87171', marginTop:6 }}>⚠ Pendientes: {pendingRpe.map(p=>p.nombre.split(' ')[0]).join(', ')}</p>}
               </div>
               {[{label:'EN RIESGO',val:atRisk,col:'#ef4444',bg:'rgba(239,68,68,.06)',border:'rgba(239,68,68,.2)'},{label:'PRECAUCIÓN',val:caution,col:'#f59e0b',bg:'rgba(245,158,11,.06)',border:'rgba(245,158,11,.2)'},{label:'ÓPTIMOS',val:optimal,col:'#22c55e',bg:'rgba(34,197,94,.06)',border:'rgba(34,197,94,.2)'}].map(s=>(
                 <div key={s.label} style={{ background:s.bg, border:`1px solid ${s.border}`, borderRadius:14, padding:16, textAlign:'center' }}>
