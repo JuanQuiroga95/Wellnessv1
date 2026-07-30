@@ -15,8 +15,13 @@ export async function GET(req: NextRequest) {
   if (action === 'delete') {
     try {
       const isMaster = s.rol === 'master_admin'
-      const del = await sql`DELETE FROM entrenamiento_logs WHERE tipo_sesion = 'TEST_SEED_ACWR' AND (${isMaster}::boolean OR club_id = ${clubId} OR jugador_id IN (SELECT id FROM jugadores WHERE club_id = ${clubId})) RETURNING id`
-      return NextResponse.json({ success: true, message: '¡Datos falsos eliminados!', deleted_count: del.length })
+      const del = await sql`
+        DELETE FROM entrenamiento_logs 
+        WHERE fecha IN ('2026-07-09', '2026-07-16', '2026-07-23') 
+        AND (${isMaster}::boolean OR club_id = ${clubId} OR jugador_id IN (SELECT id FROM jugadores WHERE club_id = ${clubId})) 
+        RETURNING id
+      `
+      return NextResponse.json({ success: true, message: '¡Datos falsos eliminados por fecha!', deleted_count: del.length })
     } catch (err) {
       return NextResponse.json({ error: String(err) }, { status: 500 })
     }
