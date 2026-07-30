@@ -14,12 +14,21 @@ export async function GET(req: NextRequest) {
 
   if (action === 'delete') {
     try {
+      const isMaster = s.rol === 'master_admin'
+      const beforeCount = await sql`SELECT COUNT(*) as c FROM entrenamiento_logs WHERE fecha < '2026-07-27'`
       const del = await sql`
         DELETE FROM entrenamiento_logs 
         WHERE fecha < '2026-07-27' 
         RETURNING id
       `
-      return NextResponse.json({ success: true, message: '¡Limpieza extrema SUPER completada!', deleted_count: del.length, club_id_was: clubId })
+      const afterCount = await sql`SELECT COUNT(*) as c FROM entrenamiento_logs WHERE fecha < '2026-07-27'`
+      return NextResponse.json({ 
+        success: true, 
+        message: '¡Limpieza extrema MEGA completada!', 
+        deleted_count: del.length, 
+        before_count: beforeCount[0].c,
+        after_count: afterCount[0].c
+      })
     } catch (err) {
       return NextResponse.json({ error: String(err) }, { status: 500 })
     }
