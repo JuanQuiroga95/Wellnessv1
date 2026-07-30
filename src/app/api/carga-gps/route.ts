@@ -505,7 +505,7 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    return NextResponse.json({ players, teamAvg, sesionesInfo, perSession, perSessionPlayers, perSessionTeamAvg, cePerSession, sesionesCount: sesiones.length, ciclo, gpsReal, gpsPerMD, teamAvgGps, allMetricCols, hasRealGps: gpsReal.length > 0 })
+    return NextResponse.json({ players, teamAvg, sesionesInfo, perSession, perSessionPlayers, perSessionTeamAvg, cePerSession, sesionesCount: sesiones.length, ciclo, gpsReal, gpsPerMD, teamAvgGps, allMetricCols, hasRealGps: gpsReal.length > 0 }, { headers: { 'Cache-Control': 'no-store, max-age=0' } })
   } catch (err) {
     console.error('[GET error]', err)
     return NextResponse.json({ error: String(err) }, { status: 500 })

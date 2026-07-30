@@ -1441,7 +1441,7 @@ function CambioCargaPanel() {
     try {
       const [r1, r2] = await Promise.all([
         fetch(`/api/cambio-carga?desde=${d}&hasta=${h}&minEntrenamiento=${me}&minPartido=${mp}`),
-        fetch(`/api/carga-gps?desde=${d}&hasta=${h}&ciclo=microciclo`),
+        fetch(`/api/carga-gps?_t=${Date.now()}&desde=${d}&hasta=${h}&ciclo=microciclo`),
       ])
       setData(await r1.json())
       setGpsData(await r2.json())
@@ -2011,7 +2011,7 @@ function CalendarioPanel({ teamData }) {
     try {
       const [rc, rg, rMand] = await Promise.all([
         fetch(`/api/calendario?desde=${fetchDesde}&hasta=${hasta}`),
-        fetch(`/api/carga-gps?desde=${fetchDesde}&hasta=${hasta}&ciclo=microciclo`),
+        fetch(`/api/carga-gps?_t=${Date.now()}&desde=${fetchDesde}&hasta=${hasta}&ciclo=microciclo`),
         fetch(`/api/fuerza/mandamientos`)
       ])
       const calendData = await rc.json()
@@ -4913,7 +4913,7 @@ function CargaExternaPanel() {
     const desde = addDays(todayLocal(), -dias)
     const hasta = addDays(todayLocal(), +dias)
     try {
-      const r = await fetch(`/api/carga-gps?desde=${desde}&hasta=${hasta}&ciclo=${ciclo}`)
+      const r = await fetch(`/api/carga-gps?_t=${Date.now()}&desde=${desde}&hasta=${hasta}&ciclo=${ciclo}`)
       if (r.ok) setData(await r.json())
     } catch {}
     finally { setLoading(false) }
@@ -4922,7 +4922,7 @@ function CargaExternaPanel() {
   async function loadDia() {
     setDiaLoading(true)
     try {
-      const r = await fetch(`/api/carga-gps?desde=${diaSelec}&hasta=${diaSelec}&ciclo=dia`)
+      const r = await fetch(`/api/carga-gps?_t=${Date.now()}&desde=${diaSelec}&hasta=${diaSelec}&ciclo=dia`)
       if (r.ok) setDiaData(await r.json())
     } catch {}
     finally { setDiaLoading(false) }
@@ -5464,7 +5464,7 @@ function ComparativaPanel({ teamData }: { teamData: any[] }) {
   async function cargar() {
     setLoading(true)
     try {
-      const r = await fetch(`/api/carga-gps?desde=${desde}&hasta=${hasta}&ciclo=microciclo`)
+      const r = await fetch(`/api/carga-gps?_t=${Date.now()}&desde=${desde}&hasta=${hasta}&ciclo=microciclo`)
       setData(await r.json())
     } catch(e){} finally { setLoading(false) }
   }
@@ -7166,7 +7166,7 @@ function AcumPanel({ teamData }) {
 
   async function loadMici() {
     setMiciLoading(true)
-    try { const r = await fetch(`/api/carga-gps?desde=${miciDesde}&hasta=${miciHasta}&ciclo=microciclo`); setMiciData(await r.json()) }
+    try { const r = await fetch(`/api/carga-gps?_t=${Date.now()}&desde=${miciDesde}&hasta=${miciHasta}&ciclo=microciclo`); setMiciData(await r.json()) }
     catch(e){} finally { setMiciLoading(false) }
   }
 
@@ -8358,7 +8358,7 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
     if (showLoading) setLoading(true)
     try {
       const [gpsRes, calRes] = await Promise.all([
-        fetch(`/api/carga-gps?desde=${dateRange.desde}&hasta=${dateRange.hasta}&ciclo=microciclo`),
+        fetch(`/api/carga-gps?_t=${Date.now()}&desde=${dateRange.desde}&hasta=${dateRange.hasta}&ciclo=microciclo`),
         fetch(`/api/calendario?desde=${dateRange.desde}&hasta=${dateRange.hasta}`),
       ])
       const [gpsData, calData] = await Promise.all([gpsRes.json(), calRes.json()])
@@ -8385,7 +8385,7 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
       // Bug fix: fetch GPS and minutos in parallel — partidos have no sesiones_plan blocks
       // so minActivo from carga-gps is always 0. Use /api/minutos as fallback.
       const [gpsRes, minRes] = await Promise.all([
-        fetch(`/api/carga-gps?desde=${partido.fecha}&hasta=${partido.fecha}&ciclo=microciclo`),
+        fetch(`/api/carga-gps?_t=${Date.now()}&desde=${partido.fecha}&hasta=${partido.fecha}&ciclo=microciclo`),
         fetch(`/api/minutos?desde=${partido.fecha}&hasta=${partido.fecha}`)
       ])
       const [d, minData] = await Promise.all([gpsRes.json(), minRes.json()])
@@ -9934,7 +9934,7 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
 
   async function cargar() {
     setLoading(true)
-    try { const r = await fetch(`/api/carga-gps?desde=${dateRange.desde}&hasta=${dateRange.hasta}&ciclo=microciclo`); setData(await r.json()) }
+    try { const r = await fetch(`/api/carga-gps?_t=${Date.now()}&desde=${dateRange.desde}&hasta=${dateRange.hasta}&ciclo=microciclo`); setData(await r.json()) }
     catch(e){} finally { setLoading(false) }
   }
 
@@ -9943,7 +9943,7 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
     if (!partido) { updated[slotIdx]=null; setSelectedPartidos(updated); const nr=[...partidoRefs]; nr[slotIdx]={}; setPartidoRefs(nr); return }
     updated[slotIdx] = partido; setSelectedPartidos(updated)
     try {
-      const r = await fetch(`/api/carga-gps?desde=${partido.fecha}&hasta=${partido.fecha}&ciclo=microciclo`)
+      const r = await fetch(`/api/carga-gps?_t=${Date.now()}&desde=${partido.fecha}&hasta=${partido.fecha}&ciclo=microciclo`)
       const d = await r.json()
       const avg = d?.teamAvgGps || {}
       const nr = [...partidoRefs]
@@ -11550,7 +11550,7 @@ function ExpoAIPanel({ teamData }: { teamData: any[] }) {
 
   async function cargar() {
     setLoading(true)
-    try { const r = await fetch(`/api/carga-gps?desde=${desde}&hasta=${hasta}&ciclo=microciclo`); setData(await r.json()) }
+    try { const r = await fetch(`/api/carga-gps?_t=${Date.now()}&desde=${desde}&hasta=${hasta}&ciclo=microciclo`); setData(await r.json()) }
     catch(e){} finally { setLoading(false) }
   }
 
@@ -11562,7 +11562,7 @@ function ExpoAIPanel({ teamData }: { teamData: any[] }) {
       return
     }
     try {
-      const r = await fetch(`/api/carga-gps?desde=${partido.fecha}&hasta=${partido.fecha}&ciclo=microciclo`)
+      const r = await fetch(`/api/carga-gps?_t=${Date.now()}&desde=${partido.fecha}&hasta=${partido.fecha}&ciclo=microciclo`)
       const d = await r.json()
       const avg = d?.teamAvgGps || {}
       const nr = [...refData]

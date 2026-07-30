@@ -300,7 +300,7 @@ export default function InicioPanel({ teamData, session, today }: { teamData: an
         }
 
         // Fetch Load Trend (Last 14 days for MD history)
-        const loadRes = await fetch(`/api/carga-gps?desde=${past14Days}&hasta=${today}&ciclo=microciclo`)
+        const loadRes = await fetch(`/api/carga-gps?_t=${Date.now()}&desde=${past14Days}&hasta=${today}&ciclo=microciclo`)
         const loadD = await loadRes.json()
         if (loadD.sesionesInfo) {
           const dailyLoad = loadD.sesionesInfo.map((s: any) => {
@@ -363,7 +363,7 @@ export default function InicioPanel({ teamData, session, today }: { teamData: an
 
         // Fetch 12 weeks for ACWR Chart
         const past12Weeks = addDays(today, -84)
-        const acwrRes = await fetch(`/api/carga-gps?desde=${past12Weeks}&hasta=${today}&ciclo=microciclo`)
+        const acwrRes = await fetch(`/api/carga-gps?_t=${Date.now()}&desde=${past12Weeks}&hasta=${today}&ciclo=microciclo`)
         if (acwrRes.ok) {
           const acwrD = await acwrRes.json()
           if (acwrD.sesionesInfo) {
