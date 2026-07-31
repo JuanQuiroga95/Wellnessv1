@@ -682,7 +682,7 @@ export default function WellnessForm({ isPanama, jugadorId, onSuccess, todayWell
           {FIELDS.map((f) => (
             <div key={f.key}>
               <label style={{ display:'block', fontSize:11, fontWeight:600, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:8 }}>{f.label}</label>
-              <ScaleInput id={f.key} value={vals[f.key]} onChange={(v:any) => setVals(p=>({...p,[f.key]:v}))} lowLabel={f.low} highLabel={f.high} customColors={{}} />
+              <ScaleInput id={f.key} value={vals[f.key]} onChange={(v:any) => setVals(p=>({...p,[f.key]:v}))} lowLabel={f.low} highLabel={f.high} customColors={f.colors} />
               
               {/* Input de horas de sueño debajo de calidad de sueño */}
               {f.key === 'calidad_sueno' && (
