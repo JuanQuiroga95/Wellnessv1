@@ -305,9 +305,12 @@ export async function GET(req: NextRequest) {
     }
 
     const rpeByPlayerDate: Record<string, any> = {}
-    for (const log of logs as any[]) { rpeByPlayerDate[`${log.jugador_id}_${log.fecha}`] = log }
+    for (const log of logs as any[]) { 
+      const dStr = typeof log.fecha === 'string' ? log.fecha.slice(0, 10) : String(log.fecha).slice(0,10)
+      rpeByPlayerDate[`${log.jugador_id}_${dStr}`] = log 
+    }
     
-    const sesionesInfo = (sesiones as any[]).map(s => ({ id: s.id, fecha: s.fecha, titulo: s.titulo || s.fecha, rpe_objetivo: s.rpe_objetivo }))
+    const sesionesInfo = (sesiones as any[]).map(s => ({ id: s.id, fecha: typeof s.fecha === 'string' ? s.fecha.slice(0, 10) : String(s.fecha).slice(0, 10), titulo: s.titulo || s.fecha, rpe_objetivo: s.rpe_objetivo }))
     const perSessionPlayers: Record<string, any[]> = {}
     for (const ses of sesionesInfo) {
       perSessionPlayers[ses.titulo] = (todosJugadores as any[]).map((p: any) => {
