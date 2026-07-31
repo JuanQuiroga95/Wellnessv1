@@ -696,8 +696,8 @@ export default function WellnessForm({ isPanama, jugadorId, onSuccess, todayWell
                       className="wp-input"
                       value={horasSueno}
                       onChange={e=>setHorasSueno(e.target.value)}
-                      style={{ width:100, textAlign:'center', fontSize:18, fontWeight:700, fontFamily:'DM Mono,monospace', color:'var(--lime)' }}
-                      placeholder="ej: 7.5"
+                      style={{ width:100, textAlign:'center', fontSize:18, fontWeight:700, fontFamily:'DM Mono,monospace', color:'var(--lime)', background: horasSueno ? 'var(--ink2)' : 'rgba(239,68,68,.1)', border: horasSueno ? '1px solid var(--fog)' : '1px solid #ef4444' }}
+                      placeholder="—"
                     />
                     <span style={{ fontSize:12, color:'var(--fog)' }}>horas en total</span>
                   </div>
@@ -784,8 +784,8 @@ export default function WellnessForm({ isPanama, jugadorId, onSuccess, todayWell
 
       {error && <p style={{ fontSize:12, color:'#f87171' }}>{error}</p>}
 
-      <button type="submit" className="btn-lime" disabled={!allFilled||loading} style={{ width:'100%', padding:14, fontSize:14, marginTop:4 }}>
-        {loading ? 'ENVIANDO...' : `ENVIAR WELLNESS → (${filledCount}/${totalFields})`}
+      <button type="submit" className="btn-lime" disabled={!allFilled||loading} style={{ width:'100%', padding:14, fontSize:14, marginTop:4, opacity: (!allFilled || loading) ? 0.5 : 1 }}>
+        {loading ? 'ENVIANDO...' : allFilled ? 'ENVIAR WELLNESS →' : `FALTAN CAMPOS POR COMPLETAR (${filledCount}/${totalFields})`}
       </button>
     </form>
   )
