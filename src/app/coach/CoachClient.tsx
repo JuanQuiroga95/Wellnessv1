@@ -2816,10 +2816,6 @@ function CalendarioPanel({ teamData }) {
                               <span style={{ color:'var(--lime)' }}>NE{ne}</span>
                               <span style={{ color:'var(--fog)' }}> = </span>
                               <span style={{ color:'#c8f135', fontWeight:700 }}>CE {ce}</span>
-                              {rpeParaUCE > 0 && <>
-                                <span style={{ color:'var(--fog)' }}> × RPE{rpeParaUCE}{rpeEsReal ? '' : ' obj'} = </span>
-                                <span style={{ color:'#f59e0b', fontWeight:700 }}>{Math.round(ce*rpeParaUCE)} UCE</span>
-                              </>}
                             </div>
                           )
                         })()}
@@ -9000,10 +8996,6 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
                                 <span style={{ color:'var(--lime)' }}>NE{bl.ne}</span>
                                 <span style={{ color:'var(--fog)' }}> · </span>
                                 <span style={{ color:'#c8f135', fontWeight:700 }}>CE{bl.ce}</span>
-                                {row.rpe > 0 && <>
-                                  <span style={{ color:'var(--fog)' }}> → </span>
-                                  <span style={{ color:'#f59e0b', fontWeight:700 }}>{Math.round(bl.ce*row.rpe)} UCE</span>
-                                </>}
                               </span>
                             ))}
                           </div>
