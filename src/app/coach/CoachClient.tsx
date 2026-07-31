@@ -725,7 +725,7 @@ export default function CoachDashboard({ isPanama, session, teamData, today }: a
         {tab==='acumulado' && <AcumPanel teamData={teamData} />}
         {tab==='expo-ai' && <ExpoAIPanel teamData={teamData} />}
         {tab==='evaluaciones' && <EvaluacionesPanel teamData={teamData} teamName={teamName} />}
-        {tab==='biblioteca' && <BibliotecaPanel canchas={canchas} />}
+        {tab==='biblioteca' && <BibliotecaPanel canchasList={canchas} />}
         {tab==='cambio-carga' && <CambioCargaPanel />}
         {tab==='comparativa' && <ComparativaPanel teamData={teamData} />}
         {tab==='tactica' && <TacticaPanel teamData={teamData} session={session} today={todayLocal()} />}
@@ -12860,7 +12860,7 @@ function NotificacionesCoachPanel() {
 // ═══════════════════════════════════════════════════════════════════
 // BIBLIOTECA DE TAREAS PANEL
 // ═══════════════════════════════════════════════════════════════════
-function BibliotecaPanel({ canchas }: { canchas: any[] }) {
+function BibliotecaPanel({ canchasList }: { canchasList: any[] }) {
   const [tareas, setTareas] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [buscar, setBuscar] = useState('')
