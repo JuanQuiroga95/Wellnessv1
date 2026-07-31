@@ -13097,6 +13097,7 @@ function BibliotecaPanel() {
           })()}
 
           <TacticalBoard
+            canchas={canchas}
             initialData={editBoardData}
             onZoneInfo={setZoneInfo}
             onSave={async (data) => {

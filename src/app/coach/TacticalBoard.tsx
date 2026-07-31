@@ -11,11 +11,12 @@ type Orientation = 'horizontal'|'vertical'
 interface El { id:string; type:string; x:number; y:number; x2?:number; y2?:number; w?:number; h?:number; color?:string; number?:number|string; label?:string; text?:string; dashed?:boolean; wave?:boolean; fontSize?:number; rotation?:number; _rw?:number; _rh?:number; vertices?:{x:number, y:number}[]; _area?:number }
 
 interface BoardProps {
-  initialData?: { field:FieldType; elements:El[]; series?:El[][]; orientation?:Orientation }
-  onSave?: (d:{ field:FieldType; elements:El[]; series:El[][]; preview:string }) => void
+  initialData?: { field:FieldType; elements:El[]; series?:El[][]; orientation?:Orientation; cancha_id?:string }
+  onSave?: (d:{ field:FieldType; elements:El[]; series:El[][]; preview:string; cancha_id?:string }) => void
   onClose?: () => void
   readOnly?: boolean
   onZoneInfo?: (zones: { rw:number; rh:number; area:number }[]) => void
+  canchas?: any[]
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -248,8 +249,9 @@ const lbl:React.CSSProperties = {fontSize:7,fontWeight:800,color:'#3e4c5e',textT
 // ═══════════════════════════════════════════════════════════════════
 // MAIN COMPONENT
 // ═══════════════════════════════════════════════════════════════════
-export default function TacticalBoard({ initialData, onSave, onClose, readOnly, onZoneInfo }:BoardProps) {
-  const [field, setField] = useState<FieldType>(initialData?.field||'F11')
+export default function TacticalBoard({ initialData, onSave, onClose, readOnly, onZoneInfo, canchas=[] }: BoardProps) {
+  const [field, setField] = useState<FieldType>(initialData?.field || 'F11')
+  const [selectedCanchaId, setSelectedCanchaId] = useState<string>(initialData?.cancha_id || '')
   const [orient, setOrient] = useState<Orientation>(initialData?.orientation||'horizontal')
   const [elements, setElements] = useState<El[]>(initialData?.elements||[])
   const [series, setSeries] = useState<El[][]>(initialData?.series||[initialData?.elements||[]])
@@ -289,7 +291,14 @@ export default function TacticalBoard({ initialData, onSave, onClose, readOnly, 
 
   // ViewBox based on field + orientation
   const cfg = FIELD_CFG[field]
-  const ratio = cfg.mW / cfg.mH
+  
+  // Real dimensions based on selected Cancha
+  const selectedCancha = selectedCanchaId ? canchas.find(c => String(c.id) === String(selectedCanchaId)) : null
+  const realW = selectedCancha?.largo_m ? Number(selectedCancha.largo_m) : cfg.mW
+  const realH = selectedCancha?.ancho_m ? Number(selectedCancha.ancho_m) : cfg.mH
+  const realCfg = { mW: realW, mH: realH }
+  
+  const ratio = cfg.mW / cfg.mH // ViewBox keeps the standard visual proportion so drawings don't get squished
   const baseW = 860
   const vbW = orient==='horizontal' ? baseW : Math.round(baseW / ratio)
   const vbH = orient==='horizontal' ? Math.round(baseW / ratio) : baseW
@@ -336,7 +345,7 @@ export default function TacticalBoard({ initialData, onSave, onClose, readOnly, 
         const dist = Math.hypot(p.x - fp.x, p.y - fp.y)
         if (dist < 15 || e.detail === 2) {
           const finalPoly = [...polyDraw]
-          const area = calculateShoelaceArea(finalPoly, vbW, vbH, cfg)
+          const area = calculateShoelaceArea(finalPoly, vbW, vbH, realCfg)
           push([...elements, {id:uid(), type:'zone', x:finalPoly[0].x, y:finalPoly[0].y, vertices: finalPoly, _area: Math.round(area), color:zCol} as any])
           setPolyDraw(null)
           setPolyCursor(null)
@@ -363,10 +372,10 @@ export default function TacticalBoard({ initialData, onSave, onClose, readOnly, 
         if (resizeDrag.vIndex !== undefined && el.vertices) {
           const nv = [...el.vertices]
           nv[resizeDrag.vIndex] = {x:p.x, y:p.y}
-          const area = calculateShoelaceArea(nv, vbW, vbH, cfg)
+          const area = calculateShoelaceArea(nv, vbW, vbH, realCfg)
           return {...el, vertices: nv, _area: Math.round(area)}
         }
-        const nw=Math.max(10,p.x-resizeDrag.ox);const nh=Math.max(10,p.y-resizeDrag.oy);const fPxW=vbW-60,fPxH=vbH-60;return{...el,w:nw,h:nh,_rw:Math.round((nw/fPxW)*cfg.mW),_rh:Math.round((nh/fPxH)*cfg.mH)}
+        const nw=Math.max(10,p.x-resizeDrag.ox);const nh=Math.max(10,p.y-resizeDrag.oy);const fPxW=vbW-60,fPxH=vbH-60;return{...el,w:nw,h:nh,_rw:Math.round((nw/fPxW)*realCfg.mW),_rh:Math.round((nh/fPxH)*realCfg.mH)}
       }
       return el
     }));
@@ -435,14 +444,14 @@ export default function TacticalBoard({ initialData, onSave, onClose, readOnly, 
     const png=await getPng();if(!png)return
     const a=document.createElement('a');a.href=png;a.download=`tactica_${new Date().toISOString().split('T')[0]}.png`;a.click()
   }
-  const save = async()=>{const p=await getPng();onSave?.({field,elements,series,preview:p})}
+  const save = async()=>{const p=await getPng();onSave?.({field,elements,series,preview:p,cancha_id:selectedCanchaId})}
 
   useEffect(()=>{
     const h=(e:KeyboardEvent)=>{
       if(e.target instanceof HTMLInputElement)return
       if((e.key==='Delete'||e.key==='Backspace')&&selId){e.preventDefault();del()}
       if(e.key==='Enter' && polyDraw && polyDraw.length >= 3){
-         const area = calculateShoelaceArea(polyDraw, vbW, vbH, cfg)
+         const area = calculateShoelaceArea(polyDraw, vbW, vbH, realCfg)
          push([...elements, {id:uid(), type:'zone', x:polyDraw[0].x, y:polyDraw[0].y, vertices: polyDraw, _area: Math.round(area), color:zCol} as any])
          setPolyDraw(null); setPolyCursor(null); setTool('select')
       }
@@ -474,13 +483,29 @@ export default function TacticalBoard({ initialData, onSave, onClose, readOnly, 
         {/* Field + orient */}
         <div>
           <div style={lbl}>Cancha</div>
-          <div style={{display:'flex',gap:2}}>
-            {(['F11','F11_half','F9','F7','F5','Gimnasio'] as const).map(f=>(
-              <button key={f} onClick={()=>setField(f)} style={tb(field===f)}><span style={{fontSize:10,fontWeight:900}}>{FIELD_CFG[f].label.replace('F11 ','').replace('F5 ','')}</span></button>
-            ))}
-            <button onClick={()=>setOrient(o=>o==='horizontal'?'vertical':'horizontal')} style={tb(false)} title="Rotar campo">
-              <span style={{fontSize:12}}>{orient==='horizontal'?'⬌':'⬍'}</span>
-            </button>
+          <div style={{display:'flex',gap:2,flexDirection:'column'}}>
+            <div style={{display:'flex',gap:2}}>
+              {(['F11','F11_half','F9','F7','F5','Gimnasio'] as const).map(f=>(
+                <button key={f} onClick={()=>setField(f)} style={tb(field===f)}><span style={{fontSize:10,fontWeight:900}}>{FIELD_CFG[f].label.replace('F11 ','').replace('F5 ','')}</span></button>
+              ))}
+              <button onClick={()=>setOrient(o=>o==='horizontal'?'vertical':'horizontal')} style={tb(false)} title="Rotar campo">
+                <span style={{fontSize:12}}>{orient==='horizontal'?'⬌':'⬍'}</span>
+              </button>
+            </div>
+            {canchas && canchas.length > 0 && (
+              <select value={selectedCanchaId} onChange={e=>setSelectedCanchaId(e.target.value)}
+                style={{
+                  background:'rgba(255,255,255,.05)', border:'1px solid rgba(255,255,255,.1)', borderRadius:4, padding:'2px 4px',
+                  fontSize:10, color:'#a3e635', fontWeight:700, outline:'none', marginTop:2, appearance:'none', cursor:'pointer'
+                }}>
+                <option value="" style={{background:'var(--ink2)', color:'#8896a8'}}>Dimensión estándar ({FIELD_CFG[field].mW}×{FIELD_CFG[field].mH}m)</option>
+                {canchas.map(c => (
+                  <option key={c.id} value={String(c.id)} style={{background:'var(--ink2)', color:'#fff'}}>
+                    {c.nombre} ({c.largo_m}×{c.ancho_m}m)
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
         </div>
 
@@ -607,7 +632,7 @@ export default function TacticalBoard({ initialData, onSave, onClose, readOnly, 
           {/* Zone dimension labels (real meters) */}
           {elements.filter(e=>e.type==='zone').map(z=>{
             const zw=z.w||60, zh=z.h||40
-            const scaleX=cfg.mW/(vbW-60), scaleY=cfg.mH/(vbH-60)
+            const scaleX=realCfg.mW/(vbW-60), scaleY=realCfg.mH/(vbH-60)
             const mW2=Math.round(zw*scaleX), mH2=Math.round(zh*scaleY)
             if (z.vertices) return null
             return <g key={`zl_${z.id}`} style={{pointerEvents:'none'}}>
@@ -623,7 +648,7 @@ export default function TacticalBoard({ initialData, onSave, onClose, readOnly, 
         const zones = elements.filter(e=>e.type==='zone')
         const players = elements.filter(e=>e.type==='player')
         if(zones.length===0) return null
-        const scaleX=cfg.mW/(vbW-60), scaleY=cfg.mH/(vbH-60)
+        const scaleX=realCfg.mW/(vbW-60), scaleY=realCfg.mH/(vbH-60)
 
         return (
           <div style={{background:'rgba(10,15,25,.97)',border:'1px solid rgba(255,255,255,.05)',borderRadius:10,padding:'12px 14px',display:'flex',gap:14,alignItems:'center',flexWrap:'wrap',fontSize:11}}>
