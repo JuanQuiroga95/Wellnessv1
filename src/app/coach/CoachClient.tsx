@@ -6523,7 +6523,7 @@ function NewPlayerForm({ onSuccess, onCancel }) {
   async function submit(e) {
     e.preventDefault(); setLoading(true); setError('')
     try {
-      const res = await fetch('/api/players',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...f,edad:f.edad?parseInt(f.edad):null,peso_kg:f.peso_kg?parseFloat(f.peso_kg):null,estatura_cm:f.estatura_cm?parseInt(f.estatura_cm):null,foto_url:f.foto_url||null,email:f.email||null,fecha_nacimiento:f.fecha_nacimiento||null,hora_recordatorio:f.hora_recordatorio||'08:00',peso_ideal_min:f.peso_ideal_min?parseFloat(f.peso_ideal_min):null,peso_ideal_max:f.peso_ideal_max?parseFloat(f.peso_ideal_max):null})})
+      const res = await fetch('/api/players',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...f,edad:f.edad?parseInt(String(f.edad)):null,peso_kg:f.peso_kg?parseFloat(String(f.peso_kg).replace(',', '.')):null,estatura_cm:f.estatura_cm?parseInt(String(f.estatura_cm)):null,foto_url:f.foto_url||null,email:f.email||null,fecha_nacimiento:f.fecha_nacimiento||null,hora_recordatorio:f.hora_recordatorio||'08:00',peso_ideal_min:f.peso_ideal_min?parseFloat(String(f.peso_ideal_min).replace(',', '.')):null,peso_ideal_max:f.peso_ideal_max?parseFloat(String(f.peso_ideal_max).replace(',', '.')):null})})
       const d = await res.json()
       if (!res.ok) { setError(d.error||'Error'); return }
       onSuccess()
@@ -6648,15 +6648,15 @@ function ManageRow({ player, last, onRefresh }) {
       const body: any = {
         nombre: ef.nombre.trim(),
         posicion: ef.posicion||null,
-        edad: ef.edad ? Number(ef.edad) : null,
-        peso_kg: ef.peso_kg ? Number(ef.peso_kg) : null,
-        estatura_cm: ef.estatura_cm ? Number(ef.estatura_cm) : null,
+        edad: ef.edad ? parseInt(String(ef.edad)) : null,
+        peso_kg: ef.peso_kg ? parseFloat(String(ef.peso_kg).replace(',', '.')) : null,
+        estatura_cm: ef.estatura_cm ? parseInt(String(ef.estatura_cm)) : null,
         pie_habil: ef.pie_habil||null,
         email: ef.email||null,
         fecha_nacimiento: ef.fecha_nacimiento||null,
         hora_recordatorio: ef.hora_recordatorio||null,
-        peso_ideal_min: ef.peso_ideal_min ? Number(ef.peso_ideal_min) : null,
-        peso_ideal_max: ef.peso_ideal_max ? Number(ef.peso_ideal_max) : null,
+        peso_ideal_min: ef.peso_ideal_min ? parseFloat(String(ef.peso_ideal_min).replace(',', '.')) : null,
+        peso_ideal_max: ef.peso_ideal_max ? parseFloat(String(ef.peso_ideal_max).replace(',', '.')) : null,
         nacionalidad: ef.nacionalidad||null,
       }
       const newPwd = ef.nueva_password.trim()
