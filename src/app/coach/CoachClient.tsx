@@ -1987,8 +1987,8 @@ function CalendarioPanel({ teamData }) {
 
   useEffect(() => { load() }, [year, month, weekStart, viewMode])
 
-  async function load() {
-    setLoading(true)
+  async function load(skipGps = false) {
+    if (!skipGps) setLoading(true)
     let desde: string, hasta: string, fetchDesde: string
     if (viewMode === 'mes') {
       desde = `${year}-${String(month+1).padStart(2,'0')}-01`
@@ -2009,23 +2009,33 @@ function CalendarioPanel({ teamData }) {
       fetchDesde = localDateStr(d)
     }
     try {
-      const [rc, rg, rMand] = await Promise.all([
-        fetch(`/api/calendario?desde=${fetchDesde}&hasta=${hasta}`),
-        fetch(`/api/carga-gps?_t=${Date.now()}&desde=${fetchDesde}&hasta=${hasta}&ciclo=microciclo`),
-        fetch(`/api/fuerza/mandamientos`)
-      ])
-      const calendData = await rc.json()
-      const gpsData = await rg.json().catch(() => ({}))
-      const mandData = await rMand.json().catch(() => ({}))
+      const fetchC = fetch(`/api/calendario?desde=${fetchDesde}&hasta=${hasta}`).then(r=>r.json())
+      const fetchM = fetch(`/api/fuerza/mandamientos`).then(r=>r.json()).catch(()=>({}))
       
-      setData({ ...calendData, perSession: gpsData?.perSession, perSessionTeamAvg: gpsData?.perSessionTeamAvg, gpsPerMD: gpsData?.gpsPerMD })
+      let pGps = Promise.resolve(null as any)
+      if (!skipGps) {
+        pGps = fetch(`/api/carga-gps?_t=${Date.now()}&desde=${fetchDesde}&hasta=${hasta}&ciclo=microciclo`).then(r=>r.json()).catch(()=>null)
+      }
+      
+      let pCanchas = Promise.resolve(null as any)
+      if (!skipGps) {
+        pCanchas = fetch('/api/canchas').then(r=>r.json()).catch(()=>null)
+      }
+
+      const [calendData, gpsData, mandData, dc] = await Promise.all([fetchC, pGps, fetchM, pCanchas])
+      
+      setData(prev => {
+        if (skipGps) return { ...prev, ...calendData }
+        return { ...calendData, perSession: gpsData?.perSession, perSessionTeamAvg: gpsData?.perSessionTeamAvg, gpsPerMD: gpsData?.gpsPerMD }
+      })
+      
       if (mandData.mandamientos) setFuerzaMandamientos(mandData.mandamientos)
       
-      const rcCanchas = await fetch('/api/canchas')
-      const dc = await rcCanchas.json()
-      setCanchas(Array.isArray(dc) ? dc : [])
+      if (!skipGps && dc) {
+        setCanchas(Array.isArray(dc) ? dc : [])
+      }
     } catch {}
-    setLoading(false)
+    if (!skipGps) setLoading(false)
   }
 
   function prevNav() {
@@ -2717,7 +2727,7 @@ function CalendarioPanel({ teamData }) {
                       <button className="hover-scale" onClick={async () => {
                         if (confirm('¿Eliminar todos los RPE de este día?')) {
                           await fetch(`/api/logs?fecha=${selectedDay}`, { method: 'DELETE' });
-                          await load();
+                          await load(true);
                         }
                       }} style={{ background:'transparent', border:'none', color:'#ef4444', cursor:'pointer', padding:'0 0 0 6px', fontSize:12, opacity:0.8 }} title="Eliminar RPE del día">✕</button>
                     </div>
@@ -2736,7 +2746,7 @@ function CalendarioPanel({ teamData }) {
                   <span style={{ fontWeight:700, color:TIPO_COLORES[s.tipo]||'#888', fontSize:13 }}>{TIPO_ICONOS[s.tipo]} {formatMD(s.titulo||s.tipo)}</span>
                   <div style={{ display:'flex', gap:6 }}>
                     <button className="hover-scale" onClick={()=>{setEditSesion(s);setShowEditor(true)}} style={{ fontSize:11, padding:'3px 8px', borderRadius:6, background:'var(--ink2)', border:'1px solid var(--fog)', color:'var(--silver)', cursor:'pointer' }}>✏️ Editar</button>
-                    <button className="hover-scale" onClick={async()=>{ await fetch(`/api/calendario?id=${s.id}`,{method:'DELETE'}); load() }} style={{ fontSize:11, padding:'3px 8px', borderRadius:6, background:'rgba(239,68,68,.1)', border:'1px solid rgba(239,68,68,.25)', color:'#f87171', cursor:'pointer' }}>🗑</button>
+                    <button className="hover-scale" onClick={async()=>{ await fetch(`/api/calendario?id=${s.id}`,{method:'DELETE'}); load(true) }} style={{ fontSize:11, padding:'3px 8px', borderRadius:6, background:'rgba(239,68,68,.1)', border:'1px solid rgba(239,68,68,.25)', color:'#f87171', cursor:'pointer' }}>🗑</button>
                   </div>
                 </div>
                 {(s.objetivo||s.objetivo_secundario) && <p style={{ fontSize:12, color:'var(--silver)', marginTop:4 }}>🎯 {[s.objetivo,s.objetivo_secundario].filter(Boolean).join(' · ')}</p>}
@@ -2916,7 +2926,7 @@ function CalendarioPanel({ teamData }) {
               }
               setShowEditor(false)
               setEditSesion(null)
-              await load()
+              await load(true)
 
               // Auto-save tasks to biblioteca in background (fire and forget)
               const bloques: any[] = data.ejercicios || []
