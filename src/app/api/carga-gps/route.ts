@@ -313,10 +313,25 @@ export async function GET(req: NextRequest) {
     const sesionesInfo = (sesiones as any[]).map(s => ({ id: s.id, fecha: typeof s.fecha === 'string' ? s.fecha.slice(0, 10) : String(s.fecha).slice(0, 10), titulo: s.titulo || s.fecha, rpe_objetivo: s.rpe_objetivo }))
     const perSessionPlayers: Record<string, any[]> = {}
     for (const ses of sesionesInfo) {
-      perSessionPlayers[ses.titulo] = (todosJugadores as any[]).map((p: any) => {
+      const sessionPlayers = (todosJugadores as any[]).map((p: any) => {
         const log = rpeByPlayerDate[`${p.jugador_id}_${ses.fecha}`]
         return { jugador_id: p.jugador_id, nombre: p.nombre, posicion: p.posicion, rpe: log ? Number(log.rpe) : null, minActivo: log ? Number(log.duracion_min) : null, ua_total: log ? Number(log.carga_ua) : null }
       })
+      
+      if (!perSessionPlayers[ses.titulo]) {
+        perSessionPlayers[ses.titulo] = sessionPlayers
+      } else {
+        // Merge players, prioritizing those with actual data so Sunday's empty MD+1 doesn't erase Monday's MD+1 logs
+        perSessionPlayers[ses.titulo] = perSessionPlayers[ses.titulo].map(existingP => {
+          const newP = sessionPlayers.find(p => p.jugador_id === existingP.jugador_id)
+          return {
+            ...existingP,
+            rpe: existingP.rpe !== null ? existingP.rpe : (newP?.rpe ?? null),
+            minActivo: existingP.minActivo !== null ? existingP.minActivo : (newP?.minActivo ?? null),
+            ua_total: existingP.ua_total !== null ? existingP.ua_total : (newP?.ua_total ?? null),
+          }
+        })
+      }
     }
 
     const perSessionTeamAvg: Record<string, any> = {}
