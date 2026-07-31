@@ -136,15 +136,19 @@ export async function GET(req: NextRequest) {
     if (!qualifyingPlayers.has(log.jugador_id)) continue
     const dur = log.duracion_min || 0
     if (dur > 0 && dur < minEntrenamiento) continue
-    if (!byDate[log.fecha]) byDate[log.fecha] = { total_ua: 0, total_rpe: 0, count: 0, players: [], hasPlan: false, dist_total: 0, n_sprints: 0, acc2: 0, dec2: 0, count_gps: 0 }
-    byDate[log.fecha].total_ua += log.carga_ua || 0
-    byDate[log.fecha].total_rpe += log.rpe || 0
-    byDate[log.fecha].count += 1
-    if (!byDate[log.fecha].players.includes(log.nombre)) byDate[log.fecha].players.push(log.nombre)
+    
+    if (log.tipo_sesion !== 'PARCIAL' && log.tipo_sesion !== 'READAPTACION') {
+      if (!byDate[log.fecha]) byDate[log.fecha] = { total_ua: 0, total_rpe: 0, count: 0, players: [], hasPlan: false, dist_total: 0, n_sprints: 0, acc2: 0, dec2: 0, count_gps: 0 }
+      byDate[log.fecha].total_ua += log.carga_ua || 0
+      byDate[log.fecha].total_rpe += log.rpe || 0
+      byDate[log.fecha].count += 1
+      if (!byDate[log.fecha].players.includes(log.nombre)) byDate[log.fecha].players.push(log.nombre)
+    }
   }
 
   for (const log of gpsLogs as any[]) {
     if (!qualifyingPlayers.has(log.jugador_id)) continue
+    if (log.tipo_sesion === 'PARCIAL' || log.tipo_sesion === 'READAPTACION') continue
     if (!byDate[log.fecha]) byDate[log.fecha] = { total_ua: 0, total_rpe: 0, count: 0, players: [], hasPlan: false, dist_total: 0, n_sprints: 0, acc2: 0, dec2: 0, count_gps: 0 }
     
     byDate[log.fecha].dist_total += Number(log.dist_total) || 0

@@ -85,7 +85,10 @@ export async function GET(req: NextRequest) {
     try {
       if (s.clubId != null) {
         logs = await sql`
-          SELECT el.fecha::text, MAX(el.rpe)::int AS max_rpe, ROUND(AVG(el.rpe)::numeric,1)::float AS avg_rpe, COUNT(*)::int AS n
+          SELECT el.fecha::text, 
+                 MAX(el.rpe) FILTER (WHERE el.tipo_sesion IS NULL OR el.tipo_sesion NOT IN ('PARCIAL', 'READAPTACION'))::int AS max_rpe, 
+                 ROUND(AVG(el.rpe) FILTER (WHERE el.tipo_sesion IS NULL OR el.tipo_sesion NOT IN ('PARCIAL', 'READAPTACION'))::numeric,1)::float AS avg_rpe, 
+                 COUNT(*)::int AS n
           FROM entrenamiento_logs el
           JOIN jugadores j ON j.id = el.jugador_id
           JOIN usuarios u ON u.id = j.usuario_id
