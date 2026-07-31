@@ -4821,6 +4821,8 @@ function CoachSessionRow({ log }) {
   const [mins, setMins] = useState(String(log.duracion_min || '90'))
   const [displayMins, setDisplayMins] = useState(Number(log.duracion_min) || 90)
   const [ua, setUa] = useState(Number(log.carga_ua) || 0)
+  const [tipo, setTipo] = useState(log.tipo_sesion || 'EQUIPO')
+  const [displayTipo, setDisplayTipo] = useState(log.tipo_sesion || 'EQUIPO')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
@@ -4832,17 +4834,21 @@ function CoachSessionRow({ log }) {
       const res = await fetch('/api/logs', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: log.id, duracion_min: m })
+        body: JSON.stringify({ id: log.id, duracion_min: m, tipo_sesion: tipo })
       })
       if (!res.ok) { const d = await res.json(); setError(d.error||'Error'); return }
       const updated = await res.json()
       // La DB recalcula carga_ua = rpe * duracion_min automáticamente
       setUa(updated.carga_ua || 0)
       setDisplayMins(updated.duracion_min || m)
+      setDisplayTipo(updated.tipo_sesion || tipo)
       setEditing(false)
     } catch { setError('Error de conexión') }
     finally { setSaving(false) }
   }
+
+  const tipoLabel = displayTipo === 'PARCIAL' ? 'Parcial' : displayTipo === 'READAPTACION' ? 'Readaptación' : 'Completa'
+  const tipoColor = displayTipo === 'PARCIAL' ? '#f59e0b' : displayTipo === 'READAPTACION' ? '#3b82f6' : 'var(--silver)'
 
   return (
     <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'8px 0', borderBottom:'1px solid var(--mist)', fontSize:13, gap:8, flexWrap:'wrap' }}>
@@ -4853,28 +4859,34 @@ function CoachSessionRow({ log }) {
       <span>RPE <strong style={{ color:'var(--snow)' }}>{log.rpe}</strong></span>
       {editing ? (
         <div style={{ display:'flex', gap:6, alignItems:'center', flexWrap:'wrap' }}>
+          <select value={tipo} onChange={e=>setTipo(e.target.value)} style={{ background:'var(--ink3)', border:'1px solid var(--lime)', borderRadius:6, padding:'4px 8px', fontSize:11, color:'var(--snow)', outline:'none' }}>
+            <option value="EQUIPO">Completa</option>
+            <option value="PARCIAL">Parcial</option>
+            <option value="READAPTACION">Readaptación</option>
+          </select>
           <input
             type="number" min="1" max="300"
             value={mins}
             onChange={e=>{ setMins(e.target.value); setError('') }}
             onKeyDown={e=>{ if(e.key==='Enter') saveMinutes(); if(e.key==='Escape') setEditing(false) }}
-            style={{ width:64, background:'var(--ink3)', border:'1px solid var(--lime)', borderRadius:6, padding:'4px 8px', fontSize:13, color:'var(--snow)', fontFamily:'DM Mono,monospace', outline:'none' }}
+            style={{ width:50, background:'var(--ink3)', border:'1px solid var(--lime)', borderRadius:6, padding:'4px 8px', fontSize:12, color:'var(--snow)', fontFamily:'DM Mono,monospace', outline:'none' }}
             placeholder="min"
             autoFocus
           />
           <span style={{ fontSize:11, color:'var(--silver)' }}>min</span>
-          <button className="hover-scale" onClick={saveMinutes} disabled={saving} style={{ fontSize:12, padding:'4px 12px', borderRadius:6, background:'var(--lime)', color:'var(--ink)', border:'none', cursor:'pointer', fontWeight:700 }}>
-            {saving ? '...' : '✓ Guardar'}
+          <button className="hover-scale" onClick={saveMinutes} disabled={saving} style={{ fontSize:11, padding:'4px 8px', borderRadius:6, background:'var(--lime)', color:'var(--ink)', border:'none', cursor:'pointer', fontWeight:700 }}>
+            {saving ? '...' : '✓'}
           </button>
-          <button className="hover-scale" onClick={()=>{ setEditing(false); setError('') }} style={{ fontSize:12, padding:'4px 8px', borderRadius:6, background:'var(--ink3)', color:'var(--silver)', border:'1px solid var(--fog)', cursor:'pointer' }}>✕</button>
+          <button className="hover-scale" onClick={()=>{ setEditing(false); setError('') }} style={{ fontSize:11, padding:'4px 8px', borderRadius:6, background:'var(--ink3)', color:'var(--silver)', border:'1px solid var(--fog)', cursor:'pointer' }}>✕</button>
           {error && <span style={{ fontSize:11, color:'#f87171' }}>{error}</span>}
         </div>
       ) : (
         <div style={{ display:'flex', gap:6, alignItems:'center' }}>
+          <span style={{ color: tipoColor, fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{tipoLabel}</span>
           <span style={{ color: displayMins ? 'var(--silver)' : '#f59e0b', fontFamily:'DM Mono,monospace', fontSize:12 }}>
             {displayMins ? `${displayMins} min` : <span style={{ fontSize:11 }}>⚠ sin mins</span>}
           </span>
-          <button className="hover-scale" onClick={()=>setEditing(true)} title="Editar minutos" style={{ fontSize:13, background:'transparent', border:'none', cursor:'pointer', color:'var(--fog)', padding:'0 2px', lineHeight:1 }}>✏️</button>
+          <button className="hover-scale" onClick={()=>setEditing(true)} title="Editar minutos y tipo" style={{ fontSize:13, background:'transparent', border:'none', cursor:'pointer', color:'var(--fog)', padding:'0 2px', lineHeight:1 }}>✏️</button>
         </div>
       )}
       <span className="mono" style={{ color: ua > 0 ? 'var(--lime)' : 'var(--fog)', fontWeight:600 }}>

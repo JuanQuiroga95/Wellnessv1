@@ -13,7 +13,7 @@ export default function RPEForm({ jugadorId, onSuccess, isProxy = false }: { jug
   const [loading, setLoading] = useState(false)
   const [done, setDone] = useState(false)
   const [error, setError] = useState('')
-  const canSubmit = rpe !== null && duracion !== '' && Number(duracion) > 0
+  const canSubmit = rpe !== null && duracion !== '' && Number(duracion) > 0 && (!hizoFuerza || rpeGimnasio !== null)
   async function submit(e: React.FormEvent) {
     e.preventDefault(); if (!canSubmit) return
     setLoading(true); setError('')

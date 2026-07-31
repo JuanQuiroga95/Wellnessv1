@@ -162,7 +162,7 @@ export async function GET(req: NextRequest) {
 
     const todosJugadores = clubId ? await sql`SELECT j.id AS jugador_id, u.nombre, j.posicion FROM jugadores j JOIN usuarios u ON u.id = j.usuario_id WHERE (u.club_id = ${clubId} OR j.club_id = ${clubId}) AND u.activo = true ORDER BY u.nombre` : []
 
-    const logs = clubId ? await sql`SELECT el.jugador_id, el.fecha::text, el.rpe::int, el.duracion_min::int, el.carga_ua::int FROM entrenamiento_logs el JOIN jugadores j ON j.id = el.jugador_id JOIN usuarios u ON u.id = j.usuario_id WHERE el.fecha >= ${desde}::date AND el.fecha <= ${hastaInc}::timestamp AND u.activo = true AND (u.club_id = ${clubId} OR j.club_id = ${clubId}) ORDER BY el.fecha` : []
+    const logs = clubId ? await sql`SELECT el.jugador_id, el.fecha::text, el.rpe::int, el.duracion_min::int, el.carga_ua::int, el.tipo_sesion FROM entrenamiento_logs el JOIN jugadores j ON j.id = el.jugador_id JOIN usuarios u ON u.id = j.usuario_id WHERE el.fecha >= ${desde}::date AND el.fecha <= ${hastaInc}::timestamp AND u.activo = true AND (u.club_id = ${clubId} OR j.club_id = ${clubId}) ORDER BY el.fecha` : []
 
     // Cache sumarMetricasBloques por sesión — evita triple cálculo del mismo JSON
     const metricsCache: Record<number, Record<string, number>> = {}
@@ -315,7 +315,7 @@ export async function GET(req: NextRequest) {
     for (const ses of sesionesInfo) {
       const sessionPlayers = (todosJugadores as any[]).map((p: any) => {
         const log = rpeByPlayerDate[`${p.jugador_id}_${ses.fecha}`]
-        return { jugador_id: p.jugador_id, nombre: p.nombre, posicion: p.posicion, rpe: log ? Number(log.rpe) : null, minActivo: log ? Number(log.duracion_min) : null, ua_total: log ? Number(log.carga_ua) : null }
+        return { jugador_id: p.jugador_id, nombre: p.nombre, posicion: p.posicion, rpe: log ? Number(log.rpe) : null, minActivo: log ? Number(log.duracion_min) : null, ua_total: log ? Number(log.carga_ua) : null, tipo_sesion: log?.tipo_sesion || null }
       })
       
       if (!perSessionPlayers[ses.titulo]) {
@@ -329,6 +329,7 @@ export async function GET(req: NextRequest) {
             rpe: existingP.rpe !== null ? existingP.rpe : (newP?.rpe ?? null),
             minActivo: existingP.minActivo !== null ? existingP.minActivo : (newP?.minActivo ?? null),
             ua_total: existingP.ua_total !== null ? existingP.ua_total : (newP?.ua_total ?? null),
+            tipo_sesion: existingP.tipo_sesion !== null ? existingP.tipo_sesion : (newP?.tipo_sesion ?? null),
           }
         })
       }

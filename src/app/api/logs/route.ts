@@ -117,14 +117,17 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  const tipo_sesion = body.tipo_sesion === 'PARTIDO' ? 'PARTIDO' : 'EQUIPO'
+  let tipo_sesion = 'EQUIPO'
+  if (['PARTIDO', 'PARCIAL', 'READAPTACION'].includes(body.tipo_sesion)) {
+    tipo_sesion = body.tipo_sesion
+  }
   const fecha = body.fecha || new Date().toISOString().split('T')[0]
   const clubId = s.clubId ? Number(s.clubId) : null
 
   // Ensure column exists
   try { await sql`ALTER TABLE entrenamiento_logs ADD COLUMN IF NOT EXISTS rpe_gimnasio SMALLINT` } catch {}
 
-  const existing = await sql`SELECT id, rpe, rpe_gimnasio FROM entrenamiento_logs WHERE jugador_id = ${jugador_id} AND fecha = ${fecha} AND tipo_sesion = ${tipo_sesion}`
+  const existing = await sql`SELECT id, rpe, rpe_gimnasio, tipo_sesion FROM entrenamiento_logs WHERE jugador_id = ${jugador_id} AND fecha = ${fecha} AND tipo_sesion IN ('EQUIPO', 'PARCIAL', 'READAPTACION', 'PARTIDO')`
   
   if (existing.length > 0) {
     const ext = existing[0]
@@ -132,7 +135,7 @@ export async function POST(req: NextRequest) {
     const newRpeGym = Math.max(ext.rpe_gimnasio || 0, rpe_gimnasio || 0)
     const [r] = await sql`
       UPDATE entrenamiento_logs 
-      SET rpe = ${newRpe}, rpe_gimnasio = ${newRpeGym}, duracion_min = GREATEST(COALESCE(duracion_min,0), ${duracion_min})
+      SET rpe = ${newRpe}, rpe_gimnasio = ${newRpeGym}, duracion_min = GREATEST(COALESCE(duracion_min,0), ${duracion_min}), tipo_sesion = ${tipo_sesion}
       WHERE id = ${ext.id}
       RETURNING id, fecha::text, carga_ua::int`
     return NextResponse.json(r)
@@ -152,9 +155,10 @@ export async function PATCH(req: NextRequest) {
   const body = await req.json()
   const id = sanitizeInt(body.id, 1, 9999999)
   const duracion_min = sanitizeInt(body.duracion_min, 1, 600)
+  const tipo_sesion = ['EQUIPO', 'PARCIAL', 'READAPTACION', 'PARTIDO'].includes(body.tipo_sesion) ? body.tipo_sesion : undefined
 
   if (!id) return NextResponse.json({ error: 'id requerido' }, { status: 400 })
-  if (!duracion_min) return NextResponse.json({ error: 'duracion_min debe ser mayor a 0' }, { status: 400 })
+  if (!duracion_min && !tipo_sesion) return NextResponse.json({ error: 'nada para actualizar' }, { status: 400 })
 
   const sql = getDb()
 
@@ -165,10 +169,15 @@ export async function PATCH(req: NextRequest) {
     WHERE el.id = ${id} AND u.club_id = ${s.clubId ? Number(s.clubId) : null} LIMIT 1`
   if (!existing.length) return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
 
-  const [r] = await sql`
-    UPDATE entrenamiento_logs SET duracion_min = ${duracion_min}
-    WHERE id = ${id}
-    RETURNING id, fecha::text, carga_ua::int, duracion_min::int, rpe::int`
+  let r;
+  if (duracion_min && tipo_sesion) {
+    [r] = await sql`UPDATE entrenamiento_logs SET duracion_min = ${duracion_min}, tipo_sesion = ${tipo_sesion} WHERE id = ${id} RETURNING id, fecha::text, carga_ua::int, duracion_min::int, rpe::int, tipo_sesion`
+  } else if (duracion_min) {
+    [r] = await sql`UPDATE entrenamiento_logs SET duracion_min = ${duracion_min} WHERE id = ${id} RETURNING id, fecha::text, carga_ua::int, duracion_min::int, rpe::int, tipo_sesion`
+  } else if (tipo_sesion) {
+    [r] = await sql`UPDATE entrenamiento_logs SET tipo_sesion = ${tipo_sesion} WHERE id = ${id} RETURNING id, fecha::text, carga_ua::int, duracion_min::int, rpe::int, tipo_sesion`
+  }
+
   return NextResponse.json(r)
 }
 

@@ -136,6 +136,8 @@ export default async function CoachPage() {
       horas_sueno: parseFloat(rw.horas_sueno)||0,
     } : null
     const respondedToday = lastW?.fecha === today
+    const logsToday = logs.filter(l => String(l.fecha) === today)
+    const fueGimnasioHoy = lastW?.fue_gimnasio || logsToday.some(l => Number(l.rpe_gimnasio) > 0)
     const jugadorAusencias = new Set(
       (allAusencias as any[]).filter((a:any) => Number(a.jugador_id) === p.jugador_id).map((a:any) => String(a.fecha))
     )
@@ -169,7 +171,7 @@ export default async function CoachPage() {
         });
         return Array.from(uniqueLogsMap.values()).map(l => ({ id: Number(l.id), fecha: String(l.fecha), carga_ua: Number(l.carga_ua)||0, rpe: Number(l.rpe)||0, rpe_gimnasio: Number(l.rpe_gimnasio)||null, duracion_min: Number(l.duracion_min)||0 }));
       })(),
-      lastWellness: lastW, respondedToday, rpeToday: logs.some(l => String(l.fecha) === today),
+      lastWellness: lastW ? { ...lastW, fue_gimnasio: fueGimnasioHoy } : { fue_gimnasio: fueGimnasioHoy }, respondedToday, rpeToday: logsToday.length > 0,
       entrena_grupo: respondedToday ? (lastW?.entrena_grupo ?? null) : null,
       lesion: lesionMap[p.jugador_id] || null,
       alta_reciente: recientesMap[p.jugador_id] || null,
