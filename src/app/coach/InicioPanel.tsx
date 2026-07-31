@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { getCuadrante, ENTRENAMIENTO_OPTIMIZADOR, ENTRENAMIENTO_COADYUVANTE } from './utils'
 import UceChart from './UceChart'
+import { UceSemanalKPI, UceMesocicloChart } from './UceExtendedCharts'
 import { Icons, PanelHeader, CuadroHeader } from './Headers'
 import { AnimateOnScroll } from '@/components/AnimateOnScroll'
 import ACWRLineChart from '@/components/charts/ACWRLineChart'
@@ -82,6 +83,8 @@ export default function InicioPanel({ teamData, session, today }: { teamData: an
   const [acwrRatioData, setAcwrRatioData] = useState<any[]>([])
 
   const [uceChartData, setUceChartData] = useState<any[]>([])
+  const [uceSemanalTotal, setUceSemanalTotal] = useState(0)
+  const [mesocicloData, setMesocicloData] = useState<any[]>([])
 
   useEffect(() => {
     async function fetchData() {
@@ -93,15 +96,15 @@ export default function InicioPanel({ teamData, session, today }: { teamData: an
         const weekStart = bounds.start
         const weekEnd = bounds.end
         
-        const past14Days = addDays(today, -14)
+        const past120Days = addDays(today, -120)
         
-        // Fetch Agenda (Last 14 days to today+1 for volume relativity)
+        // Fetch Agenda (Last 120 days to today+1 for volume relativity)
         const mandRes = await fetch('/api/fuerza/mandamientos')
         const mandD = await mandRes.json()
         const mandamientos = mandD.mandamientos || []
         setFuerzaMandamientos(mandamientos)
 
-        const calRes = await fetch(`/api/calendario?desde=${past14Days}&hasta=${tomorrow > weekEnd ? tomorrow : weekEnd}`)
+        const calRes = await fetch(`/api/calendario?desde=${past120Days}&hasta=${tomorrow > weekEnd ? tomorrow : weekEnd}`)
         const calData = await calRes.json()
         const allEvents = [...(calData.sesiones || []), ...(calData.partidos || [])]
         const hoy = allEvents.filter((d: any) => d.fecha.startsWith(today))
@@ -177,20 +180,29 @@ export default function InicioPanel({ teamData, session, today }: { teamData: an
                  uceDataMap[label] = {
                    md: label,
                    ce_total,
-                   uce_total: uce_real > 0 ? uce_real : uce_obj, // fallback just in case for legacy components, but chart will use uce_real
+                   uce_total: uce_real > 0 ? uce_real : uce_obj,
                    uce_real,
                    uce_obj,
                    rpe_real: rpe_real ? Math.round(rpe_real * 10) / 10 : null,
                    rpe_obj: Math.round(rpe_obj * 10) / 10,
-                   rpe: rpe_real ? Math.round(rpe_real * 10) / 10 : Math.round(rpe_obj * 10) / 10 // fallback for legacy
+                   rpe: rpe_real ? Math.round(rpe_real * 10) / 10 : Math.round(rpe_obj * 10) / 10
                  }
               }
-            }
           }
         })
         
-        const uceChartDataArr = Object.values(uceDataMap)
-        setUceChartData(uceChartDataArr)
+        const allUceArr = Object.values(uceDataMap)
+        const uceSemanaData = allUceArr.filter(d => d.md >= weekStart && d.md <= weekEnd)
+        setUceChartData(uceSemanaData)
+        setUceSemanalTotal(uceSemanaData.reduce((sum, d) => sum + (d.uce_real || 0), 0))
+
+        const mesoMap: Record<string, number> = {}
+        allUceArr.forEach(d => {
+           const yyyymm = d.md.substring(0, 7)
+           mesoMap[yyyymm] = (mesoMap[yyyymm] || 0) + (d.uce_real || 0)
+        })
+        const mesoArr = Object.keys(mesoMap).sort().map(m => ({ mes: m, uce_total: mesoMap[m] }))
+        setMesocicloData(mesoArr)
 
         let totalOptimizadorMin = 0
         let totalCoadyuvanteMin = 0
@@ -794,6 +806,14 @@ export default function InicioPanel({ teamData, session, today }: { teamData: an
         <div style={{ marginBottom: 20 }}>
           <UceChart data={uceChartData} />
         </div>
+      </AnimateOnScroll>
+
+      <AnimateOnScroll delay={415}>
+        <UceSemanalKPI uceSemanal={uceSemanalTotal} />
+      </AnimateOnScroll>
+      
+      <AnimateOnScroll delay={418}>
+        <UceMesocicloChart data={mesocicloData} />
       </AnimateOnScroll>
 
       {/* Nuevo Gráfico de Análisis Semanal de la Carga (ACWR Ratio) */}

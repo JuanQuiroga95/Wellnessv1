@@ -74,7 +74,7 @@ export default async function CoachPage() {
         sql`SELECT id, jugador_id::int, fecha::text, carga_ua::int, rpe::int, rpe_gimnasio::int, duracion_min::int
             FROM entrenamiento_logs
             WHERE jugador_id IN (SELECT unnest(${jugadorIds}::int[]))
-              AND fecha >= CURRENT_DATE - 28
+              AND fecha >= CURRENT_DATE - 120
             ORDER BY jugador_id, fecha ASC`,
         sql`SELECT DISTINCT ON (jugador_id) jugador_id::int, fecha::text
             FROM entrenamiento_logs
@@ -101,7 +101,7 @@ export default async function CoachPage() {
         sql`SELECT jugador_id::int, fecha::text
             FROM ausencias
             WHERE jugador_id IN (SELECT unnest(${jugadorIds}::int[]))
-              AND fecha >= CURRENT_DATE - 28
+              AND fecha >= CURRENT_DATE - 120
             ORDER BY jugador_id, fecha ASC`.catch(() => []),
         filterByClub 
           ? sql`SELECT 1 FROM sesiones_plan WHERE fecha = CURRENT_DATE AND club_id = ${clubId} LIMIT 1`
