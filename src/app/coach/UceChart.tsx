@@ -15,7 +15,7 @@ export default function UceChart({ data }: { data: any[] }) {
           <p style={{ color: 'var(--snow)', marginBottom: '8px', fontWeight: 700 }}>{label}</p>
           {payload.map((entry: any, index: number) => (
             <p key={index} style={{ color: entry.color, margin: '4px 0', fontWeight: 600 }}>
-              {entry.name}: {entry.value} {entry.name === 'RPE' ? (entry.payload.rpe_is_real ? '(Real)' : '(Objetivo)') : ''}
+              {entry.name}: {entry.value} {entry.name.includes('RPE') && entry.value === null ? '(Sin datos)' : ''}
             </p>
           ))}
         </div>
@@ -39,13 +39,14 @@ export default function UceChart({ data }: { data: any[] }) {
             <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(255,255,255,0.02)' }} />
             <Legend wrapperStyle={{ fontSize: 11, color: 'var(--silver)' }} />
 
-            <Bar yAxisId="left" dataKey="uce_total" name="UCE" radius={[4, 4, 0, 0]} maxBarSize={60}>
+            <Bar yAxisId="left" dataKey="uce_real" name="UCE (Real)" radius={[4, 4, 0, 0]} maxBarSize={60}>
               {data.map((entry, index) => (
                 <Cell key={`cell-${index}`} fill="#f97316" /> // Naranja
               ))}
             </Bar>
 
-            <Line yAxisId="right" type="monotone" dataKey="rpe" name="RPE" stroke="#2563eb" strokeWidth={3} dot={{ r: 4, fill: '#2563eb', strokeWidth: 2, stroke: 'var(--ink)' }} activeDot={{ r: 6 }} />
+            <Line yAxisId="right" type="monotone" dataKey="rpe_obj" name="RPE Objetivo" stroke="#2563eb" strokeWidth={3} dot={{ r: 4, fill: '#2563eb', strokeWidth: 2, stroke: 'var(--ink)' }} activeDot={{ r: 6 }} />
+            <Line yAxisId="right" type="monotone" dataKey="rpe_real" name="RPE Real" connectNulls stroke="#10b981" strokeWidth={3} dot={{ r: 4, fill: '#10b981', strokeWidth: 2, stroke: 'var(--ink)' }} activeDot={{ r: 6 }} />
           </ComposedChart>
         </ResponsiveContainer>
       </div>

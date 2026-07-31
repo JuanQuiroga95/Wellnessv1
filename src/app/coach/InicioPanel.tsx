@@ -162,23 +162,27 @@ export default function InicioPanel({ teamData, session, today }: { teamData: an
             if (ev.fecha >= weekStart && ev.fecha <= weekEnd) {
               const label = ev.titulo || ev.fecha
               const rpeValues = teamData.map(p => {
-                const log = (p.teamLogs || []).find((l:any) => l.fecha === ev.fecha)
+                const log = (p.recentLogs || []).find((l:any) => l.fecha === ev.fecha && (!l.tipo_sesion || l.tipo_sesion === 'EQUIPO'))
                 return log ? Number(log.rpe) : null
               }).filter(r => r !== null && !isNaN(r))
               
               const rpe_real = rpeValues.length ? (rpeValues.reduce((a,b)=>a+b, 0) / rpeValues.length) : null
               const rpe_obj = Number(ev.rpe_objetivo) || 0
-              const rpe = rpe_real || rpe_obj
-              const rpe_is_real = !!rpe_real
-              const uce_total = rpe > 0 ? Math.round(ce_total * rpe) : 0
+              
+              // Use rpe_real if available, otherwise 0 for real values
+              const uce_real = rpe_real !== null ? Math.round(ce_total * rpe_real) : 0
+              const uce_obj = rpe_obj > 0 ? Math.round(ce_total * rpe_obj) : 0
               
               if (ce_total > 0) {
                  uceDataMap[label] = {
                    md: label,
                    ce_total,
-                   uce_total,
-                   rpe: Math.round(rpe * 10) / 10,
-                   rpe_is_real
+                   uce_total: uce_real > 0 ? uce_real : uce_obj, // fallback just in case for legacy components, but chart will use uce_real
+                   uce_real,
+                   uce_obj,
+                   rpe_real: rpe_real ? Math.round(rpe_real * 10) / 10 : null,
+                   rpe_obj: Math.round(rpe_obj * 10) / 10,
+                   rpe: rpe_real ? Math.round(rpe_real * 10) / 10 : Math.round(rpe_obj * 10) / 10 // fallback for legacy
                  }
               }
             }
