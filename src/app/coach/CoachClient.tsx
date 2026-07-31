@@ -329,6 +329,396 @@ const AnimatedPieChart = (props: any) => {
   )
 }
 
+function BibliotecaPanel({ canchasList }: { canchasList: any[] }) {
+  const [tareas, setTareas] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [buscar, setBuscar] = useState('')
+  const [showForm, setShowForm] = useState(false)
+  const [form, setForm] = useState({ nombre:'', ventana:'', subtarea:'', jugadores:'', series:'', minutos:'', pausa:'', largo:'', ancho:'', descripcion:'' })
+  const [saving, setSaving] = useState(false)
+  const [ventanaFilter, setVentanaFilter] = useState('')
+  const [sortBy, setSortBy] = useState<'uso'|'reciente'|'tipo'>('tipo')
+  const [showBoard, setShowBoard] = useState(false)
+  const [editBoardId, setEditBoardId] = useState<number|null>(null)
+  const [editBoardData, setEditBoardData] = useState<any>(null)
+  const [boardName, setBoardName] = useState('')
+  const [boardVentana, setBoardVentana] = useState('')
+  const [boardSubtarea, setBoardSubtarea] = useState('')
+  const [boardJugadores, setBoardJugadores] = useState('')
+  const [zoneInfo, setZoneInfo] = useState<{rw:number;rh:number;area:number}[]>([])
+
+  useEffect(() => { cargar() }, [])
+
+  async function cargar() {
+    setLoading(true)
+    try {
+      const r = await fetch('/api/biblioteca')
+      const d = await r.json()
+      setTareas(d.tareas||[])
+    } catch(e){} finally { setLoading(false) }
+  }
+
+  async function guardar() {
+    if (!form.nombre) return
+    setSaving(true)
+    try {
+      await fetch('/api/biblioteca', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(form) })
+      setShowForm(false)
+      setForm({ nombre:'', ventana:'', subtarea:'', jugadores:'', series:'', minutos:'', pausa:'', largo:'', ancho:'', descripcion:'' })
+      await cargar()
+    } catch(e){} finally { setSaving(false) }
+  }
+
+  async function eliminar(id: number) {
+    if (!confirm('¿Eliminar tarea de la biblioteca?')) return
+    await fetch(`/api/biblioteca?id=${id}`, { method:'DELETE' })
+    await cargar()
+  }
+
+  const ventanas = Array.from(new Set(tareas.map(t=>t.ventana).filter(Boolean))).sort()
+  const filtradas = tareas
+    .filter(t => {
+      const matchBuscar = !buscar || t.nombre.toLowerCase().includes(buscar.toLowerCase()) || (t.ventana||'').toLowerCase().includes(buscar.toLowerCase())
+      const matchVentana = !ventanaFilter || t.ventana === ventanaFilter
+      return matchBuscar && matchVentana
+    })
+    .sort((a,b) => {
+      if (sortBy === 'uso') return (b.veces_usada||0) - (a.veces_usada||0)
+      if (sortBy === 'reciente') return new Date(b.created_at||0).getTime() - new Date(a.created_at||0).getTime()
+      // 'tipo': sort by ventana then intensidad
+      const vA = (a.ventana||'zzz').localeCompare(b.ventana||'zzz')
+      if (vA !== 0) return vA
+      return (a.intensidad ?? 99) - (b.intensidad ?? 99)
+    })
+
+  // Objectives that come from the GPS calculator (Sangnier table)
+  const OBJETIVOS_CALC = ['Fuerza', 'Activación', 'Resistencia', 'Velocidad']
+  const OBJETIVO_ORDER = { 'Fuerza': 0, 'Activación/Recuperación': 1, 'Resistencia': 2, 'Velocidad': 3 }
+
+  // Split: tareas with objetivo (from calculator) vs without
+  const tareasConCalc = filtradas.filter(t => t.objetivo != null)
+  const tareasSinCalc = filtradas.filter(t => t.objetivo == null)
+
+  // Group calculator tareas by objetivo
+  const byObjetivo: Record<string, any[]> = {}
+  for (const t of tareasConCalc) {
+    const obj = t.objetivo as string
+    if (!byObjetivo[obj]) byObjetivo[obj] = []
+    byObjetivo[obj].push(t)
+  }
+  Object.values(byObjetivo).forEach(g => g.sort((a,b) => (a.intensidad??99)-(b.intensidad??99)))
+
+  // Group non-calculator tareas by ventana
+  const byVentana: Record<string, any[]> = {}
+  for (const t of tareasSinCalc) {
+    const v = t.ventana || 'Sin tipo'
+    if (!byVentana[v]) byVentana[v] = []
+    byVentana[v].push(t)
+  }
+
+  const objetivosSorted = Object.keys(byObjetivo).sort((a,b) => {
+    const oa = OBJETIVO_ORDER[a as keyof typeof OBJETIVO_ORDER] ?? 99
+    const ob = OBJETIVO_ORDER[b as keyof typeof OBJETIVO_ORDER] ?? 99
+    return oa - ob
+  })
+  const ventanasSorted = Object.keys(byVentana).sort()
+
+  function TareaCard({ t }: { t: any }) {
+    return (
+      <div style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:14, padding:16 }}>
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:12, marginBottom: (t.descripcion || t.imagen) ? 8 : 0 }}>
+          <div style={{ flex:1 }}>
+            <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap', marginBottom:6 }}>
+              <span style={{ fontWeight:700, color:'var(--snow)', fontSize:14 }}>{t.nombre}</span>
+              {t.ventana && <span style={{ fontSize:10, padding:'2px 8px', borderRadius:6, background:'rgba(200,241,53,.12)', color:'var(--lime)', fontWeight:600 }}>{t.ventana}</span>}
+              {getSubtareasDisplay(t) && <span style={{ fontSize:10, padding:'2px 8px', borderRadius:6, background:'rgba(200,241,53,.06)', color:'var(--silver)' }}>↳ {getSubtareasDisplay(t)}</span>}
+              {t.intensidad != null && (
+                <span title={`Intensidad ${t.intensidad} (1=más intensa, 4=menos intensa)`} style={{ display:'inline-flex', alignItems:'center', justifyContent:'center', width:20, height:20, borderRadius:'50%', background: t.intensidad<=1?'#ef4444':t.intensidad<=2?'#f97316':t.intensidad<=3?'#eab308':'#22c55e', color:'#fff', fontSize:10, fontWeight:900, fontFamily:'DM Mono,monospace', flexShrink:0 }}>
+                  {t.intensidad}
+                </span>
+              )}
+              <span style={{ fontSize:9, color:'var(--fog)', fontFamily:'DM Mono,monospace' }}>usada {t.veces_usada}×</span>
+            </div>
+            <div style={{ display:'flex', gap:12, flexWrap:'wrap', fontSize:11, color:'var(--silver)' }}>
+              {t.jugadores && <span>👥 <strong>{t.jugadores}</strong> jug.</span>}
+              {t.series && <span>🔄 <strong>{t.series}</strong> series</span>}
+              {t.minutos && <span>⏱ <strong>{t.minutos}</strong> min/serie</span>}
+              {t.pausa && <span>⏸ <strong>{t.pausa}</strong> min pausa</span>}
+              {t.largo && t.ancho && <span>📐 <strong>{t.largo}×{t.ancho}</strong>m</span>}
+              {t.series && t.minutos && <span style={{ color:'var(--lime)', fontFamily:'DM Mono,monospace', fontSize:10 }}>→ {t.series*t.minutos} min activo</span>}
+            </div>
+          </div>
+          <div style={{ display:'flex', gap:8, flexShrink:0, alignItems:'center' }}>
+            <button className="hover-scale" onClick={()=>eliminar(t.id)} style={{ fontSize:10, padding:'7px 10px', borderRadius:8, background:'rgba(239,68,68,.06)', color:'#f87171', border:'1px solid rgba(239,68,68,.2)', cursor:'pointer' }} title="Eliminar">✕</button>
+          </div>
+        </div>
+        {/* Tactical diagram preview */}
+        {t.diagram_preview && (
+          <div style={{ marginTop:8 }}>
+            <img src={t.diagram_preview} alt="Diagrama" style={{ width:'100%', maxWidth:360, borderRadius:8, border:'1px solid var(--mist)' }} />
+            <button className="hover-scale" onClick={(e) => { e.stopPropagation(); setEditBoardId(t.id); setEditBoardData(t.tactical_diagram ? JSON.parse(t.tactical_diagram) : null); setBoardName(t.nombre); setShowBoard(true) }}
+              style={{ marginTop:6, fontSize:10, padding:'4px 12px', borderRadius:6, border:'1px solid rgba(163,230,53,.3)', background:'rgba(163,230,53,.06)', color:'var(--lime)', cursor:'pointer', fontWeight:600 }}>
+              ✏️ Editar diagrama
+            </button>
+          </div>
+        )}
+        {/* Imagen, descripción y rutina en la parte inferior */}
+        {(t.imagen || t.descripcion || (t.rutinaGym && t.rutinaGym.length > 0)) && (
+          <div style={{ display:'flex', gap:12, alignItems:'flex-start', marginTop:8 }}>
+            {t.imagen && (
+              <img
+                src={t.imagen}
+                alt={t.nombre}
+                style={{ width:240, height:160, objectFit:'contain', borderRadius:8, background:'var(--ink3)', border:'1px solid var(--mist)', flexShrink:0 }}
+              />
+            )}
+            <div style={{ flex:1, display:'flex', flexDirection:'column', gap:8 }}>
+              {t.rutinaGym && t.rutinaGym.length > 0 && (
+                <div style={{ background:'var(--ink3)', borderRadius:8, padding:'8px 12px', border:'1px solid rgba(255,255,255,.05)' }}>
+                  <div style={{ display:'grid', gridTemplateColumns:'2fr 1fr 1fr 1fr', gap:4, borderBottom:'1px solid rgba(255,255,255,.1)', paddingBottom:4, marginBottom:4 }}>
+                    <span style={{ fontSize:9, fontWeight:700, color:'var(--lime)', textTransform:'uppercase' }}>Ejercicio</span>
+                    <span style={{ fontSize:9, fontWeight:700, color:'var(--silver)', textTransform:'uppercase' }}>Series</span>
+                    <span style={{ fontSize:9, fontWeight:700, color:'var(--silver)', textTransform:'uppercase' }}>Reps</span>
+                    <span style={{ fontSize:9, fontWeight:700, color:'var(--silver)', textTransform:'uppercase' }}>Carga</span>
+                  </div>
+                  {t.rutinaGym.map((r:any,rIdx:number) => (
+                    <div key={rIdx} style={{ display:'grid', gridTemplateColumns:'2fr 1fr 1fr 1fr', gap:4, fontSize:11, color:'var(--snow)', marginBottom:2 }}>
+                      <span>{r.ejercicio}</span>
+                      <span style={{ color:'var(--fog)' }}>{r.series}</span>
+                      <span style={{ color:'var(--fog)' }}>{r.repeticiones}</span>
+                      <span style={{ color:'var(--fog)' }}>{r.peso}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {t.descripcion && (
+                <div style={{ fontSize:11, color:'var(--fog)', background:'var(--ink3)', borderRadius:8, padding:'6px 10px', borderLeft:'2px solid rgba(200,241,53,.2)' }}>
+                  {t.descripcion}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  function GroupHeader({ label, color = 'var(--lime)' }: { label: string; color?: string }) {
+    return (
+      <div style={{ display:'flex', alignItems:'center', gap:10, marginTop:20, marginBottom:8 }}>
+        <span style={{ width:3, height:16, borderRadius:2, background:color, display:'inline-block', flexShrink:0 }} />
+        <span style={{ fontSize:10, fontWeight:800, color, textTransform:'uppercase', letterSpacing:'0.1em' }}>{label}</span>
+        <div style={{ flex:1, height:1, background:'var(--mist)' }} />
+      </div>
+    )
+  }
+
+  return (
+    <div style={{ padding:'24px 20px', maxWidth:1100, margin:'0 auto' }}>
+      {/* Tactical Board */}
+      {showBoard && (
+        <div style={{ marginBottom:20 }}>
+          <div style={{ display:'flex', gap:10, alignItems:'end', marginBottom:12, flexWrap:'wrap' }}>
+            <div style={{ flex:1, minWidth:200 }}>
+              <label style={{ display:'block', fontSize:9, fontWeight:700, color:'var(--fog)', textTransform:'uppercase', letterSpacing:'.08em', marginBottom:4 }}>Nombre</label>
+              <input className="wp-input" value={boardName} onChange={e=>setBoardName(e.target.value)} placeholder="Ej: Rondo 4v2 + comodín" style={{ fontSize:13, padding:'6px 12px', width:'100%' }} />
+            </div>
+            <div style={{ minWidth:160 }}>
+              <label style={{ display:'block', fontSize:9, fontWeight:700, color:'var(--fog)', textTransform:'uppercase', letterSpacing:'.08em', marginBottom:4 }}>Tipo de tarea</label>
+              <select className="wp-input" style={{ padding:'6px 12px', fontSize:12 }} value={boardVentana} onChange={e=>{setBoardVentana(e.target.value);setBoardSubtarea('')}}>
+                <option value="">— Seleccionar —</option>
+                {TODAS_LAS_NUEVAS.map(v=><option key={v} value={v}>{v}</option>)}
+              </select>
+            </div>
+            {boardVentana && SUBTAREAS[boardVentana] && (
+              <div style={{ minWidth:140 }}>
+                <label style={{ display:'block', fontSize:9, fontWeight:700, color:'var(--fog)', textTransform:'uppercase', letterSpacing:'.08em', marginBottom:4 }}>Subtarea</label>
+                <select className="wp-input" style={{ padding:'6px 12px', fontSize:12 }} value={boardSubtarea} onChange={e=>setBoardSubtarea(e.target.value)}>
+                  <option value="">—</option>
+                  {SUBTAREAS[boardVentana].map(s=><option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
+            )}
+            <div style={{ minWidth:80 }}>
+              <label style={{ display:'block', fontSize:9, fontWeight:700, color:'var(--fog)', textTransform:'uppercase', letterSpacing:'.08em', marginBottom:4 }}>Jugadores</label>
+              <input type="number" className="wp-input" value={boardJugadores} onChange={e=>setBoardJugadores(e.target.value)} placeholder="0" style={{ fontSize:13, padding:'6px 12px', width:70 }} min="0" max="30" />
+            </div>
+          </div>
+
+          {zoneInfo.length > 0 && Number(boardJugadores) > 0 && (() => {
+            const totalArea = zoneInfo.reduce((s,z) => s + z.area, 0)
+            const jug = Number(boardJugadores)
+            const densidad = totalArea / jug
+            const cuad = getCuadrante(densidad, jug)
+            return (
+              <div style={{ display:'flex', gap:12, marginBottom:12, flexWrap:'wrap' }}>
+                {zoneInfo.map((z,i) => (
+                  <div key={i} style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:10, padding:'8px 14px', fontSize:11 }}>
+                    <div style={{ color:'var(--fog)', fontSize:9, fontWeight:700, textTransform:'uppercase', marginBottom:2 }}>Zona {i+1}</div>
+                    <div style={{ color:'var(--snow)', fontWeight:700 }}>{z.rw}m x {z.rh}m = {z.area}m2</div>
+                  </div>
+                ))}
+                <div style={{ background:cuad.bg, border:`1px solid ${cuad.border}`, borderRadius:10, padding:'8px 14px', fontSize:11 }}>
+                  <div style={{ color:'var(--fog)', fontSize:9, fontWeight:700, textTransform:'uppercase', marginBottom:2 }}>Densidad</div>
+                  <div style={{ color:cuad.color, fontWeight:800, fontSize:16 }}>{densidad.toFixed(0)} m2/jug</div>
+                  <div style={{ color:cuad.color, fontWeight:700, fontSize:12, marginTop:2 }}>{cuad.objetivo} - Int. {cuad.intensidad}</div>
+                </div>
+              </div>
+            )
+          })()}
+
+          <TacticalBoard
+            canchasProp={canchasList}
+            initialData={editBoardData}
+            onZoneInfo={setZoneInfo}
+            onSave={async (data) => {
+              if (!boardName.trim()) { alert('Ponele un nombre a la tarea'); return }
+              setSaving(true)
+              try {
+                const payload = {
+                  nombre: boardName + (boardSubtarea ? ' > ' + boardSubtarea : ''),
+                  ventana: boardVentana || null,
+                  subtarea: boardSubtarea || null,
+                  jugadores: Number(boardJugadores) || null,
+                  tactical_diagram: JSON.stringify(data),
+                  diagram_preview: data.preview,
+                  largo: zoneInfo.length > 0 ? zoneInfo[0].rw : null,
+                  ancho: zoneInfo.length > 0 ? zoneInfo[0].rh : null,
+                }
+                if (editBoardId) {
+                  await fetch('/api/biblioteca', { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ id: editBoardId, ...payload }) })
+                } else {
+                  await fetch('/api/biblioteca', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) })
+                }
+                setShowBoard(false); setEditBoardId(null); setEditBoardData(null); setBoardName(''); setBoardVentana(''); setBoardSubtarea(''); setBoardJugadores(''); setZoneInfo([]); await cargar()
+              } finally { setSaving(false) }
+            }}
+            onClose={() => { setShowBoard(false); setEditBoardId(null); setEditBoardData(null); setBoardName(''); setBoardVentana(''); setBoardSubtarea(''); setBoardJugadores(''); setZoneInfo([]) }}
+          />
+        </div>
+      )}
+
+      {!showBoard && (<>
+      <div style={{ marginBottom:24, display:'flex', justifyContent:'space-between', alignItems:'flex-end', flexWrap:'wrap', gap:12 }}>
+        <div>
+          <h2 style={{ fontFamily:'Bebas Neue,sans-serif', fontSize:36, color:'var(--snow)', letterSpacing:'0.04em', marginBottom:4 }}>🎨 DISEÑADOR DE TAREAS</h2>
+          <p style={{ fontSize:12, color:'var(--silver)' }}>Pizarra táctica + biblioteca · Se guarda automáticamente al crear sesiones</p>
+        </div>
+        <div style={{ display:'flex', gap:8 }}>
+          <button  onClick={()=>{ setShowBoard(true); setEditBoardId(null); setEditBoardData(null); setBoardName(''); setBoardVentana(''); setBoardSubtarea(''); setBoardJugadores(''); setZoneInfo([]) }} className="hover-scale btn-lime" style={{ padding:'10px 20px', fontSize:13 }}>
+            🎨 Diseñar Tarea
+          </button>
+        </div>
+      </div>
+
+      {showForm && (
+        <div style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:16, padding:24, marginBottom:20 }}>
+          <p style={{ fontSize:11, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', marginBottom:16 }}>Nueva tarea en biblioteca</p>
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(150px,1fr))', gap:12, marginBottom:16 }}>
+            <div style={{ gridColumn:'1/-1' }}>
+              <label style={{ fontSize:10, color:'var(--lime)', display:'block', marginBottom:4, textTransform:'uppercase' }}>Nombre de la tarea *</label>
+              <input className="wp-input" type="text" placeholder="Ej: Rondo 4v4+2 en espacio reducido..." value={form.nombre} onChange={e=>setForm({...form,nombre:e.target.value})} style={{ width:'100%' }} />
+            </div>
+            {[
+              {key:'ventana',label:'Tipo de tarea',placeholder:'Ej: Rondo'},
+              {key:'jugadores',label:'Jugadores',placeholder:'Nº',type:'number'},
+              {key:'series',label:'Series',placeholder:'Nº',type:'number'},
+              {key:'minutos',label:'Min/serie',placeholder:'min',type:'number'},
+              {key:'pausa',label:'Pausa (min)',placeholder:'min',type:'number'},
+              {key:'largo',label:'Largo (m)',placeholder:'m',type:'number'},
+              {key:'ancho',label:'Ancho (m)',placeholder:'m',type:'number'},
+            ].map(f=>(
+              <div key={f.key}>
+                <label style={{ fontSize:10, color:'var(--fog)', display:'block', marginBottom:4, textTransform:'uppercase' }}>{f.label}</label>
+                <input className="wp-input" type={f.type||'text'} placeholder={f.placeholder}
+                  value={(form as any)[f.key]} onChange={e=>setForm({...form,[f.key]:e.target.value})} style={{ width:'100%' }} />
+              </div>
+            ))}
+            <div style={{ gridColumn:'1/-1' }}>
+              <label style={{ fontSize:10, color:'var(--fog)', display:'block', marginBottom:4, textTransform:'uppercase' }}>Descripción / Notas</label>
+              <input className="wp-input" type="text" placeholder="Descripción de la tarea, objetivos, consignas..." value={form.descripcion} onChange={e=>setForm({...form,descripcion:e.target.value})} style={{ width:'100%' }} />
+            </div>
+          </div>
+          <button onClick={guardar} disabled={saving||!form.nombre} className="btn-lime" style={{ padding:'10px 24px', fontSize:13 }}>
+            {saving ? 'Guardando...' : '✓ Guardar en Biblioteca'}
+          </button>
+        </div>
+      )}
+
+      <div style={{ display:'flex', gap:8, marginBottom:12, flexWrap:'wrap' }}>
+        <input className="wp-input" type="text" placeholder="🔍 Buscar..." value={buscar} onChange={e=>setBuscar(e.target.value)} style={{ flex:1, minWidth:180 }} />
+        <select className="wp-input" value={ventanaFilter} onChange={e=>setVentanaFilter(e.target.value)} style={{ appearance:'none', minWidth:140 }}>
+          <option value="">Todas las tareas</option>
+          {ventanas.map(v=><option key={v} value={v} style={{ background:'var(--ink2)' }}>{v}</option>)}
+        </select>
+        <div style={{ display:'flex', gap:4, background:'var(--ink2)', borderRadius:8, padding:3, border:'1px solid var(--mist)' }}>
+          {([['tipo','↓ Por tipo'],['uso','↓ Más usadas'],['reciente','↓ Recientes']] as const).map(([k,l])=>(
+            <button className="hover-scale" key={k} onClick={()=>setSortBy(k)} style={{ padding:'4px 10px', borderRadius:6, fontSize:10, fontWeight:600, cursor:'pointer', border:'none', background:sortBy===k?'var(--lime)':'transparent', color:sortBy===k?'var(--ink)':'var(--silver)' }}>{l}</button>
+          ))}
+        </div>
+      </div>
+
+      {loading ? (
+        <div style={{ padding:48, textAlign:'center', color:'var(--silver)' }}>Cargando...</div>
+      ) : filtradas.length === 0 ? (
+        <div style={{ padding:48, textAlign:'center', color:'var(--silver)', background:'var(--ink2)', borderRadius:16 }}>
+          {buscar ? 'Sin resultados para esa búsqueda.' : 'La biblioteca está vacía. Las tareas se guardan automáticamente al crear sesiones en el Calendario.'}
+        </div>
+      ) : sortBy !== 'tipo' ? (
+        // Flat view for uso/reciente
+        <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+          {filtradas.map((t:any) => <TareaCard key={t.id} t={t} />)}
+        </div>
+      ) : (
+        // Grouped view: calculadora objectives first, then by ventana
+        <div>
+          {/* Calculator-based tasks grouped by objective */}
+          {objetivosSorted.length > 0 && (
+            <div>
+              <div style={{ fontSize:10, fontWeight:800, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.1em', marginBottom:4 }}>
+                🧮 Tareas con calculadora
+              </div>
+              {objetivosSorted.map(obj => {
+                const colores: Record<string,string> = { 'Fuerza':'#ef4444', 'Activación/Recuperación':'#f97316', 'Resistencia':'#3b82f6', 'Velocidad':'#a855f7' }
+                return (
+                  <div key={obj}>
+                    <GroupHeader label={obj} color={colores[obj] ?? 'var(--lime)'} />
+                    <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+                      {byObjetivo[obj].map((t:any) => <TareaCard key={t.id} t={t} />)}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+
+          {/* Non-calculator tasks grouped by ventana */}
+          {ventanasSorted.length > 0 && (
+            <div style={{ marginTop: objetivosSorted.length > 0 ? 24 : 0 }}>
+              {objetivosSorted.length > 0 && (
+                <div style={{ fontSize:10, fontWeight:800, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.1em', marginBottom:4 }}>
+                  📋 Otras tareas
+                </div>
+              )}
+              {ventanasSorted.map(v => (
+                <div key={v}>
+                  <GroupHeader label={v} color="var(--lime)" />
+                  <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+                    {byVentana[v].map((t:any) => <TareaCard key={t.id} t={t} />)}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+      </>)}
+    </div>
+  )
+}
+
+
+
 export default function CoachDashboard({ isPanama, session, teamData, today }: any) {
   const [tab, setTab] = useState('inicio')
   const [selected, setSelected] = useState(null)
@@ -12860,394 +13250,6 @@ function NotificacionesCoachPanel() {
 // ═══════════════════════════════════════════════════════════════════
 // BIBLIOTECA DE TAREAS PANEL
 // ═══════════════════════════════════════════════════════════════════
-function BibliotecaPanel({ canchasList }: { canchasList: any[] }) {
-  const [tareas, setTareas] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-  const [buscar, setBuscar] = useState('')
-  const [showForm, setShowForm] = useState(false)
-  const [form, setForm] = useState({ nombre:'', ventana:'', subtarea:'', jugadores:'', series:'', minutos:'', pausa:'', largo:'', ancho:'', descripcion:'' })
-  const [saving, setSaving] = useState(false)
-  const [ventanaFilter, setVentanaFilter] = useState('')
-  const [sortBy, setSortBy] = useState<'uso'|'reciente'|'tipo'>('tipo')
-  const [showBoard, setShowBoard] = useState(false)
-  const [editBoardId, setEditBoardId] = useState<number|null>(null)
-  const [editBoardData, setEditBoardData] = useState<any>(null)
-  const [boardName, setBoardName] = useState('')
-  const [boardVentana, setBoardVentana] = useState('')
-  const [boardSubtarea, setBoardSubtarea] = useState('')
-  const [boardJugadores, setBoardJugadores] = useState('')
-  const [zoneInfo, setZoneInfo] = useState<{rw:number;rh:number;area:number}[]>([])
-
-  useEffect(() => { cargar() }, [])
-
-  async function cargar() {
-    setLoading(true)
-    try {
-      const r = await fetch('/api/biblioteca')
-      const d = await r.json()
-      setTareas(d.tareas||[])
-    } catch(e){} finally { setLoading(false) }
-  }
-
-  async function guardar() {
-    if (!form.nombre) return
-    setSaving(true)
-    try {
-      await fetch('/api/biblioteca', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(form) })
-      setShowForm(false)
-      setForm({ nombre:'', ventana:'', subtarea:'', jugadores:'', series:'', minutos:'', pausa:'', largo:'', ancho:'', descripcion:'' })
-      await cargar()
-    } catch(e){} finally { setSaving(false) }
-  }
-
-  async function eliminar(id: number) {
-    if (!confirm('¿Eliminar tarea de la biblioteca?')) return
-    await fetch(`/api/biblioteca?id=${id}`, { method:'DELETE' })
-    await cargar()
-  }
-
-  const ventanas = Array.from(new Set(tareas.map(t=>t.ventana).filter(Boolean))).sort()
-  const filtradas = tareas
-    .filter(t => {
-      const matchBuscar = !buscar || t.nombre.toLowerCase().includes(buscar.toLowerCase()) || (t.ventana||'').toLowerCase().includes(buscar.toLowerCase())
-      const matchVentana = !ventanaFilter || t.ventana === ventanaFilter
-      return matchBuscar && matchVentana
-    })
-    .sort((a,b) => {
-      if (sortBy === 'uso') return (b.veces_usada||0) - (a.veces_usada||0)
-      if (sortBy === 'reciente') return new Date(b.created_at||0).getTime() - new Date(a.created_at||0).getTime()
-      // 'tipo': sort by ventana then intensidad
-      const vA = (a.ventana||'zzz').localeCompare(b.ventana||'zzz')
-      if (vA !== 0) return vA
-      return (a.intensidad ?? 99) - (b.intensidad ?? 99)
-    })
-
-  // Objectives that come from the GPS calculator (Sangnier table)
-  const OBJETIVOS_CALC = ['Fuerza', 'Activación', 'Resistencia', 'Velocidad']
-  const OBJETIVO_ORDER = { 'Fuerza': 0, 'Activación/Recuperación': 1, 'Resistencia': 2, 'Velocidad': 3 }
-
-  // Split: tareas with objetivo (from calculator) vs without
-  const tareasConCalc = filtradas.filter(t => t.objetivo != null)
-  const tareasSinCalc = filtradas.filter(t => t.objetivo == null)
-
-  // Group calculator tareas by objetivo
-  const byObjetivo: Record<string, any[]> = {}
-  for (const t of tareasConCalc) {
-    const obj = t.objetivo as string
-    if (!byObjetivo[obj]) byObjetivo[obj] = []
-    byObjetivo[obj].push(t)
-  }
-  Object.values(byObjetivo).forEach(g => g.sort((a,b) => (a.intensidad??99)-(b.intensidad??99)))
-
-  // Group non-calculator tareas by ventana
-  const byVentana: Record<string, any[]> = {}
-  for (const t of tareasSinCalc) {
-    const v = t.ventana || 'Sin tipo'
-    if (!byVentana[v]) byVentana[v] = []
-    byVentana[v].push(t)
-  }
-
-  const objetivosSorted = Object.keys(byObjetivo).sort((a,b) => {
-    const oa = OBJETIVO_ORDER[a as keyof typeof OBJETIVO_ORDER] ?? 99
-    const ob = OBJETIVO_ORDER[b as keyof typeof OBJETIVO_ORDER] ?? 99
-    return oa - ob
-  })
-  const ventanasSorted = Object.keys(byVentana).sort()
-
-  function TareaCard({ t }: { t: any }) {
-    return (
-      <div style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:14, padding:16 }}>
-        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:12, marginBottom: (t.descripcion || t.imagen) ? 8 : 0 }}>
-          <div style={{ flex:1 }}>
-            <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap', marginBottom:6 }}>
-              <span style={{ fontWeight:700, color:'var(--snow)', fontSize:14 }}>{t.nombre}</span>
-              {t.ventana && <span style={{ fontSize:10, padding:'2px 8px', borderRadius:6, background:'rgba(200,241,53,.12)', color:'var(--lime)', fontWeight:600 }}>{t.ventana}</span>}
-              {getSubtareasDisplay(t) && <span style={{ fontSize:10, padding:'2px 8px', borderRadius:6, background:'rgba(200,241,53,.06)', color:'var(--silver)' }}>↳ {getSubtareasDisplay(t)}</span>}
-              {t.intensidad != null && (
-                <span title={`Intensidad ${t.intensidad} (1=más intensa, 4=menos intensa)`} style={{ display:'inline-flex', alignItems:'center', justifyContent:'center', width:20, height:20, borderRadius:'50%', background: t.intensidad<=1?'#ef4444':t.intensidad<=2?'#f97316':t.intensidad<=3?'#eab308':'#22c55e', color:'#fff', fontSize:10, fontWeight:900, fontFamily:'DM Mono,monospace', flexShrink:0 }}>
-                  {t.intensidad}
-                </span>
-              )}
-              <span style={{ fontSize:9, color:'var(--fog)', fontFamily:'DM Mono,monospace' }}>usada {t.veces_usada}×</span>
-            </div>
-            <div style={{ display:'flex', gap:12, flexWrap:'wrap', fontSize:11, color:'var(--silver)' }}>
-              {t.jugadores && <span>👥 <strong>{t.jugadores}</strong> jug.</span>}
-              {t.series && <span>🔄 <strong>{t.series}</strong> series</span>}
-              {t.minutos && <span>⏱ <strong>{t.minutos}</strong> min/serie</span>}
-              {t.pausa && <span>⏸ <strong>{t.pausa}</strong> min pausa</span>}
-              {t.largo && t.ancho && <span>📐 <strong>{t.largo}×{t.ancho}</strong>m</span>}
-              {t.series && t.minutos && <span style={{ color:'var(--lime)', fontFamily:'DM Mono,monospace', fontSize:10 }}>→ {t.series*t.minutos} min activo</span>}
-            </div>
-          </div>
-          <div style={{ display:'flex', gap:8, flexShrink:0, alignItems:'center' }}>
-            <button className="hover-scale" onClick={()=>eliminar(t.id)} style={{ fontSize:10, padding:'7px 10px', borderRadius:8, background:'rgba(239,68,68,.06)', color:'#f87171', border:'1px solid rgba(239,68,68,.2)', cursor:'pointer' }} title="Eliminar">✕</button>
-          </div>
-        </div>
-        {/* Tactical diagram preview */}
-        {t.diagram_preview && (
-          <div style={{ marginTop:8 }}>
-            <img src={t.diagram_preview} alt="Diagrama" style={{ width:'100%', maxWidth:360, borderRadius:8, border:'1px solid var(--mist)' }} />
-            <button className="hover-scale" onClick={(e) => { e.stopPropagation(); setEditBoardId(t.id); setEditBoardData(t.tactical_diagram ? JSON.parse(t.tactical_diagram) : null); setBoardName(t.nombre); setShowBoard(true) }}
-              style={{ marginTop:6, fontSize:10, padding:'4px 12px', borderRadius:6, border:'1px solid rgba(163,230,53,.3)', background:'rgba(163,230,53,.06)', color:'var(--lime)', cursor:'pointer', fontWeight:600 }}>
-              ✏️ Editar diagrama
-            </button>
-          </div>
-        )}
-        {/* Imagen, descripción y rutina en la parte inferior */}
-        {(t.imagen || t.descripcion || (t.rutinaGym && t.rutinaGym.length > 0)) && (
-          <div style={{ display:'flex', gap:12, alignItems:'flex-start', marginTop:8 }}>
-            {t.imagen && (
-              <img
-                src={t.imagen}
-                alt={t.nombre}
-                style={{ width:240, height:160, objectFit:'contain', borderRadius:8, background:'var(--ink3)', border:'1px solid var(--mist)', flexShrink:0 }}
-              />
-            )}
-            <div style={{ flex:1, display:'flex', flexDirection:'column', gap:8 }}>
-              {t.rutinaGym && t.rutinaGym.length > 0 && (
-                <div style={{ background:'var(--ink3)', borderRadius:8, padding:'8px 12px', border:'1px solid rgba(255,255,255,.05)' }}>
-                  <div style={{ display:'grid', gridTemplateColumns:'2fr 1fr 1fr 1fr', gap:4, borderBottom:'1px solid rgba(255,255,255,.1)', paddingBottom:4, marginBottom:4 }}>
-                    <span style={{ fontSize:9, fontWeight:700, color:'var(--lime)', textTransform:'uppercase' }}>Ejercicio</span>
-                    <span style={{ fontSize:9, fontWeight:700, color:'var(--silver)', textTransform:'uppercase' }}>Series</span>
-                    <span style={{ fontSize:9, fontWeight:700, color:'var(--silver)', textTransform:'uppercase' }}>Reps</span>
-                    <span style={{ fontSize:9, fontWeight:700, color:'var(--silver)', textTransform:'uppercase' }}>Carga</span>
-                  </div>
-                  {t.rutinaGym.map((r:any,rIdx:number) => (
-                    <div key={rIdx} style={{ display:'grid', gridTemplateColumns:'2fr 1fr 1fr 1fr', gap:4, fontSize:11, color:'var(--snow)', marginBottom:2 }}>
-                      <span>{r.ejercicio}</span>
-                      <span style={{ color:'var(--fog)' }}>{r.series}</span>
-                      <span style={{ color:'var(--fog)' }}>{r.repeticiones}</span>
-                      <span style={{ color:'var(--fog)' }}>{r.peso}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-              {t.descripcion && (
-                <div style={{ fontSize:11, color:'var(--fog)', background:'var(--ink3)', borderRadius:8, padding:'6px 10px', borderLeft:'2px solid rgba(200,241,53,.2)' }}>
-                  {t.descripcion}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-      </div>
-    )
-  }
-
-  function GroupHeader({ label, color = 'var(--lime)' }: { label: string; color?: string }) {
-    return (
-      <div style={{ display:'flex', alignItems:'center', gap:10, marginTop:20, marginBottom:8 }}>
-        <span style={{ width:3, height:16, borderRadius:2, background:color, display:'inline-block', flexShrink:0 }} />
-        <span style={{ fontSize:10, fontWeight:800, color, textTransform:'uppercase', letterSpacing:'0.1em' }}>{label}</span>
-        <div style={{ flex:1, height:1, background:'var(--mist)' }} />
-      </div>
-    )
-  }
-
-  return (
-    <div style={{ padding:'24px 20px', maxWidth:1100, margin:'0 auto' }}>
-      {/* Tactical Board */}
-      {showBoard && (
-        <div style={{ marginBottom:20 }}>
-          <div style={{ display:'flex', gap:10, alignItems:'end', marginBottom:12, flexWrap:'wrap' }}>
-            <div style={{ flex:1, minWidth:200 }}>
-              <label style={{ display:'block', fontSize:9, fontWeight:700, color:'var(--fog)', textTransform:'uppercase', letterSpacing:'.08em', marginBottom:4 }}>Nombre</label>
-              <input className="wp-input" value={boardName} onChange={e=>setBoardName(e.target.value)} placeholder="Ej: Rondo 4v2 + comodín" style={{ fontSize:13, padding:'6px 12px', width:'100%' }} />
-            </div>
-            <div style={{ minWidth:160 }}>
-              <label style={{ display:'block', fontSize:9, fontWeight:700, color:'var(--fog)', textTransform:'uppercase', letterSpacing:'.08em', marginBottom:4 }}>Tipo de tarea</label>
-              <select className="wp-input" style={{ padding:'6px 12px', fontSize:12 }} value={boardVentana} onChange={e=>{setBoardVentana(e.target.value);setBoardSubtarea('')}}>
-                <option value="">— Seleccionar —</option>
-                {TODAS_LAS_NUEVAS.map(v=><option key={v} value={v}>{v}</option>)}
-              </select>
-            </div>
-            {boardVentana && SUBTAREAS[boardVentana] && (
-              <div style={{ minWidth:140 }}>
-                <label style={{ display:'block', fontSize:9, fontWeight:700, color:'var(--fog)', textTransform:'uppercase', letterSpacing:'.08em', marginBottom:4 }}>Subtarea</label>
-                <select className="wp-input" style={{ padding:'6px 12px', fontSize:12 }} value={boardSubtarea} onChange={e=>setBoardSubtarea(e.target.value)}>
-                  <option value="">—</option>
-                  {SUBTAREAS[boardVentana].map(s=><option key={s} value={s}>{s}</option>)}
-                </select>
-              </div>
-            )}
-            <div style={{ minWidth:80 }}>
-              <label style={{ display:'block', fontSize:9, fontWeight:700, color:'var(--fog)', textTransform:'uppercase', letterSpacing:'.08em', marginBottom:4 }}>Jugadores</label>
-              <input type="number" className="wp-input" value={boardJugadores} onChange={e=>setBoardJugadores(e.target.value)} placeholder="0" style={{ fontSize:13, padding:'6px 12px', width:70 }} min="0" max="30" />
-            </div>
-          </div>
-
-          {zoneInfo.length > 0 && Number(boardJugadores) > 0 && (() => {
-            const totalArea = zoneInfo.reduce((s,z) => s + z.area, 0)
-            const jug = Number(boardJugadores)
-            const densidad = totalArea / jug
-            const cuad = getCuadrante(densidad, jug)
-            return (
-              <div style={{ display:'flex', gap:12, marginBottom:12, flexWrap:'wrap' }}>
-                {zoneInfo.map((z,i) => (
-                  <div key={i} style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:10, padding:'8px 14px', fontSize:11 }}>
-                    <div style={{ color:'var(--fog)', fontSize:9, fontWeight:700, textTransform:'uppercase', marginBottom:2 }}>Zona {i+1}</div>
-                    <div style={{ color:'var(--snow)', fontWeight:700 }}>{z.rw}m x {z.rh}m = {z.area}m2</div>
-                  </div>
-                ))}
-                <div style={{ background:cuad.bg, border:`1px solid ${cuad.border}`, borderRadius:10, padding:'8px 14px', fontSize:11 }}>
-                  <div style={{ color:'var(--fog)', fontSize:9, fontWeight:700, textTransform:'uppercase', marginBottom:2 }}>Densidad</div>
-                  <div style={{ color:cuad.color, fontWeight:800, fontSize:16 }}>{densidad.toFixed(0)} m2/jug</div>
-                  <div style={{ color:cuad.color, fontWeight:700, fontSize:12, marginTop:2 }}>{cuad.objetivo} - Int. {cuad.intensidad}</div>
-                </div>
-              </div>
-            )
-          })()}
-
-          <TacticalBoard
-            canchas={canchasList}
-            initialData={editBoardData}
-            onZoneInfo={setZoneInfo}
-            onSave={async (data) => {
-              if (!boardName.trim()) { alert('Ponele un nombre a la tarea'); return }
-              setSaving(true)
-              try {
-                const payload = {
-                  nombre: boardName + (boardSubtarea ? ' > ' + boardSubtarea : ''),
-                  ventana: boardVentana || null,
-                  subtarea: boardSubtarea || null,
-                  jugadores: Number(boardJugadores) || null,
-                  tactical_diagram: JSON.stringify(data),
-                  diagram_preview: data.preview,
-                  largo: zoneInfo.length > 0 ? zoneInfo[0].rw : null,
-                  ancho: zoneInfo.length > 0 ? zoneInfo[0].rh : null,
-                }
-                if (editBoardId) {
-                  await fetch('/api/biblioteca', { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ id: editBoardId, ...payload }) })
-                } else {
-                  await fetch('/api/biblioteca', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) })
-                }
-                setShowBoard(false); setEditBoardId(null); setEditBoardData(null); setBoardName(''); setBoardVentana(''); setBoardSubtarea(''); setBoardJugadores(''); setZoneInfo([]); await cargar()
-              } finally { setSaving(false) }
-            }}
-            onClose={() => { setShowBoard(false); setEditBoardId(null); setEditBoardData(null); setBoardName(''); setBoardVentana(''); setBoardSubtarea(''); setBoardJugadores(''); setZoneInfo([]) }}
-          />
-        </div>
-      )}
-
-      {!showBoard && (<>
-      <div style={{ marginBottom:24, display:'flex', justifyContent:'space-between', alignItems:'flex-end', flexWrap:'wrap', gap:12 }}>
-        <div>
-          <h2 style={{ fontFamily:'Bebas Neue,sans-serif', fontSize:36, color:'var(--snow)', letterSpacing:'0.04em', marginBottom:4 }}>🎨 DISEÑADOR DE TAREAS</h2>
-          <p style={{ fontSize:12, color:'var(--silver)' }}>Pizarra táctica + biblioteca · Se guarda automáticamente al crear sesiones</p>
-        </div>
-        <div style={{ display:'flex', gap:8 }}>
-          <button  onClick={()=>{ setShowBoard(true); setEditBoardId(null); setEditBoardData(null); setBoardName(''); setBoardVentana(''); setBoardSubtarea(''); setBoardJugadores(''); setZoneInfo([]) }} className="hover-scale btn-lime" style={{ padding:'10px 20px', fontSize:13 }}>
-            🎨 Diseñar Tarea
-          </button>
-        </div>
-      </div>
-
-      {showForm && (
-        <div style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:16, padding:24, marginBottom:20 }}>
-          <p style={{ fontSize:11, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', marginBottom:16 }}>Nueva tarea en biblioteca</p>
-          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(150px,1fr))', gap:12, marginBottom:16 }}>
-            <div style={{ gridColumn:'1/-1' }}>
-              <label style={{ fontSize:10, color:'var(--lime)', display:'block', marginBottom:4, textTransform:'uppercase' }}>Nombre de la tarea *</label>
-              <input className="wp-input" type="text" placeholder="Ej: Rondo 4v4+2 en espacio reducido..." value={form.nombre} onChange={e=>setForm({...form,nombre:e.target.value})} style={{ width:'100%' }} />
-            </div>
-            {[
-              {key:'ventana',label:'Tipo de tarea',placeholder:'Ej: Rondo'},
-              {key:'jugadores',label:'Jugadores',placeholder:'Nº',type:'number'},
-              {key:'series',label:'Series',placeholder:'Nº',type:'number'},
-              {key:'minutos',label:'Min/serie',placeholder:'min',type:'number'},
-              {key:'pausa',label:'Pausa (min)',placeholder:'min',type:'number'},
-              {key:'largo',label:'Largo (m)',placeholder:'m',type:'number'},
-              {key:'ancho',label:'Ancho (m)',placeholder:'m',type:'number'},
-            ].map(f=>(
-              <div key={f.key}>
-                <label style={{ fontSize:10, color:'var(--fog)', display:'block', marginBottom:4, textTransform:'uppercase' }}>{f.label}</label>
-                <input className="wp-input" type={f.type||'text'} placeholder={f.placeholder}
-                  value={(form as any)[f.key]} onChange={e=>setForm({...form,[f.key]:e.target.value})} style={{ width:'100%' }} />
-              </div>
-            ))}
-            <div style={{ gridColumn:'1/-1' }}>
-              <label style={{ fontSize:10, color:'var(--fog)', display:'block', marginBottom:4, textTransform:'uppercase' }}>Descripción / Notas</label>
-              <input className="wp-input" type="text" placeholder="Descripción de la tarea, objetivos, consignas..." value={form.descripcion} onChange={e=>setForm({...form,descripcion:e.target.value})} style={{ width:'100%' }} />
-            </div>
-          </div>
-          <button onClick={guardar} disabled={saving||!form.nombre} className="btn-lime" style={{ padding:'10px 24px', fontSize:13 }}>
-            {saving ? 'Guardando...' : '✓ Guardar en Biblioteca'}
-          </button>
-        </div>
-      )}
-
-      <div style={{ display:'flex', gap:8, marginBottom:12, flexWrap:'wrap' }}>
-        <input className="wp-input" type="text" placeholder="🔍 Buscar..." value={buscar} onChange={e=>setBuscar(e.target.value)} style={{ flex:1, minWidth:180 }} />
-        <select className="wp-input" value={ventanaFilter} onChange={e=>setVentanaFilter(e.target.value)} style={{ appearance:'none', minWidth:140 }}>
-          <option value="">Todas las tareas</option>
-          {ventanas.map(v=><option key={v} value={v} style={{ background:'var(--ink2)' }}>{v}</option>)}
-        </select>
-        <div style={{ display:'flex', gap:4, background:'var(--ink2)', borderRadius:8, padding:3, border:'1px solid var(--mist)' }}>
-          {([['tipo','↓ Por tipo'],['uso','↓ Más usadas'],['reciente','↓ Recientes']] as const).map(([k,l])=>(
-            <button className="hover-scale" key={k} onClick={()=>setSortBy(k)} style={{ padding:'4px 10px', borderRadius:6, fontSize:10, fontWeight:600, cursor:'pointer', border:'none', background:sortBy===k?'var(--lime)':'transparent', color:sortBy===k?'var(--ink)':'var(--silver)' }}>{l}</button>
-          ))}
-        </div>
-      </div>
-
-      {loading ? (
-        <div style={{ padding:48, textAlign:'center', color:'var(--silver)' }}>Cargando...</div>
-      ) : filtradas.length === 0 ? (
-        <div style={{ padding:48, textAlign:'center', color:'var(--silver)', background:'var(--ink2)', borderRadius:16 }}>
-          {buscar ? 'Sin resultados para esa búsqueda.' : 'La biblioteca está vacía. Las tareas se guardan automáticamente al crear sesiones en el Calendario.'}
-        </div>
-      ) : sortBy !== 'tipo' ? (
-        // Flat view for uso/reciente
-        <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
-          {filtradas.map((t:any) => <TareaCard key={t.id} t={t} />)}
-        </div>
-      ) : (
-        // Grouped view: calculadora objectives first, then by ventana
-        <div>
-          {/* Calculator-based tasks grouped by objective */}
-          {objetivosSorted.length > 0 && (
-            <div>
-              <div style={{ fontSize:10, fontWeight:800, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.1em', marginBottom:4 }}>
-                🧮 Tareas con calculadora
-              </div>
-              {objetivosSorted.map(obj => {
-                const colores: Record<string,string> = { 'Fuerza':'#ef4444', 'Activación/Recuperación':'#f97316', 'Resistencia':'#3b82f6', 'Velocidad':'#a855f7' }
-                return (
-                  <div key={obj}>
-                    <GroupHeader label={obj} color={colores[obj] ?? 'var(--lime)'} />
-                    <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-                      {byObjetivo[obj].map((t:any) => <TareaCard key={t.id} t={t} />)}
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          )}
-
-          {/* Non-calculator tasks grouped by ventana */}
-          {ventanasSorted.length > 0 && (
-            <div style={{ marginTop: objetivosSorted.length > 0 ? 24 : 0 }}>
-              {objetivosSorted.length > 0 && (
-                <div style={{ fontSize:10, fontWeight:800, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.1em', marginBottom:4 }}>
-                  📋 Otras tareas
-                </div>
-              )}
-              {ventanasSorted.map(v => (
-                <div key={v}>
-                  <GroupHeader label={v} color="var(--lime)" />
-                  <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-                    {byVentana[v].map((t:any) => <TareaCard key={t.id} t={t} />)}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-      </>)}
-    </div>
-  )
-}
-
 function DeleteDataModal({ isGlobal, jugadorId, playerName, defaultFecha, onClose, onRefresh }: any) {
   const [fecha, setFecha] = useState(defaultFecha)
   const [tipo, setTipo] = useState<'wellness'|'rpe'|'ambos'>('ambos')

@@ -16,7 +16,7 @@ interface BoardProps {
   onClose?: () => void
   readOnly?: boolean
   onZoneInfo?: (zones: { rw:number; rh:number; area:number }[]) => void
-  canchas?: any[]
+  canchasProp?: any[]
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -249,7 +249,7 @@ const lbl:React.CSSProperties = {fontSize:7,fontWeight:800,color:'#3e4c5e',textT
 // ═══════════════════════════════════════════════════════════════════
 // MAIN COMPONENT
 // ═══════════════════════════════════════════════════════════════════
-export default function TacticalBoard({ initialData, onSave, onClose, readOnly, onZoneInfo, canchas=[] }: BoardProps) {
+export default function TacticalBoard({ initialData, onSave, onClose, readOnly, onZoneInfo, canchasProp=[] }: BoardProps) {
   const [field, setField] = useState<FieldType>(initialData?.field || 'F11')
   const [selectedCanchaId, setSelectedCanchaId] = useState<string>(initialData?.cancha_id || '')
   const [orient, setOrient] = useState<Orientation>(initialData?.orientation||'horizontal')
@@ -293,7 +293,7 @@ export default function TacticalBoard({ initialData, onSave, onClose, readOnly, 
   const cfg = FIELD_CFG[field]
   
   // Real dimensions based on selected Cancha
-  const selectedCancha = selectedCanchaId ? canchas.find(c => String(c.id) === String(selectedCanchaId)) : null
+  const selectedCancha = selectedCanchaId ? canchasProp.find(c => String(c.id) === String(selectedCanchaId)) : null
   const realW = selectedCancha?.largo_m ? Number(selectedCancha.largo_m) : cfg.mW
   const realH = selectedCancha?.ancho_m ? Number(selectedCancha.ancho_m) : cfg.mH
   const realCfg = { mW: realW, mH: realH }
@@ -492,14 +492,14 @@ export default function TacticalBoard({ initialData, onSave, onClose, readOnly, 
                 <span style={{fontSize:12}}>{orient==='horizontal'?'⬌':'⬍'}</span>
               </button>
             </div>
-            {canchas && canchas.length > 0 && (
+            {canchasProp && canchasProp.length > 0 && (
               <select value={selectedCanchaId} onChange={e=>setSelectedCanchaId(e.target.value)}
                 style={{
                   background:'rgba(255,255,255,.05)', border:'1px solid rgba(255,255,255,.1)', borderRadius:4, padding:'2px 4px',
                   fontSize:10, color:'#a3e635', fontWeight:700, outline:'none', marginTop:2, appearance:'none', cursor:'pointer'
                 }}>
                 <option value="" style={{background:'var(--ink2)', color:'#8896a8'}}>Dimensión estándar ({FIELD_CFG[field].mW}×{FIELD_CFG[field].mH}m)</option>
-                {canchas.map(c => (
+                {canchasProp.map(c => (
                   <option key={c.id} value={String(c.id)} style={{background:'var(--ink2)', color:'#fff'}}>
                     {c.nombre} ({c.largo_m}×{c.ancho_m}m)
                   </option>
