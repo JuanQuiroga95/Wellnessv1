@@ -739,6 +739,12 @@ export default function CoachDashboard({ isPanama, session, teamData, today }: a
   const [showGlobalDeleteModal, setShowGlobalDeleteModal] = useState(false)
   const [ciclo, setCiclo] = useState<'microciclo'|'mesociclo'|'macrociclo'>('microciclo')
   const [todayDehydrated, setTodayDehydrated] = useState<number[]>([])
+  const [canchas, setCanchas] = useState<any[]>([])
+
+  useEffect(() => {
+    fetch('/api/canchas').then(r=>r.json()).then(d=>setCanchas(Array.isArray(d)?d:[])).catch(()=>{})
+  }, [])
+
   const router = useRouter()
 
   // Auto-refresh server data when a wellness survey is submitted
@@ -1107,7 +1113,7 @@ export default function CoachDashboard({ isPanama, session, teamData, today }: a
         {tab==='analytics' && <AnalyticsPanel />}
         {tab==='neuromuscular' && <PerfilNeuromuscularPanel />}
         {tab==='inbody' && <InBodyComparativaPanel teamData={teamData} />}
-        {tab==='calendario' && <CalendarioPanel teamData={teamData} />}
+        {tab==='calendario' && <CalendarioPanel teamData={teamData} canchas={canchas} setCanchas={setCanchas} />}
         {tab==='minutos' && <MinutosPanel teamData={teamData} />}
         {tab==='carga-externa' && <CargaExternaPanel />}
         {tab==='control-carga-calc' && <ControlCargaCalcPanel teamData={teamData} />}
@@ -2353,7 +2359,7 @@ function RecuperacionBadge({ horas }: { horas: number|null }) {
   )
 }
 
-function CalendarioPanel({ teamData }) {
+function CalendarioPanel({ teamData, canchas, setCanchas }: { teamData: any[], canchas: any[], setCanchas: (c:any[])=>void }) {
   const now = new Date()
   const [viewMode, setViewMode] = useState<'mes'|'semana'>('mes')
   const [year, setYear] = useState(now.getFullYear())
@@ -2369,7 +2375,6 @@ function CalendarioPanel({ teamData }) {
   const [selectedDay, setSelectedDay] = useState<string|null>(null)
   const [editSesion, setEditSesion] = useState<any|null>(null)
   const [showEditor, setShowEditor] = useState(false)
-  const [canchas, setCanchas] = useState<any[]>([])
   const [fuerzaMandamientos, setFuerzaMandamientos] = useState<any[]>([])
 
   const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
