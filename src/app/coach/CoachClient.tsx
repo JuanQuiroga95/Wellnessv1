@@ -3516,7 +3516,7 @@ function BloqueMetodologia({ bloque, index, onChangeProp, onRemoveProp, onMoveUp
                         return (
                           <button className="hover-scale" key={p.jugador_id} type="button" onClick={() => toggleJugadorEquipo(eNum, p.jugador_id)} disabled={inOther}
                             style={{ fontSize:9, padding:'2px 6px', borderRadius:4, cursor:inOther?'default':'pointer', border:`1px solid ${inThis?eColor:inOther?'var(--fog)':'var(--mist)'}`, background:inThis?`${eColor}25`:inOther?'rgba(0,0,0,.2)':'var(--ink3)', color:inThis?eColor:inOther?'var(--fog)':'var(--silver)', opacity:inOther?.5:1 }}>
-                            {p.nombre.split(' ')[0]}
+                            {(p.nombre || 'Jugador').split(' ')[0]}
                           </button>
                         )
                       })}
@@ -3547,7 +3547,7 @@ function BloqueMetodologia({ bloque, index, onChangeProp, onRemoveProp, onMoveUp
                     onChange('ejes_estructurales', updated);
                   }}
                   style={{ fontSize:10, fontWeight:isSelected?700:500, padding:'4px 10px', borderRadius:6, cursor:'pointer', transition:'all .15s ease', background:isSelected?'rgba(200,241,53,.2)':'rgba(255,255,255,.05)', border:isSelected?'1px solid rgba(200,241,53,.5)':'1px solid rgba(255,255,255,.1)', color:isSelected?'#c8f135':'var(--silver)' }} title={m.nombre}>
-                    {isSelected?'✓ ':''}{m.numero}. {m.nombre.split(' (')[0]}
+                    {isSelected?'✓ ':''}{m.numero}. {(m.nombre || 'Ejercicio').split(' (')[0]}
                   </button>
                 )
               })}
@@ -3566,7 +3566,7 @@ function BloqueMetodologia({ bloque, index, onChangeProp, onRemoveProp, onMoveUp
               <button className="hover-scale" type="button" onClick={() => onChange('rutinaGym', [...(bloque.rutinaGym || []), { ejercicio: '', series: '', repeticiones: '', peso: '' }])} style={{ background:'rgba(200,241,53,.15)', border:'1px solid rgba(200,241,53,.3)', borderRadius:4, padding:'6px 12px', color:'var(--lime)', fontSize:10, cursor:'pointer', fontWeight:700 }}>+ Añadir Ejercicio</button>
             </div>
             {(bloque.rutinaGym || []).map((r: any, rIdx: number) => {
-              const selectedEj = fuerzaEjercicios.find(e => e.nombre.toLowerCase() === r.ejercicio?.toLowerCase());
+              const selectedEj = fuerzaEjercicios.find(e => (e.nombre || '').toLowerCase() === (r.ejercicio || '').toLowerCase());
               const mand = selectedEj ? fuerzaMandamientos.find(m => m.id === selectedEj.mandamiento_id) : null;
               return (
                 <div key={rIdx} style={{ display:'flex', gap:6, marginBottom:6, alignItems:'center', flexWrap:'wrap' }}>
