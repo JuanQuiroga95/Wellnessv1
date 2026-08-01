@@ -85,17 +85,24 @@ export async function GET(req: NextRequest) {
     try {
       if (s.clubId != null) {
         logs = await sql`
-          SELECT el.fecha::text, 
-                 MAX(el.rpe) FILTER (WHERE el.tipo_sesion IS NULL OR el.tipo_sesion NOT IN ('PARCIAL', 'READAPTACION'))::int AS max_rpe, 
-                 ROUND(AVG(el.rpe) FILTER (WHERE el.tipo_sesion IS NULL OR el.tipo_sesion NOT IN ('PARCIAL', 'READAPTACION'))::numeric,1)::float AS avg_rpe, 
+          WITH ranked_logs AS (
+            SELECT el.fecha, el.rpe, el.tipo_sesion,
+                   ROW_NUMBER() OVER(PARTITION BY el.jugador_id, el.fecha ORDER BY el.id DESC) as rn
+            FROM entrenamiento_logs el
+            JOIN jugadores j ON j.id = el.jugador_id
+            JOIN usuarios u ON u.id = j.usuario_id
+            WHERE el.fecha >= ${desde}::date AND el.fecha < ${hastaInc}::date
+              AND (u.club_id = ${s.clubId} OR j.club_id = ${s.clubId})
+              AND u.activo = true
+          )
+          SELECT fecha::text,
+                 MAX(rpe) FILTER (WHERE tipo_sesion IS NULL OR tipo_sesion NOT IN ('PARCIAL', 'READAPTACION'))::int AS max_rpe, 
+                 ROUND(AVG(rpe) FILTER (WHERE tipo_sesion IS NULL OR tipo_sesion NOT IN ('PARCIAL', 'READAPTACION'))::numeric,1)::float AS avg_rpe, 
                  COUNT(*)::int AS n
-          FROM entrenamiento_logs el
-          JOIN jugadores j ON j.id = el.jugador_id
-          JOIN usuarios u ON u.id = j.usuario_id
-          WHERE el.fecha >= ${desde}::date AND el.fecha < ${hastaInc}::date
-            AND u.club_id = ${s.clubId}
-          GROUP BY el.fecha
-          ORDER BY el.fecha` as any[]
+          FROM ranked_logs
+          WHERE rn = 1
+          GROUP BY fecha
+          ORDER BY fecha` as any[]
       }
     } catch { logs = [] }
 
