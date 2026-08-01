@@ -1576,7 +1576,12 @@ function PlayerDetail({ isPanama, player:p, logs, wellness, loading, onBack, cic
             {['fatiga','calidad_sueno','dolor_muscular','nivel_estres','estado_animo'].map((k,i)=>{ 
               const rawV=Number(lastW[k])||0; 
               const v = (isPanama && i < 4 && rawV > 0) ? (6 - rawV) : rawV;
-              const c=wCol(v); 
+              let c = wCol(isPanama && i < 4 && rawV > 0 ? rawV : v);
+              if (isPanama && i === 4) {
+                if (v === 3) c = '#22c55e'; // Óptimo
+                else if (v === 2 || v === 4) c = '#f59e0b'; // Regular
+                else if (v === 1 || v === 5) c = '#ef4444'; // Mal
+              }
               const label = isPanama ? ['Recuperación','Sueño','Músculos','Energía','Hidratación'][i] : WL[i];
               return (
               <div key={k} style={{ display:'flex', alignItems:'center', gap:10 }}>

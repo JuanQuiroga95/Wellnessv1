@@ -128,10 +128,17 @@ export default function PlayerDashboard({ isPanama, session, jugador, jugadorId,
                   <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
                     {WELLNESS_KEYS.map((k,i) => {
                       const v = toNum(lastWellness[k])
-                      const col = WELLNESS_COLORS[v-1] || '#888'
+                      let col = WELLNESS_COLORS[v-1] || '#888'
                       // Para Panamá, los campos 0 a 3 se invirtieron al guardar, los mostramos des-invertidos. Hidratación (4) se muestra normal
                       const displayVal = (isPanama && i < 4 && v > 0) ? (6 - v) : v
                       const label = isPanama ? WELLNESS_LABELS_PANAMA[i] : WELLNESS_LABELS[i]
+                      
+                      if (isPanama && i === 4) {
+                        if (v === 3) col = '#22c55e'; // Óptimo
+                        else if (v === 2 || v === 4) col = '#f59e0b'; // Regular
+                        else if (v === 1 || v === 5) col = '#ef4444'; // Mal
+                      }
+                      
                       return (
                         <div key={k} style={{ display:'flex', alignItems:'center', gap:8 }}>
                           <span style={{ fontSize:11, color:'var(--silver)', minWidth:46 }}>{label}</span>
