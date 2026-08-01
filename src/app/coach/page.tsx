@@ -71,7 +71,7 @@ export default async function CoachPage() {
   const [allLogs, allLastSessions, allLastWellness, allAusencias, sessionTodayRows] = jugadorIds.length === 0
     ? [[], [], [], [], []]
     : await Promise.all([
-        sql`SELECT id, jugador_id::int, fecha::text, carga_ua::int, rpe::int, rpe_gimnasio::int, duracion_min::int
+        sql`SELECT id, jugador_id::int, fecha::text, carga_ua::int, rpe::int, rpe_gimnasio::int, duracion_min::int, tipo_sesion
             FROM entrenamiento_logs
             WHERE jugador_id IN (SELECT unnest(${jugadorIds}::int[]))
               AND fecha >= CURRENT_DATE - 120
@@ -169,7 +169,7 @@ export default async function CoachPage() {
             }
           }
         });
-        return Array.from(uniqueLogsMap.values()).map(l => ({ id: Number(l.id), fecha: String(l.fecha), carga_ua: Number(l.carga_ua)||0, rpe: Number(l.rpe)||0, rpe_gimnasio: Number(l.rpe_gimnasio)||null, duracion_min: Number(l.duracion_min)||0 }));
+        return Array.from(uniqueLogsMap.values()).map(l => ({ id: Number(l.id), fecha: String(l.fecha), carga_ua: Number(l.carga_ua)||0, rpe: Number(l.rpe)||0, rpe_gimnasio: Number(l.rpe_gimnasio)||null, duracion_min: Number(l.duracion_min)||0, tipo_sesion: l.tipo_sesion||'EQUIPO' }));
       })(),
       lastWellness: lastW ? { ...lastW, fue_gimnasio: fueGimnasioHoy } : { fue_gimnasio: fueGimnasioHoy }, respondedToday, rpeToday: logsToday.length > 0,
       entrena_grupo: respondedToday ? (lastW?.entrena_grupo ?? null) : null,

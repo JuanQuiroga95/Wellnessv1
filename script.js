@@ -1,0 +1,1 @@
+const { sql } = require('@vercel/postgres'); require('dotenv').config(); (async () => { const res = await sql\SELECT id, fecha, titulo FROM sesiones_plan WHERE club_id=11 AND titulo='MD+1' ORDER BY fecha DESC LIMIT 5\; console.log(res.rows); })();

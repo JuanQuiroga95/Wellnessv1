@@ -103,7 +103,7 @@ export async function sendACWRAlertEmail(to: string, coachNombre: string, alerta
             </div>
           </div>
           <h2 style="color:#f59e0b;margin:0 0 8px">⚠️ Alerta de Carga ACWR</h2>
-          <p style="color:#aaa;margin:0 0 20px">Hola ${coachNombre}, los siguientes jugadores tienen una relación carga aguda/crónica fuera del rango óptimo (0.8–1.3):</p>
+          <p style="color:#aaa;margin:0 0 20px">Hola ${coachNombre}, los siguientes jugadores tienen una relación carga aguda/crónica (EWMA) fuera del rango óptimo (0.8–1.3):</p>
           <table style="width:100%;border-collapse:collapse;background:#1e293b;border-radius:10px;overflow:hidden;margin-bottom:24px">
             <thead>
               <tr style="background:#0f172a">
@@ -114,7 +114,7 @@ export async function sendACWRAlertEmail(to: string, coachNombre: string, alerta
             </thead>
             <tbody>${filas}</tbody>
           </table>
-          <p style="color:#aaa;font-size:12px;margin:0 0 24px">ACWR óptimo: 0.8–1.3 · Precaución: 1.3–1.5 · Riesgo Alto: &gt;1.5</p>
+          <p style="color:#aaa;font-size:12px;margin:0 0 24px">Insuficiente: &lt;0.8 · Óptimo: 0.8–1.3 · Alerta: 1.3–1.5 · Peligro: &gt;1.5</p>
           <div style="text-align:center">
             <a href="${appUrl}/coach" style="display:inline-block;background:#c8f135;color:#000;font-weight:700;font-size:15px;padding:14px 32px;border-radius:10px;text-decoration:none">
               Ver plantel →

@@ -71,6 +71,7 @@ export default function VinculacionesPanel({ teamData }: { teamData: any[] }) {
         <rect x={pad.l} y={toYAcwr(2.5)} width={pW} height={toYAcwr(1.5)-toYAcwr(2.5)} fill="rgba(239,68,68,.07)" clipPath="url(#chartClip)"/>
         <rect x={pad.l} y={toYAcwr(1.5)} width={pW} height={toYAcwr(1.3)-toYAcwr(1.5)} fill="rgba(245,158,11,.07)" clipPath="url(#chartClip)"/>
         <rect x={pad.l} y={toYAcwr(1.3)} width={pW} height={toYAcwr(0.8)-toYAcwr(1.3)} fill="rgba(34,197,94,.07)" clipPath="url(#chartClip)"/>
+        <rect x={pad.l} y={toYAcwr(0.8)} width={pW} height={toYAcwr(0)-toYAcwr(0.8)} fill="rgba(56,189,248,.07)" clipPath="url(#chartClip)"/>
 
         {/* Grid lines */}
         {[0,0.8,1.3,1.5,2.0].map(v=>(

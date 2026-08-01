@@ -1,6 +1,6 @@
 'use client'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, ResponsiveContainer, Cell } from 'recharts'
-const COL = { optimo:'#22c55e', precaucion:'#f59e0b', peligro:'#ef4444', sin_datos:'#2a2a2a' }
+const COL = { insuficiente:'#38bdf8', optimo:'#22c55e', precaucion:'#f59e0b', peligro:'#ef4444', sin_datos:'#2a2a2a' }
 const Tip = ({ active, payload }) => {
   if (!active || !payload?.length) return null
   if (!payload[0]?.payload) return null
