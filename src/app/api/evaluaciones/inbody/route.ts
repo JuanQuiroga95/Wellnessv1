@@ -5,9 +5,11 @@ import { getSessionFromRequest } from '@/lib/auth'
 
 function isAdmin(s: any) { return s?.rol === 'admin' || s?.rol === 'master_admin' }
 
+function isCoachOrAdmin(s: any) { return s?.rol === 'admin' || s?.rol === 'master_admin' || s?.rol === 'coach' }
+
 export async function GET(req: NextRequest) {
   const s = await getSessionFromRequest(req)
-  if (!s || !isAdmin(s)) return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
+  if (!s || !isCoachOrAdmin(s)) return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
 
   const { searchParams } = new URL(req.url)
   const jugador_id = searchParams.get('jugador_id')
