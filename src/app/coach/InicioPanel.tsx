@@ -240,11 +240,11 @@ export default function InicioPanel({ teamData, session, today }: { teamData: an
         })
         setAcwrRatioData(acwrRatioData.filter(d => d.ratio > 0))
         
+        const w1Uce = weekKeys.length > 0 ? weekMap[weekKeys[0]] : null;
         const varData = weekKeys.map((w, i) => {
-          const prev = i > 0 ? weekMap[weekKeys[i-1]] : null;
           return {
             name: w,
-            var: prev && prev.uce_total > 0 ? Math.round(((weekMap[w].uce_total - prev.uce_total) / prev.uce_total) * 100) : 0
+            var: w1Uce && w1Uce.uce_total > 0 ? Math.round(((weekMap[w].uce_total - w1Uce.uce_total) / w1Uce.uce_total) * 100) : 0
           }
         })
         setUceVarData(varData)
@@ -438,12 +438,13 @@ export default function InicioPanel({ teamData, session, today }: { teamData: an
               const wNum = Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1)/7);
               const wStr = 'S' + wNum
               
-              if (!byWeek[wStr]) byWeek[wStr] = { distTotal: 0, mec: 0 }
+              if (!byWeek[wStr]) byWeek[wStr] = { distTotal: 0, mec: 0, met: 0 }
               
               const avg = acwrD.perSession?.[s.titulo]
               if (avg) {
                 byWeek[wStr].distTotal += Number(avg.distTotal || 0)
                 byWeek[wStr].mec += Number(avg.nAcel3 || 0) + Number(avg.nDecel3 || 0)
+                byWeek[wStr].met += Number(avg.distMP || 0)
               }
             })
             
@@ -453,12 +454,13 @@ export default function InicioPanel({ teamData, session, today }: { teamData: an
               return numA - numB
             })
             
+            const w1 = weeks.length > 0 ? byWeek[weeks[0]] : null;
             const finalAcwr = weeks.map((w, i) => {
-              const prev = i > 0 ? byWeek[weeks[i-1]] : null
               return {
                 name: w,
-                loc: prev && prev.distTotal > 0 ? Math.round(((byWeek[w].distTotal - prev.distTotal) / prev.distTotal) * 100) : 0,
-                mec: prev && prev.mec > 0 ? Math.round(((byWeek[w].mec - prev.mec) / prev.mec) * 100) : 0
+                loc: w1 && w1.distTotal > 0 ? Math.round(((byWeek[w].distTotal - w1.distTotal) / w1.distTotal) * 100) : 0,
+                mec: w1 && w1.mec > 0 ? Math.round(((byWeek[w].mec - w1.mec) / w1.mec) * 100) : 0,
+                met: w1 && w1.met > 0 ? Math.round(((byWeek[w].met - w1.met) / w1.met) * 100) : 0
               }
             })
             setAcwrData(finalAcwr) // Include all weeks so chart doesn't disappear if only 1 week exists
@@ -1135,42 +1137,80 @@ export default function InicioPanel({ teamData, session, today }: { teamData: an
               <div style={{ display:'flex', gap:16, marginTop:20, fontSize:11, color:'var(--silver)', justifyContent: 'center' }}>
                 <div style={{ display:'flex', alignItems:'center', gap:6 }}><div style={{ width:12, height:12, background:'#3b82f6', borderRadius:2 }}/> Locomotora (Dist. Total)</div>
                 <div style={{ display:'flex', alignItems:'center', gap:6 }}><div style={{ width:12, height:12, background:'#ef4444', borderRadius:2 }}/> Mecánica (Σ ACC/DEC &gt;3)</div>
+                <div style={{ display:'flex', alignItems:'center', gap:6 }}><div style={{ width:12, height:12, background:'#22c55e', borderRadius:2 }}/> Metabólica (HMLD)</div>
               </div>
 
-            <div style={{ height: 260, width: '100%', marginTop: 20 }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={acwrData} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-                  <XAxis dataKey="name" stroke="var(--fog)" fontSize={11} tickLine={false} axisLine={false} />
-                  <YAxis stroke="var(--fog)" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(v) => `${v}%`} />
-                  
-                  {/* Zonas Normales (-15 a 15) */}
-                  <defs>
-                    <linearGradient id="colorNormalGPS" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#22c55e" stopOpacity={0.05}/>
-                      <stop offset="100%" stopColor="#22c55e" stopOpacity={0}/>
-                    </linearGradient>
-                  </defs>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, width: '100%', marginTop: 20 }}>
+              
+              {/* LOCOMOTORA */}
+              <div style={{ height: 110, width: '100%', position: 'relative' }}>
+                <div style={{ position: 'absolute', top: 5, right: 10, fontSize: 10, fontWeight: 700, color: 'var(--silver)' }}>VARIABLE LOCOMOTORA</div>
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={acwrData} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                    <XAxis dataKey="name" stroke="var(--fog)" fontSize={11} tickLine={false} axisLine={false} hide />
+                    <YAxis stroke="var(--fog)" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(v) => `${v}%`} />
+                    <defs>
+                      <linearGradient id="colorNormalGPS" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#22c55e" stopOpacity={0.05}/>
+                        <stop offset="100%" stopColor="#22c55e" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <Tooltip contentStyle={{ background:'rgba(8,8,8,0.9)', border:'1px solid var(--mist)', borderRadius:8, fontSize:12 }}
+                             itemStyle={{ color:'var(--snow)', fontWeight:700 }}
+                             labelStyle={{ color:'var(--silver)', marginBottom:4 }}
+                             formatter={(val: number) => [<span style={{color:'#3b82f6'}}>{val > 0 ? `+${val}` : val}%</span>, 'Locomotora']}
+                             labelFormatter={(label) => `Semana ${label.replace('S','')}`}
+                    />
+                    <Area type="monotone" dataKey="loc" stroke="#3b82f6" strokeWidth={3} fillOpacity={0} activeDot={{ r: 4, fill: '#3b82f6' }} />
+                    <rect x="0" y="0" width="100%" height="100%" fill="url(#colorNormalGPS)" />
+                    <line x1="0" y1="50%" x2="100%" y2="50%" stroke="rgba(255,255,255,0.1)" strokeWidth={1} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
 
-                  <Tooltip contentStyle={{ background:'rgba(8,8,8,0.9)', border:'1px solid var(--mist)', borderRadius:8, fontSize:12 }}
-                           itemStyle={{ color:'var(--snow)', fontWeight:700 }}
-                           labelStyle={{ color:'var(--silver)', marginBottom:4 }}
-                           formatter={(val: number, name: string) => {
-                             const lbl = name === 'loc' ? 'Locomotora' : 'Mecánica'
-                             const color = name === 'loc' ? '#3b82f6' : '#ef4444'
-                             return [<span style={{color}}>{val > 0 ? `+${val}` : val}%</span>, lbl]
-                           }}
-                           labelFormatter={(label) => `Semana ${label.replace('S','')}`}
-                  />
-                  
-                  <Area type="monotone" dataKey="loc" stroke="#3b82f6" strokeWidth={3} fillOpacity={0} activeDot={{ r: 6, fill: '#3b82f6' }} />
-                  <Area type="monotone" dataKey="mec" stroke="#ef4444" strokeWidth={3} fillOpacity={0} activeDot={{ r: 6, fill: '#ef4444' }} />
-                  
-                  {/* Reference lines for bounds */}
-                  <rect x="0" y="0" width="100%" height="100%" fill="url(#colorNormalGPS)" />
-                  <line x1="0" y1="50%" x2="100%" y2="50%" stroke="rgba(255,255,255,0.1)" strokeWidth={1} />
-                </AreaChart>
-              </ResponsiveContainer>
+              {/* MECÁNICA */}
+              <div style={{ height: 110, width: '100%', position: 'relative' }}>
+                <div style={{ position: 'absolute', top: 5, right: 10, fontSize: 10, fontWeight: 700, color: 'var(--silver)' }}>VARIABLE MECÁNICA</div>
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={acwrData} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                    <XAxis dataKey="name" stroke="var(--fog)" fontSize={11} tickLine={false} axisLine={false} hide />
+                    <YAxis stroke="var(--fog)" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(v) => `${v}%`} />
+                    <Tooltip contentStyle={{ background:'rgba(8,8,8,0.9)', border:'1px solid var(--mist)', borderRadius:8, fontSize:12 }}
+                             itemStyle={{ color:'var(--snow)', fontWeight:700 }}
+                             labelStyle={{ color:'var(--silver)', marginBottom:4 }}
+                             formatter={(val: number) => [<span style={{color:'#ef4444'}}>{val > 0 ? `+${val}` : val}%</span>, 'Mecánica']}
+                             labelFormatter={(label) => `Semana ${label.replace('S','')}`}
+                    />
+                    <Area type="monotone" dataKey="mec" stroke="#ef4444" strokeWidth={3} fillOpacity={0} activeDot={{ r: 4, fill: '#ef4444' }} />
+                    <rect x="0" y="0" width="100%" height="100%" fill="url(#colorNormalGPS)" />
+                    <line x1="0" y1="50%" x2="100%" y2="50%" stroke="rgba(255,255,255,0.1)" strokeWidth={1} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+
+              {/* METABÓLICA */}
+              <div style={{ height: 130, width: '100%', position: 'relative' }}>
+                <div style={{ position: 'absolute', top: 5, right: 10, fontSize: 10, fontWeight: 700, color: 'var(--silver)' }}>VARIABLE METABÓLICA</div>
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={acwrData} margin={{ top: 20, right: 30, left: 0, bottom: 20 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                    <XAxis dataKey="name" stroke="var(--fog)" fontSize={11} tickLine={false} axisLine={false} />
+                    <YAxis stroke="var(--fog)" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(v) => `${v}%`} />
+                    <Tooltip contentStyle={{ background:'rgba(8,8,8,0.9)', border:'1px solid var(--mist)', borderRadius:8, fontSize:12 }}
+                             itemStyle={{ color:'var(--snow)', fontWeight:700 }}
+                             labelStyle={{ color:'var(--silver)', marginBottom:4 }}
+                             formatter={(val: number) => [<span style={{color:'#22c55e'}}>{val > 0 ? `+${val}` : val}%</span>, 'Metabólica']}
+                             labelFormatter={(label) => `Semana ${label.replace('S','')}`}
+                    />
+                    <Area type="monotone" dataKey="met" stroke="#22c55e" strokeWidth={3} fillOpacity={0} activeDot={{ r: 4, fill: '#22c55e' }} />
+                    <rect x="0" y="0" width="100%" height="100%" fill="url(#colorNormalGPS)" />
+                    <line x1="0" y1="50%" x2="100%" y2="50%" stroke="rgba(255,255,255,0.1)" strokeWidth={1} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+
             </div>
             
             <div style={{ display:'flex', gap:16, marginTop:16, fontSize:10, color:'var(--fog)', justifyContent: 'center' }}>
