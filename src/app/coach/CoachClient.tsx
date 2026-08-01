@@ -1108,7 +1108,7 @@ export default function CoachDashboard({ isPanama, session, teamData, today }: a
         )}
 
         {tab==='team' && selected && (
-          <PlayerDetail isPanama={isPanama} player={selected} logs={playerLogs} wellness={playerWellness} loading={loadingDetail} ciclo={ciclo} onCicloChange={(c)=>{ setCiclo(c); openPlayer(selected, c) }} onRefreshData={() => { openPlayer(selected, ciclo); router.refresh(); }} onBack={()=>setSelected(null)} proxyMode={proxyMode} />
+          <PlayerDetail isPanama={isPanama} player={selected} logs={playerLogs} wellness={playerWellness} loading={loadingDetail} ciclo={ciclo} onCicloChange={(c)=>{ setCiclo(c); openPlayer(selected, c) }} onRefreshData={() => { openPlayer(selected, ciclo); router.refresh(); }} onBack={()=>setSelected(null)} proxyMode={proxyMode} onViewACWR={() => { setAcwrPlayerId(selected.jugador_id); setTab('vinculaciones'); }} />
         )}
 
         {tab==='analytics' && <AnalyticsPanel />}
@@ -1253,7 +1253,7 @@ function PlayerRow({ player:p, last, onOpen, isInjured, isDehydrated, proxyMode 
   )
 }
 
-function PlayerDetail({ isPanama, player:p, logs, wellness, loading, onBack, ciclo, onCicloChange, onRefreshData, proxyMode }: any) {
+function PlayerDetail({ isPanama, player:p, logs, wellness, loading, onBack, ciclo, onCicloChange, onRefreshData, proxyMode, onViewACWR }: any) {
   const col = p.lesion?'#ef4444':(SC[p.acwr?.status]||'#555')
   const [showProxyWellness, setShowProxyWellness] = useState(false)
   const [showProxyRPE, setShowProxyRPE] = useState(false)
@@ -1526,7 +1526,7 @@ function PlayerDetail({ isPanama, player:p, logs, wellness, loading, onBack, cic
               })()}
             </div>
           </div>
-          <button className="hover-scale" onClick={() => { setAcwrPlayerId(p.jugador_id); setTab('vinculaciones') }}
+          <button className="hover-scale" onClick={onViewACWR}
             style={{ padding:'12px 20px', borderRadius:12, background:'var(--lime)', color:'var(--ink)', border:'none', fontWeight:800, cursor:'pointer', fontSize:13, boxShadow:'0 4px 14px rgba(200,241,53,.3)' }}>
             Ver Análisis Completo ➔
           </button>
