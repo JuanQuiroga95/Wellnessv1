@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { getCuadrante, ENTRENAMIENTO_OPTIMIZADOR, ENTRENAMIENTO_COADYUVANTE } from './utils'
 import UceChart from './UceChart'
 import { UceSemanalChart, UceMesocicloChart } from './UceExtendedCharts'
@@ -165,7 +165,7 @@ export default function InicioPanel({ teamData, session, today }: { teamData: an
             
             const label = ev.titulo || ev.fecha
             const rpeValues = teamData.map(p => {
-              const log = (p.recentLogs || []).find((l:any) => l.fecha === ev.fecha && (!l.tipo_sesion || l.tipo_sesion === 'EQUIPO'))
+              const log = (p.recentLogs || []).find((l:any) => l.fecha === ev.fecha && (!l.tipo_sesion || !['PARCIAL', 'READAPTACION'].includes(l.tipo_sesion)))
               return log ? Number(log.rpe) : null
             }).filter(r => r !== null && !isNaN(r))
             
