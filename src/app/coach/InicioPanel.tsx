@@ -82,6 +82,7 @@ export default function InicioPanel({ teamData, session, today }: { teamData: an
   const [acwrData, setAcwrData] = useState<any[]>([])
   const [acwrRatioData, setAcwrRatioData] = useState<any[]>([])
   const [uceSemanalChartData, setUceSemanalChartData] = useState<any[]>([])
+  const [uceVarData, setUceVarData] = useState<any[]>([])
 
   const [uceChartData, setUceChartData] = useState<any[]>([])
   const [uceSemanalTotal, setUceSemanalTotal] = useState(0)
@@ -220,7 +221,7 @@ export default function InicioPanel({ teamData, session, today }: { teamData: an
         setUceSemanalChartData(weekArr)
 
         // ACWR basado en UCE (Frontend calc)
-        const acwrUceData = weekArr.map((w, i) => {
+        const acwrRatioData = weekArr.map((w, i) => {
           const acute = w.uce_total
           let chronicSum = acute
           let count = 1
@@ -233,11 +234,20 @@ export default function InicioPanel({ teamData, session, today }: { teamData: an
           const chronic = chronicSum / count
           const ratio = chronic > 0 ? (acute / chronic) : 0
           return {
-            name: w.name,
-            ratio: parseFloat(ratio.toFixed(4))
+            name: weekKeys[i],
+            ratio: ratio
           }
         })
-        setAcwrRatioData(acwrUceData.filter(d => d.ratio > 0))
+        setAcwrRatioData(acwrRatioData.filter(d => d.ratio > 0))
+        
+        const varData = weekKeys.map((w, i) => {
+          const prev = i > 0 ? weekMap[weekKeys[i-1]] : null;
+          return {
+            name: w,
+            var: prev && prev.uce_total > 0 ? Math.round(((weekMap[w].uce_total - prev.uce_total) / prev.uce_total) * 100) : 0
+          }
+        })
+        setUceVarData(varData)
 
         let totalOptimizadorMin = 0
         let totalCoadyuvanteMin = 0
@@ -1059,10 +1069,66 @@ export default function InicioPanel({ teamData, session, today }: { teamData: an
         </div>
       </AnimateOnScroll>
 
-      {/* Variación Semanal ACWR Chart */}
+      {/* Variación Semanal Subjetiva Chart */}
       <AnimateOnScroll delay={450}>
+        <div style={{ background: 'var(--ink2)', border: '1px solid var(--mist)', borderRadius: 16, padding: 20, position: 'relative', marginBottom: 24 }}>
+          <CuadroHeader title="VARIACIÓN SEMANAL DE LA CARGA (SUBJETIVA)" subtitle="Fluctuación vs Semana Anterior (Datos RPE)" icon="📊" description="Porcentaje de cambio semanal de la Carga UCE (RPE × Minutos × NE). Rango normal de -15% a +15%." />
+          
+          {uceVarData.length > 0 ? (
+            <>
+              <div style={{ display:'flex', gap:16, marginTop:20, fontSize:11, color:'var(--silver)', justifyContent: 'center' }}>
+                <div style={{ display:'flex', alignItems:'center', gap:6 }}><div style={{ width:12, height:12, background:'#facc15', borderRadius:2 }}/> Carga (UCE)</div>
+              </div>
+
+            <div style={{ height: 260, width: '100%', marginTop: 20 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={uceVarData} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                  <XAxis dataKey="name" stroke="var(--fog)" fontSize={11} tickLine={false} axisLine={false} />
+                  <YAxis stroke="var(--fog)" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(v) => `${v}%`} />
+                  
+                  {/* Zonas Normales (-15 a 15) */}
+                  <defs>
+                    <linearGradient id="colorNormalUCE" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#22c55e" stopOpacity={0.05}/>
+                      <stop offset="100%" stopColor="#22c55e" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+
+                  <Tooltip contentStyle={{ background:'rgba(8,8,8,0.9)', border:'1px solid var(--mist)', borderRadius:8, fontSize:12 }}
+                           itemStyle={{ color:'var(--snow)', fontWeight:700 }}
+                           labelStyle={{ color:'var(--silver)', marginBottom:4 }}
+                           formatter={(val: number) => {
+                             return [<span style={{color:'#facc15'}}>{val > 0 ? `+${val}` : val}%</span>, 'Carga UCE']
+                           }}
+                           labelFormatter={(label) => `Semana ${label.replace('S','')}`}
+                  />
+                  
+                  <Area type="monotone" dataKey="var" stroke="#facc15" strokeWidth={3} fillOpacity={0} activeDot={{ r: 6, fill: '#facc15' }} />
+                  
+                  {/* Reference lines for bounds */}
+                  <rect x="0" y="0" width="100%" height="100%" fill="url(#colorNormalUCE)" />
+                  <line x1="0" y1="50%" x2="100%" y2="50%" stroke="rgba(255,255,255,0.1)" strokeWidth={1} />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+            
+            <div style={{ display:'flex', gap:16, marginTop:16, fontSize:10, color:'var(--fog)', justifyContent: 'center' }}>
+              <div style={{ display:'flex', alignItems:'center', gap:6 }}><div style={{ width:8, height:8, background:'#22c55e', borderRadius:2 }}/> -15% a +15%: Sweet Spot (Normal)</div>
+            </div>
+            </>
+          ) : (
+            <div style={{ padding: 40, textAlign: 'center', color: 'var(--silver)' }}>
+              Faltan datos de RPE para generar el gráfico de variación semanal.
+            </div>
+          )}
+        </div>
+      </AnimateOnScroll>
+
+      {/* Variación Semanal GPS Chart */}
+      <AnimateOnScroll delay={550}>
         <div style={{ background: 'var(--ink2)', border: '1px solid var(--mist)', borderRadius: 16, padding: 20, position: 'relative' }}>
-          <CuadroHeader title="VARIACIÓN SEMANAL DE LA CARGA" subtitle="Fluctuación vs Semana Anterior" icon="📊" description="Porcentaje de cambio semanal en Distancia Total (Locomotora) y Σ ACC/DEC >3m/s² (Mecánica). Rango normal de -15% a +15%." />
+          <CuadroHeader title="VARIACIÓN SEMANAL DE LA CARGA (GPS)" subtitle="Fluctuación vs Semana Anterior (Datos GPS)" icon="📊" description="Porcentaje de cambio semanal en Distancia Total (Locomotora) y Σ ACC/DEC >3m/s² (Mecánica). Rango normal de -15% a +15%." />
           
           {acwrData.length > 0 ? (
             <>
@@ -1080,7 +1146,7 @@ export default function InicioPanel({ teamData, session, today }: { teamData: an
                   
                   {/* Zonas Normales (-15 a 15) */}
                   <defs>
-                    <linearGradient id="colorNormal" x1="0" y1="0" x2="0" y2="1">
+                    <linearGradient id="colorNormalGPS" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="0%" stopColor="#22c55e" stopOpacity={0.05}/>
                       <stop offset="100%" stopColor="#22c55e" stopOpacity={0}/>
                     </linearGradient>
@@ -1101,7 +1167,7 @@ export default function InicioPanel({ teamData, session, today }: { teamData: an
                   <Area type="monotone" dataKey="mec" stroke="#ef4444" strokeWidth={3} fillOpacity={0} activeDot={{ r: 6, fill: '#ef4444' }} />
                   
                   {/* Reference lines for bounds */}
-                  <rect x="0" y="0" width="100%" height="100%" fill="url(#colorNormal)" />
+                  <rect x="0" y="0" width="100%" height="100%" fill="url(#colorNormalGPS)" />
                   <line x1="0" y1="50%" x2="100%" y2="50%" stroke="rgba(255,255,255,0.1)" strokeWidth={1} />
                 </AreaChart>
               </ResponsiveContainer>
