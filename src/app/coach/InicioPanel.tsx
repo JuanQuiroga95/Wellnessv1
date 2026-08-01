@@ -188,6 +188,7 @@ export default function InicioPanel({ teamData, session, today }: { teamData: an
                    rpe: rpe_real ? Math.round(rpe_real * 10) / 10 : Math.round(rpe_obj * 10) / 10
                  }
               }
+            }
           }
         })
         
