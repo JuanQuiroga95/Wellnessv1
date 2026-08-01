@@ -5,8 +5,8 @@ import { PanelHeader, Icons } from './Headers'
 const STATUS_COLOR: Record<string,string> = { optimo:'#22c55e', precaucion:'#f59e0b', peligro:'#ef4444', peligro_bajo:'#3b82f6', sin_datos:'#555' }
 const STATUS_LABEL: Record<string,string> = { optimo:'ÓPTIMO', precaucion:'PRECAUCIÓN', peligro:'RIESGO ALTO', peligro_bajo:'CARGA BAJA', sin_datos:'Sin datos' }
 
-export default function VinculacionesPanel({ teamData }: { teamData: any[] }) {
-  const [jugadorId, setJugadorId] = useState<number|null>(null)
+export default function VinculacionesPanel({ teamData, initialPlayerId }: { teamData: any[], initialPlayerId?: number | null }) {
+  const [jugadorId, setJugadorId] = useState<number|null>(initialPlayerId || null)
   const [dias, setDias] = useState(90)
   const [data, setData] = useState<any>(null)
   const [teamRisk, setTeamRisk] = useState<any[]>([])

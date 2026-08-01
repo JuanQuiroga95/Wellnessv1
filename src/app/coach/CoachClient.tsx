@@ -722,6 +722,7 @@ function BibliotecaPanel({ canchasList }: { canchasList: any[] }) {
 export default function CoachDashboard({ isPanama, session, teamData, today }: any) {
   const [tab, setTab] = useState('inicio')
   const [selected, setSelected] = useState(null)
+  const [acwrPlayerId, setAcwrPlayerId] = useState<number|null>(null)
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [openGroups, setOpenGroups] = useState({'General':true, 'Control de Carga':true, 'Análisis':true, 'Evaluaciones':true, 'Médico':true, 'Instalaciones':true, 'Recursos':true, 'Configuración':true})
   const [playerLogs, setPlayerLogs] = useState([])
@@ -1127,7 +1128,7 @@ export default function CoachDashboard({ isPanama, session, teamData, today }: a
         {tab==='tactica' && <TacticaPanel teamData={teamData} session={session} today={todayLocal()} />}
         {tab==='lesiones' && <EnfermeriaPanel teamData={teamData} onRefresh={()=>router.refresh()} />}
         {tab==='gps' && <GpsPanel teamData={teamData} />}
-        {tab==='vinculaciones' && <VinculacionesPanel teamData={teamData} />}
+        {tab==='vinculaciones' && <VinculacionesPanel teamData={teamData} initialPlayerId={acwrPlayerId} />}
         {tab==='canchas' && <CanchasPanel />}
 
         {tab==='manual' && <ManualPanel />}
@@ -1505,57 +1506,30 @@ function PlayerDetail({ isPanama, player:p, logs, wellness, loading, onBack, cic
       )}
 
       {!p.lesion && !loading && logs.length > 0 && (
-        <div style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:16, padding:20 }}>
-          <p style={{ fontSize:11, fontWeight:600, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:14 }}>Detalle últimos 7 días</p>
-          <div style={{ overflowX:'auto' }}>
-            <table className="wp-table" style={{ width:'100%', borderCollapse:'collapse', fontSize:12 }}>
-              <thead>
-                <tr style={{ background:'rgba(255,255,255,.03)' }}>
-                  {['MD','Fecha',acwrMetric.toUpperCase(),'ACWR','Estado'].map(h=>(
-                    <th key={h} style={{ padding:'7px 12px', color:'var(--silver)', fontWeight:600, textTransform:'uppercase', fontSize:9, letterSpacing:'0.06em', textAlign:'center', whiteSpace:'nowrap' }}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {buildDailyDetail(logs.map(l=>({fecha:String(l.fecha),carga_ua:Number(l.carga_ua)||0,carga_uce:(l as any).carga_uce??null})), acwrMetric, ausenciaSet).map((row,i)=>{
-                  const SC2={optimo:'#22c55e',precaucion:'#f59e0b',peligro:'#ef4444',peligro_bajo:'#3b82f6',sin_datos:'#444'}
-                  const SL2={optimo:'Óptimo',precaucion:'Precaución',peligro:'Riesgo alto',peligro_bajo:'Carga baja',sin_datos:'—'}
-                  const rowCol = row.ausente ? '#ef4444' : (SC2[row.status]||'#444')
-                  const dayLog = logs.find((l:any) => String(l.fecha) === row.date)
-                  const mdLabel = (dayLog as any)?.md_label || null
-                  const cargaUce = (dayLog as any)?.carga_uce ?? null
-                  const cargaShow = cargaUce !== null ? cargaUce : row.carga
-                  return (
-                    <tr key={i} style={{ borderTop:'1px solid var(--mist)', background: row.ausente ? 'rgba(239,68,68,.06)' : row.hasSesion ? 'transparent' : 'rgba(0,0,0,.2)' }}>
-                      <td style={{ padding:'8px 12px', textAlign:'center', fontWeight:700, color: row.ausente ? '#f87171' : mdLabel?'var(--lime)':'var(--silver)', fontFamily:'DM Mono,monospace', fontSize:11 }}>
-                        {row.ausente ? '✗ AUS' : (mdLabel || row.dia)}
-                      </td>
-                      <td style={{ padding:'8px 12px', textAlign:'center', fontFamily:'DM Mono,monospace', fontSize:11, color:'var(--fog)' }}>{row.date.slice(5)}</td>
-                      <td style={{ padding:'8px 12px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, color: row.ausente ? '#f87171' : row.hasSesion?'var(--lime)':'var(--fog)' }}>
-                        {row.ausente ? '0' : row.hasSesion ? cargaShow : '—'}
-                      </td>
-                      <td style={{ padding:'8px 12px', textAlign:'center', fontFamily:'DM Mono,monospace', fontWeight:700, color: rowCol }}>
-                        {row.ratio > 0 ? row.ratio.toFixed(2) : '—'}
-                      </td>
-                      <td style={{ padding:'8px 12px', textAlign:'center' }}>
-                        {row.ausente
-                          ? <span style={{ fontSize:10, padding:'3px 8px', borderRadius:20, background:'rgba(239,68,68,.15)', color:'#f87171', border:'1px solid rgba(239,68,68,.35)', fontWeight:600 }}>Ausente</span>
-                          : <span style={{ fontSize:10, padding:'3px 8px', borderRadius:20, background:`${rowCol}20`, color:rowCol, border:`1px solid ${rowCol}44`, fontWeight:600 }}>{SL2[row.status]||'—'}</span>
-                        }
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
+        <div style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:16, padding:20, display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:14 }}>
+          <div>
+            <p style={{ fontSize:11, fontWeight:600, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:6, margin:0 }}>Análisis de Carga (ACWR Ponderado)</p>
+            <div style={{ display:'flex', alignItems:'center', gap:8, marginTop:8 }}>
+              {(() => {
+                const acwrData = calcACWR(logs.map(l=>({fecha:String(l.fecha),carga_ua:Number(l.carga_ua)||0})), new Date(), acwrMetric, ausenciaSet)
+                const SC2:any={optimo:'#22c55e',precaucion:'#f59e0b',peligro:'#ef4444',peligro_bajo:'#3b82f6',sin_datos:'#444'}
+                return (
+                  <>
+                    <span style={{ fontSize:28, fontWeight:900, fontFamily:'DM Mono,monospace', color:SC2[acwrData.status]||'#fff', lineHeight:1 }}>
+                      {acwrData.ratio > 0 ? acwrData.ratio.toFixed(2) : '—'}
+                    </span>
+                    <span style={{ fontSize:12, padding:'4px 10px', borderRadius:20, background:`${SC2[acwrData.status]||'#444'}20`, color:SC2[acwrData.status]||'#fff', border:`1px solid ${SC2[acwrData.status]||'#444'}44`, fontWeight:700 }}>
+                      {acwrData.label||'—'}
+                    </span>
+                  </>
+                )
+              })()}
+            </div>
           </div>
-          <div style={{ marginTop:12, display:'flex', gap:12, flexWrap:'wrap' }}>
-            {[['#3b82f6','< 0.8 Carga baja'],['#22c55e','0.8–1.3 Óptimo'],['#f59e0b','1.3–1.5 Precaución'],['#ef4444','> 1.5 Riesgo / Ausente']].map(([c,l])=>(
-              <div key={l} style={{ display:'flex', alignItems:'center', gap:5, fontSize:10, color:'var(--silver)' }}>
-                <div style={{ width:8, height:8, borderRadius:2, background:c }} />{l}
-              </div>
-            ))}
-          </div>
+          <button className="hover-scale" onClick={() => { setAcwrPlayerId(p.jugador_id); setTab('vinculaciones') }}
+            style={{ padding:'12px 20px', borderRadius:12, background:'var(--lime)', color:'var(--ink)', border:'none', fontWeight:800, cursor:'pointer', fontSize:13, boxShadow:'0 4px 14px rgba(200,241,53,.3)' }}>
+            Ver Análisis Completo ➔
+          </button>
         </div>
       )}
       {lastW && (
