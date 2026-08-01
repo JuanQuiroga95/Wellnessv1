@@ -108,6 +108,20 @@ export function UceMesocicloChart({ data }: { data: any[] }) {
           </BarChart>
         </ResponsiveContainer>
       </div>
+      <div style={{ display: 'flex', justifyContent: 'center', flexWrap: 'wrap', gap: 16, marginTop: 12, fontSize: 11, fontWeight: 600 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{ width: 10, height: 10, borderRadius: 2, background: 'rgba(56, 189, 248, 0.7)' }}></span>
+          <span style={{ color: 'var(--silver)' }}>&lt; 100% BAJA CARGA</span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{ width: 10, height: 10, borderRadius: 2, background: 'rgba(34, 197, 94, 0.7)' }}></span>
+          <span style={{ color: 'var(--silver)' }}>100-150% MANTENIMIENTO</span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{ width: 10, height: 10, borderRadius: 2, background: 'rgba(239, 68, 68, 0.7)' }}></span>
+          <span style={{ color: 'var(--silver)' }}>&gt; 150% CARGA ALTA</span>
+        </div>
+      </div>
     </div>
   )
 }
@@ -173,6 +187,20 @@ export function UceSemanalChart({ data }: { data: any[] }) {
             </Bar>
           </BarChart>
         </ResponsiveContainer>
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'center', flexWrap: 'wrap', gap: 16, marginTop: 12, fontSize: 11, fontWeight: 600 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{ width: 10, height: 10, borderRadius: 2, background: 'rgba(56, 189, 248, 0.7)' }}></span>
+          <span style={{ color: 'var(--silver)' }}>&lt; 100% BAJA CARGA</span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{ width: 10, height: 10, borderRadius: 2, background: 'rgba(34, 197, 94, 0.7)' }}></span>
+          <span style={{ color: 'var(--silver)' }}>100-150% MANTENIMIENTO</span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{ width: 10, height: 10, borderRadius: 2, background: 'rgba(239, 68, 68, 0.7)' }}></span>
+          <span style={{ color: 'var(--silver)' }}>&gt; 150% CARGA ALTA</span>
+        </div>
       </div>
     </div>
   )
