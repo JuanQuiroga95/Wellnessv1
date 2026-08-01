@@ -52,12 +52,23 @@ const MesocicloLabel = (props: any) => {
   const ref = 9500 * 5 // 5 semanas de pretemporada
   const ratio = value / ref
   const pct = Math.round(ratio * 100)
-  const color = ratio < 1.2 ? '#4ade80' : ratio < 1.5 ? '#fbbf24' : '#f87171'
+  
+  let color = '#38bdf8' // celeste
+  let textLabel = 'Baja Carga'
+  if (pct >= 100 && pct <= 150) {
+    color = '#22c55e' // verde
+    textLabel = 'Mantenimiento'
+  } else if (pct > 150) {
+    color = '#ef4444' // rojo
+    textLabel = 'Carga Alta'
+  }
 
   return (
-    <g transform={`translate(${x + width / 2},${y - 5})`}>
-      <text x={0} y={-16} fill="#facc15" fontSize={11} fontWeight="bold" textAnchor="middle">{value.toLocaleString()}</text>
-      <text x={0} y={-3} fill={color} fontSize={10} fontWeight="bold" textAnchor="middle">{pct}%</text>
+    <g transform={`translate(${x + width / 2},${y - 28})`}>
+      <text x={0} y={-24} fill="#facc15" fontSize={14} fontWeight="900" textAnchor="middle">{value.toLocaleString()}</text>
+      <rect x={-22} y={-18} width={44} height={20} rx={10} fill={color} />
+      <text x={0} y={-4} fill="#fff" fontSize={11} fontWeight="bold" textAnchor="middle">{pct}%</text>
+      <text x={0} y={12} fill={color} fontSize={10} fontWeight="bold" textAnchor="middle">{textLabel}</text>
     </g>
   )
 }
@@ -70,16 +81,20 @@ export function UceMesocicloChart({ data }: { data: any[] }) {
       <CuadroHeader title="CARGA MESOCICLO (PRETEMPORADA)" subtitle="Suma de UCE de las primeras 5 semanas" icon="📅" />
       <div style={{ height: 260, marginTop: 20 }}>
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data} margin={{ top: 40, right: 0, left: -20, bottom: 0 }}>
+          <BarChart data={data} margin={{ top: 70, right: 0, left: -20, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
             <XAxis dataKey="name" stroke="var(--fog)" fontSize={11} tickLine={false} axisLine={false} />
             <YAxis stroke="var(--fog)" fontSize={11} tickLine={false} axisLine={false} />
             <Tooltip contentStyle={{ background:'var(--ink)', border:'1px solid var(--border)', borderRadius:8 }} />
             <Bar dataKey="uce_total" name="UCE Total" radius={[4,4,0,0]} maxBarSize={100}>
               <LabelList dataKey="uce_total" content={<MesocicloLabel />} />
-              {data.map((entry, index) => (
-                <Cell key={index} fill="rgba(59, 130, 246, 0.7)" /> // Azul
-              ))}
+              {data.map((entry, index) => {
+                const pct = Math.round((entry.uce_total / (9500 * 5)) * 100)
+                let barColor = 'rgba(56, 189, 248, 0.7)'
+                if (pct >= 100 && pct <= 150) barColor = 'rgba(34, 197, 94, 0.7)'
+                else if (pct > 150) barColor = 'rgba(239, 68, 68, 0.7)'
+                return <Cell key={index} fill={barColor} />
+              })}
             </Bar>
           </BarChart>
         </ResponsiveContainer>
@@ -94,12 +109,23 @@ const SemanalLabel = (props: any) => {
   const ref = 9500
   const ratio = value / ref
   const pct = Math.round(ratio * 100)
-  const color = ratio < 1.2 ? '#4ade80' : ratio < 1.5 ? '#fbbf24' : '#f87171'
+  
+  let color = '#38bdf8' // celeste
+  let textLabel = 'Baja Carga'
+  if (pct >= 100 && pct <= 150) {
+    color = '#22c55e' // verde
+    textLabel = 'Mantenimiento'
+  } else if (pct > 150) {
+    color = '#ef4444' // rojo
+    textLabel = 'Carga Alta'
+  }
 
   return (
-    <g transform={`translate(${x + width / 2},${y - 5})`}>
-      <text x={0} y={-16} fill="#facc15" fontSize={10} fontWeight="bold" textAnchor="middle">{value.toLocaleString()}</text>
-      <text x={0} y={-3} fill={color} fontSize={9} fontWeight="bold" textAnchor="middle">{pct}%</text>
+    <g transform={`translate(${x + width / 2},${y - 28})`}>
+      <text x={0} y={-24} fill="#facc15" fontSize={14} fontWeight="900" textAnchor="middle">{value.toLocaleString()}</text>
+      <rect x={-22} y={-18} width={44} height={20} rx={10} fill={color} />
+      <text x={0} y={-4} fill="#fff" fontSize={11} fontWeight="bold" textAnchor="middle">{pct}%</text>
+      <text x={0} y={12} fill={color} fontSize={10} fontWeight="bold" textAnchor="middle">{textLabel}</text>
     </g>
   )
 }
@@ -112,16 +138,20 @@ export function UceSemanalChart({ data }: { data: any[] }) {
       <CuadroHeader title="CARGA UCE SEMANAL" subtitle="Evolución semanal de carga" icon="⚡" />
       <div style={{ height: 260, marginTop: 20 }}>
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data} margin={{ top: 40, right: 0, left: -20, bottom: 0 }}>
+          <BarChart data={data} margin={{ top: 70, right: 0, left: -20, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
             <XAxis dataKey="name" stroke="var(--fog)" fontSize={11} tickLine={false} axisLine={false} />
             <YAxis stroke="var(--fog)" fontSize={11} tickLine={false} axisLine={false} />
             <Tooltip contentStyle={{ background:'var(--ink)', border:'1px solid var(--border)', borderRadius:8 }} />
             <Bar dataKey="uce_total" name="UCE Semanal" radius={[4,4,0,0]} maxBarSize={40}>
               <LabelList dataKey="uce_total" content={<SemanalLabel />} />
-              {data.map((entry, index) => (
-                <Cell key={index} fill="rgba(34, 197, 94, 0.7)" /> // Verde
-              ))}
+              {data.map((entry, index) => {
+                const pct = Math.round((entry.uce_total / 9500) * 100)
+                let barColor = 'rgba(56, 189, 248, 0.7)'
+                if (pct >= 100 && pct <= 150) barColor = 'rgba(34, 197, 94, 0.7)'
+                else if (pct > 150) barColor = 'rgba(239, 68, 68, 0.7)'
+                return <Cell key={index} fill={barColor} />
+              })}
             </Bar>
           </BarChart>
         </ResponsiveContainer>
@@ -129,3 +159,4 @@ export function UceSemanalChart({ data }: { data: any[] }) {
     </div>
   )
 }
+

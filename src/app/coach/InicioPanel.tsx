@@ -208,9 +208,8 @@ export default function InicioPanel({ teamData, session, today }: { teamData: an
            }
            weekMap[wStr].uce_total += (d.uce_total || 0)
         })
-        const weekArr = Object.keys(weekMap)
-           .sort((a,b) => parseInt(a.slice(1)) - parseInt(b.slice(1)))
-           .map(w => ({ name: w, uce_total: weekMap[w].uce_total, fecha: weekMap[w].fecha }))
+        const weekKeys = Object.keys(weekMap).sort((a,b) => parseInt(a.slice(1)) - parseInt(b.slice(1)))
+        const weekArr = weekKeys.map((w, index) => ({ name: `M${index + 1}`, uce_total: weekMap[w].uce_total, fecha: weekMap[w].fecha }))
 
         // Pretemporada (Primeras 5 semanas del dataset)
         const pretemporadaArr = weekArr.slice(0, 5)
