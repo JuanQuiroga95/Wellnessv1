@@ -202,7 +202,11 @@ export async function GET(req: NextRequest) {
       const jid = Number(jidStr)
       const playerLogs = rpeByPlayer[jid] || []
       for (const log of playerLogs) {
-        p.sesiones += 1; p.total_rpe += Number(log.rpe) || 0; p.total_ua += Number(log.carga_ua) || 0; p.minActivo += Number(log.duracion_min) || 0
+        p.sesiones += 1; p.total_ua += Number(log.carga_ua) || 0; p.minActivo += Number(log.duracion_min) || 0
+        if (log.tipo_sesion !== 'PARCIAL' && log.tipo_sesion !== 'READAPTACION') {
+          p.sesiones_rpe = (p.sesiones_rpe || 0) + 1
+          p.total_rpe = (p.total_rpe || 0) + (Number(log.rpe) || 0)
+        }
       }
       const playerLogDates = new Set(playerLogs.map((l: any) => l.fecha))
       for (const fecha of fechasConSesion) {
@@ -222,7 +226,7 @@ export async function GET(req: NextRequest) {
 
     const players = Object.values(byPlayer).map((p: any) => ({
       jugador_id: p.jugador_id, nombre: p.nombre, posicion: p.posicion, sesiones: p.sesiones,
-      rpe: p.sesiones > 0 ? Math.round((p.total_rpe / p.sesiones) * 10) / 10 : null,
+      rpe: p.sesiones_rpe > 0 ? Math.round((p.total_rpe / p.sesiones_rpe) * 10) / 10 : null,
       ua: p.sesiones > 0 ? Math.round(p.total_ua / p.sesiones) : null,
       ua_total: Math.round(p.total_ua), minActivo: p.minActivo, distTotal: Math.round(p.distTotal),
       distSprint: Math.round(p.distSprint), distMP: Math.round(p.distMP), distAcel: Math.round(p.distAcel),
@@ -238,7 +242,10 @@ export async function GET(req: NextRequest) {
     const avg = (field: string) => Math.round(activePlayers.reduce((s: number, p: any) => s + (p[field] || 0), 0) / n)
     const avgGps = (field: string) => Math.round(playersWithGps.reduce((s: number, p: any) => s + (p[field] || 0), 0) / nGps)
     const teamAvg = {
-      rpe: Math.round((activePlayers.reduce((s: number, p: any) => s + (p.rpe || 0), 0) / n) * 10) / 10,
+      rpe: (() => {
+        const validRpePlayers = activePlayers.filter((p: any) => p.rpe !== null)
+        return validRpePlayers.length ? Math.round((validRpePlayers.reduce((s: number, p: any) => s + p.rpe, 0) / validRpePlayers.length) * 10) / 10 : 0
+      })(),
       ua: avg('ua'), ua_total: avg('ua_total'), distTotal: avgGps('distTotal'), distSprint: avgGps('distSprint'),
       distMP: avgGps('distMP'), distAcel: avgGps('distAcel'), distDecel: avgGps('distDecel'),
       nSprints: avgGps('nSprints'), nAcel: avgGps('nAcel'), nDecel: avgGps('nDecel'), nAcel3: avgGps('nAcel3'), nDecel3: avgGps('nDecel3'), sesiones: avg('sesiones')
@@ -338,9 +345,10 @@ export async function GET(req: NextRequest) {
     const perSessionTeamAvg: Record<string, any> = {}
     for (const ses of sesionesInfo) {
       const ps = perSessionPlayers[ses.titulo] || []
-      const withRpe = ps.filter((p: any) => p.rpe !== null)
-      const withMin = ps.filter((p: any) => p.minActivo !== null)
-      const withUa  = ps.filter((p: any) => p.ua_total !== null)
+      const validPs = ps.filter((p: any) => p.tipo_sesion !== 'PARCIAL' && p.tipo_sesion !== 'READAPTACION')
+      const withRpe = validPs.filter((p: any) => p.rpe !== null)
+      const withMin = validPs.filter((p: any) => p.minActivo !== null)
+      const withUa  = validPs.filter((p: any) => p.ua_total !== null)
       perSessionTeamAvg[ses.titulo] = {
         rpe: withRpe.length ? Math.round(withRpe.reduce((s: number, p: any) => s + p.rpe, 0) / withRpe.length * 10) / 10 : null,
         minActivo: withMin.length ? Math.round(withMin.reduce((s: number, p: any) => s + p.minActivo, 0) / withMin.length) : null,
