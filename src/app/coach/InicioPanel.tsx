@@ -461,7 +461,10 @@ export default function InicioPanel({ teamData, session, today }: { teamData: an
                 name: w,
                 loc: w1 && w1.distTotal > 0 ? Math.round(((byWeek[w].distTotal - w1.distTotal) / w1.distTotal) * 100) : 0,
                 mec: w1 && w1.mec > 0 ? Math.round(((byWeek[w].mec - w1.mec) / w1.mec) * 100) : 0,
-                met: w1 && w1.met > 0 ? Math.round(((byWeek[w].met - w1.met) / w1.met) * 100) : 0
+                met: w1 && w1.met > 0 ? Math.round(((byWeek[w].met - w1.met) / w1.met) * 100) : 0,
+                locRaw: Math.round(byWeek[w].distTotal),
+                mecRaw: Math.round(byWeek[w].mec),
+                metRaw: Math.round(byWeek[w].met)
               }
             })
             setAcwrData(finalAcwr) // Include all weeks so chart doesn't disappear if only 1 week exists
@@ -504,7 +507,10 @@ export default function InicioPanel({ teamData, session, today }: { teamData: an
                 name: w,
                 loc: w1 && w1.distTotal > 0 ? Math.round(((byWeek[w].distTotal - w1.distTotal) / w1.distTotal) * 100) : 0,
                 mec: w1 && w1.mec > 0 ? Math.round(((byWeek[w].mec - w1.mec) / w1.mec) * 100) : 0,
-                met: w1 && w1.met > 0 ? Math.round(((byWeek[w].met - w1.met) / w1.met) * 100) : 0
+                met: w1 && w1.met > 0 ? Math.round(((byWeek[w].met - w1.met) / w1.met) * 100) : 0,
+                locRaw: Math.round(byWeek[w].distTotal),
+                mecRaw: Math.round(byWeek[w].mec),
+                metRaw: Math.round(byWeek[w].met)
               }
             })
             setAcwrCalcData(finalAcwrCalc)
@@ -1147,7 +1153,7 @@ export default function InicioPanel({ teamData, session, today }: { teamData: an
                     <Tooltip contentStyle={{ background:'rgba(8,8,8,0.9)', border:'1px solid var(--mist)', borderRadius:8, fontSize:12 }}
                              itemStyle={{ color:'var(--snow)', fontWeight:700 }}
                              labelStyle={{ color:'var(--silver)', marginBottom:4 }}
-                             formatter={(val: number) => [<span style={{color:'#3b82f6'}}>{val > 0 ? `+${val}` : val}%</span>, 'Locomotora']}
+                             formatter={(val: number, name: string, props: any) => [<span style={{color:'#3b82f6'}}>{val > 0 ? `+${val}` : val}% ({props.payload.locRaw} m)</span>, 'Locomotora']}
                              labelFormatter={(label) => `Semana ${label.replace('S','')}`}
                     />
                     <Area type="monotone" dataKey="loc" stroke="#3b82f6" strokeWidth={3} fillOpacity={0} activeDot={{ r: 4, fill: '#3b82f6' }} />
@@ -1168,7 +1174,7 @@ export default function InicioPanel({ teamData, session, today }: { teamData: an
                     <Tooltip contentStyle={{ background:'rgba(8,8,8,0.9)', border:'1px solid var(--mist)', borderRadius:8, fontSize:12 }}
                              itemStyle={{ color:'var(--snow)', fontWeight:700 }}
                              labelStyle={{ color:'var(--silver)', marginBottom:4 }}
-                             formatter={(val: number) => [<span style={{color:'#ef4444'}}>{val > 0 ? `+${val}` : val}%</span>, 'Mecánica']}
+                             formatter={(val: number, name: string, props: any) => [<span style={{color:'#ef4444'}}>{val > 0 ? `+${val}` : val}% ({props.payload.mecRaw})</span>, 'Mecánica']}
                              labelFormatter={(label) => `Semana ${label.replace('S','')}`}
                     />
                     <Area type="monotone" dataKey="mec" stroke="#ef4444" strokeWidth={3} fillOpacity={0} activeDot={{ r: 4, fill: '#ef4444' }} />
@@ -1189,7 +1195,7 @@ export default function InicioPanel({ teamData, session, today }: { teamData: an
                     <Tooltip contentStyle={{ background:'rgba(8,8,8,0.9)', border:'1px solid var(--mist)', borderRadius:8, fontSize:12 }}
                              itemStyle={{ color:'var(--snow)', fontWeight:700 }}
                              labelStyle={{ color:'var(--silver)', marginBottom:4 }}
-                             formatter={(val: number) => [<span style={{color:'#22c55e'}}>{val > 0 ? `+${val}` : val}%</span>, 'Metabólica']}
+                             formatter={(val: number, name: string, props: any) => [<span style={{color:'#22c55e'}}>{val > 0 ? `+${val}` : val}% ({props.payload.metRaw} m)</span>, 'Metabólica']}
                              labelFormatter={(label) => `Semana ${label.replace('S','')}`}
                     />
                     <Area type="monotone" dataKey="met" stroke="#22c55e" strokeWidth={3} fillOpacity={0} activeDot={{ r: 4, fill: '#22c55e' }} />
@@ -1245,7 +1251,7 @@ export default function InicioPanel({ teamData, session, today }: { teamData: an
                     <Tooltip contentStyle={{ background:'rgba(8,8,8,0.9)', border:'1px solid var(--mist)', borderRadius:8, fontSize:12 }}
                              itemStyle={{ color:'var(--snow)', fontWeight:700 }}
                              labelStyle={{ color:'var(--silver)', marginBottom:4 }}
-                             formatter={(val: number) => [<span style={{color:'#3b82f6'}}>{val > 0 ? `+${val}` : val}%</span>, 'Locomotora']}
+                             formatter={(val: number, name: string, props: any) => [<span style={{color:'#3b82f6'}}>{val > 0 ? `+${val}` : val}% ({props.payload.locRaw} m)</span>, 'Locomotora']}
                              labelFormatter={(label) => `Semana ${label.replace('S','')}`}
                     />
                     <Area type="monotone" dataKey="loc" stroke="#3b82f6" strokeWidth={3} fillOpacity={0} activeDot={{ r: 4, fill: '#3b82f6' }} />
@@ -1266,7 +1272,7 @@ export default function InicioPanel({ teamData, session, today }: { teamData: an
                     <Tooltip contentStyle={{ background:'rgba(8,8,8,0.9)', border:'1px solid var(--mist)', borderRadius:8, fontSize:12 }}
                              itemStyle={{ color:'var(--snow)', fontWeight:700 }}
                              labelStyle={{ color:'var(--silver)', marginBottom:4 }}
-                             formatter={(val: number) => [<span style={{color:'#ef4444'}}>{val > 0 ? `+${val}` : val}%</span>, 'Mecánica']}
+                             formatter={(val: number, name: string, props: any) => [<span style={{color:'#ef4444'}}>{val > 0 ? `+${val}` : val}% ({props.payload.mecRaw})</span>, 'Mecánica']}
                              labelFormatter={(label) => `Semana ${label.replace('S','')}`}
                     />
                     <Area type="monotone" dataKey="mec" stroke="#ef4444" strokeWidth={3} fillOpacity={0} activeDot={{ r: 4, fill: '#ef4444' }} />
@@ -1287,7 +1293,7 @@ export default function InicioPanel({ teamData, session, today }: { teamData: an
                     <Tooltip contentStyle={{ background:'rgba(8,8,8,0.9)', border:'1px solid var(--mist)', borderRadius:8, fontSize:12 }}
                              itemStyle={{ color:'var(--snow)', fontWeight:700 }}
                              labelStyle={{ color:'var(--silver)', marginBottom:4 }}
-                             formatter={(val: number) => [<span style={{color:'#22c55e'}}>{val > 0 ? `+${val}` : val}%</span>, 'Metabólica']}
+                             formatter={(val: number, name: string, props: any) => [<span style={{color:'#22c55e'}}>{val > 0 ? `+${val}` : val}% ({props.payload.metRaw} m)</span>, 'Metabólica']}
                              labelFormatter={(label) => `Semana ${label.replace('S','')}`}
                     />
                     <Area type="monotone" dataKey="met" stroke="#22c55e" strokeWidth={3} fillOpacity={0} activeDot={{ r: 4, fill: '#22c55e' }} />
