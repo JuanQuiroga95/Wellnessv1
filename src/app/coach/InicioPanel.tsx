@@ -98,6 +98,7 @@ export default function InicioPanel({ teamData, session, today }: { teamData: an
         const weekEnd = bounds.end
         
         const past120Days = addDays(today, -120)
+        const past14Days = addDays(today, -14)
         
         // Fetch Agenda (Last 120 days to today+1 for volume relativity)
         const mandRes = await fetch('/api/fuerza/mandamientos')
