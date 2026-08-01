@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react'
+﻿import React, { useState, useEffect } from 'react'
 import { getCuadrante, ENTRENAMIENTO_OPTIMIZADOR, ENTRENAMIENTO_COADYUVANTE } from './utils'
 import UceChart from './UceChart'
-import { UceSemanalKPI, UceMesocicloChart } from './UceExtendedCharts'
+import { UceSemanalChart, UceMesocicloChart } from './UceExtendedCharts'
 import { Icons, PanelHeader, CuadroHeader } from './Headers'
 import { AnimateOnScroll } from '@/components/AnimateOnScroll'
 import ACWRLineChart from '@/components/charts/ACWRLineChart'
@@ -81,6 +81,7 @@ export default function InicioPanel({ teamData, session, today }: { teamData: an
   const [todayDehydrated, setTodayDehydrated] = useState<any[]>([])
   const [acwrData, setAcwrData] = useState<any[]>([])
   const [acwrRatioData, setAcwrRatioData] = useState<any[]>([])
+  const [uceSemanalChartData, setUceSemanalChartData] = useState<any[]>([])
 
   const [uceChartData, setUceChartData] = useState<any[]>([])
   const [uceSemanalTotal, setUceSemanalTotal] = useState(0)
@@ -162,48 +163,85 @@ export default function InicioPanel({ teamData, session, today }: { teamData: an
             if (totalMin === 0) totalMin = 60
             sessionVolMap[ev.fecha.slice(0, 10)] = totalMin
             
-            if (ev.fecha >= weekStart && ev.fecha <= weekEnd) {
-              const label = ev.titulo || ev.fecha
-              const rpeValues = teamData.map(p => {
-                const log = (p.recentLogs || []).find((l:any) => l.fecha === ev.fecha && (!l.tipo_sesion || l.tipo_sesion === 'EQUIPO'))
-                return log ? Number(log.rpe) : null
-              }).filter(r => r !== null && !isNaN(r))
-              
-              const rpe_real = rpeValues.length ? (rpeValues.reduce((a,b)=>a+b, 0) / rpeValues.length) : null
-              const rpe_obj = Number(ev.rpe_objetivo) || 0
-              
-              // Use rpe_real if available, otherwise 0 for real values
-              const uce_real = rpe_real !== null ? Math.round(ce_total * rpe_real) : 0
-              const uce_obj = rpe_obj > 0 ? Math.round(ce_total * rpe_obj) : 0
-              
-              if (ce_total > 0) {
-                 uceDataMap[label] = {
-                   md: label,
-                   ce_total,
-                   uce_total: uce_real > 0 ? uce_real : uce_obj,
-                   uce_real,
-                   uce_obj,
-                   rpe_real: rpe_real ? Math.round(rpe_real * 10) / 10 : null,
-                   rpe_obj: Math.round(rpe_obj * 10) / 10,
-                   rpe: rpe_real ? Math.round(rpe_real * 10) / 10 : Math.round(rpe_obj * 10) / 10
-                 }
-              }
+            const label = ev.titulo || ev.fecha
+            const rpeValues = teamData.map(p => {
+              const log = (p.recentLogs || []).find((l:any) => l.fecha === ev.fecha && (!l.tipo_sesion || l.tipo_sesion === 'EQUIPO'))
+              return log ? Number(log.rpe) : null
+            }).filter(r => r !== null && !isNaN(r))
+            
+            const rpe_real = rpeValues.length ? (rpeValues.reduce((a,b)=>a+b, 0) / rpeValues.length) : null
+            const rpe_obj = Number(ev.rpe_objetivo) || 0
+            
+            const uce_real = rpe_real !== null ? Math.round(ce_total * rpe_real) : 0
+            const uce_obj = rpe_obj > 0 ? Math.round(ce_total * rpe_obj) : 0
+            
+            if (ce_total > 0) {
+               const key = ev.id || (ev.fecha + '-' + label)
+               uceDataMap[key] = {
+                 md: label,
+                 fecha: ev.fecha,
+                 ce_total,
+                 uce_total: uce_real > 0 ? uce_real : uce_obj,
+                 uce_real,
+                 uce_obj,
+                 rpe_real: rpe_real ? Math.round(rpe_real * 10) / 10 : null,
+                 rpe_obj: Math.round(rpe_obj * 10) / 10,
+                 rpe: rpe_real ? Math.round(rpe_real * 10) / 10 : Math.round(rpe_obj * 10) / 10
+               }
             }
           }
         })
         
         const allUceArr = Object.values(uceDataMap)
-        const uceSemanaData = allUceArr.filter(d => d.md >= weekStart && d.md <= weekEnd)
+        const uceSemanaData = allUceArr.filter(d => d.fecha >= weekStart && d.fecha <= weekEnd)
         setUceChartData(uceSemanaData)
-        setUceSemanalTotal(uceSemanaData.reduce((sum, d) => sum + (d.uce_real || 0), 0))
+        setUceSemanalTotal(uceSemanaData.reduce((sum, d) => sum + (d.uce_real > 0 ? d.uce_real : d.uce_obj), 0))
 
-        const mesoMap: Record<string, number> = {}
+        const weekMap: Record<string, { uce_total: number, fecha: string }> = {}
         allUceArr.forEach(d => {
-           const yyyymm = d.md.substring(0, 7)
-           mesoMap[yyyymm] = (mesoMap[yyyymm] || 0) + (d.uce_real || 0)
+           const date = new Date(d.fecha + 'T12:00:00Z')
+           const dObj = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+           const dayNum = dObj.getUTCDay() || 7;
+           dObj.setUTCDate(dObj.getUTCDate() + 4 - dayNum);
+           const yearStart = new Date(Date.UTC(dObj.getUTCFullYear(),0,1));
+           const wNum = Math.ceil((((dObj.getTime() - yearStart.getTime()) / 86400000) + 1)/7);
+           const wStr = 'S' + wNum
+           
+           if (!weekMap[wStr]) {
+             weekMap[wStr] = { uce_total: 0, fecha: d.fecha }
+           }
+           weekMap[wStr].uce_total += (d.uce_total || 0)
         })
-        const mesoArr = Object.keys(mesoMap).sort().map(m => ({ mes: m, uce_total: mesoMap[m] }))
-        setMesocicloData(mesoArr)
+        const weekArr = Object.keys(weekMap)
+           .sort((a,b) => parseInt(a.slice(1)) - parseInt(b.slice(1)))
+           .map(w => ({ name: w, uce_total: weekMap[w].uce_total, fecha: weekMap[w].fecha }))
+
+        // Pretemporada (Primeras 5 semanas del dataset)
+        const pretemporadaArr = weekArr.slice(0, 5)
+        setMesocicloData(pretemporadaArr)
+
+        // Data para grafico semanal de barras
+        setUceSemanalChartData(weekArr)
+
+        // ACWR basado en UCE (Frontend calc)
+        const acwrUceData = weekArr.map((w, i) => {
+          const acute = w.uce_total
+          let chronicSum = acute
+          let count = 1
+          for (let j = 1; j <= 3; j++) {
+            if (i - j >= 0) {
+              chronicSum += weekArr[i-j].uce_total
+              count++
+            }
+          }
+          const chronic = chronicSum / count
+          const ratio = chronic > 0 ? (acute / chronic) : 0
+          return {
+            name: w.name,
+            ratio: parseFloat(ratio.toFixed(4))
+          }
+        })
+        setAcwrRatioData(acwrUceData.filter(d => d.ratio > 0))
 
         let totalOptimizadorMin = 0
         let totalCoadyuvanteMin = 0
@@ -421,36 +459,7 @@ export default function InicioPanel({ teamData, session, today }: { teamData: an
           }
         }
 
-        // Fetch Team RPE ACWR
-        const acwrTeamRes = await fetch(`/api/acwr-equipo?t=${Date.now()}`)
-        if (acwrTeamRes.ok) {
-          const teamLogs = await acwrTeamRes.json()
-          if (Array.isArray(teamLogs)) {
-            const finalRatioData = teamLogs.map((weekData, i) => {
-              const acute = Number(weekData.avg_carga)
-              let chronicSum = acute;
-              let count = 1;
-              for (let j = 1; j <= 3; j++) {
-                if (i - j >= 0) {
-                  chronicSum += Number(teamLogs[i-j].avg_carga);
-                  count++;
-                }
-              }
-              const chronic = chronicSum / count;
-              const ratio = chronic > 0 ? (acute / chronic) : 0
-              
-              // Format date: '2024-07-15' -> '15 jul 24'
-              const dateObj = new Date(weekData.semana + 'T12:00:00Z')
-              const name = new Intl.DateTimeFormat('es-ES', { day: 'numeric', month: 'short', year: '2-digit' }).format(dateObj)
-              
-              return {
-                name,
-                ratio: parseFloat(ratio.toFixed(4))
-              }
-            })
-            setAcwrRatioData(finalRatioData.filter(d => d.ratio > 0))
-          }
-        }
+        // ACWR is now calculated locally in the frontend from allUceArr based on UCE.
       } catch (err) {
         console.error("Error fetching dashboard data", err)
       } finally {
@@ -516,6 +525,226 @@ export default function InicioPanel({ teamData, session, today }: { teamData: an
         </div>
       </AnimateOnScroll>
 
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 24 }}>
+        {/* Agenda Section */}
+        <AnimateOnScroll delay={500}>
+          <div style={{ background: 'var(--ink2)', border: '1px solid var(--mist)', borderRadius: 16, padding: 20, height: '100%', minHeight: 350 }}>
+            <CuadroHeader title="AGENDA" subtitle="Próximas actividades" icon={Icons.planificacion} description="Resumen de entrenamientos, partidos y eventos programados para hoy y mañana." />
+            
+            <div style={{ marginTop: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {/* HOY */}
+              <div>
+                <h4 style={{ margin: '0 0 12px 0', fontSize: 12, color: 'var(--silver)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Hoy</h4>
+                {loading ? <div style={{ color: 'var(--fog)', fontSize: 13 }}>Cargando...</div> : 
+                 agenda.hoy.length === 0 ? <div style={{ color: 'var(--fog)', fontSize: 13, padding: '12px', background: 'var(--ink3)', borderRadius: 8, border: '1px dashed var(--mist)' }}>Día Libre / Sin actividades</div> :
+                 agenda.hoy.map((e, i) => (
+                  <div key={i} style={{ 
+                    background: e.tipo === 'partido' ? 'linear-gradient(90deg, rgba(239,68,68,0.1), transparent)' : 'var(--ink3)', 
+                    border: `1px solid ${e.tipo === 'partido' ? '#ef444455' : 'var(--mist)'}`, 
+                    borderRadius: 8, padding: 16, display: 'flex', alignItems: 'center', gap: 16, marginBottom: 8 
+                  }}>
+                    <div style={{ fontSize: 24 }}>
+                      {e.tipo === 'partido' ? '⚽' : getObjetivoIcon(e.objetivo) || '🏃'}
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: e.tipo === 'partido' ? '#ef4444' : 'var(--snow)' }}>
+                        {e.titulo || (e.tipo === 'partido' ? 'Partido' : 'Entrenamiento')}
+                      </div>
+                      <div style={{ fontSize: 12, color: 'var(--fog)', marginTop: 4 }}>
+                        {e.hora_inicio ? e.hora_inicio.slice(0,5) : ''} {e.hora_inicio && e.hora_fin ? '-' : ''} {e.hora_fin ? e.hora_fin.slice(0,5) : ''}
+                      </div>
+                    </div>
+                  </div>
+                 ))
+                }
+              </div>
+
+              {/* MAÑANA */}
+              <div style={{ marginTop: 8 }}>
+                <h4 style={{ margin: '0 0 12px 0', fontSize: 12, color: 'var(--silver)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Mañana</h4>
+                {loading ? <div style={{ color: 'var(--fog)', fontSize: 13 }}>Cargando...</div> : 
+                 agenda.manana.length === 0 ? <div style={{ color: 'var(--fog)', fontSize: 13, padding: '12px', background: 'var(--ink3)', borderRadius: 8, border: '1px dashed var(--mist)' }}>Día Libre / Sin actividades</div> :
+                 agenda.manana.map((e, i) => (
+                  <div key={i} style={{ 
+                    background: e.tipo === 'partido' ? 'linear-gradient(90deg, rgba(239,68,68,0.1), transparent)' : 'var(--ink3)', 
+                    border: `1px solid ${e.tipo === 'partido' ? '#ef444455' : 'var(--mist)'}`, 
+                    borderRadius: 8, padding: 16, display: 'flex', alignItems: 'center', gap: 16, marginBottom: 8 
+                  }}>
+                    <div style={{ fontSize: 24, opacity: 0.7 }}>
+                      {e.tipo === 'partido' ? '⚽' : getObjetivoIcon(e.objetivo) || '🏃'}
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: e.tipo === 'partido' ? '#ef4444' : 'var(--snow)', opacity: 0.9 }}>
+                        {e.titulo || (e.tipo === 'partido' ? 'Partido' : 'Entrenamiento')}
+                      </div>
+                      <div style={{ fontSize: 12, color: 'var(--fog)', marginTop: 4 }}>
+                        {e.hora_inicio ? e.hora_inicio.slice(0,5) : ''} {e.hora_inicio && e.hora_fin ? '-' : ''} {e.hora_fin ? e.hora_fin.slice(0,5) : ''}
+                      </div>
+                    </div>
+                  </div>
+                 ))
+                }
+              </div>
+            </div>
+          </div>
+        </AnimateOnScroll>
+
+
+
+        {/* Alerts Section */}
+        {hasAlerts && (
+          <AnimateOnScroll delay={550}>
+            <div style={{ background: 'var(--ink2)', border: '1px solid var(--mist)', borderRadius: 16, padding: 20, height: '100%', minHeight: 350 }}>
+              <CuadroHeader title="ALERTAS DEL PLANTEL" subtitle="Novedades y avisos" icon={Icons.campana} description="Jugadores con rendimiento destacado o en riesgo de lesión por sobrecarga." />
+              <div style={{ marginTop: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
+                
+                {topPerformers.length >= 3 && (
+                  <>
+                    <details style={{ background: 'var(--ink3)', border: '1px solid var(--mist)', borderRadius: 8, overflow: 'hidden' }}>
+                      <summary style={{ padding: '12px 16px', fontSize: 13, fontWeight: 700, color: '#10b981', cursor: 'pointer', listStyle: 'none', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <span>🚀 TOP 3 HIGH WORKLOAD (GPS)</span>
+                        <span style={{ fontSize: 10, color: 'var(--silver)' }}>Ver listado ▼</span>
+                      </summary>
+                      <div style={{ padding: '0 16px 12px 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        {topPerformers.slice(0, 3).map((p, i) => (
+                          <div key={i} style={{ background: 'var(--ink2)', border: '1px solid rgba(16,185,129,0.2)', borderRadius: 8, padding: 10, display: 'flex', alignItems: 'center', gap: 12 }}>
+                            <div style={{ fontSize: 18 }}>🛰️</div>
+                            <div style={{ flex: 1 }}>
+                              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--snow)' }}>{p.nombre}</div>
+                              <div style={{ fontSize: 11, color: 'var(--silver)' }}>Distancia Total: <span style={{color: '#10b981', fontWeight: 600}}>{p.distTotal}m</span></div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </details>
+                    
+                    <details style={{ background: 'var(--ink3)', border: '1px solid var(--mist)', borderRadius: 8, overflow: 'hidden', marginTop: 12 }}>
+                      <summary style={{ padding: '12px 16px', fontSize: 13, fontWeight: 700, color: '#ef4444', cursor: 'pointer', listStyle: 'none', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <span>📉 TOP 3 LOW WORKLOAD (GPS)</span>
+                        <span style={{ fontSize: 10, color: 'var(--silver)' }}>Ver listado ▼</span>
+                      </summary>
+                      <div style={{ padding: '0 16px 12px 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        {[...topPerformers].slice(-3).reverse().map((p, i) => (
+                          <div key={i} style={{ background: 'var(--ink2)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 8, padding: 10, display: 'flex', alignItems: 'center', gap: 12 }}>
+                            <div style={{ fontSize: 18 }}>📉</div>
+                            <div style={{ flex: 1 }}>
+                              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--snow)' }}>{p.nombre}</div>
+                              <div style={{ fontSize: 11, color: 'var(--silver)' }}>Distancia Total: <span style={{color: '#ef4444', fontWeight: 600}}>{p.distTotal}m</span></div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </details>
+                  </>
+                )}
+
+                {upcomingBirthdays.length > 0 && (
+                  <div>
+                    <h4 style={{ margin: '0 0 12px 0', fontSize: 12, color: '#f59e0b', textTransform: 'uppercase', letterSpacing: '0.1em' }}>🎂 Próximos Cumpleaños</h4>
+                    {upcomingBirthdays.map((p, i) => (
+                      <div key={i} style={{ background: 'var(--ink3)', border: '1px solid rgba(245,158,11,0.2)', borderRadius: 8, padding: 12, display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+                        <div style={{ fontSize: 20 }}>🎉</div>
+                        <div>
+                          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--snow)' }}>{p.nombre}</div>
+                          <div style={{ fontSize: 11, color: 'var(--silver)', marginTop: 2 }}>
+                            {p.fecha_nacimiento.slice(5).replace('-','/')}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {readaptacionPlayers.length > 0 && (
+                  <div>
+                    <h4 style={{ margin: '0 0 12px 0', fontSize: 12, color: '#f87171', textTransform: 'uppercase', letterSpacing: '0.1em' }}>🏃 Readaptación (Fase Final)</h4>
+                    {readaptacionPlayers.map((p, i) => (
+                      <div key={i} style={{ background: 'var(--ink3)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 8, padding: 12, display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+                        <div style={{ fontSize: 20 }}>🔥</div>
+                        <div>
+                          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--snow)' }}>{p.nombre}</div>
+                          <div style={{ fontSize: 11, color: 'var(--silver)', marginTop: 2 }}>
+                            {p.lesion.tipo_lesion} - {p.lesion.zona}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {top3.length > 0 && (
+                  <div>
+                    <h4 style={{ margin: '0 0 12px 0', fontSize: 12, color: '#22c55e', textTransform: 'uppercase', letterSpacing: '0.1em' }}>🔥 TOP 3 ALTA CARGA (RPE)</h4>
+                    {top3.map((p, i) => (
+                      <div key={i} style={{ background: 'var(--ink3)', border: '1px solid rgba(34,197,94,0.2)', borderRadius: 8, padding: 12, display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+                        <div style={{ fontSize: 20 }}>🔥</div>
+                        <div>
+                          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--snow)' }}>{p.nombre}</div>
+                          <div style={{ fontSize: 11, color: 'var(--silver)', marginTop: 2 }}>Carga UA Semanal: <span style={{color: '#10b981', fontWeight: 600}}>{Math.round(p.totalCarga)}</span></div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {bottom3.length > 0 && (
+                  <div>
+                    <h4 style={{ margin: '0 0 12px 0', fontSize: 12, color: '#ef4444', textTransform: 'uppercase', letterSpacing: '0.1em' }}>⚠️ TOP 3 BAJA CARGA (RPE)</h4>
+                    {bottom3.map((p, i) => (
+                      <div key={i} style={{ background: 'var(--ink3)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 8, padding: 12, display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+                        <div style={{ fontSize: 20 }}>⚠️</div>
+                        <div>
+                          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--snow)' }}>{p.nombre}</div>
+                          <div style={{ fontSize: 11, color: 'var(--silver)', marginTop: 2 }}>Carga UA Semanal: <span style={{color: '#ef4444', fontWeight: 600}}>{Math.round(p.totalCarga)}</span></div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </AnimateOnScroll>
+        )}
+
+        {/* Charts Section */}
+        <AnimateOnScroll delay={600}>
+          <div style={{ background: 'var(--ink2)', border: '1px solid var(--mist)', borderRadius: 16, padding: 20, height: '100%', minHeight: 350, display: 'flex', flexDirection: 'column' }}>
+            <CuadroHeader title="TENDENCIA READINESS" subtitle="Últimos 7 días (Promedio Plantel)" icon={Icons.neuromuscular} description="Evolución del estado de recuperación, estrés, sueño y fatiga del equipo." />
+            <div style={{ width: '100%', flex: 1, minHeight: 160, marginTop: 16 }}>
+              {!loading && readinessData.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={readinessData} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="colorReadiness" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#22c55e" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="#22c55e" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--mist)" vertical={false} />
+                    <XAxis dataKey="name" stroke="var(--silver)" fontSize={10} tickLine={false} axisLine={false} />
+                    <YAxis stroke="var(--silver)" fontSize={10} tickLine={false} axisLine={false} domain={[0, 100]} />
+                    <Tooltip content={<CustomTooltip isReadiness={true} />} />
+                    <Area 
+                      isAnimationActive={true} 
+                      animationDuration={15000} 
+                      type="monotone" 
+                      dataKey="readiness" 
+                      stroke="#22c55e" 
+                      strokeWidth={3}
+                      fillOpacity={1} 
+                      fill="url(#colorReadiness)" 
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              ) : (
+                <div style={{ display: 'flex', height: '100%', alignItems: 'center', justifyContent: 'center', color: 'var(--fog)', fontSize: 13 }}>
+                  {loading ? 'Cargando...' : 'No hay datos recientes de readiness'}
+                </div>
+              )}
+            </div>
+          </div>
+        </AnimateOnScroll>
+      </div>
       {/* Alertas Rápidas: Deshidratación */}
       {todayDehydrated.length > 0 && (
         <AnimateOnScroll delay={200}>
@@ -802,19 +1031,19 @@ export default function InicioPanel({ teamData, session, today }: { teamData: an
         </div>
       </AnimateOnScroll>
 
-      {/* UCE Chart */}
+      {/* UCE Charts in User Requested Order */}
       <AnimateOnScroll delay={410}>
-        <div style={{ marginBottom: 20 }}>
-          <UceChart data={uceChartData} />
-        </div>
+        <UceMesocicloChart data={mesocicloData} />
       </AnimateOnScroll>
 
       <AnimateOnScroll delay={415}>
-        <UceSemanalKPI uceSemanal={uceSemanalTotal} />
+        <UceSemanalChart data={uceSemanalChartData} />
       </AnimateOnScroll>
       
       <AnimateOnScroll delay={418}>
-        <UceMesocicloChart data={mesocicloData} />
+        <div style={{ marginBottom: 20 }}>
+          <UceChart data={uceChartData} />
+        </div>
       </AnimateOnScroll>
 
       {/* Nuevo Gráfico de Análisis Semanal de la Carga (ACWR Ratio) */}
@@ -894,226 +1123,6 @@ export default function InicioPanel({ teamData, session, today }: { teamData: an
         </div>
       </AnimateOnScroll>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 24 }}>
-        {/* Agenda Section */}
-        <AnimateOnScroll delay={500}>
-          <div style={{ background: 'var(--ink2)', border: '1px solid var(--mist)', borderRadius: 16, padding: 20, height: '100%', minHeight: 350 }}>
-            <CuadroHeader title="AGENDA" subtitle="Próximas actividades" icon={Icons.planificacion} description="Resumen de entrenamientos, partidos y eventos programados para hoy y mañana." />
-            
-            <div style={{ marginTop: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
-              {/* HOY */}
-              <div>
-                <h4 style={{ margin: '0 0 12px 0', fontSize: 12, color: 'var(--silver)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Hoy</h4>
-                {loading ? <div style={{ color: 'var(--fog)', fontSize: 13 }}>Cargando...</div> : 
-                 agenda.hoy.length === 0 ? <div style={{ color: 'var(--fog)', fontSize: 13, padding: '12px', background: 'var(--ink3)', borderRadius: 8, border: '1px dashed var(--mist)' }}>Día Libre / Sin actividades</div> :
-                 agenda.hoy.map((e, i) => (
-                  <div key={i} style={{ 
-                    background: e.tipo === 'partido' ? 'linear-gradient(90deg, rgba(239,68,68,0.1), transparent)' : 'var(--ink3)', 
-                    border: `1px solid ${e.tipo === 'partido' ? '#ef444455' : 'var(--mist)'}`, 
-                    borderRadius: 8, padding: 16, display: 'flex', alignItems: 'center', gap: 16, marginBottom: 8 
-                  }}>
-                    <div style={{ fontSize: 24 }}>
-                      {e.tipo === 'partido' ? '⚽' : getObjetivoIcon(e.objetivo) || '🏃'}
-                    </div>
-                    <div>
-                      <div style={{ fontSize: 14, fontWeight: 700, color: e.tipo === 'partido' ? '#ef4444' : 'var(--snow)' }}>
-                        {e.titulo || (e.tipo === 'partido' ? 'Partido' : 'Entrenamiento')}
-                      </div>
-                      <div style={{ fontSize: 12, color: 'var(--fog)', marginTop: 4 }}>
-                        {e.hora_inicio ? e.hora_inicio.slice(0,5) : ''} {e.hora_inicio && e.hora_fin ? '-' : ''} {e.hora_fin ? e.hora_fin.slice(0,5) : ''}
-                      </div>
-                    </div>
-                  </div>
-                 ))
-                }
-              </div>
-
-              {/* MAÑANA */}
-              <div style={{ marginTop: 8 }}>
-                <h4 style={{ margin: '0 0 12px 0', fontSize: 12, color: 'var(--silver)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Mañana</h4>
-                {loading ? <div style={{ color: 'var(--fog)', fontSize: 13 }}>Cargando...</div> : 
-                 agenda.manana.length === 0 ? <div style={{ color: 'var(--fog)', fontSize: 13, padding: '12px', background: 'var(--ink3)', borderRadius: 8, border: '1px dashed var(--mist)' }}>Día Libre / Sin actividades</div> :
-                 agenda.manana.map((e, i) => (
-                  <div key={i} style={{ 
-                    background: e.tipo === 'partido' ? 'linear-gradient(90deg, rgba(239,68,68,0.1), transparent)' : 'var(--ink3)', 
-                    border: `1px solid ${e.tipo === 'partido' ? '#ef444455' : 'var(--mist)'}`, 
-                    borderRadius: 8, padding: 16, display: 'flex', alignItems: 'center', gap: 16, marginBottom: 8 
-                  }}>
-                    <div style={{ fontSize: 24, opacity: 0.7 }}>
-                      {e.tipo === 'partido' ? '⚽' : getObjetivoIcon(e.objetivo) || '🏃'}
-                    </div>
-                    <div>
-                      <div style={{ fontSize: 14, fontWeight: 700, color: e.tipo === 'partido' ? '#ef4444' : 'var(--snow)', opacity: 0.9 }}>
-                        {e.titulo || (e.tipo === 'partido' ? 'Partido' : 'Entrenamiento')}
-                      </div>
-                      <div style={{ fontSize: 12, color: 'var(--fog)', marginTop: 4 }}>
-                        {e.hora_inicio ? e.hora_inicio.slice(0,5) : ''} {e.hora_inicio && e.hora_fin ? '-' : ''} {e.hora_fin ? e.hora_fin.slice(0,5) : ''}
-                      </div>
-                    </div>
-                  </div>
-                 ))
-                }
-              </div>
-            </div>
-          </div>
-        </AnimateOnScroll>
-
-
-
-        {/* Alerts Section */}
-        {hasAlerts && (
-          <AnimateOnScroll delay={550}>
-            <div style={{ background: 'var(--ink2)', border: '1px solid var(--mist)', borderRadius: 16, padding: 20, height: '100%', minHeight: 350 }}>
-              <CuadroHeader title="ALERTAS DEL PLANTEL" subtitle="Novedades y avisos" icon={Icons.campana} description="Jugadores con rendimiento destacado o en riesgo de lesión por sobrecarga." />
-              <div style={{ marginTop: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
-                
-                {topPerformers.length >= 3 && (
-                  <>
-                    <details style={{ background: 'var(--ink3)', border: '1px solid var(--mist)', borderRadius: 8, overflow: 'hidden' }}>
-                      <summary style={{ padding: '12px 16px', fontSize: 13, fontWeight: 700, color: '#10b981', cursor: 'pointer', listStyle: 'none', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <span>🚀 TOP 3 HIGH WORKLOAD (GPS)</span>
-                        <span style={{ fontSize: 10, color: 'var(--silver)' }}>Ver listado ▼</span>
-                      </summary>
-                      <div style={{ padding: '0 16px 12px 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-                        {topPerformers.slice(0, 3).map((p, i) => (
-                          <div key={i} style={{ background: 'var(--ink2)', border: '1px solid rgba(16,185,129,0.2)', borderRadius: 8, padding: 10, display: 'flex', alignItems: 'center', gap: 12 }}>
-                            <div style={{ fontSize: 18 }}>🛰️</div>
-                            <div style={{ flex: 1 }}>
-                              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--snow)' }}>{p.nombre}</div>
-                              <div style={{ fontSize: 11, color: 'var(--silver)' }}>Distancia Total: <span style={{color: '#10b981', fontWeight: 600}}>{p.distTotal}m</span></div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </details>
-                    
-                    <details style={{ background: 'var(--ink3)', border: '1px solid var(--mist)', borderRadius: 8, overflow: 'hidden', marginTop: 12 }}>
-                      <summary style={{ padding: '12px 16px', fontSize: 13, fontWeight: 700, color: '#ef4444', cursor: 'pointer', listStyle: 'none', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <span>📉 TOP 3 LOW WORKLOAD (GPS)</span>
-                        <span style={{ fontSize: 10, color: 'var(--silver)' }}>Ver listado ▼</span>
-                      </summary>
-                      <div style={{ padding: '0 16px 12px 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-                        {[...topPerformers].slice(-3).reverse().map((p, i) => (
-                          <div key={i} style={{ background: 'var(--ink2)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 8, padding: 10, display: 'flex', alignItems: 'center', gap: 12 }}>
-                            <div style={{ fontSize: 18 }}>📉</div>
-                            <div style={{ flex: 1 }}>
-                              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--snow)' }}>{p.nombre}</div>
-                              <div style={{ fontSize: 11, color: 'var(--silver)' }}>Distancia Total: <span style={{color: '#ef4444', fontWeight: 600}}>{p.distTotal}m</span></div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </details>
-                  </>
-                )}
-
-                {upcomingBirthdays.length > 0 && (
-                  <div>
-                    <h4 style={{ margin: '0 0 12px 0', fontSize: 12, color: '#f59e0b', textTransform: 'uppercase', letterSpacing: '0.1em' }}>🎂 Próximos Cumpleaños</h4>
-                    {upcomingBirthdays.map((p, i) => (
-                      <div key={i} style={{ background: 'var(--ink3)', border: '1px solid rgba(245,158,11,0.2)', borderRadius: 8, padding: 12, display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
-                        <div style={{ fontSize: 20 }}>🎉</div>
-                        <div>
-                          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--snow)' }}>{p.nombre}</div>
-                          <div style={{ fontSize: 11, color: 'var(--silver)', marginTop: 2 }}>
-                            {p.fecha_nacimiento.slice(5).replace('-','/')}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {readaptacionPlayers.length > 0 && (
-                  <div>
-                    <h4 style={{ margin: '0 0 12px 0', fontSize: 12, color: '#f87171', textTransform: 'uppercase', letterSpacing: '0.1em' }}>🏃 Readaptación (Fase Final)</h4>
-                    {readaptacionPlayers.map((p, i) => (
-                      <div key={i} style={{ background: 'var(--ink3)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 8, padding: 12, display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
-                        <div style={{ fontSize: 20 }}>🔥</div>
-                        <div>
-                          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--snow)' }}>{p.nombre}</div>
-                          <div style={{ fontSize: 11, color: 'var(--silver)', marginTop: 2 }}>
-                            {p.lesion.tipo_lesion} - {p.lesion.zona}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {top3.length > 0 && (
-                  <div>
-                    <h4 style={{ margin: '0 0 12px 0', fontSize: 12, color: '#22c55e', textTransform: 'uppercase', letterSpacing: '0.1em' }}>🔥 TOP 3 ALTA CARGA (RPE)</h4>
-                    {top3.map((p, i) => (
-                      <div key={i} style={{ background: 'var(--ink3)', border: '1px solid rgba(34,197,94,0.2)', borderRadius: 8, padding: 12, display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
-                        <div style={{ fontSize: 20 }}>🔥</div>
-                        <div>
-                          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--snow)' }}>{p.nombre}</div>
-                          <div style={{ fontSize: 11, color: 'var(--silver)', marginTop: 2 }}>Carga UA Semanal: <span style={{color: '#10b981', fontWeight: 600}}>{Math.round(p.totalCarga)}</span></div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {bottom3.length > 0 && (
-                  <div>
-                    <h4 style={{ margin: '0 0 12px 0', fontSize: 12, color: '#ef4444', textTransform: 'uppercase', letterSpacing: '0.1em' }}>⚠️ TOP 3 BAJA CARGA (RPE)</h4>
-                    {bottom3.map((p, i) => (
-                      <div key={i} style={{ background: 'var(--ink3)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 8, padding: 12, display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
-                        <div style={{ fontSize: 20 }}>⚠️</div>
-                        <div>
-                          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--snow)' }}>{p.nombre}</div>
-                          <div style={{ fontSize: 11, color: 'var(--silver)', marginTop: 2 }}>Carga UA Semanal: <span style={{color: '#ef4444', fontWeight: 600}}>{Math.round(p.totalCarga)}</span></div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          </AnimateOnScroll>
-        )}
-
-        {/* Charts Section */}
-        <AnimateOnScroll delay={600}>
-          <div style={{ background: 'var(--ink2)', border: '1px solid var(--mist)', borderRadius: 16, padding: 20, height: '100%', minHeight: 350, display: 'flex', flexDirection: 'column' }}>
-            <CuadroHeader title="TENDENCIA READINESS" subtitle="Últimos 7 días (Promedio Plantel)" icon={Icons.neuromuscular} description="Evolución del estado de recuperación, estrés, sueño y fatiga del equipo." />
-            <div style={{ width: '100%', flex: 1, minHeight: 160, marginTop: 16 }}>
-              {!loading && readinessData.length > 0 ? (
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={readinessData} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
-                    <defs>
-                      <linearGradient id="colorReadiness" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#22c55e" stopOpacity={0.3} />
-                        <stop offset="95%" stopColor="#22c55e" stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="var(--mist)" vertical={false} />
-                    <XAxis dataKey="name" stroke="var(--silver)" fontSize={10} tickLine={false} axisLine={false} />
-                    <YAxis stroke="var(--silver)" fontSize={10} tickLine={false} axisLine={false} domain={[0, 100]} />
-                    <Tooltip content={<CustomTooltip isReadiness={true} />} />
-                    <Area 
-                      isAnimationActive={true} 
-                      animationDuration={15000} 
-                      type="monotone" 
-                      dataKey="readiness" 
-                      stroke="#22c55e" 
-                      strokeWidth={3}
-                      fillOpacity={1} 
-                      fill="url(#colorReadiness)" 
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-              ) : (
-                <div style={{ display: 'flex', height: '100%', alignItems: 'center', justifyContent: 'center', color: 'var(--fog)', fontSize: 13 }}>
-                  {loading ? 'Cargando...' : 'No hay datos recientes de readiness'}
-                </div>
-              )}
-            </div>
-          </div>
-        </AnimateOnScroll>
-      </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 24, marginTop: 24 }}>
 

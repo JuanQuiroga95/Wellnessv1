@@ -49,7 +49,7 @@ export function UceSemanalKPI({ uceSemanal }: { uceSemanal: number }) {
 const MesocicloLabel = (props: any) => {
   const { x, y, width, value } = props
   if (value == null || value === 0) return null
-  const ref = 9500 * 4
+  const ref = 9500 * 5 // 5 semanas de pretemporada
   const ratio = value / ref
   const pct = Math.round(ratio * 100)
   const color = ratio < 1.2 ? '#4ade80' : ratio < 1.5 ? '#fbbf24' : '#f87171'
@@ -65,27 +65,62 @@ const MesocicloLabel = (props: any) => {
 export function UceMesocicloChart({ data }: { data: any[] }) {
   if (!data || data.length === 0) return null
 
-  const meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
-  const formattedData = data.map(d => {
-    const [yyyy, mm] = d.mes.split('-')
-    const shortName = `${meses[parseInt(mm, 10)-1]} ${yyyy.substring(2)}`
-    return { ...d, label: shortName }
-  })
+  return (
+    <div style={{ background: 'var(--ink2)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 16, padding: 20, marginBottom: 20 }}>
+      <CuadroHeader title="CARGA MESOCICLO (PRETEMPORADA)" subtitle="Suma de UCE de las primeras 5 semanas" icon="📅" />
+      <div style={{ height: 260, marginTop: 20 }}>
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={data} margin={{ top: 40, right: 0, left: -20, bottom: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+            <XAxis dataKey="name" stroke="var(--fog)" fontSize={11} tickLine={false} axisLine={false} />
+            <YAxis stroke="var(--fog)" fontSize={11} tickLine={false} axisLine={false} />
+            <Tooltip contentStyle={{ background:'var(--ink)', border:'1px solid var(--border)', borderRadius:8 }} />
+            <Bar dataKey="uce_total" name="UCE Total" radius={[4,4,0,0]} maxBarSize={100}>
+              <LabelList dataKey="uce_total" content={<MesocicloLabel />} />
+              {data.map((entry, index) => (
+                <Cell key={index} fill="rgba(59, 130, 246, 0.7)" /> // Azul
+              ))}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  )
+}
+
+const SemanalLabel = (props: any) => {
+  const { x, y, width, value } = props
+  if (value == null || value === 0) return null
+  const ref = 9500
+  const ratio = value / ref
+  const pct = Math.round(ratio * 100)
+  const color = ratio < 1.2 ? '#4ade80' : ratio < 1.5 ? '#fbbf24' : '#f87171'
+
+  return (
+    <g transform={`translate(${x + width / 2},${y - 5})`}>
+      <text x={0} y={-16} fill="#facc15" fontSize={10} fontWeight="bold" textAnchor="middle">{value.toLocaleString()}</text>
+      <text x={0} y={-3} fill={color} fontSize={9} fontWeight="bold" textAnchor="middle">{pct}%</text>
+    </g>
+  )
+}
+
+export function UceSemanalChart({ data }: { data: any[] }) {
+  if (!data || data.length === 0) return null
 
   return (
     <div style={{ background: 'var(--ink2)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 16, padding: 20, marginBottom: 20 }}>
-      <CuadroHeader title="CARGA UCE MESOCICLO" subtitle="Evolución mensual (Bloques de 4 semanas aprox.)" icon="📅" />
+      <CuadroHeader title="CARGA UCE SEMANAL" subtitle="Evolución semanal de carga" icon="⚡" />
       <div style={{ height: 260, marginTop: 20 }}>
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={formattedData} margin={{ top: 40, right: 0, left: -20, bottom: 0 }}>
+          <BarChart data={data} margin={{ top: 40, right: 0, left: -20, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-            <XAxis dataKey="label" stroke="var(--fog)" fontSize={11} tickLine={false} axisLine={false} />
+            <XAxis dataKey="name" stroke="var(--fog)" fontSize={11} tickLine={false} axisLine={false} />
             <YAxis stroke="var(--fog)" fontSize={11} tickLine={false} axisLine={false} />
             <Tooltip contentStyle={{ background:'var(--ink)', border:'1px solid var(--border)', borderRadius:8 }} />
-            <Bar dataKey="uce_total" name="UCE Mensual" radius={[4,4,0,0]} maxBarSize={60}>
-              <LabelList dataKey="uce_total" content={<MesocicloLabel />} />
-              {formattedData.map((entry, index) => (
-                <Cell key={index} fill="rgba(59, 130, 246, 0.7)" /> // Azul
+            <Bar dataKey="uce_total" name="UCE Semanal" radius={[4,4,0,0]} maxBarSize={40}>
+              <LabelList dataKey="uce_total" content={<SemanalLabel />} />
+              {data.map((entry, index) => (
+                <Cell key={index} fill="rgba(34, 197, 94, 0.7)" /> // Verde
               ))}
             </Bar>
           </BarChart>
