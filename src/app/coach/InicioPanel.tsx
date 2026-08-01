@@ -164,12 +164,8 @@ export default function InicioPanel({ teamData, session, today }: { teamData: an
             sessionVolMap[ev.fecha.slice(0, 10)] = totalMin
             
             const label = ev.titulo || ev.fecha
-            const rpeValues = teamData.map(p => {
-              const log = (p.recentLogs || []).find((l:any) => l.fecha === ev.fecha && (!l.tipo_sesion || !['PARCIAL', 'READAPTACION'].includes(l.tipo_sesion)))
-              return log ? Number(log.rpe) : null
-            }).filter(r => r !== null && !isNaN(r))
-            
-            const rpe_real = rpeValues.length ? (rpeValues.reduce((a,b)=>a+b, 0) / rpeValues.length) : null
+            const dbLog = (calData.logs || []).find((l:any) => l.fecha === ev.fecha)
+            const rpe_real = dbLog && dbLog.avg_rpe !== null && dbLog.avg_rpe !== undefined ? Number(dbLog.avg_rpe) : null
             const rpe_obj = Number(ev.rpe_objetivo) || 0
             
             const uce_real = rpe_real !== null ? Math.round(ce_total * rpe_real) : 0
