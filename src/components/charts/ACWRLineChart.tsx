@@ -32,30 +32,51 @@ const CustomizedLabel = (props: any) => {
 
 export default function ACWRLineChart({ data }: { data: any[] }) {
   return (
-    <ResponsiveContainer width="100%" height={260}>
-      <LineChart data={data} margin={{ top: 20, right: 20, left: -20, bottom: 5 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-        <XAxis dataKey="name" stroke="var(--fog)" fontSize={11} tickLine={false} axisLine={false} />
-        <YAxis domain={[0.5, 1.8]} stroke="var(--fog)" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(v) => v.toFixed(1)} />
-        <Tooltip content={<Tip />} cursor={{ stroke:'rgba(255,255,255,.05)', strokeWidth: 2 }} />
-        
-        {/* Sweet Spot area */}
-        <ReferenceArea y1={0.8} y2={1.3} fill="#22c55e" fillOpacity={0.08} />
-        <ReferenceLine y={1.3} stroke="#f59e0b" strokeDasharray="3 3" strokeWidth={1} opacity={0.5} />
-        <ReferenceLine y={0.8} stroke="#22c55e" strokeDasharray="3 3" strokeWidth={1} opacity={0.5} />
+    <div style={{ width: '100%' }}>
+      <ResponsiveContainer width="100%" height={260}>
+        <LineChart data={data} margin={{ top: 20, right: 20, left: -20, bottom: 5 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+          <XAxis dataKey="name" stroke="var(--fog)" fontSize={11} tickLine={false} axisLine={false} />
+          <YAxis domain={[0.5, 1.8]} stroke="var(--fog)" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(v) => v.toFixed(1)} />
+          <Tooltip content={<Tip />} cursor={{ stroke:'rgba(255,255,255,.05)', strokeWidth: 2 }} />
+          
+          {/* Sweet Spot area */}
+          <ReferenceArea y1={0.8} y2={1.3} fill="#22c55e" fillOpacity={0.08} />
+          <ReferenceLine y={1.3} stroke="#f59e0b" strokeDasharray="3 3" strokeWidth={1} opacity={0.5} />
+          <ReferenceLine y={0.8} stroke="#22c55e" strokeDasharray="3 3" strokeWidth={1} opacity={0.5} />
 
-        <Line 
-          isAnimationActive={true} 
-          animationDuration={1000} 
-          type="monotone" 
-          dataKey="ratio" 
-          stroke="#3b82f6" 
-          strokeWidth={2}
-          dot={{ r: 4, fill: '#3b82f6', strokeWidth: 2, stroke: 'var(--ink)' }}
-          activeDot={{ r: 6, fill: '#3b82f6' }}
-          label={<CustomizedLabel />}
-        />
-      </LineChart>
-    </ResponsiveContainer>
+          <Line 
+            isAnimationActive={true} 
+            animationDuration={1000} 
+            type="monotone" 
+            dataKey="ratio" 
+            stroke="#3b82f6" 
+            strokeWidth={2}
+            dot={{ r: 4, fill: '#3b82f6', strokeWidth: 2, stroke: 'var(--ink)' }}
+            activeDot={{ r: 6, fill: '#3b82f6' }}
+            label={<CustomizedLabel />}
+          />
+        </LineChart>
+      </ResponsiveContainer>
+      
+      <div style={{ display: 'flex', justifyContent: 'center', flexWrap: 'wrap', gap: '12px 20px', marginTop: 16, fontSize: 11, fontWeight: 600 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{ width: 10, height: 10, borderRadius: 2, background: '#38bdf8' }}></span>
+          <span style={{ color: 'var(--silver)' }}>&lt; 0.80 Carga insuficiente</span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{ width: 10, height: 10, borderRadius: 2, background: '#22c55e' }}></span>
+          <span style={{ color: 'var(--silver)' }}>0.80 - 1.29 Zona Segura</span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{ width: 10, height: 10, borderRadius: 2, background: '#f59e0b' }}></span>
+          <span style={{ color: 'var(--silver)' }}>1.30 - 1.49 Zona de Alerta</span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{ width: 10, height: 10, borderRadius: 2, background: '#ef4444' }}></span>
+          <span style={{ color: 'var(--silver)' }}>&ge; 1.50 Zona de Peligro</span>
+        </div>
+      </div>
+    </div>
   )
 }
