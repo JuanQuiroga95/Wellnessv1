@@ -49,7 +49,7 @@ export function UceSemanalKPI({ uceSemanal }: { uceSemanal: number }) {
 const MesocicloLabel = (props: any) => {
   const { x, y, width, value } = props
   if (value == null || value === 0) return null
-  const ref = 9500 * 5 // 5 semanas de pretemporada
+  const ref = 36000 // 4 partidos en el Mesociclo
   const ratio = value / ref
   const pct = Math.round(ratio * 100)
   
@@ -98,7 +98,7 @@ export function UceMesocicloChart({ data }: { data: any[] }) {
             <Bar dataKey="uce_total" name="UCE Total" radius={[4,4,0,0]} maxBarSize={100}>
               <LabelList dataKey="uce_total" content={<MesocicloLabel />} />
               {data.map((entry, index) => {
-                const pct = Math.round((entry.uce_total / (9500 * 5)) * 100)
+                const pct = Math.round((entry.uce_total / 36000) * 100)
                 let barColor = 'rgba(56, 189, 248, 0.7)'
                 if (pct >= 100 && pct <= 150) barColor = 'rgba(34, 197, 94, 0.7)'
                 else if (pct > 150) barColor = 'rgba(239, 68, 68, 0.7)'
