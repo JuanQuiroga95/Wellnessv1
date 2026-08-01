@@ -54,22 +54,31 @@ const MesocicloLabel = (props: any) => {
   const pct = Math.round(ratio * 100)
   
   let color = '#38bdf8' // celeste
-  let textLabel = 'Baja Carga'
+  let textLabel = 'BAJA CARGA'
   if (pct >= 100 && pct <= 150) {
     color = '#22c55e' // verde
-    textLabel = 'Mantenimiento'
+    textLabel = 'MANTENIMIENTO'
   } else if (pct > 150) {
     color = '#ef4444' // rojo
-    textLabel = 'Carga Alta'
+    textLabel = 'CARGA ALTA'
   }
 
+  const w = 120;
+  const h = 50;
+
   return (
-    <g transform={`translate(${x + width / 2},${y - 28})`}>
-      <text x={0} y={-24} fill="#facc15" fontSize={14} fontWeight="900" textAnchor="middle">{value.toLocaleString()}</text>
-      <rect x={-22} y={-18} width={44} height={20} rx={10} fill={color} />
-      <text x={0} y={-4} fill="#fff" fontSize={11} fontWeight="bold" textAnchor="middle">{pct}%</text>
-      <text x={0} y={12} fill={color} fontSize={10} fontWeight="bold" textAnchor="middle">{textLabel}</text>
-    </g>
+    <foreignObject x={x + width / 2 - w / 2} y={y - h - 5} width={w} height={h} style={{ overflow: 'visible' }}>
+      <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', paddingBottom: 2 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+           <span style={{ fontSize: 13, fontWeight: 900, color: '#facc15' }}>{value.toLocaleString()}</span>
+           <span style={{ fontSize: 10, fontWeight: 900, color: color, border: `2px solid ${color}`, borderRadius: '50%', width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{pct}%</span>
+        </div>
+        <div style={{ fontSize: 8, fontWeight: 900, color: color, padding: '3px 8px', borderRadius: 12, border: `1px solid ${color}`, letterSpacing: 0.5, display: 'flex', alignItems: 'center', gap: 4 }}>
+          <span style={{ width: 4, height: 4, borderRadius: 2, background: color }}></span>
+          {textLabel}
+        </div>
+      </div>
+    </foreignObject>
   )
 }
 
@@ -111,22 +120,31 @@ const SemanalLabel = (props: any) => {
   const pct = Math.round(ratio * 100)
   
   let color = '#38bdf8' // celeste
-  let textLabel = 'Baja Carga'
+  let textLabel = 'BAJA CARGA'
   if (pct >= 100 && pct <= 150) {
     color = '#22c55e' // verde
-    textLabel = 'Mantenimiento'
+    textLabel = 'MANTENIMIENTO'
   } else if (pct > 150) {
     color = '#ef4444' // rojo
-    textLabel = 'Carga Alta'
+    textLabel = 'CARGA ALTA'
   }
 
+  const w = 120;
+  const h = 50;
+
   return (
-    <g transform={`translate(${x + width / 2},${y - 28})`}>
-      <text x={0} y={-24} fill="#facc15" fontSize={14} fontWeight="900" textAnchor="middle">{value.toLocaleString()}</text>
-      <rect x={-22} y={-18} width={44} height={20} rx={10} fill={color} />
-      <text x={0} y={-4} fill="#fff" fontSize={11} fontWeight="bold" textAnchor="middle">{pct}%</text>
-      <text x={0} y={12} fill={color} fontSize={10} fontWeight="bold" textAnchor="middle">{textLabel}</text>
-    </g>
+    <foreignObject x={x + width / 2 - w / 2} y={y - h - 5} width={w} height={h} style={{ overflow: 'visible' }}>
+      <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', paddingBottom: 2 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+           <span style={{ fontSize: 13, fontWeight: 900, color: '#facc15' }}>{value.toLocaleString()}</span>
+           <span style={{ fontSize: 10, fontWeight: 900, color: color, border: `2px solid ${color}`, borderRadius: '50%', width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{pct}%</span>
+        </div>
+        <div style={{ fontSize: 8, fontWeight: 900, color: color, padding: '3px 8px', borderRadius: 12, border: `1px solid ${color}`, letterSpacing: 0.5, display: 'flex', alignItems: 'center', gap: 4 }}>
+          <span style={{ width: 4, height: 4, borderRadius: 2, background: color }}></span>
+          {textLabel}
+        </div>
+      </div>
+    </foreignObject>
   )
 }
 
