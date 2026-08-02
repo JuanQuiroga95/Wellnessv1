@@ -82,3 +82,31 @@ export async function DELETE(req: NextRequest) {
   await sql`DELETE FROM pfv_puntos WHERE id = ${id}`
   return NextResponse.json({ ok: true })
 }
+
+export async function PUT(req: NextRequest) {
+  const s = await getSessionFromRequest(req)
+  if (!s) return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
+  const b = await req.json()
+  const { id, carga_kg, velocidad_ms, altura_salto_m, notas } = b
+  if (!id || carga_kg == null) return NextResponse.json({ error: 'Datos incompletos' }, { status: 400 })
+  const sql = getDb()
+  try {
+    await sql`UPDATE pfv_puntos SET 
+      carga_kg = ${carga_kg},
+      velocidad_ms = ${velocidad_ms ?? null},
+      altura_salto_m = ${altura_salto_m ?? null},
+      notas = ${notas ?? null}
+      WHERE id = ${id}`
+    return NextResponse.json({ ok: true })
+  } catch (e: any) {
+    if (String(e).includes('altura_salto_m')) {
+      await sql`UPDATE pfv_puntos SET 
+        carga_kg = ${carga_kg},
+        velocidad_ms = ${velocidad_ms ?? null},
+        notas = ${notas ?? null}
+        WHERE id = ${id}`
+      return NextResponse.json({ ok: true })
+    }
+    return NextResponse.json({ error: String(e).slice(0, 200) }, { status: 500 })
+  }
+}

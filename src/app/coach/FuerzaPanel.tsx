@@ -456,7 +456,7 @@ export default function FuerzaPanel({ teamData, session }: { teamData: any[], se
               <div>
                 <label style={{ display:'block', fontSize:12, color:'var(--silver)', marginBottom:4 }}>1. Elige un Mandamiento</label>
                 <select 
-                  value={selectedMandamiento} onChange={e => setSelectedMandamiento(e.target.value)}
+                  value={selectedMandamiento} onChange={e => { setSelectedMandamiento(e.target.value); setSelectedEjercicio('') }}
                   style={{ width:'100%', background:'var(--ink3)', border:'1px solid var(--mist)', borderRadius:8, padding:'10px', color:'var(--snow)' }} required
                 >
                   <option value="">Selecciona el mandamiento...</option>
@@ -473,7 +473,7 @@ export default function FuerzaPanel({ teamData, session }: { teamData: any[], se
                   style={{ width:'100%', background:'var(--ink3)', border:'1px solid var(--mist)', borderRadius:8, padding:'10px', color:'var(--snow)' }} required
                 >
                   <option value="">Selecciona un ejercicio del catálogo...</option>
-                  {ejercicios.map(e => (
+                  {(selectedMandamiento ? ejercicios.filter(e => String(e.mandamiento_id) === selectedMandamiento) : ejercicios).map(e => (
                     <option key={e.id} value={e.id}>{e.nombre}</option>
                   ))}
                 </select>
@@ -535,7 +535,7 @@ export default function FuerzaPanel({ teamData, session }: { teamData: any[], se
                               <div key={r.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', background:'var(--ink3)', padding:'10px', borderRadius:6 }}>
                                 <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
                                   {r.ejercicio_imagen_url && (
-                                    <img src={r.ejercicio_imagen_url} alt={r.ejercicio_nombre} style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 4, border: '1px solid var(--mist)' }} />
+                                    <img src={r.ejercicio_imagen_url} alt={r.ejercicio_nombre} style={{ width: 64, height: 64, objectFit: 'cover', borderRadius: 6, border: '1px solid var(--mist)' }} />
                                   )}
                                   <div>
                                     <div style={{ fontSize:14, fontWeight:600, color:'var(--snow)' }}>{r.ejercicio_nombre}</div>
@@ -547,8 +547,8 @@ export default function FuerzaPanel({ teamData, session }: { teamData: any[], se
                                     </div>
                                   </div>
                                 </div>
-                                <button onClick={() => handleBorrarRutina(r.id)} className="hover-scale" style={{ background:'transparent', border:'none', color:'#ef4444', cursor:'pointer' }}>
-                                  {Icons.Trash}
+                                <button onClick={() => handleBorrarRutina(r.id)} className="hover-scale" style={{ background:'transparent', border:'none', color:'#ef4444', cursor:'pointer', width:16, height:16, padding:0, display:'flex', alignItems:'center', justifyContent:'center', opacity:0.7 }}>
+                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14H7L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
                                 </button>
                               </div>
                             ))}

@@ -1410,6 +1410,8 @@ function PFVPanel({ jugador }: { jugador: Jugador }) {
 
   useEffect(() => { load() }, [load])
 
+  const [editForm, setEditForm] = useState<any>(null)
+
   const sesActual = sesiones.find(s => s.sesion_id === activeSesion)
   const puntos: { id: number; carga: number; vel: number; altura_salto_m?: number; notas?: string }[] = sesActual?.puntos ?? []
 
@@ -1537,10 +1539,29 @@ function PFVPanel({ jugador }: { jugador: Jugador }) {
     load()
   }
 
+  const handleUpdatePunto = async () => {
+    if (!editForm) return
+    setSaving(true)
+    await fetch('/api/evaluaciones/pfv', {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id: editForm.id,
+        carga_kg: Number(editForm.carga_kg),
+        velocidad_ms: mode === 'velocidad' ? Number(editForm.velocidad_ms) : null,
+        altura_salto_m: mode === 'salto' ? Number(editForm.altura_salto_m) : null,
+        notas: editForm.notas || null,
+      }),
+    })
+    setSaving(false)
+    setEditForm(null)
+    load()
+  }
+
   const handleDeletePunto = async (id: number) => {
     await fetch(`/api/evaluaciones/pfv?id=${id}`, { method: 'DELETE' })
     load()
   }
+
 
   const handleCreateSesion = async () => {
     if (!newSesNombre.trim()) return
@@ -1788,26 +1809,66 @@ function PFVPanel({ jugador }: { jugador: Jugador }) {
               </tr>
             </thead>
             <tbody>
-              {mode === 'salto' ? jumpData.map((d: any, i: number) => (
+              {mode === 'salto' ? jumpData.map((d: any, i: number) => {
+                const isEditing = editForm?.id === d.id
+                return (
                 <tr key={d.id || i} style={{ borderBottom: '1px solid #0f172a' }}>
-                  <td style={{ padding: '7px 8px', fontWeight: 700, color: '#a3e635' }}>{d.carga} kg</td>
+                  <td style={{ padding: '7px 8px', fontWeight: 700, color: '#a3e635' }}>
+                    {isEditing ? <input value={editForm.carga_kg} onChange={e => setEditForm({...editForm, carga_kg: e.target.value})} style={{width:50, background:'#1e293b', border:'1px solid #334155', color:'#fff'}} /> : `${d.carga} kg`}
+                  </td>
                   <td style={{ padding: '7px 8px', color: '#94a3b8' }}>{d.masaTotal} kg</td>
-                  <td style={{ padding: '7px 8px', fontWeight: 700, color: '#06b6d4' }}>{(Number(d.altura_salto_m) || 0).toFixed(2)} m</td>
+                  <td style={{ padding: '7px 8px', fontWeight: 700, color: '#06b6d4' }}>
+                    {isEditing ? <input value={editForm.altura_salto_m} onChange={e => setEditForm({...editForm, altura_salto_m: e.target.value})} style={{width:50, background:'#1e293b', border:'1px solid #334155', color:'#fff'}} /> : `${(Number(d.altura_salto_m) || 0).toFixed(2)} m`}
+                  </td>
                   <td style={{ padding: '7px 8px', color: '#ef4444' }}>{d.v_mean.toFixed(2)} m/s</td>
                   <td style={{ padding: '7px 8px', color: '#f97316', fontWeight: 700 }}>{d.f_media.toFixed(0)} N</td>
                   <td style={{ padding: '7px 8px', color: '#22c55e' }}>{d.f_rel.toFixed(2)}</td>
                   <td style={{ padding: '7px 8px', color: '#3b82f6' }}>{d.p_watt.toFixed(0)}</td>
-                  <td style={{ padding: '7px 8px', color: '#64748b' }}>{d.notas ?? '—'}</td>
-                  <td style={{ padding: '7px 8px' }}><Btn onClick={() => handleDeletePunto(d.id)} variant="ghost" small>✕</Btn></td>
+                  <td style={{ padding: '7px 8px', color: '#64748b' }}>
+                    {isEditing ? <input value={editForm.notas || ''} onChange={e => setEditForm({...editForm, notas: e.target.value})} style={{width:80, background:'#1e293b', border:'1px solid #334155', color:'#fff'}} /> : (d.notas ?? '—')}
+                  </td>
+                  <td style={{ padding: '7px 8px', display:'flex', gap:4 }}>
+                    {isEditing ? (
+                      <>
+                        <Btn onClick={handleUpdatePunto} variant="ghost" small disabled={saving}>✓</Btn>
+                        <Btn onClick={() => setEditForm(null)} variant="ghost" small disabled={saving}>✕</Btn>
+                      </>
+                    ) : (
+                      <>
+                        <Btn onClick={() => setEditForm({ id: d.id, carga_kg: d.carga, altura_salto_m: d.altura_salto_m, notas: d.notas })} variant="ghost" small>✎</Btn>
+                        <Btn onClick={() => handleDeletePunto(d.id)} variant="ghost" small>✕</Btn>
+                      </>
+                    )}
+                  </td>
                 </tr>
-              )) : puntos.map((p: any) => (
+              )}) : puntos.map((p: any) => {
+                const isEditing = editForm?.id === p.id
+                return (
                 <tr key={p.id} style={{ borderBottom: '1px solid #0f172a' }}>
-                  <td style={{ padding: '8px 10px', fontWeight: 700, color: '#a3e635' }}>{p.carga} kg</td>
-                  <td style={{ padding: '8px 10px', fontWeight: 700, color: '#ef4444' }}>{p.vel} m/s</td>
-                  <td style={{ padding: '8px 10px', color: '#64748b' }}>{p.notas ?? '—'}</td>
-                  <td style={{ padding: '8px 10px' }}><Btn onClick={() => handleDeletePunto(p.id)} variant="ghost" small>✕</Btn></td>
+                  <td style={{ padding: '8px 10px', fontWeight: 700, color: '#a3e635' }}>
+                    {isEditing ? <input value={editForm.carga_kg} onChange={e => setEditForm({...editForm, carga_kg: e.target.value})} style={{width:50, background:'#1e293b', border:'1px solid #334155', color:'#fff'}} /> : `${p.carga} kg`}
+                  </td>
+                  <td style={{ padding: '8px 10px', fontWeight: 700, color: '#ef4444' }}>
+                    {isEditing ? <input value={editForm.velocidad_ms} onChange={e => setEditForm({...editForm, velocidad_ms: e.target.value})} style={{width:50, background:'#1e293b', border:'1px solid #334155', color:'#fff'}} /> : `${p.vel} m/s`}
+                  </td>
+                  <td style={{ padding: '8px 10px', color: '#64748b' }}>
+                    {isEditing ? <input value={editForm.notas || ''} onChange={e => setEditForm({...editForm, notas: e.target.value})} style={{width:80, background:'#1e293b', border:'1px solid #334155', color:'#fff'}} /> : (p.notas ?? '—')}
+                  </td>
+                  <td style={{ padding: '8px 10px', display:'flex', gap:4 }}>
+                    {isEditing ? (
+                      <>
+                        <Btn onClick={handleUpdatePunto} variant="ghost" small disabled={saving}>✓</Btn>
+                        <Btn onClick={() => setEditForm(null)} variant="ghost" small disabled={saving}>✕</Btn>
+                      </>
+                    ) : (
+                      <>
+                        <Btn onClick={() => setEditForm({ id: p.id, carga_kg: p.carga, velocidad_ms: p.vel, notas: p.notas })} variant="ghost" small>✎</Btn>
+                        <Btn onClick={() => handleDeletePunto(p.id)} variant="ghost" small>✕</Btn>
+                      </>
+                    )}
+                  </td>
                 </tr>
-              ))}
+              )})}
             </tbody>
           </table>
         )}

@@ -214,9 +214,22 @@ export default function InicioPanel({ teamData, session, today }: { teamData: an
         const weekKeys = Object.keys(weekMap).sort((a,b) => parseInt(a.slice(1)) - parseInt(b.slice(1)))
         const weekArr = weekKeys.map((w, index) => ({ name: `M${index + 1}`, uce_total: weekMap[w].uce_total, fecha: weekMap[w].fecha }))
 
-        // Pretemporada (Primeras 5 semanas del dataset)
-        const pretemporadaArr = weekArr.slice(0, 5)
-        setMesocicloData(pretemporadaArr)
+        // Mesociclo: group by calendar month
+        const monthMap: Record<string, { uce_total: number, fecha: string }> = {}
+        allUceArr.forEach(d => {
+          const monthKey = d.fecha.slice(0, 7) // YYYY-MM
+          if (!monthMap[monthKey]) {
+            monthMap[monthKey] = { uce_total: 0, fecha: d.fecha }
+          }
+          monthMap[monthKey].uce_total += (d.uce_total || 0)
+        })
+        const monthKeys = Object.keys(monthMap).sort()
+        const MONTH_NAMES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']
+        const mesocicloArr = monthKeys.map(mk => {
+          const [, mm] = mk.split('-')
+          return { name: MONTH_NAMES[parseInt(mm) - 1], uce_total: monthMap[mk].uce_total, fecha: monthMap[mk].fecha }
+        })
+        setMesocicloData(mesocicloArr)
 
         // Data para grafico semanal de barras
         setUceSemanalChartData(weekArr)

@@ -2,16 +2,19 @@
 import React, { useState, useEffect } from 'react'
 
 export default function RutinaFuerzaView({ jugadorId, today, recentLogs = [] }: { jugadorId: number, today: string, recentLogs?: any[] }) {
+  const [selectedDate, setSelectedDate] = useState<string>(today)
   const [rutinas, setRutinas] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [expandedMandamiento, setExpandedMandamiento] = useState<number | null>(null)
 
   useEffect(() => {
     async function load() {
+      setLoading(true)
       try {
-        const res = await fetch(`/api/fuerza/rutinas?jugador_id=${jugadorId}&fecha=${today}`)
+        const res = await fetch(`/api/fuerza/rutinas?jugador_id=${jugadorId}&fecha=${selectedDate}`)
         const data = await res.json()
         if (data.rutinas) setRutinas(data.rutinas)
+        else setRutinas([])
       } catch (err) {
         console.error(err)
       } finally {
@@ -19,7 +22,7 @@ export default function RutinaFuerzaView({ jugadorId, today, recentLogs = [] }: 
       }
     }
     load()
-  }, [jugadorId, today])
+  }, [jugadorId, selectedDate])
 
   if (loading) {
     return <div style={{ color:'var(--fog)', textAlign:'center', padding:40 }}>Cargando tu rutina...</div>
@@ -42,13 +45,21 @@ export default function RutinaFuerzaView({ jugadorId, today, recentLogs = [] }: 
 
   return (
     <div className="anim-up" style={{ display:'flex', flexDirection:'column', gap:16 }}>
-      <div style={{ padding:'0 8px', marginBottom:8 }}>
-        <h2 style={{ margin:0, fontSize:20, color:'var(--snow)', display:'flex', alignItems:'center', gap:8 }}>
-          <span style={{color:'#ec4899'}}>💪</span> Los 10 Mandamientos
-        </h2>
-        <p style={{ margin:'4px 0 0 0', fontSize:13, color:'var(--silver)' }}>
-          Rutina de fuerza del {today}
-        </p>
+      <div style={{ padding:'0 8px', marginBottom:8, display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+        <div>
+          <h2 style={{ margin:0, fontSize:20, color:'var(--snow)', display:'flex', alignItems:'center', gap:8 }}>
+            <span style={{color:'#ec4899'}}>💪</span> Los 10 Mandamientos
+          </h2>
+          <p style={{ margin:'4px 0 0 0', fontSize:13, color:'var(--silver)' }}>
+            Rutina de fuerza del {selectedDate.split('-').reverse().join('/')}
+          </p>
+        </div>
+        <input 
+          type="date" 
+          value={selectedDate} 
+          onChange={(e) => setSelectedDate(e.target.value)} 
+          style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:8, padding:'6px 12px', color:'var(--snow)', fontSize:13 }}
+        />
       </div>
 
       {mandamientos.map((num: any) => {
@@ -85,7 +96,12 @@ export default function RutinaFuerzaView({ jugadorId, today, recentLogs = [] }: 
                 {rutinasMand.map(r => (
                   <div key={r.id} style={{ background:'var(--ink3)', borderRadius:8, padding:16, borderLeft:'4px solid #ec4899' }}>
                     <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start' }}>
-                      <h4 style={{ margin:'0 0 8px 0', fontSize:16, color:'var(--snow)' }}>{r.ejercicio_nombre}</h4>
+                      <div style={{ display:'flex', gap:12, alignItems:'center' }}>
+                        {r.ejercicio_imagen_url && (
+                          <img src={r.ejercicio_imagen_url} alt="" style={{ width:60, height:60, objectFit:'cover', borderRadius:6, border:'1px solid var(--mist)' }} />
+                        )}
+                        <h4 style={{ margin:'0', fontSize:16, color:'var(--snow)' }}>{r.ejercicio_nombre}</h4>
+                      </div>
                       {r.ejercicio_video && (
                         <a href={r.ejercicio_video} target="_blank" rel="noreferrer" style={{ background:'rgba(236,72,153,0.15)', color:'#fbcfe8', padding:'4px 10px', borderRadius:20, fontSize:11, fontWeight:600, textDecoration:'none', display:'flex', alignItems:'center', gap:4 }}>
                           <span>▶</span> Ver Demo

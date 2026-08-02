@@ -3,8 +3,6 @@ import React, { useState, useEffect } from 'react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts'
 import { CuadroHeader } from './Headers'
 
-const POSICIONES = ['Portero', 'Defensa Central', 'Lateral', 'Mediocentro', 'Volante', 'Extremo', 'Delantero']
-
 export default function InBodyComparativaPanel({ teamData }: { teamData: any[] }) {
   const [inbodyLogs, setInbodyLogs] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -16,20 +14,20 @@ export default function InBodyComparativaPanel({ teamData }: { teamData: any[] }
       setLoading(true)
       try {
         const promises = teamData.map(p => 
-          fetch(`/api/evaluaciones/inbody?jugador_id=${p.id || p.jugador_id}`).then(r => r.json())
+          fetch(`/api/evaluaciones/inbody?jugador_id=${p.jugador_id || p.id}`).then(r => r.ok ? r.json() : []).catch(() => [])
         )
         const results = await Promise.all(promises)
-        const allLogs = []
+        const allLogs: any[] = []
         for (let i = 0; i < teamData.length; i++) {
-          const logs = results[i]
-          if (logs && logs.length > 0) {
+          const logs = Array.isArray(results[i]) ? results[i] : []
+          if (logs.length > 0) {
             // grab only the latest log for comparative purposes
             const latest = logs[0]
             allLogs.push({
               ...latest,
               jugador_nombre: teamData[i].nombre,
-              posicion: teamData[i].posicion_orden,
-              posicion_nombre: getPosicionNombre(teamData[i].posicion_orden)
+              posicion_str: teamData[i].posicion || '',
+              posicion_nombre: getPosicionGrupo(teamData[i].posicion || '')
             })
           }
         }
@@ -43,39 +41,23 @@ export default function InBodyComparativaPanel({ teamData }: { teamData: any[] }
     fetchAll()
   }, [teamData])
 
-  function getPosicionNombre(orden: number) {
-    if (orden === 1) return 'Portero'
-    if (orden === 2) return 'Defensa Central'
-    if (orden === 3) return 'Lateral Derecho'
-    if (orden === 4) return 'Lateral Izquierdo'
-    if (orden === 5) return 'Mediocentro Defensivo'
-    if (orden === 6) return 'Mediocentro'
-    if (orden === 7) return 'Mediocentro Ofensivo'
-    if (orden === 8) return 'Volante Derecho'
-    if (orden === 9) return 'Volante Izquierdo'
-    if (orden === 10) return 'Extremo Derecho'
-    if (orden === 11) return 'Extremo Izquierdo'
-    if (orden === 12) return 'Centro Delantero'
-    if (orden === 13) return 'Delantero'
-    return 'Sin Posición'
-  }
-
-  function getPosicionGrupo(nombre: string) {
-    if (nombre.includes('Portero')) return 'Porteros'
-    if (nombre.includes('Defensa') || nombre.includes('Lateral')) return 'Defensas'
-    if (nombre.includes('Mediocentro') || nombre.includes('Volante')) return 'Medios'
-    if (nombre.includes('Extremo') || nombre.includes('Delantero')) return 'Delanteros'
+  function getPosicionGrupo(pos: string): string {
+    const p = (pos || '').toLowerCase()
+    if (/portero|arquero/.test(p)) return 'Porteros'
+    if (/central|lateral|defen|líbero|libero/.test(p)) return 'Defensas'
+    if (/medioc|volante|medio|interior|enganche/.test(p)) return 'Medios'
+    if (/extremo|delant|punta|centro del|9|atacante/.test(p)) return 'Delanteros'
     return 'Otros'
   }
 
   const filteredLogs = posFilter === 'todas' 
     ? inbodyLogs 
-    : inbodyLogs.filter(L => getPosicionGrupo(L.posicion_nombre) === posFilter)
+    : inbodyLogs.filter(L => L.posicion_nombre === posFilter)
 
   // Calculate averages by position group for the chart
   const groups = ['Porteros', 'Defensas', 'Medios', 'Delanteros']
   const chartData = groups.map(g => {
-    const pLogs = inbodyLogs.filter(L => getPosicionGrupo(L.posicion_nombre) === g)
+    const pLogs = inbodyLogs.filter(L => L.posicion_nombre === g)
     if (pLogs.length === 0) return { name: g, peso: 0, grasa: 0, count: 0 }
     const avgPeso = pLogs.reduce((acc, l) => acc + Number(l.peso_kg), 0) / pLogs.length
     const avgGrasa = pLogs.reduce((acc, l) => acc + Number(l.pgc_pct), 0) / pLogs.length
@@ -180,7 +162,7 @@ export default function InBodyComparativaPanel({ teamData }: { teamData: any[] }
               {filteredLogs.sort((a, b) => b.peso_kg - a.peso_kg).map((log, idx) => (
                 <tr key={idx} style={{ borderBottom: '1px solid var(--mist)' }}>
                   <td style={{ padding: '12px 8px', color: 'var(--snow)', fontWeight: 600 }}>{log.jugador_nombre}</td>
-                  <td style={{ padding: '12px 8px', color: 'var(--silver)' }}>{log.posicion_nombre}</td>
+                  <td style={{ padding: '12px 8px', color: 'var(--silver)' }}>{log.posicion_str || log.posicion_nombre}</td>
                   <td style={{ padding: '12px 8px', color: 'var(--silver)' }}>{String(log.fecha).substring(0,10)}</td>
                   <td style={{ padding: '12px 8px', color: '#3b82f6', fontWeight: 700, textAlign: 'right' }}>{log.peso_kg} kg</td>
                   <td style={{ padding: '12px 8px', color: '#a855f7', fontWeight: 700, textAlign: 'right' }}>{log.mme_kg} kg</td>
