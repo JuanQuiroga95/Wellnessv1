@@ -306,7 +306,7 @@ export default function AnalyticsPanel({ isPanama }: { isPanama?: boolean }) {
       }
     }).sort((a,b) => b.avg_wellness - a.avg_wellness)
 
-    const cols = ['Fatiga','Sueño','Dolor','Estrés','Ánimo']
+    const cols = isPanama ? ['Recuperación','Sueño','Músculos','Energía','Hidratación'] : ['Fatiga','Sueño','Dolor','Estrés','Ánimo']
     const keys = ['avg_fatiga','avg_sueno','avg_dolor','avg_estres','avg_animo']
 
     return (
@@ -345,8 +345,19 @@ export default function AnalyticsPanel({ isPanama }: { isPanama?: boolean }) {
                             </div>
                           </div>
                         </td>
-                        {keys.map((k,ki) => {
-                          const v = p[k]; const c = barC[Math.round(v)-1]||'#888'
+                        {keys.map((k, j) => {
+                          const v = p[k]
+                          let c = '#888'
+                          const roundedV = Math.round(v)
+                          if (isPanama && j < 4) {
+                            const pCols = ['#22c55e','#84cc16','#eab308','#f97316','#ef4444']
+                            c = pCols[roundedV-1] || '#888'
+                          } else if (isPanama && j === 4) {
+                            const hCols = ['#ffffff','#fef9c3','#fef08a','#eab308','#ef4444']
+                            c = hCols[roundedV-1] || '#888'
+                          } else {
+                            c = barC[roundedV-1] || '#888'
+                          }
                           return (
                             <td key={k} style={{ textAlign:'center', padding:'10px 8px' }}>
                               <div style={{ fontFamily:'DM Mono,monospace', fontWeight:600, color:c, fontSize:13 }}>{v?.toFixed(1)||'—'}</div>
