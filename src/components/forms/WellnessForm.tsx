@@ -15,13 +15,14 @@ const FIELDS = [
 ]
 
 const FIELDS_PANAMA = [
-  { key:'fatiga',         label:'¿QUÉ TAN RECUPERADO TE SIENTES AL DESPERTAR?', low:'Nada recuperado', high:'Muy bien recuperado', colors: ['#ef4444','#f97316','#eab308','#84cc16','#22c55e'] },
-  { key:'calidad_sueno',  label:'¿CÓMO DORMISTE ANOCHE?', low:'Muy mal', high:'Excelente', colors: ['#ef4444','#f97316','#eab308','#84cc16','#22c55e'] },
-  { key:'dolor_muscular', label:'¿CÓMO SIENTES TUS MÚSCULOS AL DESPERTAR?', low:'Muy adolorido', high:'Muy buenas sens.', colors: ['#ef4444','#f97316','#eab308','#84cc16','#22c55e'] },
-  { key:'nivel_estres',   label:'¿QUÉ NIVEL DE ENERGÍA TIENES ESTA MAÑANA?', low:'Muy cansado', high:'Con mucha energía', colors: ['#ef4444','#f97316','#eab308','#84cc16','#22c55e'] },
+  { key:'fatiga',         label:'¿QUÉ TAN RECUPERADO TE SIENTES AL DESPERTAR?', low:'Muy bien recuperado', high:'Nada recuperado', colors: ['#22c55e','#84cc16','#eab308','#f97316','#ef4444'] },
+  { key:'calidad_sueno',  label:'¿CÓMO DORMISTE ANOCHE?', low:'Excelente', high:'Muy mal', colors: ['#22c55e','#84cc16','#eab308','#f97316','#ef4444'] },
+  { key:'dolor_muscular', label:'¿CÓMO SIENTES TUS MÚSCULOS AL DESPERTAR?', low:'Muy buenas sens.', high:'Muy adolorido', colors: ['#22c55e','#84cc16','#eab308','#f97316','#ef4444'] },
+  { key:'nivel_estres',   label:'¿QUÉ NIVEL DE ENERGÍA TIENES ESTA MAÑANA?', low:'Con mucha energía', high:'Muy cansado', colors: ['#22c55e','#84cc16','#eab308','#f97316','#ef4444'] },
 ]
 
-const COLORS_HIDRATACION = ['#ef4444', '#eab308', '#fef08a', '#fef9c3', '#ffffff']
+// Hidratación: 1=bien hidratado(blanco), 5=deshidratado(rojo)
+const COLORS_HIDRATACION = ['#ffffff', '#fef9c3', '#fef08a', '#eab308', '#ef4444']
 
 // TQR: 1=muy mal(rojo) → 10=completamente recuperado(verde) — invertido
 const TQR_LABELS = {
@@ -496,8 +497,15 @@ function AlreadyCompleted({ isPanama, data, onBack, canAddSecond, onAddSecond }:
         <div style={{ display:'flex', flexDirection:'column', gap:8, marginBottom:14 }}>
           {WK.map((k,i) => {
             const v = Number(data[k])||0
-            const col = WC[v-1]||'#888'
-            const displayVal = (isPanama && i < 4 && v > 0) ? (6 - v) : v
+            const displayVal = v
+            let col = WC[v-1]||'#888'
+            if (isPanama && i < 4) {
+              const pCols = ['#22c55e','#84cc16','#eab308','#f97316','#ef4444']
+              col = pCols[v-1] || '#888'
+            } else if (isPanama && i === 4) {
+              const hCols = ['#ffffff','#fef9c3','#fef08a','#eab308','#ef4444']
+              col = hCols[v-1] || '#888'
+            }
             const label = isPanama ? ['Recuperación','Sueño','Músculos','Energía','Hidratación'][i] : WL[i]
             return (
               <div key={k} style={{ display:'flex', alignItems:'center', gap:10 }}>
@@ -600,11 +608,11 @@ export default function WellnessForm({ isPanama, jugadorId, onSuccess, todayWell
         body: JSON.stringify({
           jugador_id:jugadorId,
           ...(isProxy ? { fecha } : {}),
-          fatiga: isPanama ? (6 - (vals.fatiga as number)) : vals.fatiga,
-          calidad_sueno: isPanama ? (6 - (vals.calidad_sueno as number)) : vals.calidad_sueno,
-          dolor_muscular: isPanama ? (6 - (vals.dolor_muscular as number)) : vals.dolor_muscular,
-          nivel_estres: isPanama ? (6 - (vals.nivel_estres as number)) : vals.nivel_estres,
-          estado_animo: vals.estado_animo, // Hidratación u original, no se invierte
+          fatiga: vals.fatiga,
+          calidad_sueno: vals.calidad_sueno,
+          dolor_muscular: vals.dolor_muscular,
+          nivel_estres: vals.nivel_estres,
+          estado_animo: vals.estado_animo,
           horas_sueno: horasSueno ? parseFloat(horasSueno) : 0,
           dolor_zona: zonasSeleccionadas.length > 0 ? JSON.stringify(zonasSeleccionadas) : null,
           dolor_descripcion: dolorDescripcion||null,
@@ -657,8 +665,8 @@ export default function WellnessForm({ isPanama, jugadorId, onSuccess, todayWell
             </div>
           ))}
           <div>
-            <label style={{ display:'block', fontSize:11, fontWeight:600, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:8 }}>NIVEL DE HIDRATACIÓN (1=Deshidratado, 5=Sobrehidratado)</label>
-            <ScaleInput id="estado_animo" value={vals.estado_animo} onChange={(v:any) => setVals(p=>({...p,estado_animo:v}))} min={1} max={5} lowLabel="Deshidratado" highLabel="Sobrehidratado" customColors={COLORS_HIDRATACION} />
+            <label style={{ display:'block', fontSize:11, fontWeight:600, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:8 }}>NIVEL DE HIDRATACIÓN (1=Bien hidratado · 5=Deshidratado)</label>
+            <ScaleInput id="estado_animo" value={vals.estado_animo} onChange={(v:any) => setVals(p=>({...p,estado_animo:v}))} min={1} max={5} lowLabel="Bien hidratado" highLabel="Deshidratado" customColors={COLORS_HIDRATACION} />
           </div>
           <div style={{ marginTop:14 }}>
             <label style={{ display:'block', fontSize:11, fontWeight:600, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:10 }}>¿TENÉS ALGUNA MOLESTIA O DOLOR MUSCULAR/ARTICULAR?</label>
