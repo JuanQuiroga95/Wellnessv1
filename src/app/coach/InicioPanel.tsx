@@ -215,8 +215,14 @@ export default function InicioPanel({ teamData, session, today }: { teamData: an
         const weekKeys = Object.keys(weekMap).sort()
         const weekArr = weekKeys.map((w, index) => ({ name: `M${index + 1}`, uce_total: weekMap[w].uce_total, fecha: weekMap[w].fecha }))
 
-        // Mesociclo: usar las semanas (microciclos)
-        setMesocicloData(weekArr)
+        // Mesociclo: agrupar cada 5 semanas en un bloque (M1 = semanas 1-5, M2 = semanas 6-10, etc)
+        const mesocicloArr: { name: string; uce_total: number; fecha: string }[] = []
+        for (let i = 0; i < weekArr.length; i += 5) {
+          const block = weekArr.slice(i, i + 5)
+          const total = block.reduce((sum, w) => sum + w.uce_total, 0)
+          mesocicloArr.push({ name: `M${Math.floor(i / 5) + 1}`, uce_total: total, fecha: block[0].fecha })
+        }
+        setMesocicloData(mesocicloArr)
 
         // Data para grafico semanal de barras
         setUceSemanalChartData(weekArr)
