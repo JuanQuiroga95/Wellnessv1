@@ -87,7 +87,7 @@ export function UceMesocicloChart({ data }: { data: any[] }) {
 
   return (
     <div style={{ background: 'var(--ink2)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 16, padding: 20, marginBottom: 20 }}>
-      <CuadroHeader title="CARGA MESOCICLO" subtitle="Suma de UCE por mes" icon="📅" />
+      <CuadroHeader title="CARGA MESOCICLO" subtitle="UCE acumulada por microciclo" icon="📅" />
       <div style={{ height: 260, marginTop: 20 }}>
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={data} margin={{ top: 70, right: 0, left: -20, bottom: 0 }}>

@@ -24,18 +24,36 @@ export default function RutinaFuerzaView({ jugadorId, today, recentLogs = [] }: 
     load()
   }, [jugadorId, selectedDate])
 
-  if (loading) {
-    return <div style={{ color:'var(--fog)', textAlign:'center', padding:40 }}>Cargando tu rutina...</div>
-  }
+  const header = (
+    <div style={{ padding:'0 8px', marginBottom:8, display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+      <div>
+        <h2 style={{ margin:0, fontSize:20, color:'var(--snow)', display:'flex', alignItems:'center', gap:8 }}>
+          <span style={{color:'#ec4899'}}>💪</span> Los 10 Mandamientos
+        </h2>
+        <p style={{ margin:'4px 0 0 0', fontSize:13, color:'var(--silver)' }}>
+          Rutina de fuerza del {selectedDate.split('-').reverse().join('/')}
+        </p>
+      </div>
+      <input 
+        type="date" 
+        value={selectedDate} 
+        onChange={(e) => setSelectedDate(e.target.value)} 
+        style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:8, padding:'6px 12px', color:'var(--snow)', fontSize:13 }}
+      />
+    </div>
+  )
 
   if (rutinas.length === 0) {
     return (
-      <div className="anim-up" style={{ background:'var(--ink2)', border:'1px dashed var(--mist)', borderRadius:16, padding:32, textAlign:'center' }}>
-        <div style={{ fontSize:40, marginBottom:16 }}>😴</div>
-        <h2 style={{ fontSize:18, color:'var(--snow)', marginBottom:8 }}>Día Libre de Fuerza</h2>
-        <p style={{ color:'var(--silver)', fontSize:14, lineHeight:1.5 }}>
-          Hoy no tenés rutina de fuerza asignada.<br/>¡Buen descanso!
-        </p>
+      <div className="anim-up" style={{ display:'flex', flexDirection:'column', gap:16 }}>
+        {header}
+        <div style={{ background:'var(--ink2)', border:'1px dashed var(--mist)', borderRadius:16, padding:32, textAlign:'center' }}>
+          <div style={{ fontSize:40, marginBottom:16 }}>😴</div>
+          <h2 style={{ fontSize:18, color:'var(--snow)', marginBottom:8 }}>Día Libre de Fuerza</h2>
+          <p style={{ color:'var(--silver)', fontSize:14, lineHeight:1.5 }}>
+            No hay rutina de fuerza asignada para esta fecha.<br/>Elegí otra fecha arriba para ver más rutinas.
+          </p>
+        </div>
       </div>
     )
   }
@@ -45,23 +63,7 @@ export default function RutinaFuerzaView({ jugadorId, today, recentLogs = [] }: 
 
   return (
     <div className="anim-up" style={{ display:'flex', flexDirection:'column', gap:16 }}>
-      <div style={{ padding:'0 8px', marginBottom:8, display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-        <div>
-          <h2 style={{ margin:0, fontSize:20, color:'var(--snow)', display:'flex', alignItems:'center', gap:8 }}>
-            <span style={{color:'#ec4899'}}>💪</span> Los 10 Mandamientos
-          </h2>
-          <p style={{ margin:'4px 0 0 0', fontSize:13, color:'var(--silver)' }}>
-            Rutina de fuerza del {selectedDate.split('-').reverse().join('/')}
-          </p>
-        </div>
-        <input 
-          type="date" 
-          value={selectedDate} 
-          onChange={(e) => setSelectedDate(e.target.value)} 
-          style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:8, padding:'6px 12px', color:'var(--snow)', fontSize:13 }}
-        />
-      </div>
-
+      {header}
       {mandamientos.map((num: any) => {
         const rutinasMand = rutinas.filter(r => r.mandamiento_numero === num)
         const isExpanded = expandedMandamiento === num
