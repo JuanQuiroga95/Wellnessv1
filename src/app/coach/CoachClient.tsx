@@ -8621,7 +8621,36 @@ function GpsPanel({ teamData }: { teamData: any }) {
         </div>
       )}
 
-      {/* Info box */}
+      {/* Historial de sesiones GPS cargadas */}
+      {historial.length > 0 && (
+        <div style={{ marginBottom: 24 }}>
+          <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--silver)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12 }}>
+            🗑️ Sesiones GPS cargadas — podés eliminar una si la subiste por error
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {historial.map((e: any, i: number) => (
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, background: 'var(--ink3)', border: '1px solid var(--mist)', borderRadius: 10, padding: '10px 14px' }}>
+                <div style={{ fontSize: 18 }}>{e.tipo_sesion === 'partido' ? '🏆' : '⚽'}</div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--snow)' }}>{e.fecha} · {e.tipo_sesion}</div>
+                  {e.sesion_titulo && <div style={{ fontSize: 11, color: 'var(--silver)', marginTop: 2 }}>{e.sesion_titulo}</div>}
+                  <div style={{ fontSize: 10, color: 'var(--fog)', marginTop: 2 }}>{e.n_jugadores ?? '?'} jugadores</div>
+                </div>
+                <button
+                  onClick={() => handleDelete(e)}
+                  style={{ padding: '6px 12px', borderRadius: 8, background: 'rgba(239,68,68,.1)', border: '1px solid rgba(239,68,68,.3)', color: '#f87171', fontSize: 11, fontWeight: 600, cursor: 'pointer', transition: 'all .12s', whiteSpace: 'nowrap' }}
+                  onMouseEnter={el => (el.currentTarget.style.background = 'rgba(239,68,68,.2)')}
+                  onMouseLeave={el => (el.currentTarget.style.background = 'rgba(239,68,68,.1)')}
+                >
+                  🗑 Eliminar
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+
       <div style={{ background: 'rgba(96,165,250,.06)', border: '1px solid rgba(96,165,250,.15)', borderRadius: 12, padding: '16px 20px' }}>
         <p style={{ fontSize: 12, fontWeight: 700, color: '#60a5fa', marginBottom: 8 }}>ℹ Cómo funciona</p>
         <ul style={{ fontSize: 12, color: 'var(--fog)', lineHeight: 1.8, paddingLeft: 16, margin: 0 }}>
@@ -8650,7 +8679,7 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
   const today = todayLocal()
   // If today is Monday (getDay()===1), shift back 7 days so offset=0 shows the
   // microciclo that just ended (Mon–Sun), not the brand-new week with no data yet.
-  const mondayShift = new Date().getDay() === 1 ? -7 : 0
+  const mondayShift = 0
   const getWeekStart = (offsetWeeks = 0) => {
     const d = new Date()
     const currentDay = d.getDay() === 0 ? 7 : d.getDay()
@@ -10256,7 +10285,7 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
 function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
   const today = todayLocal()
   const [microcicloOffset, setMicrocicloOffset] = useState(0)
-  const mondayShift = new Date().getDay() === 1 ? -7 : 0
+  const mondayShift = 0
 
   const getWeekStart = (offsetWeeks = 0) => {
     const d = new Date()
