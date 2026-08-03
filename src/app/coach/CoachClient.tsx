@@ -1111,7 +1111,7 @@ export default function CoachDashboard({ isPanama, session, teamData, today }: a
           <PlayerDetail isPanama={isPanama} player={selected} logs={playerLogs} wellness={playerWellness} loading={loadingDetail} ciclo={ciclo} onCicloChange={(c)=>{ setCiclo(c); openPlayer(selected, c) }} onRefreshData={() => { openPlayer(selected, ciclo); router.refresh(); }} onBack={()=>setSelected(null)} proxyMode={proxyMode} onViewACWR={() => { setAcwrPlayerId(selected.jugador_id); setTab('vinculaciones'); }} />
         )}
 
-        {tab==='analytics' && <AnalyticsPanel />}
+        {tab==='analytics' && <AnalyticsPanel isPanama={isPanama} />}
         {tab==='neuromuscular' && <PerfilNeuromuscularPanel />}
         {tab==='inbody' && <InBodyComparativaPanel teamData={teamData} />}
         {tab==='calendario' && <CalendarioPanel teamData={teamData} canchas={canchas} setCanchas={setCanchas} />}
@@ -1548,13 +1548,14 @@ function PlayerDetail({ isPanama, player:p, logs, wellness, loading, onBack, cic
           </div>
           <div style={{ display:'flex', flexDirection:'column', gap:8, marginBottom:12 }}>
             {['fatiga','calidad_sueno','dolor_muscular','nivel_estres','estado_animo'].map((k,i)=>{ 
-              const rawV=Number(lastW[k])||0; 
-              const v = (isPanama && i < 4 && rawV > 0) ? (6 - rawV) : rawV;
-              let c = wCol(isPanama && i < 4 && rawV > 0 ? rawV : v);
-              if (isPanama && i === 4) {
-                if (v === 3) c = '#22c55e'; // Óptimo
-                else if (v === 2 || v === 4) c = '#f59e0b'; // Regular
-                else if (v === 1 || v === 5) c = '#ef4444'; // Mal
+              const v = Number(lastW[k])||0; 
+              let c = wCol(v);
+              if (isPanama && i < 4) {
+                const pCols = ['#22c55e','#84cc16','#eab308','#f97316','#ef4444']
+                c = pCols[v-1] || '#888'
+              } else if (isPanama && i === 4) {
+                const hCols = ['#ffffff','#fef9c3','#fef08a','#eab308','#ef4444']
+                c = hCols[v-1] || '#888'
               }
               const label = isPanama ? ['Recuperación','Sueño','Músculos','Energía','Hidratación'][i] : WL[i];
               return (

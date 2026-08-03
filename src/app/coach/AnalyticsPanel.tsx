@@ -51,7 +51,7 @@ const ScatterTip = ({ active, payload }: any) => {
   )
 }
 
-export default function AnalyticsPanel() {
+export default function AnalyticsPanel({ isPanama }: { isPanama?: boolean }) {
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [view, setView] = useState('readiness')
@@ -143,10 +143,20 @@ export default function AnalyticsPanel() {
                   <div style={{ display:'flex', gap:4, alignItems:'flex-end', height:28, marginBottom:6 }}>
                     {WK.map((k,i) => {
                       const v = Number(p[k])||0
-                      const barColors = ['#c8f135','#22c55e','#eab308','#f97316','#ef4444']
-                      const c = barColors[v-1]||'#888'
+                      let c = '#888'
+                      if (isPanama && i < 4) {
+                        const pCols = ['#22c55e','#84cc16','#eab308','#f97316','#ef4444']
+                        c = pCols[v-1] || '#888'
+                      } else if (isPanama && i === 4) {
+                        const hCols = ['#ffffff','#fef9c3','#fef08a','#eab308','#ef4444']
+                        c = hCols[v-1] || '#888'
+                      } else {
+                        const barColors = ['#c8f135','#22c55e','#eab308','#f97316','#ef4444']
+                        c = barColors[v-1] || '#888'
+                      }
+                      const label = isPanama ? ['Recuperación','Sueño','Músculos','Energía','Hidratación'][i] : WL[i]
                       return (
-                        <div key={k} title={`${WL[i]}: ${v}`} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', gap:2 }}>
+                        <div key={k} title={`${label}: ${v}`} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', gap:2 }}>
                           <span style={{ fontSize:9, color:c, fontFamily:'DM Mono,monospace' }}>{v}</span>
                           <div style={{ width:'100%', height:`${v*4+4}px`, background:c, borderRadius:'2px 2px 0 0', opacity:.85 }} />
                         </div>
@@ -154,7 +164,7 @@ export default function AnalyticsPanel() {
                     })}
                   </div>
                   <div style={{ display:'flex', justifyContent:'space-between', marginBottom: hasDolor?8:0 }}>
-                    {WL.map(l => <span key={l} style={{ fontSize:8, color:'var(--fog)' }}>{l}</span>)}
+                    {(isPanama ? ['Recuperación','Sueño','Músculos','Energía','Hidratación'] : WL).map(l => <span key={l} style={{ fontSize:8, color:'var(--fog)' }}>{l}</span>)}
                   </div>
                   <div style={{ display:'flex', flexWrap:'wrap', gap:5, marginTop: 5 }}>
                     {p.dolor_zona && (() => {
