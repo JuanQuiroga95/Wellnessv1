@@ -196,22 +196,23 @@ export default function InicioPanel({ teamData, session, today }: { teamData: an
         setUceChartData(uceSemanaData)
         setUceSemanalTotal(uceSemanaData.reduce((sum, d) => sum + (d.uce_real > 0 ? d.uce_real : d.uce_obj), 0))
 
-        const weekMap: Record<string, { uce_total: number, fecha: string }> = {}
+        const weekMap: Record<string, { uce_total: number, fecha: string, weekStart: string }> = {}
         allUceArr.forEach(d => {
-           const date = new Date(d.fecha + 'T12:00:00Z')
-           const dObj = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
-           const dayNum = dObj.getUTCDay() || 7;
-           dObj.setUTCDate(dObj.getUTCDate() + 4 - dayNum);
-           const yearStart = new Date(Date.UTC(dObj.getUTCFullYear(),0,1));
-           const wNum = Math.ceil((((dObj.getTime() - yearStart.getTime()) / 86400000) + 1)/7);
-           const wStr = 'S' + wNum
+           // Get monday of this date's week (same logic as getWeekBounds)
+           const [yy, mm, dd] = d.fecha.split('-').map(Number)
+           const date = new Date(yy, mm - 1, dd)
+           const day = date.getDay()
+           const diffToMon = date.getDate() - day + (day === 0 ? -6 : 1)
+           const monday = new Date(date)
+           monday.setDate(diffToMon)
+           const mondayStr = localDateStr(monday)
            
-           if (!weekMap[wStr]) {
-             weekMap[wStr] = { uce_total: 0, fecha: d.fecha }
+           if (!weekMap[mondayStr]) {
+             weekMap[mondayStr] = { uce_total: 0, fecha: d.fecha, weekStart: mondayStr }
            }
-           weekMap[wStr].uce_total += (d.uce_total || 0)
+           weekMap[mondayStr].uce_total += (d.uce_total || 0)
         })
-        const weekKeys = Object.keys(weekMap).sort((a,b) => parseInt(a.slice(1)) - parseInt(b.slice(1)))
+        const weekKeys = Object.keys(weekMap).sort()
         const weekArr = weekKeys.map((w, index) => ({ name: `M${index + 1}`, uce_total: weekMap[w].uce_total, fecha: weekMap[w].fecha }))
 
         // Mesociclo: usar las semanas (microciclos)
