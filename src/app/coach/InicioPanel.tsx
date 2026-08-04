@@ -165,13 +165,15 @@ export default function InicioPanel({ teamData, session, today }: { teamData: an
                  }
                })
                ce_total = Object.values(ventanaMap).reduce((s, v) => s + Math.round(v.minTotal * v.ne), 0)
-            } else if (ev.tipo === 'partido') {
+            } else if (ev.tipo === 'partido' || ev.rival) {
                totalMin = 90
+               const ne = NE_DEFAULT[ev.tipo_partido || 'Partido oficial'] || 10
+               ce_total = totalMin * ne
             }
             if (totalMin === 0) totalMin = 60
             sessionVolMap[ev.fecha.slice(0, 10)] = totalMin
             
-            const label = ev.titulo || ev.fecha
+            const label = ev.titulo || (ev.rival ? `vs ${ev.rival}` : ev.fecha)
             const dbLog = (calData.logs || []).find((l:any) => l.fecha === ev.fecha)
             const rpe_real = dbLog && dbLog.avg_rpe !== null && dbLog.avg_rpe !== undefined ? Number(dbLog.avg_rpe) : null
             const rpe_obj = Number(ev.rpe_objetivo) || 0
@@ -182,6 +184,7 @@ export default function InicioPanel({ teamData, session, today }: { teamData: an
             if (ce_total > 0) {
                const key = ev.id || (ev.fecha + '-' + label)
                uceDataMap[key] = {
+                 id: key,
                  md: label,
                  fecha: ev.fecha,
                  ce_total,

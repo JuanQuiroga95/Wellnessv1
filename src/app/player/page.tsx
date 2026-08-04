@@ -13,7 +13,7 @@ export default async function PlayerPage() {
   if (!jugadorId) redirect('/login')
   const today = new Date().toISOString().split('T')[0]
 
-  const [jRows, logs, wRows, todayRows, gpsRows, wAllRows, cRows, inbodyRows] = await Promise.all([
+  const [jRows, logs, wRows, todayRows, gpsRows, wAllRows, cRows, inbodyRows, trainingRows] = await Promise.all([
     sql`SELECT u.nombre, j.posicion, j.edad, j.peso_kg::text AS peso_kg, j.estatura_cm, j.pie_habil, j.foto_url, j.email, j.hora_recordatorio, j.club_id FROM usuarios u JOIN jugadores j ON j.usuario_id=u.id WHERE u.id=${session.userId}`,
     sql`SELECT fecha::text, carga_ua::int, rpe::int, rpe_gimnasio::int, duracion_min::int, tipo_sesion FROM entrenamiento_logs WHERE jugador_id=${jugadorId} AND fecha>=CURRENT_DATE-28 ORDER BY fecha ASC`,
     sql`SELECT fecha::text, fatiga::int, calidad_sueno::int, dolor_muscular::int, nivel_estres::int, estado_animo::int, dolor_zona, COALESCE(horas_sueno::numeric,0) AS horas_sueno, COALESCE(tqr::int,0) AS tqr, COALESCE(recovery::int,0) AS recovery, COALESCE(dolor_eva::int,0) AS dolor_eva, COALESCE(entrena_grupo::text,'true') AS entrena_grupo, COALESCE(fue_gimnasio::text,'false') AS fue_gimnasio, COALESCE(grupos_musculares,'') AS grupos_musculares FROM wellness_logs WHERE jugador_id=${jugadorId} ORDER BY fecha DESC LIMIT 10`,
@@ -21,7 +21,12 @@ export default async function PlayerPage() {
     sql`SELECT MAX(max_velocity)::text AS max_vel, MAX(dist_total)::text AS max_dist, MAX(dist_hir)::text AS max_hir, MAX(n_sprints)::int AS max_sprints, MAX(acc3)::int AS max_acc, MAX(dec3)::int AS max_dec, COUNT(*)::int AS total_sesiones_gps FROM gps_logs WHERE jugador_id=${jugadorId}`.catch(()=>[]),
     sql`SELECT fecha::text FROM wellness_logs WHERE jugador_id=${jugadorId} ORDER BY fecha DESC LIMIT 60`.catch(()=>[]),
     sql`SELECT c.nombre FROM jugadores j JOIN clubs c ON j.club_id = c.id WHERE j.usuario_id = ${session.userId}`.catch(()=>[]),
-    sql`SELECT fecha::text, peso_kg::text, mme_kg::text, masa_grasa_kg::text, imc::text, pgc_pct::text, notas FROM inbody_tests WHERE jugador_id=${jugadorId} ORDER BY fecha DESC`.catch(()=>[])
+    sql`SELECT fecha::text, peso_kg::text, mme_kg::text, masa_grasa_kg::text, imc::text, pgc_pct::text, notas FROM inbody_tests WHERE jugador_id=${jugadorId} ORDER BY fecha DESC`.catch(()=>[]),
+    sql`SELECT fecha::text FROM (
+          SELECT fecha FROM sesiones_plan WHERE club_id = (SELECT club_id FROM usuarios WHERE id=${session.userId}) AND fecha >= CURRENT_DATE - 60
+          UNION
+          SELECT pl.fecha FROM partido_logs pl JOIN jugadores j ON j.id = pl.jugador_id JOIN usuarios u ON u.id = j.usuario_id WHERE u.id=${session.userId} AND pl.fecha >= CURRENT_DATE - 60
+        ) t ORDER BY fecha DESC`.catch(()=>[])
   ])
 
   const pw = (w) => ({ fecha:String(w.fecha), fatiga:Number(w.fatiga)||0, calidad_sueno:Number(w.calidad_sueno)||0, dolor_muscular:Number(w.dolor_muscular)||0, nivel_estres:Number(w.nivel_estres)||0, estado_animo:Number(w.estado_animo)||0, dolor_zona:String(w.dolor_zona||''), horas_sueno:parseFloat(w.horas_sueno)||0, tqr:Number(w.tqr)||0, recovery:Number(w.recovery)||0, entrena_grupo:String(w.entrena_grupo)!=='false', fue_gimnasio:String(w.fue_gimnasio)==='true', grupos_musculares:String(w.grupos_musculares||''), dolor_eva:Number(w.dolor_eva)||0 })
@@ -40,14 +45,22 @@ export default async function PlayerPage() {
     totalSesionesGps: Number(gpsRows[0].total_sesiones_gps)||0,
   } : null
 
-  // Wellness streak: consecutive days backwards, optionally skipping today if missing
+  // Wellness streak: check only backwards on training days, optionally skipping today if missing
   const wDates = new Set((wAllRows as any[]).map((r:any) => String(r.fecha)))
+  const tDates = new Set((trainingRows as any[]).map((r:any) => String(r.fecha)))
+  
   let wellnessStreak = 0
   const todayD = new Date(today)
   const skipToday = !wDates.has(today)
   for (let i = skipToday ? 1 : 0; i < 60; i++) {
     const d = new Date(todayD); d.setDate(d.getDate() - i)
     const ds = d.toISOString().split('T')[0]
+    
+    // Si no entrena ese día y no respondió wellness, lo ignoramos y no se rompe la racha
+    if (!tDates.has(ds) && !wDates.has(ds)) {
+      continue
+    }
+    
     if (wDates.has(ds)) wellnessStreak++
     else break
   }

@@ -39,7 +39,7 @@ export default function UceChart({ data }: { data: any[] }) {
     if (active && payload && payload.length) {
       return (
         <div style={{ background: 'var(--ink2)', border: '1px solid var(--border)', borderRadius: '8px', padding: '12px', fontSize: '12px' }}>
-          <p style={{ color: 'var(--snow)', marginBottom: '8px', fontWeight: 700 }}>{label}</p>
+          <p style={{ color: 'var(--snow)', marginBottom: '8px', fontWeight: 700 }}>{payload[0]?.payload?.md || label}</p>
           {payload.map((entry: any, index: number) => (
             <p key={index} style={{ color: entry.color, margin: '4px 0', fontWeight: 600 }}>
               {entry.name}: {entry.value} {entry.name.includes('RPE') && entry.value === null ? '(Sin datos)' : ''}
@@ -58,7 +58,7 @@ export default function UceChart({ data }: { data: any[] }) {
         <ResponsiveContainer width="100%" height={300}>
           <ComposedChart data={data} margin={{ top: 70, right: 30, left: 0, bottom: 5 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-            <XAxis dataKey="md" stroke="var(--fog)" fontSize={11} tickLine={false} axisLine={false} />
+            <XAxis dataKey="id" tickFormatter={(val) => data.find((d:any) => d.id === val)?.md || val} stroke="var(--fog)" fontSize={11} tickLine={false} axisLine={false} />
             
             <YAxis yAxisId="left" stroke="var(--fog)" fontSize={11} tickLine={false} axisLine={false} orientation="left" />
             <YAxis yAxisId="right" stroke="var(--fog)" fontSize={11} tickLine={false} axisLine={false} orientation="right" domain={[0, 10]} />
