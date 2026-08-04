@@ -527,17 +527,19 @@ function StatsTab({ isPanama, jugador, gpsStats, wellnessStreak, totalSesiones, 
   weeklyUA.reverse()
   const maxWeekUA = Math.max(...weeklyUA, 1)
 
-  // RPE Streak: días consecutivos contestando RPE (hacia atrás desde hoy o ayer)
+  // RPE Streak: sesiones consecutivas contestadas (hasta hoy o ayer)
   let rpeStreak = 0
   const rpeDates = new Set(recentLogs.filter((l:any) => l.rpe > 0).map((l:any) => String(l.fecha)))
-  const todayD2 = new Date()
-  for (let i = 0; i < 30; i++) {
-    const d = new Date(todayD2); d.setDate(d.getDate() - i)
-    const ds = d.toISOString().split('T')[0]
-    if (rpeDates.has(ds)) {
-      rpeStreak++
-    } else {
-      if (i > 0) break // permits missing today, but if missed yesterday, breaks
+  const allLogsDates = Array.from(new Set(recentLogs.map((l:any) => String(l.fecha)))).sort((a:any, b:any) => b.localeCompare(a)) // desc
+  
+  if (allLogsDates.length > 0) {
+    const todayStr = new Date().toISOString().split('T')[0]
+    // If today is a log day and not filled, and yesterday is not filled, break.
+    // Let's just check consecutive logged days backwards
+    for (const d of allLogsDates) {
+      if (d === todayStr && !rpeDates.has(d)) continue // skip today if it's missing (might be pending)
+      if (rpeDates.has(d)) rpeStreak++
+      else break
     }
   }
 
@@ -550,9 +552,10 @@ function StatsTab({ isPanama, jugador, gpsStats, wellnessStreak, totalSesiones, 
   const STAT_CARDS = [
     { icon:'🔥', label:'Racha Wellness', value: wellnessStreak, unit:'días', sub: streakLabel, color: wellnessStreak >= 7 ? '#c8f135' : wellnessStreak >= 3 ? '#f59e0b' : '#94a3b8', badge: streakEmoji },
     { icon:'💨', label:'Velocidad Máxima', value: gpsStats?.maxVelocidad ? Number(gpsStats.maxVelocidad).toFixed(1) : '—', unit:'km/h', sub: gpsStats?.maxVelocidad ? 'Récord personal GPS' : 'Sin datos GPS aún', color:'#06b6d4', badge: null },
-    { icon:'⚡', label:'Racha RPE', value: rpeStreak, unit:'días', sub: rpeStreak > 0 ? 'Contestando carga post-entreno' : 'Últimos 30 días', color:'#a3e635', badge: null },
+    { icon:'⚡', label:'Racha RPE', value: rpeStreak, unit:'sesiones', sub: rpeStreak > 0 ? 'Sesiones consecutivas' : 'Últimos 30 días', color:'#a3e635', badge: null },
     { icon:'🏃', label:'Sesiones (28 días)', value: totalSesiones, unit:'sesiones', sub: `${totalUA} UA acumuladas`, color:'#f97316', badge: null },
     { icon:'🏅', label:'Sesiones GPS', value: gpsStats?.totalSesionesGps ?? 0, unit:'', sub: gpsStats?.maxSprints ? `Máx. ${gpsStats.maxSprints} sprints` : 'Sin datos GPS', color:'#8b5cf6', badge: null },
+    { icon:'🚀', label:'Récord Acel/Decel', value: gpsStats?.maxAcc ? gpsStats.maxAcc : '—', unit:'', sub: gpsStats?.maxDec ? `Máx. ${gpsStats.maxDec} decels (>3m/s²)` : 'Sin datos Acel/Dec', color:'#ec4899', badge: null },
   ]
 
   return (
@@ -590,6 +593,8 @@ function StatsTab({ isPanama, jugador, gpsStats, wellnessStreak, totalSesiones, 
               { label:'Distancia máxima (una sesión)', value: gpsStats.maxDistancia ? `${(Number(gpsStats.maxDistancia)/1000).toFixed(1)} km` : '—', color:'#a3e635', pct: gpsStats.maxDistancia ? Math.min((Number(gpsStats.maxDistancia)/14000)*100, 100) : 0 },
               { label:'Distancia máxima en HSR', value: gpsStats.maxHir ? `${Number(gpsStats.maxHir).toFixed(0)} m` : '—', color:'#f59e0b', pct: gpsStats.maxHir ? Math.min((Number(gpsStats.maxHir)/2000)*100, 100) : 0 },
               { label:'Sprints máximos (una sesión)', value: gpsStats.maxSprints ? `${gpsStats.maxSprints} sprints` : '—', color:'#f97316', pct: gpsStats.maxSprints ? Math.min((gpsStats.maxSprints/30)*100, 100) : 0 },
+              { label:'Aceleraciones máximas (>3m/s²)', value: gpsStats.maxAcc ? `${gpsStats.maxAcc} acels` : '—', color:'#ec4899', pct: gpsStats.maxAcc ? Math.min((gpsStats.maxAcc/80)*100, 100) : 0 },
+              { label:'Desaceleraciones máximas (>3m/s²)', value: gpsStats.maxDec ? `${gpsStats.maxDec} decels` : '—', color:'#14b8a6', pct: gpsStats.maxDec ? Math.min((gpsStats.maxDec/80)*100, 100) : 0 },
             ].map((r, i) => (
               <div key={i}>
                 <div style={{ display:'flex', justifyContent:'space-between', marginBottom:5 }}>

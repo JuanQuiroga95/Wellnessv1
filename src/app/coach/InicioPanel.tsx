@@ -131,13 +131,17 @@ export default function InicioPanel({ teamData, session, today }: { teamData: an
             let totalMin = 0
             let ce_total = 0
             if (ev.ejercicios && Array.isArray(ev.ejercicios)) {
+               const ventanaMap: Record<string, { minTotal: number; ne: number }> = {}
                ev.ejercicios.forEach((ej: any) => {
                  const m = (Number(ej.series) || 1) * (Number(ej.minutos) || 0)
                  totalMin += m
                  
                  const ventana = ej.ventana || ej.tipo || 'Tarea'
                  const ne = ej.ne ?? NE_DEFAULT[ventana] ?? 5
-                 ce_total += Math.round(m * ne)
+                 
+                 if (!ventanaMap[ventana]) ventanaMap[ventana] = { minTotal: 0, ne }
+                 ventanaMap[ventana].minTotal += m
+                 ventanaMap[ventana].ne = ne
                  
                  // Process Orientacion Física for the week
                  if (ev.fecha >= weekStart && ev.fecha <= weekEnd) {
@@ -160,6 +164,7 @@ export default function InicioPanel({ teamData, session, today }: { teamData: an
                    totalBloquesOrientacion++
                  }
                })
+               ce_total = Object.values(ventanaMap).reduce((s, v) => s + Math.round(v.minTotal * v.ne), 0)
             } else if (ev.tipo === 'partido') {
                totalMin = 90
             }
@@ -193,6 +198,7 @@ export default function InicioPanel({ teamData, session, today }: { teamData: an
         
         const allUceArr = Object.values(uceDataMap)
         const uceSemanaData = allUceArr.filter(d => d.fecha >= weekStart && d.fecha <= weekEnd)
+        uceSemanaData.sort((a, b) => a.fecha.localeCompare(b.fecha))
         setUceChartData(uceSemanaData)
         setUceSemanalTotal(uceSemanaData.reduce((sum, d) => sum + (d.uce_real > 0 ? d.uce_real : d.uce_obj), 0))
 

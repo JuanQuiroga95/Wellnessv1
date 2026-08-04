@@ -18,7 +18,7 @@ export default async function PlayerPage() {
     sql`SELECT fecha::text, carga_ua::int, rpe::int, rpe_gimnasio::int, duracion_min::int, tipo_sesion FROM entrenamiento_logs WHERE jugador_id=${jugadorId} AND fecha>=CURRENT_DATE-28 ORDER BY fecha ASC`,
     sql`SELECT fecha::text, fatiga::int, calidad_sueno::int, dolor_muscular::int, nivel_estres::int, estado_animo::int, dolor_zona, COALESCE(horas_sueno::numeric,0) AS horas_sueno, COALESCE(tqr::int,0) AS tqr, COALESCE(recovery::int,0) AS recovery, COALESCE(dolor_eva::int,0) AS dolor_eva, COALESCE(entrena_grupo::text,'true') AS entrena_grupo, COALESCE(fue_gimnasio::text,'false') AS fue_gimnasio, COALESCE(grupos_musculares,'') AS grupos_musculares FROM wellness_logs WHERE jugador_id=${jugadorId} ORDER BY fecha DESC LIMIT 10`,
     sql`SELECT id, fecha::text, fatiga::int, calidad_sueno::int, dolor_muscular::int, nivel_estres::int, estado_animo::int, dolor_zona, COALESCE(horas_sueno::numeric,0) AS horas_sueno, COALESCE(tqr::int,0) AS tqr, COALESCE(recovery::int,0) AS recovery, COALESCE(dolor_eva::int,0) AS dolor_eva, COALESCE(entrena_grupo::text,'true') AS entrena_grupo, COALESCE(fue_gimnasio::text,'false') AS fue_gimnasio, COALESCE(grupos_musculares,'') AS grupos_musculares FROM wellness_logs WHERE jugador_id=${jugadorId} AND fecha=${today} ORDER BY id DESC`,
-    sql`SELECT MAX(max_velocity)::text AS max_vel, MAX(dist_total)::text AS max_dist, MAX(dist_hir)::text AS max_hir, MAX(n_sprints)::int AS max_sprints, COUNT(*)::int AS total_sesiones_gps FROM gps_logs WHERE jugador_id=${jugadorId}`.catch(()=>[]),
+    sql`SELECT MAX(max_velocity)::text AS max_vel, MAX(dist_total)::text AS max_dist, MAX(dist_hir)::text AS max_hir, MAX(n_sprints)::int AS max_sprints, MAX(acc3)::int AS max_acc, MAX(dec3)::int AS max_dec, COUNT(*)::int AS total_sesiones_gps FROM gps_logs WHERE jugador_id=${jugadorId}`.catch(()=>[]),
     sql`SELECT fecha::text FROM wellness_logs WHERE jugador_id=${jugadorId} ORDER BY fecha DESC LIMIT 60`.catch(()=>[]),
     sql`SELECT c.nombre FROM jugadores j JOIN clubs c ON j.club_id = c.id WHERE j.usuario_id = ${session.userId}`.catch(()=>[]),
     sql`SELECT fecha::text, peso_kg::text, mme_kg::text, masa_grasa_kg::text, imc::text, pgc_pct::text, notas FROM inbody_tests WHERE jugador_id=${jugadorId} ORDER BY fecha DESC`.catch(()=>[])
@@ -35,14 +35,17 @@ export default async function PlayerPage() {
     maxDistancia: parseFloat(gpsRows[0].max_dist||'0') || null,
     maxHir: parseFloat(gpsRows[0].max_hir||'0') || null,
     maxSprints: Number(gpsRows[0].max_sprints)||null,
+    maxAcc: Number(gpsRows[0].max_acc)||null,
+    maxDec: Number(gpsRows[0].max_dec)||null,
     totalSesionesGps: Number(gpsRows[0].total_sesiones_gps)||0,
   } : null
 
-  // Wellness streak: consecutive days from today backwards
+  // Wellness streak: consecutive days backwards, optionally skipping today if missing
   const wDates = new Set((wAllRows as any[]).map((r:any) => String(r.fecha)))
   let wellnessStreak = 0
   const todayD = new Date(today)
-  for (let i = 0; i < 60; i++) {
+  const skipToday = !wDates.has(today)
+  for (let i = skipToday ? 1 : 0; i < 60; i++) {
     const d = new Date(todayD); d.setDate(d.getDate() - i)
     const ds = d.toISOString().split('T')[0]
     if (wDates.has(ds)) wellnessStreak++

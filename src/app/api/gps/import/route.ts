@@ -25,8 +25,10 @@ const METRIC_COL_MAP: Array<[string, string]> = [
   ['dist sprint/min', 'sprint_dist_per_min'], ['sprint dist per minute', 'sprint_dist_per_min'],
   ['sprint/min', 'sprint_dist_per_min'], ['sprint m/min', 'sprint_dist_per_min'],
   ['acc int/min', 'acc_int_per_min'],
-  ['acc/min', 'acc_per_min'],
-  ['dec/min', 'dec_per_min'],
+  ['acc/min (n/min)', 'acc_per_min'], ['acc/min(n/min)', 'acc_per_min'],
+  ['acc/min', 'acc_per_min'], ['aceleraciones/min', 'acc_per_min'], ['accel/min', 'acc_per_min'],
+  ['dec/min (n/min)', 'dec_per_min'], ['dec/min(n/min)', 'dec_per_min'],
+  ['dec/min', 'dec_per_min'], ['desaceleraciones/min', 'dec_per_min'], ['decel/min', 'dec_per_min'],
   ['max acc', 'max_acc'], ['maxima aceleracion', 'max_acc'],
   ['max dec', 'max_dec'], ['maxima desaceleracion', 'max_dec'],
 
