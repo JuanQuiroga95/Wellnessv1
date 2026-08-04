@@ -458,9 +458,9 @@ export async function GET(req: NextRequest) {
           for (const k of allMetricCols) {
             if (AVG_PLAYER_FIELDS.has(k)) {
               const cnt = p[`_cnt_${k}`] || 0
-              out[k] = cnt > 0 ? Math.round((p[`_sum_${k}`] / cnt) * 10) / 10 : 0
+              out[k] = cnt > 0 ? Math.round((p[`_sum_${k}`] / cnt) * 1000) / 1000 : 0
             } else {
-              out[k] = Math.round((p[k] || 0) * 10) / 10
+              out[k] = Math.round((p[k] || 0) * 1000) / 1000
             }
           }
           return out
@@ -472,8 +472,8 @@ export async function GET(req: NextRequest) {
           const vals = gpsReal.map((p: any) => Number(p[k]) || 0).filter(x => x > 0)
           if (vals.length) {
             teamAvgGps[k] = GPS_AVG_FIELDS.has(k)
-              ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length * 10) / 10
-              : Math.round(vals.reduce((a, b) => a + b, 0) / nGps * 10) / 10
+              ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length * 1000) / 1000
+              : Math.round(vals.reduce((a, b) => a + b, 0) / nGps * 1000) / 1000
           }
         }
 
@@ -520,10 +520,11 @@ export async function GET(req: NextRequest) {
           gpsPerMD[md] = Object.values(players).map((p: any) => {
             const out: any = { jugador_id: p.jugador_id, nombre: p.nombre, posicion: p.posicion, sesiones: p.sesiones }
             for (const k of allMetricCols) {
-              if (k === 'dist_per_min' && p[`_cnt_${k}`]) {
-                out[k] = Math.round((p[`_sum_${k}`] / p[`_cnt_${k}`]) * 10) / 10
+              if (AVG_PLAYER_FIELDS.has(k)) {
+                const cnt = p[`_cnt_${k}`] || 0
+                out[k] = cnt > 0 ? Math.round((p[`_sum_${k}`] / cnt) * 1000) / 1000 : 0
               } else {
-                out[k] = Math.round((p[k] || 0) * 10) / 10
+                out[k] = Math.round((p[k] || 0) * 1000) / 1000
               }
             }
             return out
