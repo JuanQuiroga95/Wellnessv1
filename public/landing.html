@@ -881,6 +881,34 @@
     transform: translateY(0);
   }
 
+  /* ── TESTIMONIAL CARDS ── */
+  .testimonial-card {
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.5);
+    border: 1px solid var(--dark4);
+    background: var(--dark3);
+    transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.4s ease, border-color 0.4s ease;
+    cursor: pointer;
+  }
+
+  .testimonial-card:hover {
+    transform: translateY(-12px) scale(1.02);
+    box-shadow: 0 20px 50px rgba(200, 241, 53, 0.15);
+    border-color: rgba(200, 241, 53, 0.4);
+  }
+
+  .testimonial-card img {
+    width: 100%;
+    height: auto;
+    display: block;
+    transition: filter 0.4s ease, transform 0.4s ease;
+  }
+
+  .testimonial-card:hover img {
+    filter: brightness(1.08);
+  }
+
   /* ── MOBILE ── */
   @media (max-width: 900px) {
     nav { padding: 0 24px; }
@@ -1203,17 +1231,17 @@
   </div>
 
   <div class="reveal" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:24px; max-width:1200px; margin:0 auto;">
-    <div style="border-radius:16px; overflow:hidden; box-shadow:0 12px 40px rgba(0,0,0,0.5); border:1px solid var(--dark4); aspect-ratio:9/16; background:var(--dark3);">
-      <img src="/images/salvador.jpg" alt="Salvador Marquez" style="width:100%; height:100%; object-fit:cover;" onerror="this.src='https://placehold.co/400x700/111/444?text=Salvador\nMarquez';">
+    <div class="testimonial-card">
+      <img src="/images/salvador.jpg" alt="Salvador Marquez" onerror="this.src='https://placehold.co/400x700/111/444?text=Salvador\nMarquez';">
     </div>
-    <div style="border-radius:16px; overflow:hidden; box-shadow:0 12px 40px rgba(0,0,0,0.5); border:1px solid var(--dark4); aspect-ratio:9/16; background:var(--dark3);">
-      <img src="/images/matias.jpg" alt="Matias Cano" style="width:100%; height:100%; object-fit:cover;" onerror="this.src='https://placehold.co/400x700/111/444?text=Matias\nCano';">
+    <div class="testimonial-card">
+      <img src="/images/matias.jpg" alt="Matias Cano" onerror="this.src='https://placehold.co/400x700/111/444?text=Matias\nCano';">
     </div>
-    <div style="border-radius:16px; overflow:hidden; box-shadow:0 12px 40px rgba(0,0,0,0.5); border:1px solid var(--dark4); aspect-ratio:9/16; background:var(--dark3);">
-      <img src="/images/mariano.jpg" alt="Mariano Sanchez" style="width:100%; height:100%; object-fit:cover;" onerror="this.src='https://placehold.co/400x700/111/444?text=Mariano\nSanchez';">
+    <div class="testimonial-card">
+      <img src="/images/mariano.jpg" alt="Mariano Sanchez" onerror="this.src='https://placehold.co/400x700/111/444?text=Mariano\nSanchez';">
     </div>
-    <div style="border-radius:16px; overflow:hidden; box-shadow:0 12px 40px rgba(0,0,0,0.5); border:1px solid var(--dark4); aspect-ratio:9/16; background:var(--dark3);">
-      <img src="/images/brayan.jpg" alt="Brayan Bermudez" style="width:100%; height:100%; object-fit:cover;" onerror="this.src='https://placehold.co/400x700/111/444?text=Brayan\nBermudez';">
+    <div class="testimonial-card">
+      <img src="/images/brayan.jpg" alt="Brayan Bermudez" onerror="this.src='https://placehold.co/400x700/111/444?text=Brayan\nBermudez';">
     </div>
   </div>
 </section>
