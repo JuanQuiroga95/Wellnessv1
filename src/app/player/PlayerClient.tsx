@@ -555,7 +555,7 @@ function StatsTab({ isPanama, jugador, gpsStats, wellnessStreak, totalSesiones, 
     { icon:'⚡', label:'Racha RPE', value: rpeStreak, unit:'sesiones', sub: rpeStreak > 0 ? 'Sesiones consecutivas' : 'Últimos 30 días', color:'#a3e635', badge: null },
     { icon:'🏃', label:'Sesiones (28 días)', value: totalSesiones, unit:'sesiones', sub: `${totalUA} UA acumuladas`, color:'#f97316', badge: null },
     { icon:'🏅', label:'Sesiones GPS', value: gpsStats?.totalSesionesGps ?? 0, unit:'', sub: gpsStats?.maxSprints ? `Máx. ${gpsStats.maxSprints} sprints` : 'Sin datos GPS', color:'#8b5cf6', badge: null },
-    { icon:'🚀', label:'Récord Acel/Decel', value: gpsStats?.maxAcc ? gpsStats.maxAcc : '—', unit:'', sub: gpsStats?.maxDec ? `Máx. ${gpsStats.maxDec} decels (>3m/s²)` : 'Sin datos Acel/Dec', color:'#ec4899', badge: null },
+    { icon:'🚀', label:'Récord Acel/Decel', value: (gpsStats?.maxAcc || gpsStats?.maxDec) ? `${gpsStats.maxAcc||0} / ${gpsStats.maxDec||0}` : '—', unit:'', sub: (gpsStats?.maxAcc || gpsStats?.maxDec) ? `Acels / Decels` : 'Sin datos Acel/Dec', color:'#ec4899', badge: null },
   ]
 
   return (
@@ -594,7 +594,7 @@ function StatsTab({ isPanama, jugador, gpsStats, wellnessStreak, totalSesiones, 
               { label:'Distancia máxima en HSR', value: gpsStats.maxHir ? `${Number(gpsStats.maxHir).toFixed(0)} m` : '—', color:'#f59e0b', pct: gpsStats.maxHir ? Math.min((Number(gpsStats.maxHir)/2000)*100, 100) : 0 },
               { label:'Sprints máximos (una sesión)', value: gpsStats.maxSprints ? `${gpsStats.maxSprints} sprints` : '—', color:'#f97316', pct: gpsStats.maxSprints ? Math.min((gpsStats.maxSprints/30)*100, 100) : 0 },
               { label:'Aceleraciones máximas (>3m/s²)', value: gpsStats.maxAcc ? `${gpsStats.maxAcc} acels` : '—', color:'#ec4899', pct: gpsStats.maxAcc ? Math.min((gpsStats.maxAcc/80)*100, 100) : 0 },
-              { label:'Desaceleraciones máximas (>3m/s²)', value: gpsStats.maxDec ? `${gpsStats.maxDec} decels` : '—', color:'#14b8a6', pct: gpsStats.maxDec ? Math.min((gpsStats.maxDec/80)*100, 100) : 0 },
+              { label:'Desaceleraciones máximas (<-3m/s²)', value: gpsStats.maxDec ? `${gpsStats.maxDec} decels` : '—', color:'#14b8a6', pct: gpsStats.maxDec ? Math.min((gpsStats.maxDec/80)*100, 100) : 0 },
             ].map((r, i) => (
               <div key={i}>
                 <div style={{ display:'flex', justifyContent:'space-between', marginBottom:5 }}>
