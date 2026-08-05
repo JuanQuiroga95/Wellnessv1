@@ -4,8 +4,20 @@ import React, { useState, useEffect } from 'react'
 export default function RutinaFuerzaView({ jugadorId, today, recentLogs = [] }: { jugadorId: number, today: string, recentLogs?: any[] }) {
   const [selectedDate, setSelectedDate] = useState<string>(today)
   const [rutinas, setRutinas] = useState<any[]>([])
+  const [rutinasFechas, setRutinasFechas] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
   const [expandedMandamiento, setExpandedMandamiento] = useState<number | null>(null)
+
+  useEffect(() => {
+    async function loadFechas() {
+      try {
+        const res = await fetch(`/api/fuerza/rutinas?jugador_id=${jugadorId}&fechas_only=true`)
+        const data = await res.json()
+        if (data.fechas) setRutinasFechas(data.fechas.map((f: string) => f.slice(0, 10)))
+      } catch (err) {}
+    }
+    loadFechas()
+  }, [jugadorId])
 
   useEffect(() => {
     async function load() {
@@ -43,16 +55,77 @@ export default function RutinaFuerzaView({ jugadorId, today, recentLogs = [] }: 
     </div>
   )
 
+  const renderCalendar = () => {
+    // Render simple calendar for the month of selectedDate
+    const date = new Date(selectedDate + 'T12:00:00')
+    const year = date.getFullYear()
+    const month = date.getMonth()
+    let firstDay = new Date(year, month, 1).getDay() || 7 // 1 = Monday, 7 = Sunday
+    const daysInMonth = new Date(year, month + 1, 0).getDate()
+
+    const days = []
+    for(let i=1; i<firstDay; i++) days.push(null)
+    for(let i=1; i<=daysInMonth; i++) days.push(new Date(year, month, i))
+
+    return (
+      <div style={{ marginTop: 24, padding: '20px 16px', background: 'var(--ink3)', borderRadius: 12, border: '1px solid var(--mist)' }}>
+        <h3 style={{ margin: '0 0 16px 0', fontSize: 14, color: 'var(--snow)', textAlign: 'center', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+          {date.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })}
+        </h3>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '8px 4px', textAlign: 'center' }}>
+          {['L','M','M','J','V','S','D'].map((d, i) => <div key={i} style={{ fontSize: 11, color: 'var(--silver)', fontWeight: 600, marginBottom: 8 }}>{d}</div>)}
+          {days.map((d, i) => {
+            if (!d) return <div key={i} />
+            const dateStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
+            const hasRutina = rutinasFechas.includes(dateStr)
+            const isSelected = dateStr === selectedDate
+            return (
+              <button
+                key={i}
+                onClick={() => setSelectedDate(dateStr)}
+                style={{
+                  background: isSelected ? '#ec4899' : (hasRutina ? 'rgba(236,72,153,0.15)' : 'transparent'),
+                  color: isSelected ? '#fff' : (hasRutina ? '#fbcfe8' : 'var(--silver)'),
+                  border: hasRutina && !isSelected ? '1px solid #ec4899' : '1px solid transparent',
+                  borderRadius: '50%',
+                  width: 34,
+                  height: 34,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  margin: '0 auto',
+                  cursor: 'pointer',
+                  fontSize: 13,
+                  fontWeight: hasRutina || isSelected ? 700 : 400,
+                  transition: 'all 0.2s'
+                }}
+              >
+                {d.getDate()}
+              </button>
+            )
+          })}
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'center', gap: 16, marginTop: 20 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: 'var(--silver)' }}>
+            <span style={{ display: 'inline-block', width: 12, height: 12, borderRadius: '50%', background: 'rgba(236,72,153,0.15)', border: '1px solid #ec4899' }}></span>
+            Días con rutina
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   if (rutinas.length === 0) {
     return (
       <div className="anim-up" style={{ display:'flex', flexDirection:'column', gap:16 }}>
         {header}
-        <div style={{ background:'var(--ink2)', border:'1px dashed var(--mist)', borderRadius:16, padding:32, textAlign:'center' }}>
+        <div style={{ background:'var(--ink2)', border:'1px dashed var(--mist)', borderRadius:16, padding:'32px 20px', textAlign:'center' }}>
           <div style={{ fontSize:40, marginBottom:16 }}>😴</div>
           <h2 style={{ fontSize:18, color:'var(--snow)', marginBottom:8 }}>Día Libre de Fuerza</h2>
           <p style={{ color:'var(--silver)', fontSize:14, lineHeight:1.5 }}>
-            No hay rutina de fuerza asignada para esta fecha.<br/>Elegí otra fecha arriba para ver más rutinas.
+            No hay rutina de fuerza asignada para hoy.<br/>Elegí una fecha en el calendario para ver tus rutinas.
           </p>
+          {renderCalendar()}
         </div>
       </div>
     )

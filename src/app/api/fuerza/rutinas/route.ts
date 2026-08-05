@@ -11,15 +11,27 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url)
     const fecha = searchParams.get('fecha')
     const jugadorId = searchParams.get('jugador_id')
+    const fechasOnly = searchParams.get('fechas_only') === 'true'
     
     // Si es jugador, solo puede ver lo suyo
     if (s.rol === 'jugador' && Number(jugadorId) !== Number(s.jugadorId)) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
     }
 
-    if (!fecha || !jugadorId) return NextResponse.json({ error: 'Faltan parámetros' }, { status: 400 })
+    if (!jugadorId) return NextResponse.json({ error: 'Faltan parámetros' }, { status: 400 })
 
     const sql = getDb()
+
+    if (fechasOnly) {
+      const fechas = await sql`
+        SELECT DISTINCT fecha::text 
+        FROM fuerza_rutinas 
+        WHERE jugador_id = ${Number(jugadorId)}
+      `
+      return NextResponse.json({ success: true, fechas: fechas.map((f:any) => f.fecha) })
+    }
+
+    if (!fecha) return NextResponse.json({ error: 'Faltan parámetros' }, { status: 400 })
     
     // Obtener rutinas con inner joins a mandamientos y ejercicios
     const rutinas = await sql`
