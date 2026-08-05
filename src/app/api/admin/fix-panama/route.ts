@@ -6,10 +6,10 @@ export async function GET() {
   const sql = getDb()
   
   try {
-    const clubs = await sql`SELECT id, nombre FROM clubs WHERE nombre ILIKE '%panama%' OR nombre ILIKE '%caid%' OR nombre ILIKE '%c.a.i%' OR nombre ILIKE '%cai%'`
-    const clubId = clubs[0]?.id
+    const clubs = await sql`SELECT id, nombre FROM clubs WHERE nombre ILIKE '%Panamá%' OR nombre ILIKE '%panama%'`
+    const clubIds = clubs.map(c => c.id)
     
-    if (!clubId) {
+    if (!clubIds.length) {
       const allClubs = await sql`SELECT id, nombre FROM clubs`
       return NextResponse.json({ error: 'Panama club not found', allClubs })
     }
@@ -22,7 +22,7 @@ export async function GET() {
         (created_at::time >= '00:00:00'::time AND created_at::time < '05:00:00'::time)
         AND fecha >= '2026-07-01'
         AND jugador_id IN (
-          SELECT id FROM jugadores WHERE club_id = ${clubId} OR usuario_id IN (SELECT id FROM usuarios WHERE club_id = ${clubId})
+          SELECT id FROM jugadores WHERE club_id = ANY(${clubIds}) OR usuario_id IN (SELECT id FROM usuarios WHERE club_id = ANY(${clubIds}))
         )
       RETURNING id, fecha, created_at
     `
@@ -35,14 +35,14 @@ export async function GET() {
         (created_at::time >= '00:00:00'::time AND created_at::time < '05:00:00'::time)
         AND fecha >= '2026-07-01'
         AND jugador_id IN (
-          SELECT id FROM jugadores WHERE club_id = ${clubId} OR usuario_id IN (SELECT id FROM usuarios WHERE club_id = ${clubId})
+          SELECT id FROM jugadores WHERE club_id = ANY(${clubIds}) OR usuario_id IN (SELECT id FROM usuarios WHERE club_id = ANY(${clubIds}))
         )
       RETURNING id, fecha, created_at
     `
 
     return NextResponse.json({
       success: true,
-      club: clubs[0],
+      clubs,
       fixedRPE: rpeRes.length,
       fixedWellness: wRes.length,
       details: {
