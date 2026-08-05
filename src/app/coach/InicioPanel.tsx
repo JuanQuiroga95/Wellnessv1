@@ -414,7 +414,9 @@ export default function InicioPanel({ teamData, session, today }: { teamData: an
           })
           setMdHistoryData(Array.from(mdMap.values()).filter(x => x.actual > 0 || x.anterior > 0))
         }
-        if (loadD.players) {
+        if (loadD.gpsReal && loadD.gpsReal.length > 0) {
+          setTopPerformers(loadD.gpsReal.map((p:any) => ({ ...p, distTotal: p.dist_total })).filter((p:any) => p.distTotal > 0).sort((a:any, b:any) => b.distTotal - a.distTotal))
+        } else if (loadD.players) {
           setTopPerformers(loadD.players.filter((p:any) => p.hasGps && p.distTotal > 0).sort((a:any, b:any) => b.distTotal - a.distTotal))
         }
 
