@@ -29,7 +29,7 @@ export async function GET() {
 
     // Wellness Fix
     const wRes = await sql`
-      UPDATE wellness
+      UPDATE wellness_logs
       SET fecha = fecha - INTERVAL '1 day'
       WHERE 
         (created_at::time >= '00:00:00'::time AND created_at::time < '05:00:00'::time)
