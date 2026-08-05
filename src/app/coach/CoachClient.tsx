@@ -11947,9 +11947,9 @@ function ExpoAIPanel({ teamData }: { teamData: any[] }) {
   const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(false)
   const [partidos, setPartidos] = useState<any[]>([])
-  const [selectedPartidos, setSelectedPartidos] = useState<(any|null)[]>([null,null,null])
-  const [refData, setRefData] = useState<any[]>([{},{},{}])  // GPS team avg per match
-  const [refPlayers, setRefPlayers] = useState<any[][]>([[],[],[]])  // GPS per-player per match
+  const [selectedPartidos, setSelectedPartidos] = useState<(any|null)[]>([null,null,null,null,null])
+  const [refData, setRefData] = useState<any[]>([{},{},{},{},{}])  // GPS team avg per match
+  const [refPlayers, setRefPlayers] = useState<any[][]>([[],[],[],[],[]])  // GPS per-player per match
   const [showRefInput, setShowRefInput] = useState(false)
 
   useEffect(() => { cargar() }, [desde, hasta])

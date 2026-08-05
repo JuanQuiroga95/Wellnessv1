@@ -680,8 +680,8 @@ export default function InicioPanel({ teamData, session, today }: { teamData: an
                   <>
                     {gpsRealData.length > 0 ? (() => {
                       const RANKINGS = [
-                        { key:'max_velocity', label:'Velocidad Máxima', unit:'km/h', icon:'⚡', color:'#ef4444', isMax:true },
-                        { key:'dist_hir',     label:'High Speed Running', unit:'m', icon:'🏃', color:'#f59e0b', isMax:false },
+                        { key:'max_velocity', label:'Vel. Máxima', unit:'km/h', icon:'⚡', color:'#ef4444', isMax:true },
+                        { key:'dist_hir',     label:'HSR', unit:'m', icon:'🏃', color:'#f59e0b', isMax:false },
                       ]
                       return (
                         <div style={{ background:'var(--ink2)', border:'1px solid rgba(251,191,36,.2)', borderRadius:16, overflow:'hidden', marginBottom:12 }}>
@@ -689,7 +689,7 @@ export default function InicioPanel({ teamData, session, today }: { teamData: an
                             <p style={{ fontSize:11, fontWeight:700, color:'#fbbf24', textTransform:'uppercase', letterSpacing:'0.08em' }}>🏆 RANKING DE LOGROS — 14 DÍAS</p>
                             <p style={{ fontSize:10, color:'var(--fog)', marginTop:2 }}>Top 3 jugadores por velocidad máxima y HSR en el período seleccionado</p>
                           </div>
-                          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:1, background:'var(--mist)' }}>
+                          <div style={{ display:'grid', gridTemplateColumns:'minmax(0, 1fr) minmax(0, 1fr)', gap:1, background:'var(--mist)' }}>
                             {RANKINGS.map(rank => {
                               const sorted = [...gpsRealData]
                                 .filter((p:any) => Number(p[rank.key]) > 0)
