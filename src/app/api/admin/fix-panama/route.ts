@@ -9,7 +9,10 @@ export async function GET() {
     const clubs = await sql`SELECT id, nombre FROM clubs WHERE nombre ILIKE '%panama%' OR nombre ILIKE '%caid%' OR nombre ILIKE '%c.a.i%' OR nombre ILIKE '%cai%'`
     const clubId = clubs[0]?.id
     
-    if (!clubId) return NextResponse.json({ error: 'Panama club not found' })
+    if (!clubId) {
+      const allClubs = await sql`SELECT id, nombre FROM clubs`
+      return NextResponse.json({ error: 'Panama club not found', allClubs })
+    }
 
     // RPE Fix (entrenamiento_logs)
     const rpeRes = await sql`
