@@ -520,7 +520,7 @@ export async function GET(req: NextRequest) {
           gpsPerMD[md] = Object.values(players).map((p: any) => {
             const out: any = { jugador_id: p.jugador_id, nombre: p.nombre, posicion: p.posicion, sesiones: p.sesiones }
             for (const k of allMetricCols) {
-              if (AVG_PLAYER_FIELDS.has(k)) {
+              if (k === 'dist_per_min' && p[`_cnt_${k}`]) {
                 const cnt = p[`_cnt_${k}`] || 0
                 out[k] = cnt > 0 ? Math.round((p[`_sum_${k}`] / cnt) * 1000) / 1000 : 0
               } else {
