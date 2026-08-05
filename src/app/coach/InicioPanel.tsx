@@ -88,6 +88,7 @@ export default function InicioPanel({ teamData, session, today }: { teamData: an
   const [uceChartData, setUceChartData] = useState<any[]>([])
   const [uceSemanalTotal, setUceSemanalTotal] = useState(0)
   const [mesocicloData, setMesocicloData] = useState<any[]>([])
+  const [gpsRealData, setGpsRealData] = useState<any[]>([])
 
   useEffect(() => {
     async function fetchData() {
@@ -415,8 +416,10 @@ export default function InicioPanel({ teamData, session, today }: { teamData: an
           setMdHistoryData(Array.from(mdMap.values()).filter(x => x.actual > 0 || x.anterior > 0))
         }
         if (loadD.gpsReal && loadD.gpsReal.length > 0) {
+          setGpsRealData(loadD.gpsReal)
           setTopPerformers(loadD.gpsReal.map((p:any) => ({ ...p, distTotal: p.dist_total })).filter((p:any) => p.distTotal > 0).sort((a:any, b:any) => b.distTotal - a.distTotal))
         } else if (loadD.players) {
+          setGpsRealData([])
           setTopPerformers(loadD.players.filter((p:any) => p.hasGps && p.distTotal > 0).sort((a:any, b:any) => b.distTotal - a.distTotal))
         }
 
@@ -675,41 +678,88 @@ export default function InicioPanel({ teamData, session, today }: { teamData: an
                 
                 {topPerformers.length >= 3 && (
                   <>
-                    <details style={{ background: 'var(--ink3)', border: '1px solid var(--mist)', borderRadius: 8, overflow: 'hidden' }}>
-                      <summary style={{ padding: '12px 16px', fontSize: 13, fontWeight: 700, color: '#10b981', cursor: 'pointer', listStyle: 'none', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <span>🚀 TOP 3 HIGH WORKLOAD (GPS)</span>
-                        <span style={{ fontSize: 10, color: 'var(--silver)' }}>Ver listado ▼</span>
-                      </summary>
-                      <div style={{ padding: '0 16px 12px 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-                        {topPerformers.slice(0, 3).map((p, i) => (
-                          <div key={i} style={{ background: 'var(--ink2)', border: '1px solid rgba(16,185,129,0.2)', borderRadius: 8, padding: 10, display: 'flex', alignItems: 'center', gap: 12 }}>
-                            <div style={{ fontSize: 18 }}>🛰️</div>
-                            <div style={{ flex: 1 }}>
-                              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--snow)' }}>{p.nombre}</div>
-                              <div style={{ fontSize: 11, color: 'var(--silver)' }}>Distancia Total: <span style={{color: '#10b981', fontWeight: 600}}>{p.distTotal}m</span></div>
-                            </div>
+                    {gpsRealData.length > 0 ? (() => {
+                      const RANKINGS = [
+                        { key:'max_velocity', label:'Velocidad Máxima', unit:'km/h', icon:'⚡', color:'#ef4444', isMax:true },
+                        { key:'dist_hir',     label:'High Speed Running', unit:'m', icon:'🏃', color:'#f59e0b', isMax:false },
+                      ]
+                      return (
+                        <div style={{ background:'var(--ink2)', border:'1px solid rgba(251,191,36,.2)', borderRadius:16, overflow:'hidden', marginBottom:12 }}>
+                          <div style={{ padding:'10px 16px', borderBottom:'1px solid var(--mist)' }}>
+                            <p style={{ fontSize:11, fontWeight:700, color:'#fbbf24', textTransform:'uppercase', letterSpacing:'0.08em' }}>🏆 RANKING DE LOGROS — 14 DÍAS</p>
+                            <p style={{ fontSize:10, color:'var(--fog)', marginTop:2 }}>Top 3 jugadores por velocidad máxima y HSR en el período seleccionado</p>
                           </div>
-                        ))}
-                      </div>
-                    </details>
-                    
-                    <details style={{ background: 'var(--ink3)', border: '1px solid var(--mist)', borderRadius: 8, overflow: 'hidden', marginTop: 12 }}>
-                      <summary style={{ padding: '12px 16px', fontSize: 13, fontWeight: 700, color: '#ef4444', cursor: 'pointer', listStyle: 'none', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <span>📉 TOP 3 LOW WORKLOAD (GPS)</span>
-                        <span style={{ fontSize: 10, color: 'var(--silver)' }}>Ver listado ▼</span>
-                      </summary>
-                      <div style={{ padding: '0 16px 12px 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-                        {[...topPerformers].slice(-3).reverse().map((p, i) => (
-                          <div key={i} style={{ background: 'var(--ink2)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 8, padding: 10, display: 'flex', alignItems: 'center', gap: 12 }}>
-                            <div style={{ fontSize: 18 }}>📉</div>
-                            <div style={{ flex: 1 }}>
-                              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--snow)' }}>{p.nombre}</div>
-                              <div style={{ fontSize: 11, color: 'var(--silver)' }}>Distancia Total: <span style={{color: '#ef4444', fontWeight: 600}}>{p.distTotal}m</span></div>
-                            </div>
+                          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:1, background:'var(--mist)' }}>
+                            {RANKINGS.map(rank => {
+                              const sorted = [...gpsRealData]
+                                .filter((p:any) => Number(p[rank.key]) > 0)
+                                .sort((a:any,b:any) => Number(b[rank.key]) - Number(a[rank.key]))
+                                .slice(0, 3)
+                              const medals = ['🥇','🥈','🥉']
+                              const medalColors = ['#fbbf24','#94a3b8','#b87333']
+                              return (
+                                <div key={rank.key} style={{ background:'var(--ink2)', padding:'12px' }}>
+                                  <div style={{ fontSize:12, fontWeight:700, color:rank.color, marginBottom:12, display:'flex', alignItems:'center', gap:4 }}>{rank.icon} {rank.label}</div>
+                                  {sorted.length === 0 ? (
+                                    <p style={{ fontSize:11, color:'var(--fog)' }}>Sin datos</p>
+                                  ) : sorted.map((p:any, i:number) => (
+                                    <div key={i} style={{ display:'flex', alignItems:'center', gap:8, marginBottom:i<2?6:0, padding:'6px 8px', borderRadius:10,
+                                      background: i===0 ? 'rgba(251,191,36,.08)' : 'rgba(255,255,255,.02)',
+                                      border: i===0 ? '1px solid rgba(251,191,36,.2)' : '1px solid transparent' }}>
+                                      <span style={{ fontSize:16, lineHeight:1 }}>{medals[i]}</span>
+                                      <div style={{ flex:1, minWidth:0 }}>
+                                        <div style={{ fontSize:11, fontWeight:600, color:'var(--snow)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{p.nombre}</div>
+                                      </div>
+                                      <div style={{ fontFamily:'DM Mono,monospace', fontWeight:800, fontSize:13, color:medalColors[i] }}>
+                                        {Number(p[rank.key]).toFixed(rank.key==='max_velocity'?1:0)} <span style={{ fontSize:9, fontWeight:400, color:'var(--fog)' }}>{rank.unit}</span>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              )
+                            })}
                           </div>
-                        ))}
-                      </div>
-                    </details>
+                        </div>
+                      )
+                    })() : (
+                      <>
+                        <details style={{ background: 'var(--ink3)', border: '1px solid var(--mist)', borderRadius: 8, overflow: 'hidden' }}>
+                          <summary style={{ padding: '12px 16px', fontSize: 13, fontWeight: 700, color: '#10b981', cursor: 'pointer', listStyle: 'none', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <span>🚀 TOP 3 HIGH WORKLOAD (ESTIMADO)</span>
+                            <span style={{ fontSize: 10, color: 'var(--silver)' }}>Ver listado ▼</span>
+                          </summary>
+                          <div style={{ padding: '0 16px 12px 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                            {topPerformers.slice(0, 3).map((p, i) => (
+                              <div key={i} style={{ background: 'var(--ink2)', border: '1px solid rgba(16,185,129,0.2)', borderRadius: 8, padding: 10, display: 'flex', alignItems: 'center', gap: 12 }}>
+                                <div style={{ fontSize: 18 }}>🛰️</div>
+                                <div style={{ flex: 1 }}>
+                                  <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--snow)' }}>{p.nombre}</div>
+                                  <div style={{ fontSize: 11, color: 'var(--silver)' }}>Distancia Estimada: <span style={{color: '#10b981', fontWeight: 600}}>{p.distTotal}m</span></div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </details>
+                        
+                        <details style={{ background: 'var(--ink3)', border: '1px solid var(--mist)', borderRadius: 8, overflow: 'hidden', marginTop: 12 }}>
+                          <summary style={{ padding: '12px 16px', fontSize: 13, fontWeight: 700, color: '#ef4444', cursor: 'pointer', listStyle: 'none', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <span>📉 TOP 3 LOW WORKLOAD (ESTIMADO)</span>
+                            <span style={{ fontSize: 10, color: 'var(--silver)' }}>Ver listado ▼</span>
+                          </summary>
+                          <div style={{ padding: '0 16px 12px 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                            {[...topPerformers].slice(-3).reverse().map((p, i) => (
+                              <div key={i} style={{ background: 'var(--ink2)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 8, padding: 10, display: 'flex', alignItems: 'center', gap: 12 }}>
+                                <div style={{ fontSize: 18 }}>📉</div>
+                                <div style={{ flex: 1 }}>
+                                  <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--snow)' }}>{p.nombre}</div>
+                                  <div style={{ fontSize: 11, color: 'var(--silver)' }}>Distancia Estimada: <span style={{color: '#ef4444', fontWeight: 600}}>{p.distTotal}m</span></div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </details>
+                      </>
+                    )}
                   </>
                 )}
 
