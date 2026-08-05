@@ -250,10 +250,19 @@ function parseRawRows(rows: any[][]): any[] {
       if (mKey) {
         let val = row[i]
         if (typeof val === 'string') {
-          val = val.replace(/[^\d.,-]/g, '').replace(',', '.')
-          val = parseFloat(val)
+          if (mKey === 'duracion_min' && /^\d{1,2}:\d{2}(:\d{2})?$/.test(val.trim())) {
+            const parts = val.trim().split(':')
+            val = parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10)
+            if (parts[2]) val += parseInt(parts[2], 10) / 60
+          } else {
+            val = val.replace(/[^\d.,-]/g, '').replace(',', '.')
+            val = parseFloat(val)
+          }
         }
         if (typeof val === 'number' && !isNaN(val)) {
+          if (mKey === 'duracion_min' && val > 0 && val < 1) {
+            val = Math.round(val * 1440)
+          }
           metricas[mKey] = val
           if (val > 0) hasAnyData = true
         }
@@ -316,7 +325,14 @@ function parsePdfAllMethods(text: string): any[] {
       if (cm.metric) {
         const rawVal = numParts[metricIdx]
         if (rawVal) {
-          const val = parseFloat(rawVal.replace(/[^\d.,-]/g, '').replace(',', '.'))
+          let val: number
+          if (cm.metric === 'duracion_min' && /^\d{1,2}:\d{2}(:\d{2})?$/.test(rawVal.trim())) {
+            const parts = rawVal.trim().split(':')
+            val = parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10)
+            if (parts[2]) val += parseInt(parts[2], 10) / 60
+          } else {
+            val = parseFloat(rawVal.replace(/[^\d.,-]/g, '').replace(',', '.'))
+          }
           if (!isNaN(val)) {
             metricas[cm.metric] = val
             if (val > 0) hasAnyData = true
