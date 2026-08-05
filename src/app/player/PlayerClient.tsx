@@ -342,7 +342,7 @@ function NotificationConfig({ jugadorId, jugador, onSaved }: any) {
 
   // Fetch push preferences
   useEffect(() => {
-    fetch('/api/push/preferences')
+    fetch(`/api/push/preferences?t=${Date.now()}`)
       .then(r => r.json())
       .then(d => {
         if (d.preferences) setPrefs(p => ({ ...p, ...d.preferences }))
@@ -555,7 +555,7 @@ function StatsTab({ isPanama, jugador, gpsStats, wellnessStreak, totalSesiones, 
     { icon:'⚡', label:'Racha RPE', value: rpeStreak, unit:'sesiones', sub: rpeStreak > 0 ? 'Sesiones consecutivas' : 'Últimos 30 días', color:'#a3e635', badge: null },
     { icon:'🏃', label:'Sesiones (28 días)', value: totalSesiones, unit:'sesiones', sub: `${totalUA} UA acumuladas`, color:'#f97316', badge: null },
     { icon:'🏅', label:'Sesiones GPS', value: gpsStats?.totalSesionesGps ?? 0, unit:'', sub: gpsStats?.maxSprints ? `Máx. ${gpsStats.maxSprints} sprints` : 'Sin datos GPS', color:'#8b5cf6', badge: null },
-    { icon:'🚀', label:'Récord Acel/Decel', value: (gpsStats?.maxAcc || gpsStats?.maxDec) ? `${gpsStats.maxAcc||0} / ${gpsStats.maxDec||0}` : '—', unit:'', sub: (gpsStats?.maxAcc || gpsStats?.maxDec) ? `Acels / Decels` : 'Sin datos Acel/Dec', color:'#ec4899', badge: null },
+    { icon:'🚀', label:'Récord Acel/Decel', value: (gpsStats?.maxAcc || gpsStats?.maxDec) ? <><span style={{color:'#ec4899'}}>{gpsStats.maxAcc||0}</span> <span style={{color:'var(--fog)'}}>/</span> <span style={{color:'#14b8a6'}}>{gpsStats.maxDec||0}</span></> : '—', unit:'', sub: (gpsStats?.maxAcc || gpsStats?.maxDec) ? `Acels / Decels` : 'Sin datos Acel/Dec', color:'#ec4899', badge: null },
   ]
 
   return (

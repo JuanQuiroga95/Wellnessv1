@@ -554,7 +554,12 @@ export default function WellnessForm({ isPanama, jugadorId, onSuccess, todayWell
   const [loading, setLoading] = useState(false)
   const [done, setDone] = useState(false)
   const [error, setError] = useState('')
-  const [fecha, setFecha] = useState(new Date().toISOString().split('T')[0])
+  function getLocalISODate() {
+    const d = new Date()
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
+  }
+
+  const [fecha, setFecha] = useState(getLocalISODate())
   const [showSecondTurn, setShowSecondTurn] = useState(false)
 
   const [tieneMolestia, setTieneMolestia] = useState<boolean|null>(null) // Para Panamá
@@ -607,7 +612,7 @@ export default function WellnessForm({ isPanama, jugadorId, onSuccess, todayWell
         method:'POST', headers:{'Content-Type':'application/json'},
         body: JSON.stringify({
           jugador_id:jugadorId,
-          ...(isProxy ? { fecha } : {}),
+          fecha,
           fatiga: vals.fatiga,
           calidad_sueno: vals.calidad_sueno,
           dolor_muscular: vals.dolor_muscular,

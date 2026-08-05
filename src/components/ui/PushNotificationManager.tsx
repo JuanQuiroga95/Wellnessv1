@@ -26,7 +26,7 @@ export default function PushNotificationManager() {
 
   // Check current state on mount
   useEffect(() => {
-    if (!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)) {
+    if (!('Notification' in window) || !navigator.serviceWorker || !('PushManager' in window)) {
       setPermission('unsupported')
       return
     }
@@ -223,7 +223,7 @@ export function PushToggle({ onSubscriptionChange }: { onSubscriptionChange?: (s
   const [supported, setSupported] = useState(true)
 
   useEffect(() => {
-    if (!('Notification' in window) || !('serviceWorker' in navigator) || !('PushManager' in window)) {
+    if (!('Notification' in window) || !navigator.serviceWorker || !('PushManager' in window)) {
       setSupported(false)
       return
     }

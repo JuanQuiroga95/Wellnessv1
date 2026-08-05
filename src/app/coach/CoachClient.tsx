@@ -13078,7 +13078,7 @@ function NotificacionesCoachPanel() {
   const [hasSubscription, setHasSubscription] = useState(false)
 
   useEffect(() => {
-    fetch('/api/push/preferences')
+    fetch(`/api/push/preferences?t=${Date.now()}`)
       .then(r => r.json())
       .then(d => {
         if (d.preferences) {

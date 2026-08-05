@@ -18,8 +18,10 @@ export default function RPEForm({ jugadorId, onSuccess, isProxy = false }: { jug
     e.preventDefault(); if (!canSubmit) return
     setLoading(true); setError('')
     try {
-      const body: any = { jugador_id:jugadorId, rpe, duracion_min:Number(duracion), tipo_sesion:tipo }
-      if (isProxy) body.fecha = fecha
+      const localDate = new Date()
+      const localFecha = `${localDate.getFullYear()}-${String(localDate.getMonth()+1).padStart(2,'0')}-${String(localDate.getDate()).padStart(2,'0')}`
+      
+      const body: any = { jugador_id:jugadorId, rpe, duracion_min:Number(duracion), tipo_sesion:tipo, fecha: isProxy ? fecha : localFecha }
       if (hizoFuerza && rpeGimnasio !== null) body.rpe_gimnasio = rpeGimnasio
       const res = await fetch('/api/logs', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) })
       if (!res.ok) { const d=await res.json(); setError(d.error||'Error'); return }
