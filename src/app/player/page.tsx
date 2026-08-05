@@ -18,7 +18,7 @@ export default async function PlayerPage() {
     sql`SELECT fecha::text, carga_ua::int, rpe::int, rpe_gimnasio::int, duracion_min::int, tipo_sesion FROM entrenamiento_logs WHERE jugador_id=${jugadorId} AND fecha>=CURRENT_DATE-28 ORDER BY fecha ASC`,
     sql`SELECT fecha::text, fatiga::int, calidad_sueno::int, dolor_muscular::int, nivel_estres::int, estado_animo::int, dolor_zona, COALESCE(horas_sueno::numeric,0) AS horas_sueno, COALESCE(tqr::int,0) AS tqr, COALESCE(recovery::int,0) AS recovery, COALESCE(dolor_eva::int,0) AS dolor_eva, COALESCE(entrena_grupo::text,'true') AS entrena_grupo, COALESCE(fue_gimnasio::text,'false') AS fue_gimnasio, COALESCE(grupos_musculares,'') AS grupos_musculares FROM wellness_logs WHERE jugador_id=${jugadorId} ORDER BY fecha DESC LIMIT 10`,
     sql`SELECT id, fecha::text, fatiga::int, calidad_sueno::int, dolor_muscular::int, nivel_estres::int, estado_animo::int, dolor_zona, COALESCE(horas_sueno::numeric,0) AS horas_sueno, COALESCE(tqr::int,0) AS tqr, COALESCE(recovery::int,0) AS recovery, COALESCE(dolor_eva::int,0) AS dolor_eva, COALESCE(entrena_grupo::text,'true') AS entrena_grupo, COALESCE(fue_gimnasio::text,'false') AS fue_gimnasio, COALESCE(grupos_musculares,'') AS grupos_musculares FROM wellness_logs WHERE jugador_id=${jugadorId} AND fecha=${today} ORDER BY id DESC`,
-    sql`SELECT MAX(max_velocity)::text AS max_vel, MAX(dist_total)::text AS max_dist, MAX(dist_hir)::text AS max_hir, MAX(n_sprints)::int AS max_sprints, MAX(acc3)::int AS max_acc, MAX(dec3)::int AS max_dec, COUNT(*)::int AS total_sesiones_gps FROM gps_logs WHERE jugador_id=${jugadorId}`.catch(()=>[]),
+    sql`SELECT MAX(max_velocity)::text AS max_vel, MAX(dist_total)::text AS max_dist, MAX(dist_hir)::text AS max_hir, MAX(n_sprints)::int AS max_sprints, NULLIF(GREATEST(COALESCE(MAX(acc3), 0), COALESCE(MAX(acc2), 0)), 0)::int AS max_acc, NULLIF(GREATEST(COALESCE(MAX(dec3), 0), COALESCE(MAX(dec2), 0)), 0)::int AS max_dec, COUNT(*)::int AS total_sesiones_gps FROM gps_logs WHERE jugador_id=${jugadorId}`.catch(()=>[]),
     sql`SELECT fecha::text FROM wellness_logs WHERE jugador_id=${jugadorId} ORDER BY fecha DESC LIMIT 60`.catch(()=>[]),
     sql`SELECT c.nombre FROM jugadores j JOIN clubs c ON j.club_id = c.id WHERE j.usuario_id = ${session.userId}`.catch(()=>[]),
     sql`SELECT fecha::text, peso_kg::text, mme_kg::text, masa_grasa_kg::text, imc::text, pgc_pct::text, notas FROM inbody_tests WHERE jugador_id=${jugadorId} ORDER BY fecha DESC`.catch(()=>[]),
@@ -47,7 +47,7 @@ export default async function PlayerPage() {
 
   // Wellness streak: check only backwards on training days, optionally skipping today if missing
   const wDates = new Set((wAllRows as any[]).map((r:any) => String(r.fecha)))
-  const tDates = new Set((trainingRows as any[]).map((r:any) => String(r.fecha)))
+  const tDates = new Set((logs as any[]).map((r:any) => String(r.fecha)))
   
   let wellnessStreak = 0
   const todayD = new Date(today)
