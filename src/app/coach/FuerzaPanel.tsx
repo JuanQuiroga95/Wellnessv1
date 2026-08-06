@@ -2,6 +2,10 @@
 import React, { useState, useEffect } from 'react'
 import { Icons, PanelHeader } from './Headers'
 
+// Cache a nivel módulo para evitar re-fetches al cambiar de tab
+let cachedMandamientos: any[] | null = null
+let cachedEjercicios: any[] | null = null
+
 export default function FuerzaPanel({ teamData, session }: { teamData: any[], session: any }) {
   const [activeTab, setActiveTab] = useState<'asignar' | 'catalogo' | 'mandamientos' | 'rpe'>('asignar')
   const [ejercicios, setEjercicios] = useState<any[]>([])
@@ -30,6 +34,7 @@ export default function FuerzaPanel({ teamData, session }: { teamData: any[], se
   const [formRpe, setFormRpe] = useState('')
 
   // Rutinas guardadas hoy
+  const [allRutinasPlayer, setAllRutinasPlayer] = useState<any[]>([])
   const [rutinasDia, setRutinasDia] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
 
@@ -38,24 +43,39 @@ export default function FuerzaPanel({ teamData, session }: { teamData: any[], se
   }, [])
 
   useEffect(() => {
-    if (selectedJugador && selectedFecha) {
-      loadRutinas()
+    if (selectedJugador) {
+      loadRutinasPlayer()
     }
-  }, [selectedJugador, selectedFecha])
+  }, [selectedJugador])
 
-  const loadData = async () => {
+  useEffect(() => {
+    // Filtrar localmente cuando cambia la fecha
+    if (selectedJugador === 'todos') {
+      setRutinasDia([])
+    } else {
+      setRutinasDia(allRutinasPlayer.filter(r => r.fecha === selectedFecha))
+    }
+  }, [selectedFecha, allRutinasPlayer, selectedJugador])
+
+  const loadData = async (force = false) => {
     try {
       setLoading(true)
       try {
-        const mandRes = await fetch('/api/fuerza/mandamientos')
-        const mandData = await mandRes.json()
-        if (mandData.mandamientos) setMandamientos(mandData.mandamientos)
+        if (!cachedMandamientos || force) {
+          const mandRes = await fetch('/api/fuerza/mandamientos')
+          const mandData = await mandRes.json()
+          if (mandData.mandamientos) cachedMandamientos = mandData.mandamientos
+        }
+        if (cachedMandamientos) setMandamientos(cachedMandamientos)
       } catch (err) { console.error('Error load mandamientos', err) }
       
       try {
-        const ejRes = await fetch('/api/fuerza/ejercicios')
-        const ejData = await ejRes.json()
-        if (ejData.ejercicios) setEjercicios(ejData.ejercicios)
+        if (!cachedEjercicios || force) {
+          const ejRes = await fetch('/api/fuerza/ejercicios')
+          const ejData = await ejRes.json()
+          if (ejData.ejercicios) cachedEjercicios = ejData.ejercicios
+        }
+        if (cachedEjercicios) setEjercicios(cachedEjercicios)
       } catch (err) { console.error('Error load ejercicios', err) }
     } catch (err) {
       console.error(err)
@@ -64,15 +84,16 @@ export default function FuerzaPanel({ teamData, session }: { teamData: any[], se
     }
   }
 
-  const loadRutinas = async () => {
-    if (selectedJugador === 'todos') {
-      setRutinasDia([])
+  const loadRutinasPlayer = async () => {
+    if (selectedJugador === 'todos' || !selectedJugador) {
+      setAllRutinasPlayer([])
       return
     }
     try {
-      const res = await fetch(`/api/fuerza/rutinas?jugador_id=${selectedJugador}&fecha=${selectedFecha}`)
+      // Fetch ALL routines for this player at once
+      const res = await fetch(`/api/fuerza/rutinas?jugador_id=${selectedJugador}`)
       const data = await res.json()
-      if (data.rutinas) setRutinasDia(data.rutinas)
+      if (data.rutinas) setAllRutinasPlayer(data.rutinas)
     } catch (err) {
       console.error(err)
     }
@@ -112,7 +133,7 @@ export default function FuerzaPanel({ teamData, session }: { teamData: any[], se
         setNewEjDesc('')
         setNewEjMandamiento('')
         setEditEjId(null)
-        loadData()
+        loadData(true)
       }
     } catch (err) {
       console.error(err)
@@ -133,7 +154,7 @@ export default function FuerzaPanel({ teamData, session }: { teamData: any[], se
     if (!confirm('¿Estás seguro de eliminar este ejercicio?')) return
     try {
       await fetch(`/api/fuerza/ejercicios?id=${id}`, { method: 'DELETE' })
-      loadData()
+      loadData(true)
     } catch (err) {
       console.error(err)
     }
@@ -149,7 +170,7 @@ export default function FuerzaPanel({ teamData, session }: { teamData: any[], se
       })
       setNewMandNumero('')
       setNewMandNombre('')
-      loadData()
+      loadData(true)
     } catch (err) {
       console.error(err)
     }
@@ -159,7 +180,7 @@ export default function FuerzaPanel({ teamData, session }: { teamData: any[], se
     if (!confirm('¿Seguro que quieres eliminar este mandamiento? Podría afectar los ejercicios asignados a él.')) return
     try {
       await fetch(`/api/fuerza/mandamientos?id=${id}`, { method: 'DELETE' })
-      loadData()
+      loadData(true)
     } catch (err) {
       console.error(err)
     }
@@ -202,7 +223,7 @@ export default function FuerzaPanel({ teamData, session }: { teamData: any[], se
         if (selectedJugador === 'todos') {
           alert('Asignación masiva exitosa. Se asignó la rutina a todos los jugadores.')
         } else {
-          loadRutinas()
+          loadRutinasPlayer()
         }
       }
     } catch (err) {
@@ -214,7 +235,7 @@ export default function FuerzaPanel({ teamData, session }: { teamData: any[], se
     if (!confirm('¿Borrar este ejercicio de la rutina?')) return
     try {
       await fetch(`/api/fuerza/rutinas?id=${id}`, { method: 'DELETE' })
-      loadRutinas()
+      loadRutinasPlayer()
     } catch (err) {
       console.error(err)
     }

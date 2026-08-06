@@ -3,6 +3,7 @@ import React, { useState, useEffect, useRef } from 'react'
 
 export default function RutinaFuerzaView({ jugadorId, today, recentLogs = [] }: { jugadorId: number, today: string, recentLogs?: any[] }) {
   const [selectedDate, setSelectedDate] = useState<string>(today)
+  const [allRutinas, setAllRutinas] = useState<any[]>([])
   const [rutinas, setRutinas] = useState<any[]>([])
   const [rutinasFechas, setRutinasFechas] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
@@ -11,40 +12,39 @@ export default function RutinaFuerzaView({ jugadorId, today, recentLogs = [] }: 
 
   useEffect(() => {
     if (rutinas.length > 0 && rutinasContainerRef.current) {
-      // Small timeout to ensure DOM is updated before scrolling
       setTimeout(() => {
         rutinasContainerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
       }, 100)
     }
   }, [rutinas, selectedDate])
 
+  // Fetch ALL routines once
   useEffect(() => {
-    async function loadFechas() {
-      try {
-        const res = await fetch(`/api/fuerza/rutinas?jugador_id=${jugadorId}&fechas_only=true`)
-        const data = await res.json()
-        if (data.fechas) setRutinasFechas(data.fechas.map((f: string) => f.slice(0, 10)))
-      } catch (err) {}
-    }
-    loadFechas()
-  }, [jugadorId])
-
-  useEffect(() => {
-    async function load() {
+    async function loadAll() {
       setLoading(true)
       try {
-        const res = await fetch(`/api/fuerza/rutinas?jugador_id=${jugadorId}&fecha=${selectedDate}`)
+        const res = await fetch(`/api/fuerza/rutinas?jugador_id=${jugadorId}`)
         const data = await res.json()
-        if (data.rutinas) setRutinas(data.rutinas)
-        else setRutinas([])
+        if (data.rutinas) {
+          setAllRutinas(data.rutinas)
+          // Extract unique dates
+          const uniqueDates = Array.from(new Set(data.rutinas.map((r: any) => r.fecha)))
+          setRutinasFechas(uniqueDates as string[])
+        }
       } catch (err) {
         console.error(err)
       } finally {
         setLoading(false)
       }
     }
-    load()
-  }, [jugadorId, selectedDate])
+    loadAll()
+  }, [jugadorId])
+
+  // Filter locally when selectedDate changes
+  useEffect(() => {
+    const dailyRutinas = allRutinas.filter(r => r.fecha === selectedDate)
+    setRutinas(dailyRutinas)
+  }, [selectedDate, allRutinas])
 
   const header = (
     <div style={{ padding:'0 8px', marginBottom:8, display:'flex', justifyContent:'space-between', alignItems:'center' }}>

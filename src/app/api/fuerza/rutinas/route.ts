@@ -31,23 +31,42 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ success: true, fechas: fechas.map((f:any) => f.fecha || f.text || f['?column?']) })
     }
 
-    if (!fecha) return NextResponse.json({ error: 'Faltan parámetros' }, { status: 400 })
-    
-    // Obtener rutinas con inner joins a mandamientos y ejercicios
-    const rutinas = await sql`
-      SELECT 
-        r.*, 
-        m.numero as mandamiento_numero, 
-        m.nombre as mandamiento_nombre,
-        e.nombre as ejercicio_nombre,
-        e.url_video as ejercicio_video,
-        e.imagen_url as ejercicio_imagen_url
-      FROM fuerza_rutinas r
-      JOIN fuerza_mandamientos m ON r.mandamiento_id = m.id
-      JOIN fuerza_ejercicios e ON r.ejercicio_id = e.id
-      WHERE r.jugador_id = ${Number(jugadorId)} AND r.fecha = ${fecha}
-      ORDER BY m.numero ASC, r.orden ASC, r.id ASC
-    `
+    let rutinas = []
+    if (fecha) {
+      // Obtener rutinas con inner joins a mandamientos y ejercicios para una fecha
+      rutinas = await sql`
+        SELECT 
+          r.*, 
+          m.numero as mandamiento_numero, 
+          m.nombre as mandamiento_nombre,
+          e.nombre as ejercicio_nombre,
+          e.url_video as ejercicio_video,
+          e.imagen_url as ejercicio_imagen_url,
+          r.fecha::text as fecha
+        FROM fuerza_rutinas r
+        JOIN fuerza_mandamientos m ON r.mandamiento_id = m.id
+        JOIN fuerza_ejercicios e ON r.ejercicio_id = e.id
+        WHERE r.jugador_id = ${Number(jugadorId)} AND r.fecha = ${fecha}
+        ORDER BY m.numero ASC, r.orden ASC, r.id ASC
+      `
+    } else {
+      // Obtener TODAS las rutinas del jugador (para cacheo local en frontend)
+      rutinas = await sql`
+        SELECT 
+          r.*, 
+          m.numero as mandamiento_numero, 
+          m.nombre as mandamiento_nombre,
+          e.nombre as ejercicio_nombre,
+          e.url_video as ejercicio_video,
+          e.imagen_url as ejercicio_imagen_url,
+          r.fecha::text as fecha
+        FROM fuerza_rutinas r
+        JOIN fuerza_mandamientos m ON r.mandamiento_id = m.id
+        JOIN fuerza_ejercicios e ON r.ejercicio_id = e.id
+        WHERE r.jugador_id = ${Number(jugadorId)}
+        ORDER BY r.fecha DESC, m.numero ASC, r.orden ASC, r.id ASC
+      `
+    }
 
     return NextResponse.json({ success: true, rutinas })
   } catch (err) {
