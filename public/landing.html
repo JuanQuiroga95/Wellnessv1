@@ -1015,6 +1015,68 @@
   </div>
 </div>
 
+<!-- TESTIMONIALS -->
+<section id="testimonials" style="background:var(--dark2); border-top:1px solid var(--dark4);">
+  <div class="reveal" style="text-align:center; margin-bottom:64px;">
+    <div class="section-tag">// TESTIMONIOS</div>
+    <h2 class="section-title">PROFESIONALES QUE YA<br><span style="color:var(--lime)">USAN W&P</span></h2>
+  </div>
+
+  <style>
+    .testimonials-carousel {
+      display: flex;
+      overflow-x: auto;
+      scroll-snap-type: x mandatory;
+      gap: 24px;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding-bottom: 24px;
+      padding-top: 12px;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: thin;
+      scrollbar-color: var(--lime) var(--dark3);
+    }
+    .testimonials-carousel::-webkit-scrollbar {
+      height: 8px;
+    }
+    .testimonials-carousel::-webkit-scrollbar-track {
+      background: var(--dark3);
+      border-radius: 4px;
+    }
+    .testimonials-carousel::-webkit-scrollbar-thumb {
+      background-color: var(--lime);
+      border-radius: 4px;
+    }
+    .testimonials-carousel .testimonial-card {
+      flex: 0 0 auto;
+      width: 320px;
+      scroll-snap-align: center;
+    }
+    @media (max-width: 768px) {
+      .testimonials-carousel .testimonial-card {
+        width: 280px;
+      }
+    }
+  </style>
+  <div class="reveal testimonials-carousel">
+    <div class="testimonial-card">
+      <img src="/images/salvador.jpg" alt="Salvador Marquez" onerror="this.src='https://placehold.co/400x700/111/444?text=Salvador\nMarquez';">
+    </div>
+    <div class="testimonial-card">
+      <img src="/images/matias.jpg" alt="Matias Cano" onerror="this.src='https://placehold.co/400x700/111/444?text=Matias\nCano';">
+    </div>
+    <div class="testimonial-card">
+      <img src="/images/mariano.jpg" alt="Mariano Sanchez" onerror="this.src='https://placehold.co/400x700/111/444?text=Mariano\nSanchez';">
+    </div>
+    <div class="testimonial-card">
+      <img src="/images/brayan.jpg" alt="Brayan Bermudez" onerror="this.src='https://placehold.co/400x700/111/444?text=Brayan\nBermudez';">
+    </div>
+    <div class="testimonial-card">
+      <img src="/images/oswaldo.jpg" alt="Oswaldo" onerror="this.src='https://placehold.co/400x700/111/444?text=Oswaldo';">
+    </div>
+  </div>
+</section>
+
 <!-- FEATURES -->
 <section id="features">
   <div class="features-header reveal">
@@ -1223,67 +1285,7 @@
   </div>
 </section>
 
-<!-- TESTIMONIALS -->
-<section id="testimonials" style="background:var(--dark2); border-top:1px solid var(--dark4);">
-  <div class="reveal" style="text-align:center; margin-bottom:64px;">
-    <div class="section-tag">// TESTIMONIOS</div>
-    <h2 class="section-title">PROFESIONALES QUE YA<br><span style="color:var(--lime)">USAN W&P</span></h2>
-  </div>
 
-  <style>
-    .testimonials-carousel {
-      display: flex;
-      overflow-x: auto;
-      scroll-snap-type: x mandatory;
-      gap: 24px;
-      max-width: 1200px;
-      margin: 0 auto;
-      padding-bottom: 24px;
-      padding-top: 12px;
-      -webkit-overflow-scrolling: touch;
-      scrollbar-width: thin;
-      scrollbar-color: var(--lime) var(--dark3);
-    }
-    .testimonials-carousel::-webkit-scrollbar {
-      height: 8px;
-    }
-    .testimonials-carousel::-webkit-scrollbar-track {
-      background: var(--dark3);
-      border-radius: 4px;
-    }
-    .testimonials-carousel::-webkit-scrollbar-thumb {
-      background-color: var(--lime);
-      border-radius: 4px;
-    }
-    .testimonials-carousel .testimonial-card {
-      flex: 0 0 auto;
-      width: 320px;
-      scroll-snap-align: center;
-    }
-    @media (max-width: 768px) {
-      .testimonials-carousel .testimonial-card {
-        width: 280px;
-      }
-    }
-  </style>
-  <div class="reveal testimonials-carousel">
-    <div class="testimonial-card">
-      <img src="/images/salvador.jpg" alt="Salvador Marquez" onerror="this.src='https://placehold.co/400x700/111/444?text=Salvador\nMarquez';">
-    </div>
-    <div class="testimonial-card">
-      <img src="/images/matias.jpg" alt="Matias Cano" onerror="this.src='https://placehold.co/400x700/111/444?text=Matias\nCano';">
-    </div>
-    <div class="testimonial-card">
-      <img src="/images/mariano.jpg" alt="Mariano Sanchez" onerror="this.src='https://placehold.co/400x700/111/444?text=Mariano\nSanchez';">
-    </div>
-    <div class="testimonial-card">
-      <img src="/images/brayan.jpg" alt="Brayan Bermudez" onerror="this.src='https://placehold.co/400x700/111/444?text=Brayan\nBermudez';">
-    </div>
-    <div class="testimonial-card">
-      <img src="/images/oswaldo.jpg" alt="Oswaldo" onerror="this.src='https://placehold.co/400x700/111/444?text=Oswaldo';">
-    </div>
-  </div>
-</section>
 
 <!-- CTA -->
 <section id="cta">
