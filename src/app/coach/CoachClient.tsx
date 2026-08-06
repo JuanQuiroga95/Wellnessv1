@@ -195,6 +195,7 @@ const SIDEBAR_GROUPS = [
     {id:'manual',label:'Manual',icon:'📖'},
   ]},
   { label:'Configuración', icon:'⚙️', items:[
+    {id:'ajustes_club',label:'Ajustes de Club',icon:'🏟️'},
     {id:'notificaciones',label:'Notificaciones',icon:'🔔'},
     {id:'billing',label:'Membresía',icon:'💳'},
   ]},
@@ -1112,7 +1113,7 @@ export default function CoachDashboard({ isPanama, session, teamData, today }: a
           <PlayerDetail isPanama={isPanama} player={selected} logs={playerLogs} wellness={playerWellness} loading={loadingDetail} ciclo={ciclo} onCicloChange={(c)=>{ setCiclo(c); openPlayer(selected, c) }} onRefreshData={() => { openPlayer(selected, ciclo); router.refresh(); }} onBack={()=>setSelected(null)} proxyMode={proxyMode} onViewACWR={() => { setAcwrPlayerId(selected.jugador_id); setTab('vinculaciones'); }} />
         )}
 
-        {tab==='analytics' && <AnalyticsPanel isPanama={isPanama} />}
+        {tab==='analytics' && <AnalyticsPanel isPanama={isPanama} esSeleccion={esSeleccion} />}
         {tab==='neuromuscular' && <PerfilNeuromuscularPanel />}
         {tab==='inbody' && <InBodyComparativaPanel teamData={teamData} />}
         {tab==='calendario' && <CalendarioPanel teamData={teamData} canchas={canchas} setCanchas={setCanchas} />}
@@ -1630,7 +1631,7 @@ function PlayerDetail({ isPanama, player:p, logs, wellness, loading, onBack, cic
       {logs.length>0 && (
         <div style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:16, padding:20 }}>
           <p style={{ fontSize:11, fontWeight:600, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:14 }}>Últimas sesiones <span style={{ fontSize:10, color:'var(--fog)', fontWeight:400, textTransform:'none' }}>— click en ✏️ para editar minutos y recalcular UA</span></p>
-          {[...logs].slice(-8).reverse().map((l,i)=>(<CoachSessionRow key={i} log={l} />))}
+          {[...logs].slice(-8).reverse().map((l,i)=>(<CoachSessionRow key={i} log={l} esSeleccion={esSeleccion} />))}
         </div>
       )}
       <HistorialLesivo jugadorId={p.jugador_id || p.id} />
@@ -5199,13 +5200,14 @@ function AddMatchForm({ teamData, onSuccess, onCancel }) {
   )
 }
 
-function CoachSessionRow({ log }) {
+function CoachSessionRow({ log, esSeleccion }: { log: any; esSeleccion?: boolean }) {
   const [editing, setEditing] = useState(false)
   const [mins, setMins] = useState(String(log.duracion_min || '90'))
   const [displayMins, setDisplayMins] = useState(Number(log.duracion_min) || 90)
   const [ua, setUa] = useState(Number(log.carga_ua) || 0)
   const [tipo, setTipo] = useState(log.tipo_sesion || 'EQUIPO')
   const [displayTipo, setDisplayTipo] = useState(log.tipo_sesion || 'EQUIPO')
+  const [observaciones, setObservaciones] = useState(log.observaciones || '')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
@@ -5217,7 +5219,7 @@ function CoachSessionRow({ log }) {
       const res = await fetch('/api/logs', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: log.id, duracion_min: m, tipo_sesion: tipo })
+        body: JSON.stringify({ id: log.id, duracion_min: m, tipo_sesion: tipo, observaciones: observaciones || null })
       })
       if (!res.ok) { const d = await res.json(); setError(d.error||'Error'); return }
       const updated = await res.json()
@@ -5230,8 +5232,8 @@ function CoachSessionRow({ log }) {
     finally { setSaving(false) }
   }
 
-  const tipoLabel = displayTipo === 'PARCIAL' ? 'Parcial' : displayTipo === 'READAPTACION' ? 'Readaptación' : 'Completa'
-  const tipoColor = displayTipo === 'PARCIAL' ? '#f59e0b' : displayTipo === 'READAPTACION' ? '#3b82f6' : 'var(--silver)'
+  const tipoLabel = displayTipo === 'PARCIAL' ? 'Parcial' : displayTipo === 'READAPTACION' ? 'Readaptación' : displayTipo === 'SELECCION' ? 'Selección' : displayTipo === 'CLUB_ENTRENA' ? 'Club - Entrena' : displayTipo === 'CLUB_PARTIDO' ? 'Club - Partido' : displayTipo === 'AUSENTE' ? 'Ausente' : 'Completa'
+  const tipoColor = displayTipo === 'PARCIAL' ? '#f59e0b' : displayTipo === 'READAPTACION' ? '#3b82f6' : displayTipo === 'AUSENTE' ? '#ef4444' : displayTipo.startsWith('CLUB_') ? '#a78bfa' : displayTipo === 'SELECCION' ? 'var(--lime)' : 'var(--silver)'
 
   return (
     <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'8px 0', borderBottom:'1px solid var(--mist)', fontSize:13, gap:8, flexWrap:'wrap' }}>
@@ -5246,6 +5248,14 @@ function CoachSessionRow({ log }) {
             <option value="EQUIPO">Completa</option>
             <option value="PARCIAL">Parcial</option>
             <option value="READAPTACION">Readaptación</option>
+            {esSeleccion && (
+              <>
+                <option value="SELECCION">Selección</option>
+                <option value="CLUB_ENTRENA">Club - Entrena</option>
+                <option value="CLUB_PARTIDO">Club - Partido</option>
+                <option value="AUSENTE">Ausente</option>
+              </>
+            )}
           </select>
           <input
             type="number" min="1" max="300"
@@ -5257,6 +5267,14 @@ function CoachSessionRow({ log }) {
             autoFocus
           />
           <span style={{ fontSize:11, color:'var(--silver)' }}>min</span>
+          
+          <input
+            type="text"
+            value={observaciones}
+            onChange={e=>setObservaciones(e.target.value)}
+            style={{ width:120, background:'var(--ink3)', border:'1px solid var(--lime)', borderRadius:6, padding:'4px 8px', fontSize:11, color:'var(--snow)', outline:'none' }}
+            placeholder="Obs..."
+          />
           <button className="hover-scale" onClick={saveMinutes} disabled={saving} style={{ fontSize:11, padding:'4px 8px', borderRadius:6, background:'var(--lime)', color:'var(--ink)', border:'none', cursor:'pointer', fontWeight:700 }}>
             {saving ? '...' : '✓'}
           </button>
@@ -5269,6 +5287,7 @@ function CoachSessionRow({ log }) {
           <span style={{ color: displayMins ? 'var(--silver)' : '#f59e0b', fontFamily:'DM Mono,monospace', fontSize:12 }}>
             {displayMins ? `${displayMins} min` : <span style={{ fontSize:11 }}>⚠ sin mins</span>}
           </span>
+          {log.observaciones && <span title={log.observaciones} style={{ cursor:'help', fontSize:13 }}>💬</span>}
           <button className="hover-scale" onClick={()=>setEditing(true)} title="Editar minutos y tipo" style={{ fontSize:13, background:'transparent', border:'none', cursor:'pointer', color:'var(--fog)', padding:'0 2px', lineHeight:1 }}>✏️</button>
         </div>
       )}
@@ -6643,6 +6662,7 @@ function NewLesionForm({ teamData, onSuccess, onCancel }) {
 // ══ BULK IMPORT PANEL ════════════════════════════════════════════════════════
 const IMPORT_COLS = [
   { key:'posicion',         label:'Posición' },
+  ...(esSeleccion ? [{ key:'club_origen',      label:'Club de Origen' }] : []),
   { key:'edad',             label:'Edad' },
   { key:'peso_kg',          label:'Peso (kg)' },
   { key:'estatura_cm',      label:'Estatura (cm)' },
@@ -6837,6 +6857,7 @@ function BulkImportPanel({ onSuccess, onCancel }: { onSuccess: ()=>void; onCance
                     <td style={{ padding:'7px 12px', color:'var(--snow)', fontWeight:600 }}>{p.nombre}</td>
                     <td style={{ padding:'7px 12px', color:'var(--lime)', fontFamily:'DM Mono,monospace', fontSize:11 }}>@{p.usuario}</td>
                     <td style={{ padding:'7px 12px', color:'var(--silver)' }}>{p.posicion||'—'}</td>
+                    {esSeleccion && <td style={{ padding:'7px 12px', color:'var(--silver)' }}>{p.club_origen||'—'}</td>}
                     <td style={{ padding:'7px 12px', color:'var(--silver)' }}>{p.edad||'—'}</td>
                     <td style={{ padding:'7px 12px', color:'var(--silver)' }}>{p.peso_kg?`${p.peso_kg}kg`:'—'}</td>
                     <td style={{ padding:'7px 12px', color:'var(--silver)' }}>{p.estatura_cm?`${p.estatura_cm}cm`:'—'}</td>
@@ -6893,7 +6914,7 @@ function BulkImportPanel({ onSuccess, onCancel }: { onSuccess: ()=>void; onCance
 }
 
 function NewPlayerForm({ onSuccess, onCancel }) {
-  const [f, setF] = useState({ nombre:'', usuario:'', password:'', posicion:'', nacionalidad:'', edad:'', peso_kg:'', estatura_cm:'', pie_habil:'Derecho', foto_url:'', email:'', fecha_nacimiento:'', hora_recordatorio:'08:00', peso_ideal_min:'', peso_ideal_max:'' })
+  const [f, setF] = useState({ nombre:'', usuario:'', password:'', posicion:'', nacionalidad:'', club_origen:'', edad:'', peso_kg:'', estatura_cm:'', pie_habil:'Derecho', foto_url:'', email:'', fecha_nacimiento:'', hora_recordatorio:'08:00', peso_ideal_min:'', peso_ideal_max:'' })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const set = (k,v) => setF(p=>({...p,[k]:v}))
@@ -6913,7 +6934,7 @@ function NewPlayerForm({ onSuccess, onCancel }) {
         <p style={{ fontSize:15, fontWeight:700, color:'var(--lime)', marginBottom:24, textTransform:'uppercase', letterSpacing:'0.06em' }}>Nuevo Jugador</p>
         <form onSubmit={submit}>
         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:12 }}>
-          {[ {k:'nombre',lbl:'Nombre completo',ph:'Juan Pérez',pw:false}, {k:'usuario',lbl:'Usuario',ph:'juan.perez',pw:false}, {k:'password',lbl:'Contraseña',ph:'Mín. 6 caracteres',pw:true}, {k:'edad',lbl:'Edad',ph:'22',pw:false}, {k:'peso_kg',lbl:'Peso (kg)',ph:'75.5',pw:false}, {k:'estatura_cm',lbl:'Estatura (cm)',ph:'178',pw:false} ].map(({k,lbl,ph,pw}: any)=>( 
+          {[ {k:'nombre',lbl:'Nombre completo',ph:'Juan Pérez',pw:false}, {k:'usuario',lbl:'Usuario',ph:'juan.perez',pw:false}, {k:'password',lbl:'Contraseña',ph:'Mín. 6 caracteres',pw:true}, {k:'edad',lbl:'Edad',ph:'22',pw:false}, {k:'peso_kg',lbl:'Peso (kg)',ph:'75.5',pw:false}, {k:'estatura_cm',lbl:'Estatura (cm)',ph:'178',pw:false}, ...(esSeleccion ? [{k:'club_origen',lbl:'Club de Origen',ph:'Ej. Tauro FC',pw:false}] : []) ].map(({k,lbl,ph,pw}: any)=>( 
             <div key={k}>
               <label style={{ display:'block', fontSize:11, fontWeight:600, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:5 }}>{lbl}</label>
               <input className="wp-input" type={pw?'password':'text'} value={f[k]} onChange={e=>set(k,e.target.value)} placeholder={ph} required={['nombre','usuario','password'].includes(k)} />
@@ -7010,6 +7031,7 @@ function ManageRow({ player, last, onRefresh }) {
     peso_ideal_min: String(player.peso_ideal_min||''),
     peso_ideal_max: String(player.peso_ideal_max||''),
     nacionalidad: player.nacionalidad||'',
+    club_origen: player.club_origen||'',
   })
   const setE = (k,v) => setEf(p=>({...p,[k]:v}))
 
@@ -7035,6 +7057,7 @@ function ManageRow({ player, last, onRefresh }) {
         peso_ideal_min: ef.peso_ideal_min ? parseFloat(String(ef.peso_ideal_min).replace(',', '.')) : null,
         peso_ideal_max: ef.peso_ideal_max ? parseFloat(String(ef.peso_ideal_max).replace(',', '.')) : null,
         nacionalidad: ef.nacionalidad||null,
+        club_origen: ef.club_origen||null,
       }
       const newPwd = ef.nueva_password.trim()
       if (newPwd) { body.password = newPwd }

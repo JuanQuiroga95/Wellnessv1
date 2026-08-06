@@ -22,12 +22,12 @@ export async function GET(req: NextRequest) {
   const r = s.rol === 'master_admin' && !clubId
     ? await sql`SELECT u.id,u.nombre,u.usuario,u.activo,u.password_plain,j.id AS jugador_id,j.posicion,j.edad,
                j.peso_kg::text AS peso_kg,j.estatura_cm,j.pie_habil,j.foto_url,j.email,j.fecha_nacimiento,j.hora_recordatorio,
-               j.peso_ideal_min::text AS peso_ideal_min,j.peso_ideal_max::text AS peso_ideal_max, j.nacionalidad
+               j.peso_ideal_min::text AS peso_ideal_min,j.peso_ideal_max::text AS peso_ideal_max, j.nacionalidad, j.club_origen
                FROM usuarios u LEFT JOIN jugadores j ON j.usuario_id=u.id
                WHERE u.rol='jugador' ORDER BY u.nombre`
     : await sql`SELECT u.id,u.nombre,u.usuario,u.activo,u.password_plain,j.id AS jugador_id,j.posicion,j.edad,
                j.peso_kg::text AS peso_kg,j.estatura_cm,j.pie_habil,j.foto_url,j.email,j.fecha_nacimiento,j.hora_recordatorio,
-               j.peso_ideal_min::text AS peso_ideal_min,j.peso_ideal_max::text AS peso_ideal_max, j.nacionalidad
+               j.peso_ideal_min::text AS peso_ideal_min,j.peso_ideal_max::text AS peso_ideal_max, j.nacionalidad, j.club_origen
                FROM usuarios u LEFT JOIN jugadores j ON j.usuario_id=u.id
                WHERE u.rol='jugador' AND u.activo=true AND u.club_id=${clubId}
                ORDER BY u.nombre`
@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
   const clubId = s.clubId ? Number(s.clubId) : null
   if (!clubId && s.rol !== 'master_admin') return NextResponse.json({error:'Club no asignado'},{status:400})
   const b = await req.json()
-  const {nombre,usuario,password,posicion,edad,peso_kg,estatura_cm,pie_habil,foto_url,email,fecha_nacimiento,hora_recordatorio,peso_ideal_min,peso_ideal_max,nacionalidad} = b
+  const {nombre,usuario,password,posicion,edad,peso_kg,estatura_cm,pie_habil,foto_url,email,fecha_nacimiento,hora_recordatorio,peso_ideal_min,peso_ideal_max,nacionalidad,club_origen} = b
   if (!nombre||!usuario||!password) return NextResponse.json({error:'Nombre, usuario y contraseña requeridos'},{status:400})
   const sql = getDb()
   await ensurePasswordPlainCol(sql)
@@ -52,6 +52,6 @@ export async function POST(req: NextRequest) {
   const [u] = await sql`INSERT INTO usuarios(nombre,usuario,password_hash,password_plain,rol,club_id) VALUES(${nombre},${usuario},${h},${password},'jugador',${clubId}) RETURNING id`
   const po = POS_ORDER[String(posicion||'').toLowerCase()]??99
   // Insert jugadores with explicit clubId in both columns — prevents ghost player bug
-  await sql`INSERT INTO jugadores(usuario_id,posicion,posicion_orden,edad,peso_kg,estatura_cm,pie_habil,foto_url,email,fecha_nacimiento,hora_recordatorio,club_id,peso_ideal_min,peso_ideal_max,nacionalidad) VALUES(${(u as any).id},${posicion||null},${po},${edad||null},${peso_kg||null},${estatura_cm||null},${pie_habil||'Derecho'},${foto_url||null},${email||null},${fecha_nacimiento||null},${hora_recordatorio||'08:00'},${clubId},${peso_ideal_min||null},${peso_ideal_max||null},${nacionalidad||null})`
+  await sql`INSERT INTO jugadores(usuario_id,posicion,posicion_orden,edad,peso_kg,estatura_cm,pie_habil,foto_url,email,fecha_nacimiento,hora_recordatorio,club_id,peso_ideal_min,peso_ideal_max,nacionalidad,club_origen) VALUES(${(u as any).id},${posicion||null},${po},${edad||null},${peso_kg||null},${estatura_cm||null},${pie_habil||'Derecho'},${foto_url||null},${email||null},${fecha_nacimiento||null},${hora_recordatorio||'08:00'},${clubId},${peso_ideal_min||null},${peso_ideal_max||null},${nacionalidad||null},${club_origen||null})`
   return NextResponse.json({ok:true})
 }

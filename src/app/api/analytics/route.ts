@@ -36,7 +36,7 @@ export async function GET(req: NextRequest) {
 
     // Wellness semanal: recuperamos TODAS tus métricas de promedio
     const wellnessWeekly = await sql`
-      SELECT j.id AS jugador_id, u.nombre, j.posicion, j.foto_url,
+      SELECT j.id AS jugador_id, u.nombre, j.posicion, j.foto_url, j.club_origen,
              TO_CHAR(DATE_TRUNC('week', w.fecha), 'YYYY-MM-DD') AS semana,
              ROUND(AVG(w.fatiga)::numeric, 2)          AS avg_fatiga,
              ROUND(AVG(w.calidad_sueno)::numeric, 2)   AS avg_sueno,
@@ -50,7 +50,7 @@ export async function GET(req: NextRequest) {
       WHERE w.fecha >= ${fDesde}::date AND w.fecha <= ${fHasta}::timestamp
         AND u.rol='jugador' AND u.activo=true
         AND (${isMaster}::boolean OR (u.club_id=${clubId} AND j.club_id=${clubId}))
-      GROUP BY j.id, u.nombre, j.posicion, j.foto_url, DATE_TRUNC('week', w.fecha)
+      GROUP BY j.id, u.nombre, j.posicion, j.foto_url, j.club_origen, DATE_TRUNC('week', w.fecha)
       ORDER BY u.nombre, semana`
 
     // RPE semanal
@@ -72,7 +72,7 @@ export async function GET(req: NextRequest) {
     // Readiness: Estado actual
     const readinessToday = await sql`
       SELECT DISTINCT ON (j.id)
-             j.id AS jugador_id, u.nombre, j.posicion, j.foto_url,
+             j.id AS jugador_id, u.nombre, j.posicion, j.foto_url, j.club_origen,
              w.fecha::text,
              w.fatiga::int, w.calidad_sueno::int, w.dolor_muscular::int,
              w.nivel_estres::int, w.estado_animo::int, w.dolor_zona, w.dolor_eva::int,

@@ -59,7 +59,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   }
 
   // Update jugador fields
-  const fields = ['posicion','edad','peso_kg','estatura_cm','pie_habil','email','fecha_nacimiento','hora_recordatorio','peso_ideal_min','peso_ideal_max','nacionalidad']
+  const fields = ['posicion','edad','peso_kg','estatura_cm','pie_habil','email','fecha_nacimiento','hora_recordatorio','peso_ideal_min','peso_ideal_max','nacionalidad','club_origen']
   if (fields.some(f => b[f] !== undefined)) {
     try { await sql`ALTER TABLE jugadores ADD COLUMN IF NOT EXISTS nacionalidad VARCHAR(100)` } catch {}
     
@@ -74,7 +74,8 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       hora_recordatorio = COALESCE(${b.hora_recordatorio ?? null}, hora_recordatorio),
       peso_ideal_min    = ${b.peso_ideal_min != null ? b.peso_ideal_min : null},
       peso_ideal_max    = ${b.peso_ideal_max != null ? b.peso_ideal_max : null},
-      nacionalidad      = COALESCE(${b.nacionalidad ?? null}, nacionalidad)
+      nacionalidad      = COALESCE(${b.nacionalidad ?? null}, nacionalidad),
+      club_origen       = COALESCE(${b.club_origen ?? null}, club_origen)
       WHERE usuario_id = ${userId}`
   }
 

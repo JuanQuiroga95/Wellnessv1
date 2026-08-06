@@ -51,10 +51,11 @@ const ScatterTip = ({ active, payload }: any) => {
   )
 }
 
-export default function AnalyticsPanel({ isPanama }: { isPanama?: boolean }) {
+export default function AnalyticsPanel({ isPanama, esSeleccion }: { isPanama?: boolean; esSeleccion?: boolean }) {
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [view, setView] = useState('readiness')
+  const [selectedClub, setSelectedClub] = useState('')
 
   const todayStr = new Date().toISOString().split('T')[0]
   const defaultDesde = (() => { const d = new Date(); d.setDate(d.getDate()-28); return d.toISOString().split('T')[0] })()
@@ -89,7 +90,7 @@ export default function AnalyticsPanel({ isPanama }: { isPanama?: boolean }) {
   }
 
   function ReadinessView() {
-    const today = data?.readiness?.todayRows || []
+    const today = (data?.readiness?.todayRows || []).filter((r:any) => !selectedClub || r.club_origen === selectedClub)
     const sorted = [...today].sort((a,b) => {
       const totA = a.fatiga&&a.calidad_sueno ? (a.fatiga+a.calidad_sueno+a.dolor_muscular+a.nivel_estres+a.estado_animo) : 99
       const totB = b.fatiga&&b.calidad_sueno ? (b.fatiga+b.calidad_sueno+b.dolor_muscular+b.nivel_estres+b.estado_animo) : 99
@@ -188,8 +189,8 @@ export default function AnalyticsPanel({ isPanama }: { isPanama?: boolean }) {
   }
 
   function ScatterView() {
-    const wRows = data?.analytics?.wellnessWeekly || []
-    const rpeRows = data?.analytics?.rpeWeekly || []
+    const wRows = (data?.analytics?.wellnessWeekly || []).filter((r:any) => !selectedClub || r.club_origen === selectedClub)
+    const rpeRows = (data?.analytics?.rpeWeekly || []).filter((r:any) => !selectedClub || r.club_origen === selectedClub)
     const rpeMap = {}
     for (const r of rpeRows) { rpeMap[`${r.jugador_id}_${r.semana}`] = r }
     const rawMerged = wRows.filter(w=>w.total_wellness).map(w => {
@@ -281,8 +282,8 @@ export default function AnalyticsPanel({ isPanama }: { isPanama?: boolean }) {
   }
 
   function AcumView() {
-    const wRows = data?.analytics?.wellnessWeekly || []
-    const rpeRows = data?.analytics?.rpeWeekly || []
+    const wRows = (data?.analytics?.wellnessWeekly || []).filter((r:any) => !selectedClub || r.club_origen === selectedClub)
+    const rpeRows = (data?.analytics?.rpeWeekly || []).filter((r:any) => !selectedClub || r.club_origen === selectedClub)
     const playerMap = {}
     for (const w of wRows) {
       if (w.total_wellness == null || w.registros === 0) continue
@@ -412,6 +413,27 @@ export default function AnalyticsPanel({ isPanama }: { isPanama?: boolean }) {
           </div>
         </div>
       </div>
+      
+      {esSeleccion && (
+        <div style={{ display:'flex', gap:8, alignItems:'center', background:'var(--ink2)', padding:'10px 14px', borderRadius:10, border:'1px solid var(--mist)' }}>
+          <label style={{ fontSize:11, color:'var(--silver)', fontWeight:600 }}>Agrupar por Club (Filtro):</label>
+          <select value={selectedClub} onChange={e=>setSelectedClub(e.target.value)} style={{ flex:1, background:'var(--ink3)', border:'1px solid var(--fog)', borderRadius:6, padding:'6px 10px', fontSize:12, color:'var(--snow)', outline:'none' }}>
+            <option value="">-- Mostrar Todos --</option>
+            {Array.from(new Set([
+              ...(data?.readiness?.todayRows || []),
+              ...(data?.analytics?.wellnessWeekly || []),
+              ...(data?.analytics?.rpeWeekly || [])
+            ].map(r => r.club_origen).filter(Boolean))).sort().map(club => (
+              <option key={club as string} value={club as string}>{club as string}</option>
+            ))}
+          </select>
+          {selectedClub && (
+            <button onClick={() => window.print()} className="hover-scale" style={{ fontSize:11, background:'var(--lime)', color:'var(--ink)', border:'none', borderRadius:6, padding:'6px 12px', fontWeight:600, cursor:'pointer' }}>
+              🖨️ Exportar / Imprimir Reporte
+            </button>
+          )}
+        </div>
+      )}
 
       <div style={{ display:'flex', gap:6, background:'var(--ink2)', borderRadius:12, padding:4, border:'1px solid var(--mist)' }}>
         {[

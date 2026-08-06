@@ -26,9 +26,13 @@ export default async function CoachPage() {
   // isMaster con clubId = ve solo su club (igual que un admin normal)
   const filterByClub = !isMaster || clubId !== null
   let isPanama = false
+  let esSeleccion = false
   if (clubId) {
-    const cr = await sql`SELECT nombre FROM clubs WHERE id=${clubId}`
-    if (cr.length > 0 && String(cr[0].nombre).toLowerCase().includes('panam')) isPanama = true
+    const cr = await sql`SELECT nombre, es_seleccion FROM clubs WHERE id=${clubId}`
+    if (cr.length > 0) {
+      if (String(cr[0].nombre).toLowerCase().includes('panam')) isPanama = true
+      esSeleccion = !!cr[0].es_seleccion
+    }
   }
 
   const [players, lesionesRows] = await Promise.all([
@@ -149,6 +153,7 @@ export default async function CoachPage() {
       foto_url: p.foto_url ? String(p.foto_url) : null,
       fecha_nacimiento: p.fecha_nacimiento ? String(p.fecha_nacimiento) : null,
       nacionalidad: p.nacionalidad ? String(p.nacionalidad) : null,
+      club_origen: p.club_origen ? String(p.club_origen) : null,
       email: p.email ? String(p.email) : null,
       hora_recordatorio: p.hora_recordatorio ? String(p.hora_recordatorio) : null,
       peso_ideal_min: p.peso_ideal_min ? String(p.peso_ideal_min) : null,
@@ -180,5 +185,5 @@ export default async function CoachPage() {
   })
 
   const sorted = [...teamData].sort((a,b) => a.posicion_orden!==b.posicion_orden ? a.posicion_orden-b.posicion_orden : a.nombre.localeCompare(b.nombre))
-  return <CoachClient isPanama={isPanama} session={session} teamData={sorted} today={today} hasSessionToday={hasSessionToday} />
+  return <CoachClient isPanama={isPanama} esSeleccion={esSeleccion} session={session} teamData={sorted} today={today} hasSessionToday={hasSessionToday} />
 }

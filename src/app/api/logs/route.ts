@@ -51,7 +51,7 @@ export async function GET(req: NextRequest) {
 
   // Fetch logs joined with sesion plan (for md_label and ejercicios for UCE)
   const r = await sql`
-    SELECT el.id, el.fecha::text, el.carga_ua::int, el.rpe::int, el.rpe_gimnasio::int, el.duracion_min::int, el.tipo_sesion,
+    SELECT el.id, el.fecha::text, el.carga_ua::int, el.rpe::int, el.rpe_gimnasio::int, el.duracion_min::int, el.tipo_sesion, el.observaciones,
            sp.titulo   AS md_label,
            sp.ejercicios AS sp_ejercicios
     FROM entrenamiento_logs el
@@ -82,6 +82,7 @@ export async function GET(req: NextRequest) {
       rpe_gimnasio: row.rpe_gimnasio,
       duracion_min: row.duracion_min,
       tipo_sesion: row.tipo_sesion,
+      observaciones: row.observaciones,
       md_label: row.md_label ?? null,
     }
   })
@@ -101,6 +102,7 @@ export async function POST(req: NextRequest) {
   const rpe = sanitizeInt(body.rpe, 1, 10)
   const rpe_gimnasio = sanitizeInt(body.rpe_gimnasio, 1, 10)
   const duracion_min = sanitizeInt(body.duracion_min, 0, 600) || 0
+  const observaciones = body.observaciones || null
 
   if (!jugador_id) return NextResponse.json({ error: 'jugador_id inválido' }, { status: 400 })
   if (rpe === null) return NextResponse.json({ error: 'RPE requerido (1-10)' }, { status: 400 })
@@ -118,7 +120,7 @@ export async function POST(req: NextRequest) {
   }
 
   let tipo_sesion = 'EQUIPO'
-  if (['PARTIDO', 'PARCIAL', 'READAPTACION'].includes(body.tipo_sesion)) {
+  if (['PARTIDO', 'PARCIAL', 'READAPTACION', 'SELECCION', 'CLUB_ENTRENA', 'CLUB_PARTIDO', 'AUSENTE'].includes(body.tipo_sesion)) {
     tipo_sesion = body.tipo_sesion
   }
   const fecha = body.fecha || new Date().toISOString().split('T')[0]
@@ -127,7 +129,7 @@ export async function POST(req: NextRequest) {
   // Ensure column exists
   try { await sql`ALTER TABLE entrenamiento_logs ADD COLUMN IF NOT EXISTS rpe_gimnasio SMALLINT` } catch {}
 
-  const existing = await sql`SELECT id, rpe, rpe_gimnasio, tipo_sesion FROM entrenamiento_logs WHERE jugador_id = ${jugador_id} AND fecha = ${fecha} AND tipo_sesion IN ('EQUIPO', 'PARCIAL', 'READAPTACION', 'PARTIDO')`
+  const existing = await sql`SELECT id, rpe, rpe_gimnasio, tipo_sesion FROM entrenamiento_logs WHERE jugador_id = ${jugador_id} AND fecha = ${fecha} AND tipo_sesion IN ('EQUIPO', 'PARCIAL', 'READAPTACION', 'PARTIDO', 'SELECCION', 'CLUB_ENTRENA', 'CLUB_PARTIDO', 'AUSENTE')`
   
   if (existing.length > 0) {
     const ext = existing[0]
@@ -135,15 +137,15 @@ export async function POST(req: NextRequest) {
     const newRpeGym = Math.max(ext.rpe_gimnasio || 0, rpe_gimnasio || 0)
     const [r] = await sql`
       UPDATE entrenamiento_logs 
-      SET rpe = ${newRpe}, rpe_gimnasio = ${newRpeGym}, duracion_min = GREATEST(COALESCE(duracion_min,0), ${duracion_min}), tipo_sesion = ${tipo_sesion}
+      SET rpe = ${newRpe}, rpe_gimnasio = ${newRpeGym}, duracion_min = GREATEST(COALESCE(duracion_min,0), ${duracion_min}), tipo_sesion = ${tipo_sesion}, observaciones = COALESCE(${observaciones}, observaciones)
       WHERE id = ${ext.id}
       RETURNING id, fecha::text, carga_ua::int`
     return NextResponse.json(r)
   }
 
   const [r] = await sql`
-    INSERT INTO entrenamiento_logs(jugador_id, rpe, rpe_gimnasio, duracion_min, tipo_sesion, fecha, club_id)
-    VALUES(${jugador_id}, ${rpe}, ${rpe_gimnasio}, ${duracion_min}, ${tipo_sesion}, ${fecha}, ${clubId})
+    INSERT INTO entrenamiento_logs(jugador_id, rpe, rpe_gimnasio, duracion_min, tipo_sesion, observaciones, fecha, club_id)
+    VALUES(${jugador_id}, ${rpe}, ${rpe_gimnasio}, ${duracion_min}, ${tipo_sesion}, ${observaciones}, ${fecha}, ${clubId})
     RETURNING id, fecha::text, carga_ua::int`
   return NextResponse.json(r)
 }
@@ -155,7 +157,7 @@ export async function PATCH(req: NextRequest) {
   const body = await req.json()
   const id = sanitizeInt(body.id, 1, 9999999)
   const duracion_min = sanitizeInt(body.duracion_min, 1, 600)
-  const tipo_sesion = ['EQUIPO', 'PARCIAL', 'READAPTACION', 'PARTIDO'].includes(body.tipo_sesion) ? body.tipo_sesion : undefined
+  const tipo_sesion = ['EQUIPO', 'PARCIAL', 'READAPTACION', 'PARTIDO', 'SELECCION', 'CLUB_ENTRENA', 'CLUB_PARTIDO', 'AUSENTE'].includes(body.tipo_sesion) ? body.tipo_sesion : undefined
 
   if (!id) return NextResponse.json({ error: 'id requerido' }, { status: 400 })
   if (!duracion_min && !tipo_sesion) return NextResponse.json({ error: 'nada para actualizar' }, { status: 400 })
