@@ -115,30 +115,26 @@ export default function RutinaFuerzaView({ jugadorId, today, recentLogs = [] }: 
     )
   }
 
-  if (rutinas.length === 0) {
-    return (
-      <div className="anim-up" style={{ display:'flex', flexDirection:'column', gap:16 }}>
-        {header}
-        <div style={{ background:'var(--ink2)', border:'1px dashed var(--mist)', borderRadius:16, padding:'32px 20px', textAlign:'center' }}>
-          <div style={{ fontSize:40, marginBottom:16 }}>😴</div>
-          <h2 style={{ fontSize:18, color:'var(--snow)', marginBottom:8 }}>Día Libre de Fuerza</h2>
-          <p style={{ color:'var(--silver)', fontSize:14, lineHeight:1.5 }}>
-            No hay rutina de fuerza asignada para hoy.<br/>Elegí una fecha en el calendario para ver tus rutinas.
-          </p>
-          {renderCalendar()}
-        </div>
-      </div>
-    )
-  }
-
   // Group by mandamiento
   const mandamientos = Array.from(new Set(rutinas.map(r => r.mandamiento_numero))).sort((a:any, b:any) => a - b)
 
   return (
     <div className="anim-up" style={{ display:'flex', flexDirection:'column', gap:16 }}>
       {header}
-      {mandamientos.map((num: any) => {
-        const rutinasMand = rutinas.filter(r => r.mandamiento_numero === num)
+      {renderCalendar()}
+      
+      {rutinas.length === 0 ? (
+        <div style={{ background:'var(--ink2)', border:'1px dashed var(--mist)', borderRadius:16, padding:'32px 20px', textAlign:'center', marginTop: 16 }}>
+          <div style={{ fontSize:40, marginBottom:16 }}>😴</div>
+          <h2 style={{ fontSize:18, color:'var(--snow)', marginBottom:8 }}>Día Libre de Fuerza</h2>
+          <p style={{ color:'var(--silver)', fontSize:14, lineHeight:1.5 }}>
+            No hay rutina de fuerza asignada para hoy.
+          </p>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginTop: 16 }}>
+          {mandamientos.map((num: any) => {
+            const rutinasMand = rutinas.filter(r => r.mandamiento_numero === num)
         const isExpanded = expandedMandamiento === num
         
         return (
@@ -217,6 +213,8 @@ export default function RutinaFuerzaView({ jugadorId, today, recentLogs = [] }: 
           </div>
         )
       })}
+      </div>
+      )}
 
       {recentLogs && recentLogs.filter(l => l.rpe_gimnasio > 0).length > 0 && (
         <div style={{ marginTop:24, background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:16, padding:24 }}>
