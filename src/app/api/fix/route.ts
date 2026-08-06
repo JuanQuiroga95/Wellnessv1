@@ -6,7 +6,7 @@ export async function GET() {
   const sql = getDb()
   
   // Find David Naranjo
-  const david = await sql`SELECT * FROM jugadores WHERE id IN (SELECT id FROM jugadores) AND id = (SELECT jugador_id FROM usuarios JOIN jugadores ON jugadores.usuario_id = usuarios.id WHERE usuarios.nombre ILIKE '%David Naranjo%')`
+  const david = await sql`SELECT j.id FROM jugadores j JOIN usuarios u ON u.id = j.usuario_id WHERE u.nombre ILIKE '%David Naranjo%'`
   
   if (!david || david.length === 0) {
     const backup = await sql`SELECT j.id, u.nombre FROM jugadores j JOIN usuarios u ON u.id = j.usuario_id WHERE u.nombre ILIKE '%David%'`
