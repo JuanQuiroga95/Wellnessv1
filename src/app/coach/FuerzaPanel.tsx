@@ -438,7 +438,7 @@ export default function FuerzaPanel({ teamData, session }: { teamData: any[], se
                   <option value="">Selecciona un jugador...</option>
                   <option value="todos">👉 Todos los jugadores (Asignación Masiva)</option>
                   {teamData.map(p => (
-                    <option key={p.id} value={p.id}>{p.nombre}</option>
+                    <option key={p.jugador_id} value={p.jugador_id}>{p.nombre}</option>
                   ))}
                 </select>
               </div>
@@ -513,7 +513,7 @@ export default function FuerzaPanel({ teamData, session }: { teamData: any[], se
               <div style={{ background:'var(--ink2)', padding:24, borderRadius:16, border:'1px solid var(--mist)' }}>
                 <h3 style={{ margin:'0 0 4px 0', fontSize:16, color:'var(--snow)' }}>Rutina del Día</h3>
                 <p style={{ margin:'0 0 16px 0', fontSize:12, color:'var(--silver)' }}>
-                  {selectedJugador === 'todos' ? 'Asignación Masiva (Selecciona un jugador para ver su rutina)' : teamData.find(p=>p.id===Number(selectedJugador))?.nombre} - {selectedFecha}
+                  {selectedJugador === 'todos' ? 'Asignación Masiva (Selecciona un jugador para ver su rutina)' : teamData.find(p=>p.jugador_id===Number(selectedJugador))?.nombre} - {selectedFecha}
                 </p>
                 
                 {rutinasDia.length === 0 ? (
