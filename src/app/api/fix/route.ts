@@ -5,18 +5,21 @@ import { getDb } from '@/lib/db'
 export async function GET() {
   const sql = getDb()
   
-  // Find Panama club ID
-  const clubs = await sql`SELECT id, nombre FROM clubs WHERE nombre ILIKE '%panama%' OR nombre ILIKE '%caid%' OR nombre ILIKE '%c.a.i%' OR nombre ILIKE '%cai%'`
-  const clubId = clubs[0]?.id
-
-  if (!clubId) return NextResponse.json({ error: 'Club not found', clubs })
-
-  const logsRPE = await sql`SELECT el.id, el.fecha, el.rpe, el.created_at FROM entrenamiento_logs el JOIN jugadores j ON j.id = el.jugador_id JOIN usuarios u ON u.id = j.usuario_id WHERE u.club_id = ${clubId} OR j.club_id = ${clubId} ORDER BY el.id DESC LIMIT 10`
-  const logsWellness = await sql`SELECT id, fecha, created_at FROM wellness WHERE jugador_id IN (SELECT id FROM jugadores WHERE club_id = ${clubId} OR usuario_id IN (SELECT id FROM usuarios WHERE club_id = ${clubId})) ORDER BY id DESC LIMIT 10`
-
+  // Find David Naranjo
+  const david = await sql`SELECT * FROM jugadores WHERE id IN (SELECT id FROM jugadores) AND id = (SELECT jugador_id FROM usuarios JOIN jugadores ON jugadores.usuario_id = usuarios.id WHERE usuarios.nombre ILIKE '%David Naranjo%')`
+  
+  if (!david || david.length === 0) {
+    const backup = await sql`SELECT j.id, u.nombre FROM jugadores j JOIN usuarios u ON u.id = j.usuario_id WHERE u.nombre ILIKE '%David%'`
+    return NextResponse.json({ error: 'David not found', backup })
+  }
+  
+  const jId = david[0].id
+  const fechasRaw = await sql`SELECT DISTINCT fecha::text FROM fuerza_rutinas WHERE jugador_id = ${jId}`
+  const fechasCast = await sql`SELECT DISTINCT fecha::text as fecha FROM fuerza_rutinas WHERE jugador_id = ${jId}`
+  
   return NextResponse.json({
-    club: clubs[0],
-    logsRPE,
-    logsWellness
+    jugadorId: jId,
+    fechasRaw,
+    fechasCast
   })
 }
