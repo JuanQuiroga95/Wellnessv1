@@ -12,6 +12,5 @@ jobs:
     steps:
       - name: Llamar al endpoint unificado de notificaciones
         run: |
-          curl -X GET "https://wellness-app-production.up.railway.app/api/notifications?secret=${{ secrets.CRON_SECRET }}" \
+          curl -X GET "https://wellnessv1.vercel.app/api/notifications?secret=${{ secrets.CRON_SECRET }}" \
           -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}"
-          # Nota: Cambiar la URL de arriba por el dominio real en producción, p.ej. https://tu-dominio.vercel.app/api/notifications
