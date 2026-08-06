@@ -24,11 +24,11 @@ export async function GET(req: NextRequest) {
 
     if (fechasOnly) {
       const fechas = await sql`
-        SELECT DISTINCT fecha::text 
+        SELECT DISTINCT fecha::text as fecha
         FROM fuerza_rutinas 
         WHERE jugador_id = ${Number(jugadorId)}
       `
-      return NextResponse.json({ success: true, fechas: fechas.map((f:any) => f.fecha) })
+      return NextResponse.json({ success: true, fechas: fechas.map((f:any) => f.fecha || f.text || f['?column?']) })
     }
 
     if (!fecha) return NextResponse.json({ error: 'Faltan parámetros' }, { status: 400 })

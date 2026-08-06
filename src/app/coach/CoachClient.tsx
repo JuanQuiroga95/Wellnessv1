@@ -154,7 +154,7 @@ function compressImage(dataUrl: string, maxSize = 400, quality = 0.7): Promise<s
   })
 }
 
-const TABS = [{id:'inicio',label:'🏠 Inicio'},{id:'team',label:'Equipo'},{id:'calendario',label:'📅 Calendario'},{id:'fuerza',label:'💪 Rutina Fuerza'},{id:'analytics',label:'Analytics'},{id:'neuromuscular',label:'Neuromuscular'},{id:'minutos',label:'Minutaje'},{id:'control-carga-calc',label:'📊 Ctrl. Carga Calc'},{id:'control-carga-gps',label:'📡 Ctrl. Carga GPS'},{id:'acumulado',label:'📈 Acumulado Ind.'},{id:'cambio-carga',label:'Cambio de Carga'},{id:'expo-ai',label:'🤖 Expo. AI'},{id:'evaluaciones',label:'📋 Evaluaciones'},{id:'comparativa',label:'⚖️ Comparativa'},{id:'tactica',label:'♟️ Táctica'},{id:'lesiones',label:'🏥 Enfermería'},{id:'gps',label:'📡 GPS'},{id:'vinculaciones',label:'🔗 ACWR'},{id:'canchas',label:'🏟️ Estadios'},{id:'players',label:'Jugadores'},{id:'biblioteca',label:'📚 Biblioteca'},{id:'manual',label:'📖 Manual'},{id:'notificaciones',label:'🔔 Notificaciones'}]
+const TABS = [{id:'inicio',label:'🏠 Inicio'},{id:'team',label:'Equipo'},{id:'calendario',label:'📅 Calendario'},{id:'fuerza',label:'💪 Rutina Fuerza'},{id:'analytics',label:'Analytics'},{id:'neuromuscular',label:'Neuromuscular'},{id:'minutos',label:'Minutaje'},{id:'control-carga-calc',label:'📊 Ctrl. Carga Calc'},{id:'control-carga-gps',label:'📡 Ctrl. Carga GPS'},{id:'acumulado',label:'📈 Acumulado Ind.'},{id:'cambio-carga',label:'Cambio de Carga'},{id:'expo-ai',label:'🤖 Expo. AI'},{id:'evaluaciones',label:'📋 Evaluaciones'},{id:'comparativa',label:'⚖️ Comparativa'},{id:'tactica',label:'♟️ Táctica'},{id:'lesiones',label:'🏥 Enfermería'},{id:'gps',label:'📡 GPS'},{id:'vinculaciones',label:'🔗 ACWR'},{id:'canchas',label:'🏟️ Estadios'},{id:'players',label:'Jugadores'},{id:'biblioteca',label:'📚 Biblioteca'},{id:'manual',label:'📖 Manual'},{id:'notificaciones',label:'🔔 Notificaciones'},{id:'billing',label:'💳 Membresía'}]
 
 const SIDEBAR_GROUPS = [
   { label:'General', icon:'🏠', items:[
@@ -196,6 +196,7 @@ const SIDEBAR_GROUPS = [
   ]},
   { label:'Configuración', icon:'⚙️', items:[
     {id:'notificaciones',label:'Notificaciones',icon:'🔔'},
+    {id:'billing',label:'Membresía',icon:'💳'},
   ]},
 ]
 const SC = {optimo:'#22c55e',precaucion:'#f59e0b',peligro:'#ef4444',sin_datos:'#555'}
@@ -1134,6 +1135,7 @@ export default function CoachDashboard({ isPanama, session, teamData, today }: a
         {tab==='manual' && <ManualPanel />}
 
         {tab==='notificaciones' && <NotificacionesCoachPanel />}
+        {tab==='billing' && <BillingPanel />}
           </AnimateOnScroll>
 
         {tab==='players' && (
@@ -13387,4 +13389,22 @@ function PlayerInBodyProfile({ jugadorId }: { jugadorId: number }) {
       </div>
     </div>
   );
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// BILLING PANEL (COMING SOON)
+// ═══════════════════════════════════════════════════════════════════
+function BillingPanel() {
+  return (
+    <div className="anim-up">
+      <PanelHeader icon="💳" title="Membresía" subtitle="LEMON SQUEEZY" color="#22c55e" />
+      <div style={{ marginTop: 24, padding: 48, background: 'var(--ink2)', border: '1px solid var(--mist)', borderRadius: 24, textAlign: 'center' }}>
+        <span style={{ fontSize: 64, display: 'block', marginBottom: 24 }}>🍋</span>
+        <h2 style={{ fontSize: 24, color: 'var(--snow)', marginBottom: 8 }}>Próximamente...</h2>
+        <p style={{ color: 'var(--silver)', maxWidth: 400, margin: '0 auto', lineHeight: 1.6 }}>
+          Estamos integrando el sistema de pagos internacionales para que puedas suscribirte a los planes Premium de forma automática.
+        </p>
+      </div>
+    </div>
+  )
 }

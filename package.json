@@ -8,6 +8,7 @@
     "start": "next start"
   },
   "dependencies": {
+    "@lemonsqueezy/lemonsqueezy.js": "^4.0.0",
     "@neondatabase/serverless": "^0.9.4",
     "@types/web-push": "^3.6.4",
     "bcryptjs": "^2.4.3",

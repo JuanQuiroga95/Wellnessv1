@@ -10,6 +10,7 @@ const PUBLIC_PATHS = [
   '/api/auth/logout',
   '/api/invites/register', '/api/fix',
   '/api/clear-mock-gps',
+  '/api/run_migrations',
   '/landing.html',
   '/test-body',
 ]

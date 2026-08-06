@@ -292,5 +292,13 @@ export const SCHEMA_STATEMENTS = [
   `CREATE INDEX IF NOT EXISTS idx_fuerza_rutinas_jugador_fecha ON fuerza_rutinas(jugador_id, fecha)`,
   `ALTER TABLE fuerza_ejercicios ADD COLUMN IF NOT EXISTS imagen_url TEXT`,
   `ALTER TABLE fuerza_ejercicios ADD COLUMN IF NOT EXISTS descripcion TEXT`,
-  `ALTER TABLE fuerza_ejercicios ADD COLUMN IF NOT EXISTS mandamiento_id INTEGER REFERENCES fuerza_mandamientos(id) ON DELETE SET NULL`
+  `ALTER TABLE fuerza_ejercicios ADD COLUMN IF NOT EXISTS mandamiento_id INTEGER REFERENCES fuerza_mandamientos(id) ON DELETE SET NULL`,
+  // ── Suscripciones (Lemon Squeezy) ───────────────────────────────────────────
+  `ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS ls_customer_id VARCHAR(255)`,
+  `ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS ls_subscription_id VARCHAR(255)`,
+  `ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS subscription_status VARCHAR(50)`,
+  `ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS trial_ends_at TIMESTAMPTZ`,
+  `ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS plan_tier VARCHAR(50)`,
+  // Backfill trial dates for existing admins
+  `UPDATE usuarios SET subscription_status = 'trialing', trial_ends_at = NOW() + INTERVAL '7 days' WHERE rol IN ('admin', 'master_admin') AND subscription_status IS NULL`
 ]
