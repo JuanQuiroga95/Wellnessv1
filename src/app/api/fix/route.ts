@@ -4,10 +4,12 @@ import { getDb } from '@/lib/db'
 
 export async function GET() {
   const sql = getDb()
-  await sql`DELETE FROM fuerza_rutinas WHERE id = 10 AND jugador_id = 267`
+  
+  await sql`ALTER TABLE clubs ADD COLUMN IF NOT EXISTS es_seleccion BOOLEAN DEFAULT FALSE`
+  await sql`ALTER TABLE jugadores ADD COLUMN IF NOT EXISTS club_origen VARCHAR(100)`
+  await sql`ALTER TABLE entrenamiento_logs ADD COLUMN IF NOT EXISTS observaciones TEXT`
   
   return NextResponse.json({
-    success: true,
-    deleted: 10
+    message: 'Migrations applied successfully'
   })
 }
