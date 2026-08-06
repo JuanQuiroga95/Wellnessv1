@@ -4367,8 +4367,23 @@ function SesionEditor({ sesion, defaultFecha, rpeReal = 0, onSave, onDelete, onC
         {/* Tipo */}
         <div>
           <label style={{ display:'block', fontSize:10, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:5 }}>Tipo</label>
-          <select className="wp-input" value={f.tipo} onChange={e=>set('tipo',e.target.value)} style={{ padding:'8px 12px', fontSize:13, appearance:'none' }}>
-            {Object.keys(TIPO_COLORES).map(t=><option key={t} value={t} style={{ background:'var(--ink2)', textTransform:'capitalize' }}>{TIPO_ICONOS[t]} {t.charAt(0).toUpperCase()+t.slice(1)}</option>)}
+          <select className="wp-input" value={f.tipo === 'partido' && f.objetivo === 'Amistoso' ? 'amistoso' : f.tipo} onChange={e => {
+            const val = e.target.value;
+            if (val === 'amistoso') {
+              set('tipo', 'partido');
+              set('objetivo', 'Amistoso');
+            } else if (val === 'partido') {
+              set('tipo', 'partido');
+              if (f.objetivo === 'Amistoso') set('objetivo', 'Competición');
+            } else {
+              set('tipo', val);
+            }
+          }} style={{ padding:'8px 12px', fontSize:13, appearance:'none' }}>
+            <option value="entrenamiento" style={{ background:'var(--ink2)' }}>🏃 Entrenamiento</option>
+            <option value="partido" style={{ background:'var(--ink2)' }}>🏆 Partido (Oficial)</option>
+            <option value="amistoso" style={{ background:'var(--ink2)' }}>⚽ Amistoso</option>
+            <option value="recuperacion" style={{ background:'var(--ink2)' }}>🔋 Recuperación</option>
+            <option value="descanso" style={{ background:'var(--ink2)' }}>💤 Descanso</option>
           </select>
         </div>
         {/* Hora inicio */}
@@ -4381,26 +4396,14 @@ function SesionEditor({ sesion, defaultFecha, rpeReal = 0, onSave, onDelete, onC
           <label style={{ display:'block', fontSize:10, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:5 }}>Hora fin</label>
           <input type="time" className="wp-input" value={f.hora_fin} onChange={e=>set('hora_fin',e.target.value)} style={{ padding:'8px 12px', fontSize:13 }} />
         </div>
-        {/* Título de la sesión - dropdown MD o Tipo de Partido */}
-        {f.tipo !== 'partido' ? (
-          <div style={{ gridColumn:'span 2' }}>
-            <label style={{ display:'block', fontSize:10, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:5 }}>Título de la sesión</label>
-            <select className="wp-input" value={f.titulo} onChange={e=>set('titulo',e.target.value)} style={{ padding:'8px 12px', fontSize:13, appearance:'none' }}>
-              <option value="">- Seleccionar -</option>
-              {TITULOS_SESION.map(t=><option key={t} value={t} style={{ background:'var(--ink2)' }}>{t}</option>)}
-            </select>
-          </div>
-        ) : (
-          <div style={{ gridColumn:'span 2' }}>
-            <label style={{ display:'block', fontSize:10, fontWeight:700, color:'var(--lime)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:5 }}>⚽ Tipo de Partido</label>
-            <select className="wp-input" value={f.titulo} onChange={e=>set('titulo',e.target.value)} style={{ padding:'8px 12px', fontSize:13, appearance:'none' }}>
-              <option value="">- Seleccionar -</option>
-              <option value="Oficial" style={{ background:'var(--ink2)' }}>Oficial / Competición</option>
-              <option value="Amistoso" style={{ background:'var(--ink2)' }}>Amistoso</option>
-              <option value="Entrenamiento" style={{ background:'var(--ink2)' }}>Entrenamiento</option>
-            </select>
-          </div>
-        )}
+        {/* Título de la sesión - dropdown MD */}
+        <div style={{ gridColumn:'span 2' }}>
+          <label style={{ display:'block', fontSize:10, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:5 }}>Título de la sesión</label>
+          <select className="wp-input" value={f.titulo} onChange={e=>set('titulo',e.target.value)} style={{ padding:'8px 12px', fontSize:13, appearance:'none' }}>
+            <option value="">— Seleccionar —</option>
+            {TITULOS_SESION.map(t=><option key={t} value={t} style={{ background:'var(--ink2)' }}>{t}</option>)}
+          </select>
+        </div>
         {/* Objetivo Físico Principal */}
         <div>
           <label style={{ display:'block', fontSize:10, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:5 }}>Objetivo Físico Principal</label>
@@ -4845,8 +4848,8 @@ function MinutosPanel({ teamData }) {
           <PanelHeader 
             icon={Icons.reloj} 
             title="MINUTAJE" 
-            subtitle="PARTIDOS" 
-            description="Minutos Entrenamiento vs. Partidos"
+            subtitle="COMPETICIÓN" 
+            description="Entrenamiento vs. competición"
             color="#a855f7" 
           />
         </div>

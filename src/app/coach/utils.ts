@@ -6,7 +6,8 @@ export const OBJETIVOS_FISICOS = [
   'Equilibrio - Regeneración',
   'Velocidad - Tappering',
   'Recuperación - Compensación',
-  'Competición'
+  'Competición',
+  'Amistoso'
 ]
 export const OBJETIVOS_SECUNDARIOS = ['Táctico','Técnico','Técnico-Táctico']
 export const TITULOS_SESION = ['MD+1','MD+2','MD+3','MD-4','MD-3','MD-2','MD-1','MD','No MD']
