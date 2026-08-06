@@ -721,7 +721,7 @@ function BibliotecaPanel({ canchasList }: { canchasList: any[] }) {
 
 
 
-export default function CoachDashboard({ isPanama, session, teamData, today }: any) {
+export default function CoachDashboard({ isPanama, esSeleccion, session, teamData, today }: any) {
   const [tab, setTab] = useState('inicio')
   const [selected, setSelected] = useState(null)
   const [acwrPlayerId, setAcwrPlayerId] = useState<number|null>(null)
