@@ -1,5 +1,5 @@
 'use client'
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 
 export default function RutinaFuerzaView({ jugadorId, today, recentLogs = [] }: { jugadorId: number, today: string, recentLogs?: any[] }) {
   const [selectedDate, setSelectedDate] = useState<string>(today)
@@ -7,6 +7,16 @@ export default function RutinaFuerzaView({ jugadorId, today, recentLogs = [] }: 
   const [rutinasFechas, setRutinasFechas] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
   const [expandedMandamiento, setExpandedMandamiento] = useState<number | null>(null)
+  const rutinasContainerRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (rutinas.length > 0 && rutinasContainerRef.current) {
+      // Small timeout to ensure DOM is updated before scrolling
+      setTimeout(() => {
+        rutinasContainerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      }, 100)
+    }
+  }, [rutinas, selectedDate])
 
   useEffect(() => {
     async function loadFechas() {
@@ -132,7 +142,7 @@ export default function RutinaFuerzaView({ jugadorId, today, recentLogs = [] }: 
           </p>
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginTop: 16 }}>
+        <div ref={rutinasContainerRef} style={{ display: 'flex', flexDirection: 'column', gap: 16, marginTop: 16 }}>
           {mandamientos.map((num: any) => {
             const rutinasMand = rutinas.filter(r => r.mandamiento_numero === num)
         const isExpanded = expandedMandamiento === num
