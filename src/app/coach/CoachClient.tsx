@@ -1,5 +1,5 @@
 'use client'
-import { mkBars, ENTRENAMIENTO_OPTIMIZADOR, ENTRENAMIENTO_COADYUVANTE, TODAS_LAS_NUEVAS, TAREAS_CON_ESPACIO, TAREAS_CON_EQUIPO, TAREAS_PARTIDO_SIMPLE, TAREAS_MOSTRAR_FORM, NE_DEFAULT, OBJETIVOS_FISICOS, OBJETIVOS_SECUNDARIOS, TITULOS_SESION, SUBTAREAS, getCuadrante } from './utils'
+import { mkBars, ENTRENAMIENTO_OPTIMIZADOR, ENTRENAMIENTO_COADYUVANTE, TODAS_LAS_NUEVAS, TAREAS_CON_ESPACIO, TAREAS_CON_EQUIPO, TAREAS_PARTIDO_SIMPLE, TAREAS_MOSTRAR_FORM, NE_DEFAULT, OBJETIVOS_FISICOS, OBJETIVOS_SECUNDARIOS, TITULOS_SESION, getCuadrante } from './utils'
 
 export function openPrintOverlay(html: string) {
   let iframe = document.getElementById('print-iframe') as HTMLIFrameElement;
@@ -2591,7 +2591,8 @@ function CalendarioPanel({ teamData, canchas, setCanchas }: { teamData: any[], c
   sesiones.forEach(s => {
     if (!visibleDays.includes(s.fecha)) return
     if (!s.ejercicios) return
-    s.ejercicios.forEach((bl:any) => {
+      const safeEj = Array.isArray(s.ejercicios) ? s.ejercicios : (typeof s.ejercicios === 'string' ? (()=>{try{const p=JSON.parse(s.ejercicios);return Array.isArray(p)?p:[]}catch{return []}})() : []);
+      safeEj.forEach((bl:any) => {
       const mins = (Number(bl.series)||1) * (Number(bl.minutos)||0)
       if (mins <= 0) return
 
@@ -2773,7 +2774,8 @@ function CalendarioPanel({ teamData, canchas, setCanchas }: { teamData: any[], c
              
              sesiones.forEach((s: any) => {
                 if (s.fecha >= monthStart && s.fecha <= monthEnd && Array.isArray(s.ejercicios)) {
-                  s.ejercicios.forEach((ej: any) => {
+                const safeEj = Array.isArray(s.ejercicios) ? s.ejercicios : (typeof s.ejercicios === 'string' ? (()=>{try{const p=JSON.parse(s.ejercicios);return Array.isArray(p)?p:[]}catch{return []}})() : []);
+                safeEj.forEach((ej: any) => {
                     let ori = ej.orientacion_fisica
                     if (!ori || ori === '') {
                       const jug = Number(ej.jugadores) || ((Number(ej.atacantes)||0) + (Number(ej.defensores)||0) + (Number(ej.comodines)||0))
@@ -3062,16 +3064,20 @@ function CalendarioPanel({ teamData, canchas, setCanchas }: { teamData: any[], c
                         </div>
                         {s.objetivo && <div style={{ fontSize:11, color:'var(--silver)', marginBottom:2 }}>🎯 {s.objetivo}{s.objetivo_secundario ? ` · ${s.objetivo_secundario}` : ''}</div>}
                         {s.hora_inicio && <div style={{ fontSize:11, color:'var(--fog)' }}>🕐 {s.hora_inicio.slice(0,5)}{s.hora_fin?` – ${s.hora_fin.slice(0,5)}`:''}</div>}
-                        {s.ejercicios?.length>0 && (
+                        {s.ejercicios?.length>0 && (()=>{
+                          const safeEj = Array.isArray(s.ejercicios) ? s.ejercicios : (typeof s.ejercicios === 'string' ? (()=>{try{const p=JSON.parse(s.ejercicios);return Array.isArray(p)?p:[]}catch{return []}})() : []);
+                          if (safeEj.length === 0) return null;
+                          return (
                           <div style={{ marginTop:6 }}>
-                            {s.ejercicios.map((bl:any,i:number)=>(
+                            {safeEj.map((bl:any,i:number)=>(
                               <div key={i} style={{ fontSize:10, color:'var(--silver)', padding:'2px 0', borderTop:'1px solid var(--mist)', display:'flex', gap:8 }}>
                                 <span style={{ fontWeight:600, color:'var(--snow)' }}>{bl.ventana||`Tarea ${i+1}`}{getSubtareasDisplay(bl) ? ` · ${getSubtareasDisplay(bl)}` : ''}</span>
                                 {bl.series && bl.minutos && <span>{bl.series}×{bl.minutos}min</span>}
                               </div>
                             ))}
                           </div>
-                        )}
+                          )
+                        })()}
                       </div>
                     ))}
                   </div>
@@ -3136,7 +3142,8 @@ function CalendarioPanel({ teamData, canchas, setCanchas }: { teamData: any[], c
                 
                 {/* ── TIEMPOS DE SESION ── */}
                 {(() => {
-                  const { tiempoTrabajo: tTrabajo, tiempoDescanso: tDescanso } = calcTiempoConSimultaneas(s.ejercicios||[])
+                  const safeEj = Array.isArray(s.ejercicios) ? s.ejercicios : (typeof s.ejercicios === 'string' ? (()=>{try{const p=JSON.parse(s.ejercicios);return Array.isArray(p)?p:[]}catch{return []}})() : []);
+                  const { tiempoTrabajo: tTrabajo, tiempoDescanso: tDescanso } = calcTiempoConSimultaneas(safeEj)
                   if (tTrabajo+tDescanso === 0) return null
                   return (
                     <div style={{ display:'flex', gap:16, marginTop:10, background:'var(--ink2)', padding:'10px 14px', borderRadius:10, border:'1px solid var(--mist)' }}>
@@ -3151,7 +3158,9 @@ function CalendarioPanel({ teamData, canchas, setCanchas }: { teamData: any[], c
                 {s.ejercicios?.length>0 && (
                   <div style={{ marginTop:8 }}>
                     <p style={{ fontSize:10, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:6 }}>Tareas ({s.ejercicios.length})</p>
-                    {s.ejercicios.map((bl:any,i:number)=>(
+                    {(() => {
+                      const safeEj = Array.isArray(s.ejercicios) ? s.ejercicios : (typeof s.ejercicios === 'string' ? (()=>{try{const p=JSON.parse(s.ejercicios);return Array.isArray(p)?p:[]}catch{return []}})() : []);
+                      return safeEj.map((bl:any,i:number)=>(
                       <div key={i} style={{ background:'var(--ink2)', borderRadius:8, padding:'8px 10px', marginBottom:6 }}>
                         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:bl.descripcion||bl.imagen?4:0 }}>
                           <span style={{ fontSize:12, fontWeight:700, color:'var(--lime)' }}>Tarea {i+1}{bl.ventana?` · ${bl.ventana}`:''}{getSubtareasDisplay(bl) ? ` › ${getSubtareasDisplay(bl)}` : ''}{bl.simultanea ? ' ⏱' : ''}</span>
@@ -3159,7 +3168,7 @@ function CalendarioPanel({ teamData, canchas, setCanchas }: { teamData: any[], c
                             {[bl.series&&`${bl.series}×${bl.minutos}min`, bl.jugadores&&`${bl.jugadores}jug`, (bl.largo&&bl.ancho)&&`${bl.largo}×${bl.ancho}m`].filter(Boolean).join(' · ')}
                           </span>
                         </div>
-                        {bl.rutinaGym && bl.rutinaGym.length > 0 && (
+                        {bl.rutinaGym && Array.isArray(bl.rutinaGym) && bl.rutinaGym.length > 0 && (
                           <div style={{ marginTop:6, marginBottom:bl.descripcion?6:0, padding:'6px 8px', background:'rgba(255,255,255,.03)', borderRadius:6, border:'1px solid rgba(255,255,255,.05)' }}>
                             <div style={{ display:'grid', gridTemplateColumns:'2fr 1fr 1fr 1fr', gap:4, borderBottom:'1px solid rgba(255,255,255,.1)', paddingBottom:4, marginBottom:4 }}>
                               <span style={{ fontSize:9, fontWeight:700, color:'var(--lime)', textTransform:'uppercase' }}>Ejercicio</span>
@@ -3197,13 +3206,14 @@ function CalendarioPanel({ teamData, canchas, setCanchas }: { teamData: any[], c
                           )
                         })()}
                       </div>
-                    ))}
+                    ))})()}
                     {/* CE/UCE session total in card */}
                     {(() => {
                       const rpeParaUCE = rpeLog > 0 ? rpeLog : (Number(s.rpe_objetivo) || 0)
                       const rpeEsReal = rpeLog > 0
                       let ceTotal = 0
-                      s.ejercicios.forEach((bl:any) => {
+                      const safeEj = Array.isArray(s.ejercicios) ? s.ejercicios : (typeof s.ejercicios === 'string' ? (()=>{try{const p=JSON.parse(s.ejercicios);return Array.isArray(p)?p:[]}catch{return []}})() : []);
+                      safeEj.forEach((bl:any) => {
                         if (!bl.ventana) return
                         const ne = bl.ne ?? NE_DEFAULT[bl.ventana] ?? 5
                         const minTotal = (Number(bl.series)||1) * (Number(bl.minutos)||0)
@@ -3942,7 +3952,9 @@ function BloqueMetodologia({ bloque, index, onChangeProp, onRemoveProp, onMoveUp
               </div>
               <button className="hover-scale" type="button" onClick={() => onChange('rutinaGym', [...(bloque.rutinaGym || []), { ejercicio: '', series: '', repeticiones: '', peso: '' }])} style={{ background:'rgba(200,241,53,.15)', border:'1px solid rgba(200,241,53,.3)', borderRadius:4, padding:'6px 12px', color:'var(--lime)', fontSize:10, cursor:'pointer', fontWeight:700 }}>+ Añadir Ejercicio</button>
             </div>
-            {(bloque.rutinaGym || []).map((r: any, rIdx: number) => {
+            {(()=>{
+              const safeRutina = Array.isArray(bloque.rutinaGym) ? bloque.rutinaGym : (typeof bloque.rutinaGym === 'string' ? (()=>{try{const p=JSON.parse(bloque.rutinaGym);return Array.isArray(p)?p:[]}catch{return []}})() : []);
+              return safeRutina.map((r: any, rIdx: number) => {
               const selectedEj = fuerzaEjercicios.find(e => (e.nombre || '').toLowerCase() === (r.ejercicio || '').toLowerCase());
               const mand = selectedEj ? fuerzaMandamientos.find(m => m.id === selectedEj.mandamiento_id) : null;
               return (
@@ -3953,16 +3965,16 @@ function BloqueMetodologia({ bloque, index, onChangeProp, onRemoveProp, onMoveUp
                         <img src={selectedEj.imagen_url} alt="Ej" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
                       </div>
                     )}
-                    <input list={`ejercicios-datalist-${index}`} type="text" placeholder="Ejercicio (ej. Sentadilla)" value={r.ejercicio} onChange={(e) => { const newR = [...(bloque.rutinaGym||[])]; newR[rIdx].ejercicio = e.target.value; onChange('rutinaGym', newR) }} style={{ padding:'4px 8px', fontSize:11, borderRadius:4, border:'1px solid rgba(255,255,255,.1)', background:'var(--ink3)', color:'var(--snow)', width:'100%' }} />
+                    <input list={`ejercicios-datalist-${index}`} type="text" placeholder="Ejercicio (ej. Sentadilla)" value={r.ejercicio} onChange={(e) => { const safeR = Array.isArray(bloque.rutinaGym)?bloque.rutinaGym:[]; const newR = [...safeR]; newR[rIdx].ejercicio = e.target.value; onChange('rutinaGym', newR) }} style={{ padding:'4px 8px', fontSize:11, borderRadius:4, border:'1px solid rgba(255,255,255,.1)', background:'var(--ink3)', color:'var(--snow)', width:'100%' }} />
                     {mand && <span style={{ fontSize:9, color:'var(--lime)', padding:'2px 6px', background:'rgba(200,241,53,.1)', borderRadius:4, border:'1px solid rgba(200,241,53,.2)', flexShrink:0, whiteSpace:'nowrap' }} title={mand.nombre}>M{mand.numero}</span>}
                   </div>
-                  <input type="text" placeholder="Series" value={r.series} onChange={(e) => { const newR = [...(bloque.rutinaGym||[])]; newR[rIdx].series = e.target.value; onChange('rutinaGym', newR) }} style={{ padding:'4px 8px', fontSize:11, borderRadius:4, border:'1px solid rgba(255,255,255,.1)', background:'var(--ink3)', color:'var(--snow)', flex:1, minWidth:50 }} />
-                  <input type="text" placeholder="Reps" value={r.repeticiones} onChange={(e) => { const newR = [...(bloque.rutinaGym||[])]; newR[rIdx].repeticiones = e.target.value; onChange('rutinaGym', newR) }} style={{ padding:'4px 8px', fontSize:11, borderRadius:4, border:'1px solid rgba(255,255,255,.1)', background:'var(--ink3)', color:'var(--snow)', flex:1, minWidth:50 }} />
-                  <input type="text" placeholder="Carga" value={r.peso} onChange={(e) => { const newR = [...(bloque.rutinaGym||[])]; newR[rIdx].peso = e.target.value; onChange('rutinaGym', newR) }} style={{ padding:'4px 8px', fontSize:11, borderRadius:4, border:'1px solid rgba(255,255,255,.1)', background:'var(--ink3)', color:'var(--snow)', flex:1, minWidth:50 }} />
-                  <button className="hover-scale" type="button" onClick={() => { const newR = [...(bloque.rutinaGym||[])]; newR.splice(rIdx, 1); onChange('rutinaGym', newR) }} style={{ background:'transparent', border:'none', color:'#ef4444', cursor:'pointer', padding:4, fontSize:12, flexShrink:0 }}>✕</button>
+                  <input type="text" placeholder="Series" value={r.series} onChange={(e) => { const safeR = Array.isArray(bloque.rutinaGym)?bloque.rutinaGym:[]; const newR = [...safeR]; newR[rIdx].series = e.target.value; onChange('rutinaGym', newR) }} style={{ padding:'4px 8px', fontSize:11, borderRadius:4, border:'1px solid rgba(255,255,255,.1)', background:'var(--ink3)', color:'var(--snow)', flex:1, minWidth:50 }} />
+                  <input type="text" placeholder="Reps" value={r.repeticiones} onChange={(e) => { const safeR = Array.isArray(bloque.rutinaGym)?bloque.rutinaGym:[]; const newR = [...safeR]; newR[rIdx].repeticiones = e.target.value; onChange('rutinaGym', newR) }} style={{ padding:'4px 8px', fontSize:11, borderRadius:4, border:'1px solid rgba(255,255,255,.1)', background:'var(--ink3)', color:'var(--snow)', flex:1, minWidth:50 }} />
+                  <input type="text" placeholder="Carga" value={r.peso} onChange={(e) => { const safeR = Array.isArray(bloque.rutinaGym)?bloque.rutinaGym:[]; const newR = [...safeR]; newR[rIdx].peso = e.target.value; onChange('rutinaGym', newR) }} style={{ padding:'4px 8px', fontSize:11, borderRadius:4, border:'1px solid rgba(255,255,255,.1)', background:'var(--ink3)', color:'var(--snow)', flex:1, minWidth:50 }} />
+                  <button className="hover-scale" type="button" onClick={() => { const safeR = Array.isArray(bloque.rutinaGym)?bloque.rutinaGym:[]; const newR = [...safeR]; newR.splice(rIdx, 1); onChange('rutinaGym', newR) }} style={{ background:'transparent', border:'none', color:'#ef4444', cursor:'pointer', padding:4, fontSize:12, flexShrink:0 }}>✕</button>
                 </div>
               )
-            })}
+            })})()}
             <datalist id={`ejercicios-datalist-${index}`}>
               {fuerzaEjercicios
                 .filter(ej => {
@@ -4270,7 +4282,15 @@ function SesionEditor({ sesion, defaultFecha, rpeReal = 0, onSave, onDelete, onC
     cancha_id: sesion?.cancha_id || '',
   })
   const [bloques, setBloques] = useState<any[]>(() => {
-    try { return sesion?.ejercicios?.length ? sesion.ejercicios : [] } catch { return [] }
+    try { 
+      let safeEj = sesion?.ejercicios || [];
+      if (typeof safeEj === 'string') {
+        try { const p = JSON.parse(safeEj); safeEj = Array.isArray(p) ? p : []; } catch { safeEj = []; }
+      }
+      return Array.isArray(safeEj) && safeEj.length 
+        ? safeEj.map((e: any) => ({ ...e, _tempId: e.id || e._tempId || (Date.now() + Math.random()) })) 
+        : [] 
+    } catch { return [] }
   })
   const [loading, setLoading] = useState(false)
   const [saveError, setSaveError] = useState('')
