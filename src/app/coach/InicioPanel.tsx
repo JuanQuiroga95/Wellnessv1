@@ -617,8 +617,10 @@ export default function InicioPanel({ teamData, session, today }: { teamData: an
                     border: `1px solid ${e.tipo === 'partido' ? '#ef444455' : 'var(--mist)'}`, 
                     borderRadius: 8, padding: 16, display: 'flex', alignItems: 'center', gap: 16, marginBottom: 8 
                   }}>
-                    <div style={{ fontSize: 24 }}>
-                      {e.tipo === 'partido' ? '⚽' : getObjetivoIcon(e.objetivo) || '🏃'}
+                    <div style={{ fontSize: 24, width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      {e.tipo === 'partido' ? (
+                        e.rival_foto ? <img src={e.rival_foto} alt="Rival" style={{ width: '100%', height: '100%', objectFit: 'contain' }} /> : '⚽'
+                      ) : (getObjetivoIcon(e.objetivo) || '🏃')}
                     </div>
                     <div>
                       <div style={{ fontSize: 14, fontWeight: 700, color: e.tipo === 'partido' ? '#ef4444' : 'var(--snow)' }}>
@@ -644,8 +646,10 @@ export default function InicioPanel({ teamData, session, today }: { teamData: an
                     border: `1px solid ${e.tipo === 'partido' ? '#ef444455' : 'var(--mist)'}`, 
                     borderRadius: 8, padding: 16, display: 'flex', alignItems: 'center', gap: 16, marginBottom: 8 
                   }}>
-                    <div style={{ fontSize: 24, opacity: 0.7 }}>
-                      {e.tipo === 'partido' ? '⚽' : getObjetivoIcon(e.objetivo) || '🏃'}
+                    <div style={{ fontSize: 24, opacity: 0.7, width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      {e.tipo === 'partido' ? (
+                        e.rival_foto ? <img src={e.rival_foto} alt="Rival" style={{ width: '100%', height: '100%', objectFit: 'contain' }} /> : '⚽'
+                      ) : (getObjetivoIcon(e.objetivo) || '🏃')}
                     </div>
                     <div>
                       <div style={{ fontSize: 14, fontWeight: 700, color: e.tipo === 'partido' ? '#ef4444' : 'var(--snow)', opacity: 0.9 }}>
@@ -685,7 +689,7 @@ export default function InicioPanel({ teamData, session, today }: { teamData: an
                             <p style={{ fontSize:11, fontWeight:700, color:'#fbbf24', textTransform:'uppercase', letterSpacing:'0.08em' }}>🏆 RANKING DE LOGROS — 14 DÍAS</p>
                             <p style={{ fontSize:10, color:'var(--fog)', marginTop:2 }}>Top 3 jugadores por velocidad máxima y HSR en el período seleccionado</p>
                           </div>
-                          <div style={{ display:'grid', gridTemplateColumns:'minmax(0, 1fr) minmax(0, 1fr)', gap:1, background:'var(--mist)' }}>
+                          <div style={{ display:'flex', flexDirection:'column', gap:1, background:'var(--mist)' }}>
                             {RANKINGS.map(rank => {
                               const sorted = [...gpsRealData]
                                 .filter((p:any) => Number(p[rank.key]) > 0)
