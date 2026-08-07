@@ -48,7 +48,7 @@ export function openPrintOverlay(html: string) {
 }
 import React, { useState, useEffect, useCallback, useRef, ReactNode } from 'react'
 import * as XLSX from 'xlsx'
-import { ClubProvider } from './ClubContext'
+import { ClubProvider, useClubContext } from './ClubContext'
 import { useRouter } from 'next/navigation'
 import Topbar from '@/components/ui/Topbar'
 import StatusBadge from '@/components/ui/StatusBadge'
