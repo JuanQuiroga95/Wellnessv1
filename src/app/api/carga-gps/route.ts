@@ -160,6 +160,20 @@ export async function GET(req: NextRequest) {
     const sesiones = clubId ? await sql`SELECT id, fecha::text, ejercicios, rpe_objetivo, titulo FROM sesiones_plan WHERE club_id = ${clubId} AND fecha >= ${desde}::date AND fecha <= ${hastaInc}::timestamp ORDER BY fecha`
     : await sql`SELECT id, fecha::text, ejercicios, rpe_objetivo, titulo FROM sesiones_plan WHERE admin_id = ${s.userId} AND club_id IS NULL AND fecha >= ${desde}::date AND fecha <= ${hastaInc}::timestamp ORDER BY fecha`
 
+    const titleDateMap: Record<string, string> = {}
+    const titleCount: Record<string, number> = {}
+    for (const ses of sesiones as any[]) {
+      const baseTitle = ses.titulo || ses.fecha
+      const dStr = typeof ses.fecha === 'string' ? ses.fecha.slice(0, 10) : String(ses.fecha).slice(0, 10)
+      if (!titleDateMap[baseTitle]) {
+        titleDateMap[baseTitle] = dStr
+      } else if (titleDateMap[baseTitle] !== dStr) {
+        if (!titleCount[baseTitle]) titleCount[baseTitle] = 1;
+        titleCount[baseTitle]++;
+        ses.titulo = `${baseTitle} (${titleCount[baseTitle]})`
+      }
+    }
+
     const todosJugadores = clubId ? await sql`SELECT j.id AS jugador_id, u.nombre, j.posicion FROM jugadores j JOIN usuarios u ON u.id = j.usuario_id WHERE (u.club_id = ${clubId} OR j.club_id = ${clubId}) AND u.activo = true ORDER BY u.nombre` : []
 
     const logs = clubId ? await sql`SELECT el.jugador_id, el.fecha::text, el.rpe::int, el.duracion_min::int, el.carga_ua::int, el.tipo_sesion FROM entrenamiento_logs el JOIN jugadores j ON j.id = el.jugador_id JOIN usuarios u ON u.id = j.usuario_id WHERE el.fecha >= ${desde}::date AND el.fecha <= ${hastaInc}::timestamp AND u.activo = true AND (u.club_id = ${clubId} OR j.club_id = ${clubId}) ORDER BY el.fecha` : []
