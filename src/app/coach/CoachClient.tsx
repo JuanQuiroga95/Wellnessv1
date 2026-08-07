@@ -1,6 +1,12 @@
 'use client'
 import { mkBars, ENTRENAMIENTO_OPTIMIZADOR, ENTRENAMIENTO_COADYUVANTE, TODAS_LAS_NUEVAS, TAREAS_CON_ESPACIO, TAREAS_CON_EQUIPO, TAREAS_PARTIDO_SIMPLE, TAREAS_MOSTRAR_FORM, NE_DEFAULT, OBJETIVOS_FISICOS, OBJETIVOS_SECUNDARIOS, TITULOS_SESION, getCuadrante } from './utils'
 
+export const SUBTAREAS: Record<string, string[]> = {
+  'PREVENTIVO': ['TRABAJO GRUPAL', 'TRABAJO INDIVIDUAL'],
+  'ESTRUCTURAL': ['Adaptacion Anatómica', 'Hipertrofia Aplicada', 'Metabólico'],
+  'CUALIDADES ESPECÍFICAS': ['Desplazamiento', 'Salto', 'Lucha', 'Acción de Juego']
+};
+
 export function openPrintOverlay(html: string) {
   let iframe = document.getElementById('print-iframe') as HTMLIFrameElement;
   if (!iframe) {
@@ -3236,8 +3242,7 @@ function CalendarioPanel({ teamData, canchas, setCanchas }: { teamData: any[], c
                       const totals: Record<string,number> = {}
                       metricKeys.forEach(k => { totals[k] = 0 })
                       let hasCarga = false
-                      const safeEj = Array.isArray(s.ejercicios) ? s.ejercicios : (typeof s.ejercicios === 'string' ? (()=>{try{const p=JSON.parse(s.ejercicios);return Array.isArray(p)?p:[]}catch{return []}})() : []);
-                      safeEj.forEach((bl:any) => {
+                      s.ejercicios.forEach((bl:any) => {
                         if (!bl.ventana || !TAREAS_CON_ESPACIO.includes(bl.ventana)) return
                         const jugN = getJugadoresBloque(bl, TAREAS_CON_EQUIPO.includes(bl.ventana))
                         const calc = calcularDistancias(jugN, Number(bl.largo), Number(bl.ancho), Number(bl.series), Number(bl.minutos))
