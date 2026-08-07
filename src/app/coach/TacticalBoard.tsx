@@ -1,18 +1,19 @@
 'use client'
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react'
+import { useClubContext } from './ClubContext'
 
 // ═══════════════════════════════════════════════════════════════════
 // TYPES
 // ═══════════════════════════════════════════════════════════════════
 type Tool = 'select'|'player'|'cone'|'disc'|'ring'|'ball'|'goal'|'minigoal'|'barrier'|'ladder'|'pole'|'mannequin'|'arrow_solid'|'arrow_dashed'|'arrow_wave'|'zone'|'text'
-type FieldType = 'F11'|'F11_half'|'F9'|'F7'|'F5'|'Gimnasio'
+type FieldType = 'F11'|'F11_half'|'F9'|'F7'|'F5'|'Gimnasio'|'Basquet_Completa'|'Basquet_Mitad'
 type Orientation = 'horizontal'|'vertical'
 
 interface El { id:string; type:string; x:number; y:number; x2?:number; y2?:number; w?:number; h?:number; color?:string; number?:number|string; label?:string; text?:string; dashed?:boolean; wave?:boolean; fontSize?:number; rotation?:number; _rw?:number; _rh?:number; vertices?:{x:number, y:number}[]; _area?:number }
 
 interface BoardProps {
   initialData?: { field:FieldType; elements:El[]; series?:El[][]; orientation?:Orientation; cancha_id?:string }
-  onSave?: (d:{ field:FieldType; elements:El[]; series:El[][]; preview:string; cancha_id?:string }) => void
+  onSave?: (d:{ field:FieldType; elements:El[]; series:El[][]; preview:string; cancha_id?:string; orientation?:Orientation }) => void
   onClose?: () => void
   readOnly?: boolean
   onZoneInfo?: (zones: { rw:number; rh:number; area:number }[]) => void
@@ -33,6 +34,8 @@ const FIELD_CFG: Record<FieldType, { mW:number; mH:number; label:string; penalty
   F7:       { mW:60, mH:40, label:'F7', penaltyScale:0.65, hasCorners:true, futsal:false },
   F5:       { mW:40, mH:20, label:'F5 Futsal', penaltyScale:0.5, hasCorners:false, futsal:true },
   Gimnasio: { mW:20, mH:15, label:'Gimnasio', penaltyScale:0, hasCorners:false, futsal:false },
+  Basquet_Completa: { mW:28, mH:15, label:'Básquet Completa', penaltyScale:0, hasCorners:false, futsal:false },
+  Basquet_Mitad: { mW:14, mH:15, label:'Media Cancha', penaltyScale:0, hasCorners:false, futsal:false },
 }
 
 const FORMATIONS: Record<string,{label:string; positions:[number,number][]; forField:FieldType[]}> = {
@@ -250,7 +253,9 @@ const lbl:React.CSSProperties = {fontSize:7,fontWeight:800,color:'#3e4c5e',textT
 // MAIN COMPONENT
 // ═══════════════════════════════════════════════════════════════════
 export default function TacticalBoard({ initialData, onSave, onClose, readOnly, onZoneInfo, canchasProp=[] }: BoardProps) {
-  const [field, setField] = useState<FieldType>(initialData?.field || 'F11')
+  const { deporte } = useClubContext()
+  const dField = initialData?.field || (deporte === 'BASQUET' ? 'Basquet_Completa' : 'F11_half')
+  const [field, setField] = useState<FieldType>(dField)
   const [selectedCanchaId, setSelectedCanchaId] = useState<string>(initialData?.cancha_id || '')
   const [orient, setOrient] = useState<Orientation>(initialData?.orientation||'horizontal')
   const [elements, setElements] = useState<El[]>(initialData?.elements||[])
@@ -444,7 +449,7 @@ export default function TacticalBoard({ initialData, onSave, onClose, readOnly, 
     const png=await getPng();if(!png)return
     const a=document.createElement('a');a.href=png;a.download=`tactica_${new Date().toISOString().split('T')[0]}.png`;a.click()
   }
-  const save = async()=>{const p=await getPng();onSave?.({field,elements,series,preview:p,cancha_id:selectedCanchaId})}
+  const save = async()=>{const p=await getPng();onSave?.({field,elements,series,preview:p,cancha_id:selectedCanchaId,orientation:orient})}
 
   useEffect(()=>{
     const h=(e:KeyboardEvent)=>{
@@ -469,8 +474,21 @@ export default function TacticalBoard({ initialData, onSave, onClose, readOnly, 
   if(readOnly){
     return <div style={{borderRadius:10,overflow:'hidden',border:'1px solid rgba(255,255,255,.05)'}}>
       <svg viewBox={`0 0 ${vbW} ${vbH}`} style={{width:'100%',display:'block'}}>
-        <rect width={vbW} height={vbH} fill={field==='Gimnasio'?"#333333":"#1a472a"}/>
-        <FieldSVG type={field} vbW={vbW} vbH={vbH} showGrid={false}/>
+        {field.startsWith('Basquet') ? (() => {
+          const isHalf = field === 'Basquet_Mitad';
+          const isVert = orient === 'vertical';
+          const imgW = isVert ? (isHalf ? vbH * 2 : vbH) : (isHalf ? vbW * 2 : vbW);
+          const imgH = isVert ? vbW : vbH;
+          if (isVert) {
+            return <image href="/cancha_basquet.png" x={0} y={-vbW} width={imgW} height={imgH} transform="rotate(90)" preserveAspectRatio="xMidYMid slice" />
+          }
+          return <image href="/cancha_basquet.png" x={0} y={0} width={imgW} height={imgH} preserveAspectRatio="xMidYMid slice" />
+        })() : (
+          <>
+            <rect width={vbW} height={vbH} fill={field==='Gimnasio'?"#333333":"#1a472a"}/>
+            <FieldSVG type={field} vbW={vbW} vbH={vbH} showGrid={false}/>
+          </>
+        )}
         {elements.map(el=><Elem key={el.id} el={el} sel={false} onDown={()=>{}} onResizeDown={()=>{}}/>)}
       </svg>
     </div>
@@ -485,7 +503,7 @@ export default function TacticalBoard({ initialData, onSave, onClose, readOnly, 
           <div style={lbl}>Cancha</div>
           <div style={{display:'flex',gap:2,flexDirection:'column'}}>
             <div style={{display:'flex',gap:2}}>
-              {(['F11','F11_half','F9','F7','F5','Gimnasio'] as const).map(f=>(
+              {(['F11','F11_half','F9','F7','F5','Gimnasio','Basquet_Completa','Basquet_Mitad'] as const).map(f=>(
                 <button key={f} onClick={()=>setField(f)} style={tb(field===f)}><span style={{fontSize:10,fontWeight:900}}>{FIELD_CFG[f].label.replace('F11 ','').replace('F5 ','')}</span></button>
               ))}
               <button onClick={()=>setOrient(o=>o==='horizontal'?'vertical':'horizontal')} style={tb(false)} title="Rotar campo">
@@ -620,8 +638,21 @@ export default function TacticalBoard({ initialData, onSave, onClose, readOnly, 
           onMouseDown={down} onMouseMove={move} onMouseUp={up}
           onTouchStart={down} onTouchMove={move} onTouchEnd={up}
           onMouseLeave={()=>{setDrag(null);setDraw(null);setPrev(null);setResizeDrag(null)}}>
-          <rect width={vbW} height={vbH} fill={field==='Gimnasio'?"#333333":"#1a472a"}/>
-          <FieldSVG type={field} vbW={vbW} vbH={vbH} showGrid={showGrid}/>
+          {field.startsWith('Basquet') ? (() => {
+            const isHalf = field === 'Basquet_Mitad';
+            const isVert = orient === 'vertical';
+            const imgW = isVert ? (isHalf ? vbH * 2 : vbH) : (isHalf ? vbW * 2 : vbW);
+            const imgH = isVert ? vbW : vbH;
+            if (isVert) {
+              return <image href="/cancha_basquet.png" x={0} y={-vbW} width={imgW} height={imgH} transform="rotate(90)" preserveAspectRatio="xMidYMid slice" />
+            }
+            return <image href="/cancha_basquet.png" x={0} y={0} width={imgW} height={imgH} preserveAspectRatio="xMidYMid slice" />
+          })() : (
+            <>
+              <rect width={vbW} height={vbH} fill={field==='Gimnasio'?"#333333":"#1a472a"}/>
+              <FieldSVG type={field} vbW={vbW} vbH={vbH} showGrid={showGrid}/>
+            </>
+          )}
           {polyDraw && polyDraw.length > 0 && <g>
             {polyDraw.length > 1 && <polyline points={polyDraw.map(v=>`${v.x},${v.y}`).join(' ')} fill="none" stroke="rgba(163,230,53,.8)" strokeWidth={1.5} strokeDasharray="4 3"/>}
             {polyCursor && <line x1={polyDraw[polyDraw.length-1].x} y1={polyDraw[polyDraw.length-1].y} x2={polyCursor.x} y2={polyCursor.y} stroke="rgba(163,230,53,.4)" strokeWidth={1.5} strokeDasharray="4 3"/>}
@@ -742,15 +773,26 @@ export default function TacticalBoard({ initialData, onSave, onClose, readOnly, 
 // ═══════════════════════════════════════════════════════════════════
 // PREVIEW
 // ═══════════════════════════════════════════════════════════════════
-export function TacticalPreview({ data }:{ data:{field:FieldType;elements:El[]} }) {
+export function TacticalPreview({ data }:{ data:{field:FieldType;elements:El[];orientation?:'horizontal'|'vertical'} }) {
   if(!data?.elements?.length) return null
   const cfg=FIELD_CFG[data.field]; const ratio=cfg.mW/cfg.mH
   const vbW=860, vbH=Math.round(860/ratio)
-  return <div style={{borderRadius:8,overflow:'hidden',border:'1px solid rgba(255,255,255,.05)'}}>
-    <svg viewBox={`0 0 ${vbW} ${vbH}`} style={{width:'100%',display:'block'}}>
-      <rect width={vbW} height={vbH} fill="#1a472a"/>
-      <FieldSVG type={data.field} vbW={vbW} vbH={vbH} showGrid={false}/>
-      {data.elements.map(el=><Elem key={el.id} el={el} sel={false} onDown={()=>{}}/>)}
+  const previewSvg = `
+    <svg viewBox="0 0 ${vbW} ${vbH}" style="width:100%;display:block;" xmlns="http://www.w3.org/2000/svg">
+      ${data.field.startsWith('Basquet') 
+        ? (() => {
+            const isHalf = data.field === 'Basquet_Mitad';
+            const isVert = data.orientation === 'vertical';
+            const imgW = isVert ? (isHalf ? vbH * 2 : vbH) : (isHalf ? vbW * 2 : vbW);
+            const imgH = isVert ? vbW : vbH;
+            if (isVert) return `<image href="/cancha_basquet.png" x="0" y="-${vbW}" width="${imgW}" height="${imgH}" transform="rotate(90)" preserveAspectRatio="xMidYMid slice" />`;
+            return `<image href="/cancha_basquet.png" x="0" y="0" width="${imgW}" height="${imgH}" preserveAspectRatio="xMidYMid slice" />`;
+          })()
+        : `<rect width="${vbW}" height="${vbH}" fill="#1a472a"/>`
+      }
+      ${!data.field.startsWith('Basquet') ? `<g>${renderToString(<FieldSVG type={data.field} vbW={vbW} vbH={vbH} showGrid={false}/>)}</g>` : ''}
+      <g>${data.elements.map(el=>renderToString(<Elem key={el.id} el={el} sel={false} onDown={()=>{}}/>)).join('')}</g>
     </svg>
-  </div>
+  `
+  return <div style={{borderRadius:8,overflow:'hidden',border:'1px solid rgba(255,255,255,.05)'}} dangerouslySetInnerHTML={{__html: previewSvg}} />
 }

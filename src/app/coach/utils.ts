@@ -22,10 +22,52 @@ export const ENTRENAMIENTO_COADYUVANTE = {
 }
 
 export const TODAS_LAS_NUEVAS = [...Object.values(ENTRENAMIENTO_OPTIMIZADOR).flat(), ...Object.values(ENTRENAMIENTO_COADYUVANTE).flat()]
+
+export const ENTRENAMIENTO_BASQUET_OPTIMIZADOR = {
+  COMPETITIVO: ["JUEGO COMPETICIÓN", "JUEGO AMISTOSO", "JUEGO ENTRENAMIENTO", "JUEGO 5V5 CONDICIONADO", "JUEGO 4V4", "JUEGO 3V3"],
+  ESPECIAL: ["TRANSICIONES OFENSIVAS", "TRANSICIONES DEFENSIVAS", "SISTEMAS OFENSIVOS (5V0/5V5)", "DEFENSA INDIVIDUAL/ZONAL", "SITUACIONES ESPECIALES (SAQUES)", "SUPERIORIDADES/INFERIORIDADES (3V2/2V1)", "RONDOS BÁSQUET", "TÉCNICA INDIVIDUAL (TIRO/DRIBLING/PASE) OPOSICIÓN"]
+}
+
+export const ENTRENAMIENTO_BASQUET_COADYUVANTE = {
+  DIRIGIDO: ["CIRCUITO TÉCNICO", "CIRCUITO DIRIGIDO CON FINALIZACIÓN", "TRABAJO DE PIES", "ESTACIONES FUNDAMENTOS"],
+  GENERAL: ["ACTIVACIÓN NEUROMUSCULAR", "TRABAJO DE FUERZA EN GIMNASIO", "PREVENTIVO", "ESTRUCTURAL", "RESTAURACIÓN", "PROPIOCEPCIÓN"]
+}
+
+export const TODAS_LAS_NUEVAS_BASQUET = [...Object.values(ENTRENAMIENTO_BASQUET_OPTIMIZADOR).flat(), ...Object.values(ENTRENAMIENTO_BASQUET_COADYUVANTE).flat()]
+
 export const TAREAS_CON_ESPACIO = TODAS_LAS_NUEVAS
 export const TAREAS_CON_EQUIPO = TODAS_LAS_NUEVAS
-export const TAREAS_PARTIDO_SIMPLE = ['PARTIDO AMISTOSO','PARTIDO COMPETICIÓN','PARTIDO ENTRENAMIENTO']
+export const TAREAS_PARTIDO_SIMPLE = ['PARTIDO AMISTOSO','PARTIDO COMPETICIÓN','PARTIDO ENTRENAMIENTO', 'JUEGO AMISTOSO', 'JUEGO COMPETICIÓN', 'JUEGO ENTRENAMIENTO']
 export const TAREAS_MOSTRAR_FORM = TODAS_LAS_NUEVAS
+
+export const COEF_POSICION_BASQUET: Record<string, number> = {
+  'Base': 1.15,
+  'Escolta': 1.15,
+  'Guard': 1.15,
+  'Alero': 1.00,
+  'Ala-Pívot': 1.00,
+  'Forward': 1.00,
+  'Pívot': 0.85,
+  'Center': 0.85
+}
+
+export const COEF_POSICION_FUTBOL: Record<string, number> = {
+  'Defensor Central': 0.85,
+  'CD': 0.85, 'CB': 0.85,
+  'Lateral': 1.15,
+  'FB': 1.15, 'WD': 1.15,
+  'Mediocampista': 1.10,
+  'Volante': 1.10,
+  'CM': 1.10, 'DM': 1.10, 'AM': 1.10,
+  'Extremo': 1.15,
+  'Volante Ofensivo': 1.15,
+  'WMF': 1.15, 'WIN': 1.15,
+  'Delantero Centro': 0.95,
+  'STR': 0.95, 'FW': 0.95,
+  'Arquero': 0.10,
+  'Portero': 0.10,
+  'GK': 0.10
+}
 
 export const NE_DEFAULT: Record<string, number> = {
   "PARTIDO COMPETICIÓN": 10,
@@ -152,32 +194,40 @@ export const NE_DEFAULT: Record<string, number> = {
   "TRABAJO DE FUERZA EN EL GIMNASIO": 1
 };
 
-export function getCuadrante(densidad: number, jugadores?: number) {
-  // Sangnier et al (2018) — clasificación EXACTA del Excel
-  // Eje Y (densidad m²/jug): <50 | 50-100 | 100-200 | >=200
-  // Eje X (total jugadores): <=4 | <=8 | <=14 | <=20
-  //
-  // Tabla completa:
-  // densidad\jug  | <=4           | <=8           | <=14          | <=20
-  // <50           | Fuerza 1      | Fuerza 2      | Act./Rec. 2   | Act./Rec. 4
-  // 50-100        | Fuerza 3      | Fuerza 4      | Act./Rec. 1   | Act./Rec. 3
-  // 100-200       | Resistencia 2 | Resistencia 4 | Velocidad 4   | Velocidad 2
-  // >=200         | Resistencia 1 | Resistencia 3 | Velocidad 3   | Velocidad 1
-
+export function getCuadrante(densidad: number, jugadores?: number, deporte?: string) {
   const d = densidad
   const n = jugadores || 0
-
-  // Tabla completa incluyendo número de intensidad (Sangnier et al 2018)
-  // densidad\jug  | <=4              | <=8              | <=14             | <=20
-  // <50           | Fuerza 1         | Fuerza 2         | Act./Rec. 2      | Act./Rec. 4
-  // 50-100        | Fuerza 3         | Fuerza 4         | Act./Rec. 1      | Act./Rec. 3
-  // 100-200       | Resistencia 2    | Resistencia 4    | Velocidad 4      | Velocidad 2
-  // >=200         | Resistencia 1    | Resistencia 3    | Velocidad 3      | Velocidad 1
-  // Número: 1 = más intenso, 4 = menos intenso (dentro de su categoría)
 
   let objetivo = 'Resistencia'
   let intensidad = 1
 
+  if (deporte === 'BASQUET') {
+    // Básquet: Cancha FIBA 420m2 (28x15).
+    // Densidad: <10m2 = Pequeño, 10-20m2 = Medio, >20m2 = Grande
+    if (d < 10) {
+      objetivo = 'Fuerza'; intensidad = 1;
+    } else if (d <= 20) {
+      objetivo = 'Resistencia'; intensidad = 2;
+    } else {
+      objetivo = 'Velocidad'; intensidad = 3;
+    }
+
+    const colorMap: Record<string,{color:string,bg:string,border:string}> = {
+      'Fuerza':      { color:'#a855f7', bg:'rgba(168,85,247,.1)',  border:'rgba(168,85,247,.3)' },
+      'Resistencia': { color:'#f59e0b', bg:'rgba(245,158,11,.1)',  border:'rgba(245,158,11,.3)' },
+      'Velocidad':   { color:'#3b82f6', bg:'rgba(59,130,246,.1)',  border:'rgba(59,130,246,.3)' },
+    }
+    const { color, bg, border } = colorMap[objetivo] ?? { color:'#888', bg:'rgba(128,128,128,.1)', border:'rgba(128,128,128,.3)' }
+    const espacioLabel = d < 10 ? 'Espacio Pequeño' : d <= 20 ? 'Espacio Medio' : 'Espacio Grande'
+    const descs: Record<string,string> = {
+      'Fuerza':      'Alta fricción · Contacto frecuente · SSG Alta Densidad',
+      'Resistencia': 'Equilibrio técnico-táctico · Ritmo continuo',
+      'Velocidad':   'Transiciones amplias · Alta intensidad de aceleración',
+    }
+    return { label: espacioLabel, objetivo, intensidad, color, bg, border, desc: descs[objetivo] }
+  }
+
+  // Fútbol (Sangnier et al 2018)
   if (d < 50) {
     if (n <= 4)       { objetivo = 'Fuerza';     intensidad = 1 }
     else if (n <= 8)  { objetivo = 'Fuerza';     intensidad = 2 }
@@ -255,8 +305,8 @@ export const mkBars = (items: {name:string, val:number, sub?:string}[], bars: {k
     })
     // x label
     const cx = x0 + (COL_W-4)/2
-    svg += `<text x="${cx.toFixed(1)}" y="${(TOP+BAR_H+12).toFixed(1)}" text-anchor="middle" fill="#333" font-size="8" font-weight="600">${it.name}</text>`
-    if (it.sub) svg += `<text x="${cx.toFixed(1)}" y="${(TOP+BAR_H+22).toFixed(1)}" text-anchor="middle" fill="#888" font-size="7">${it.sub}</text>`
+    svg += `<text x="${cx.toFixed(1)}" y="${(TOP+BAR_H+12).toFixed(1)}" text-anchor="end" transform="rotate(-45, ${cx.toFixed(1)}, ${(TOP+BAR_H+12).toFixed(1)})" fill="#333" font-size="8" font-weight="600">${it.name}</text>`
+    if (it.sub) svg += `<text x="${cx.toFixed(1)}" y="${(TOP+BAR_H+22).toFixed(1)}" text-anchor="end" transform="rotate(-45, ${cx.toFixed(1)}, ${(TOP+BAR_H+22).toFixed(1)})" fill="#888" font-size="7">${it.sub}</text>`
   })
   // line overlay
   if (lineKey && lineVals.some(v=>v>0)) {

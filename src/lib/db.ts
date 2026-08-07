@@ -36,6 +36,7 @@ export const SCHEMA_STATEMENTS = [
   // Multitenancy — clubs & master_admin
   `CREATE TABLE IF NOT EXISTS clubs (id SERIAL PRIMARY KEY, nombre VARCHAR(100) NOT NULL, logo_url TEXT, created_at TIMESTAMPTZ DEFAULT NOW())`,
   `ALTER TABLE clubs ADD COLUMN IF NOT EXISTS pais VARCHAR(100)`,
+  `ALTER TABLE clubs ADD COLUMN IF NOT EXISTS deporte VARCHAR(20) DEFAULT 'FUTBOL'`,
   `ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS club_id INTEGER REFERENCES clubs(id)`,
   `ALTER TABLE jugadores ADD COLUMN IF NOT EXISTS club_id INTEGER REFERENCES clubs(id)`,
   `ALTER TABLE entrenamiento_logs ADD COLUMN IF NOT EXISTS club_id INTEGER`,
@@ -148,6 +149,7 @@ export const SCHEMA_STATEMENTS = [
   `ALTER TABLE biblioteca_tareas ADD COLUMN IF NOT EXISTS tactical_diagram TEXT`,
   `ALTER TABLE biblioteca_tareas ADD COLUMN IF NOT EXISTS diagram_preview TEXT`,
   `ALTER TABLE biblioteca_tareas ADD COLUMN IF NOT EXISTS orientacion_fisica VARCHAR(50)`,
+  `ALTER TABLE biblioteca_tareas ADD COLUMN IF NOT EXISTS nivel_aproximacion INTEGER`,
   // ── Módulo Táctico ────────────────────────────────────────────────────────
   `CREATE TABLE IF NOT EXISTS metricas_tacticas (
     id SERIAL PRIMARY KEY,
@@ -168,6 +170,9 @@ export const SCHEMA_STATEMENTS = [
   `ALTER TABLE gps_logs ADD COLUMN IF NOT EXISTS n_sprints INTEGER`,
   `ALTER TABLE gps_logs ADD COLUMN IF NOT EXISTS duracion_min NUMERIC(6,1)`,
   `ALTER TABLE gps_logs ADD COLUMN IF NOT EXISTS metricas JSONB`,
+  `ALTER TABLE gps_logs ADD COLUMN IF NOT EXISTS saltos_count INTEGER`,
+  `ALTER TABLE gps_logs ADD COLUMN IF NOT EXISTS salto_avg_cm NUMERIC(5,1)`,
+  `ALTER TABLE gps_logs ADD COLUMN IF NOT EXISTS cod_count INTEGER`,
   `UPDATE gps_logs SET club_id = (SELECT j.club_id FROM jugadores j WHERE j.id = gps_logs.jugador_id) WHERE club_id IS NULL AND jugador_id IS NOT NULL`,
   `ALTER TABLE sesiones_plan ADD COLUMN IF NOT EXISTS rival VARCHAR(100)`,
   `ALTER TABLE sesiones_plan ADD COLUMN IF NOT EXISTS rival_foto TEXT`,
