@@ -7,6 +7,7 @@ function isMaster(s: any) { return s?.rol === 'master_admin' }
 
 async function ensurePaisColumn(sql: any) {
   try { await sql`ALTER TABLE clubs ADD COLUMN IF NOT EXISTS pais VARCHAR(100)` } catch(_) {}
+  try { await sql`ALTER TABLE clubs ADD COLUMN IF NOT EXISTS deporte VARCHAR(20) DEFAULT 'FUTBOL'` } catch(_) {}
 }
 
 export async function GET(req: NextRequest) {
@@ -16,7 +17,7 @@ export async function GET(req: NextRequest) {
   await ensurePaisColumn(sql)
   try {
     const clubs = await sql`
-      SELECT c.id, c.nombre, c.logo_url, c.pais, c.created_at::text,
+      SELECT c.id, c.nombre, c.logo_url, c.pais, c.deporte, c.created_at::text,
              COUNT(DISTINCT CASE WHEN u.rol='admin' AND u.activo=true THEN u.id END)::int AS coaches,
              COUNT(DISTINCT CASE WHEN u.rol='jugador' AND u.activo=true THEN u.id END)::int AS jugadores
       FROM clubs c
@@ -31,21 +32,21 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const s = await getSessionFromRequest(req)
   if (!s || !isMaster(s)) return NextResponse.json({error:'No autorizado'},{status:403})
-  const { nombre, logo_url, pais } = await req.json()
+  const { nombre, logo_url, pais, deporte } = await req.json()
   if (!nombre) return NextResponse.json({error:'Nombre requerido'},{status:400})
   const sql = getDb()
   await ensurePaisColumn(sql)
   const [club] = await sql`
-    INSERT INTO clubs(nombre,logo_url,pais)
-    VALUES(${nombre},${logo_url||null},${pais||null})
-    RETURNING id,nombre,logo_url,pais`
+    INSERT INTO clubs(nombre,logo_url,pais,deporte)
+    VALUES(${nombre},${logo_url||null},${pais||null},${deporte||'FUTBOL'})
+    RETURNING id,nombre,logo_url,pais,deporte`
   return NextResponse.json(club)
 }
 
 export async function PATCH(req: NextRequest) {
   const s = await getSessionFromRequest(req)
   if (!s || !isMaster(s)) return NextResponse.json({error:'No autorizado'},{status:403})
-  const { id, nombre, logo_url, pais } = await req.json()
+  const { id, nombre, logo_url, pais, deporte } = await req.json()
   if (!id) return NextResponse.json({error:'id requerido'},{status:400})
   const sql = getDb()
   await ensurePaisColumn(sql)
@@ -53,6 +54,7 @@ export async function PATCH(req: NextRequest) {
     if (nombre !== undefined) await sql`UPDATE clubs SET nombre=${nombre} WHERE id=${id}`
     if (logo_url !== undefined) await sql`UPDATE clubs SET logo_url=${logo_url||null} WHERE id=${id}`
     if (pais !== undefined) await sql`UPDATE clubs SET pais=${pais||null} WHERE id=${id}`
+    if (deporte !== undefined) await sql`UPDATE clubs SET deporte=${deporte} WHERE id=${id}`
     return NextResponse.json({ok:true})
   } catch(e: any) {
     return NextResponse.json({error: String(e)},{status:500})

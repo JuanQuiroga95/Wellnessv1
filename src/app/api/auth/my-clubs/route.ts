@@ -25,13 +25,13 @@ export async function GET(req: NextRequest) {
     try {
       if (s.rol === 'master_admin') {
         clubs = await sql`
-          SELECT id, nombre, logo_url, pais,
+          SELECT id, nombre, logo_url, pais, deporte,
                  (id = COALESCE(${s.clubId ? Number(s.clubId) : 0}, 0)) AS is_active
           FROM clubs
           ORDER BY nombre`
       } else {
         clubs = await sql`
-          SELECT c.id, c.nombre, c.logo_url, c.pais,
+          SELECT c.id, c.nombre, c.logo_url, c.pais, c.deporte,
                  (c.id = COALESCE(${s.clubId ? Number(s.clubId) : 0}, 0)) AS is_active
           FROM clubs c
           JOIN admin_clubs ac ON ac.club_id = c.id
@@ -51,7 +51,7 @@ export async function GET(req: NextRequest) {
 
       if (s.clubId) {
         try {
-          const fallback = await sql`SELECT id, nombre, logo_url, pais FROM clubs WHERE id = ${Number(s.clubId)} LIMIT 1`
+          const fallback = await sql`SELECT id, nombre, logo_url, pais, deporte FROM clubs WHERE id = ${Number(s.clubId)} LIMIT 1`
           if (fallback.length > 0) {
             clubs = [{ ...fallback[0], is_active: true }]
           }
@@ -66,6 +66,7 @@ export async function GET(req: NextRequest) {
       nombre: String(c.nombre || ''),
       logo_url: c.logo_url ? String(c.logo_url) : null,
       pais: c.pais ? String(c.pais) : null,
+      deporte: c.deporte ? String(c.deporte) : 'FUTBOL',
       is_active: !!c.is_active,
     })))
   } catch (err) {

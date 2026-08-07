@@ -1,5 +1,5 @@
 'use client'
-import { mkBars, ENTRENAMIENTO_OPTIMIZADOR, ENTRENAMIENTO_COADYUVANTE, TODAS_LAS_NUEVAS, TAREAS_CON_ESPACIO, TAREAS_CON_EQUIPO, TAREAS_PARTIDO_SIMPLE, TAREAS_MOSTRAR_FORM, NE_DEFAULT, OBJETIVOS_FISICOS, OBJETIVOS_SECUNDARIOS, TITULOS_SESION, getCuadrante } from './utils'
+import { mkBars, ENTRENAMIENTO_OPTIMIZADOR, ENTRENAMIENTO_COADYUVANTE, TODAS_LAS_NUEVAS, TODAS_LAS_NUEVAS_BASQUET, TAREAS_CON_ESPACIO, TAREAS_CON_EQUIPO, TAREAS_PARTIDO_SIMPLE, TAREAS_MOSTRAR_FORM, NE_DEFAULT, OBJETIVOS_FISICOS, OBJETIVOS_SECUNDARIOS, TITULOS_SESION, getCuadrante } from './utils'
 
 export const SUBTAREAS: Record<string, string[]> = {
   'PREVENTIVO': ['TRABAJO GRUPAL', 'TRABAJO INDIVIDUAL'],
@@ -48,6 +48,7 @@ export function openPrintOverlay(html: string) {
 }
 import React, { useState, useEffect, useCallback, useRef, ReactNode } from 'react'
 import * as XLSX from 'xlsx'
+import { ClubProvider } from './ClubContext'
 import { useRouter } from 'next/navigation'
 import Topbar from '@/components/ui/Topbar'
 import StatusBadge from '@/components/ui/StatusBadge'
@@ -337,11 +338,12 @@ const AnimatedPieChart = (props: any) => {
 }
 
 function BibliotecaPanel({ canchasList }: { canchasList: any[] }) {
+  const { deporte } = useClubContext()
   const [tareas, setTareas] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [buscar, setBuscar] = useState('')
   const [showForm, setShowForm] = useState(false)
-  const [form, setForm] = useState({ nombre:'', ventana:'', subtarea:'', jugadores:'', series:'', minutos:'', pausa:'', largo:'', ancho:'', descripcion:'' })
+  const [form, setForm] = useState({ nombre:'', ventana:'', subtarea:'', jugadores:'', series:'', minutos:'', pausa:'', largo:'', ancho:'', descripcion:'', nivel_aproximacion:'' })
   const [saving, setSaving] = useState(false)
   const [ventanaFilter, setVentanaFilter] = useState('')
   const [sortBy, setSortBy] = useState<'uso'|'reciente'|'tipo'>('tipo')
@@ -371,7 +373,7 @@ function BibliotecaPanel({ canchasList }: { canchasList: any[] }) {
     try {
       await fetch('/api/biblioteca', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(form) })
       setShowForm(false)
-      setForm({ nombre:'', ventana:'', subtarea:'', jugadores:'', series:'', minutos:'', pausa:'', largo:'', ancho:'', descripcion:'' })
+      setForm({ nombre:'', ventana:'', subtarea:'', jugadores:'', series:'', minutos:'', pausa:'', largo:'', ancho:'', descripcion:'', nivel_aproximacion:'' })
       await cargar()
     } catch(e){} finally { setSaving(false) }
   }
@@ -453,6 +455,7 @@ function BibliotecaPanel({ canchasList }: { canchasList: any[] }) {
               {t.pausa && <span>⏸ <strong>{t.pausa}</strong> min pausa</span>}
               {t.largo && t.ancho && <span>📐 <strong>{t.largo}×{t.ancho}</strong>m</span>}
               {t.series && t.minutos && <span style={{ color:'var(--lime)', fontFamily:'DM Mono,monospace', fontSize:10 }}>→ {t.series*t.minutos} min activo</span>}
+              {t.nivel_aproximacion != null && t.nivel_aproximacion !== '' && <span>🎯 Aprox: <strong>{t.nivel_aproximacion}</strong></span>}
             </div>
           </div>
           <div style={{ display:'flex', gap:8, flexShrink:0, alignItems:'center' }}>
@@ -534,7 +537,7 @@ function BibliotecaPanel({ canchasList }: { canchasList: any[] }) {
               <label style={{ display:'block', fontSize:9, fontWeight:700, color:'var(--fog)', textTransform:'uppercase', letterSpacing:'.08em', marginBottom:4 }}>Tipo de tarea</label>
               <select className="wp-input" style={{ padding:'6px 12px', fontSize:12 }} value={boardVentana} onChange={e=>{setBoardVentana(e.target.value);setBoardSubtarea('')}}>
                 <option value="">— Seleccionar —</option>
-                {TODAS_LAS_NUEVAS.map(v=><option key={v} value={v}>{v}</option>)}
+                { (deporte === 'BASQUET' ? TODAS_LAS_NUEVAS_BASQUET : TODAS_LAS_NUEVAS).map(v=><option key={v} value={v}>{v}</option>) }
               </select>
             </div>
             {boardVentana && SUBTAREAS[boardVentana] && (
@@ -634,6 +637,7 @@ function BibliotecaPanel({ canchasList }: { canchasList: any[] }) {
               {key:'pausa',label:'Pausa (min)',placeholder:'min',type:'number'},
               {key:'largo',label:'Largo (m)',placeholder:'m',type:'number'},
               {key:'ancho',label:'Ancho (m)',placeholder:'m',type:'number'},
+              ...(deporte === 'BASQUET' ? [{key:'nivel_aproximacion',label:'Nivel Aprox (0-10)',placeholder:'Ej: 8',type:'number'}] : [])
             ].map(f=>(
               <div key={f.key}>
                 <label style={{ fontSize:10, color:'var(--fog)', display:'block', marginBottom:4, textTransform:'uppercase' }}>{f.label}</label>
@@ -726,7 +730,15 @@ function BibliotecaPanel({ canchasList }: { canchasList: any[] }) {
 
 
 
-export default function CoachDashboard({ isPanama, session, teamData, today }: any) {
+export default function CoachClient({ isPanama, deporte, session, teamData, today, hasSessionToday }: any) {
+  return (
+    <ClubProvider deporte={deporte}>
+      <CoachDashboardInner isPanama={isPanama} session={session} teamData={teamData} today={today} hasSessionToday={hasSessionToday} />
+    </ClubProvider>
+  )
+}
+
+function CoachDashboardInner({ isPanama, session, teamData, today, hasSessionToday }: any) {
   const [tab, setTab] = useState('inicio')
   const [selected, setSelected] = useState(null)
   const [acwrPlayerId, setAcwrPlayerId] = useState<number|null>(null)
@@ -3616,15 +3628,12 @@ function calcularDistancias(jugadores: number, largo: number, ancho: number, ser
   return { distTotal, distSprint, distMP, distAcel, distDecel, nSprints, nAcel, nDecel, nAcel3, nDecel3, dist_acc_hi, dist_dec_hi, sprintN25, distSprint25, densidad, tiempoTotal }
 }
 
-function BloqueMetodologia({ bloque, index, onChangeProp, onRemoveProp, onMoveUpProp, onMoveDownProp, teamPlayers = [], isFirst, isLast }) {
-  const onChange = (k: string, v: any) => onChangeProp(index, k, v)
-  const onRemove = () => onRemoveProp(index)
-  const onMoveUp = () => onMoveUpProp(index)
-  const onMoveDown = () => onMoveDownProp(index)
+function BloqueMetodologia({ bloque, index, onChangeProp, onRemoveProp, onMoveUpProp, onMoveDownProp, teamPlayers = [], isFirst, isLast }: any) {
+  const { deporte } = useClubContext()
+  function onChange(k: string, v: any) { onChangeProp(index, k, v) }
   const [imgPreview, setImgPreview] = useState<string|null>(bloque.imagen || null)
   const [equipos, setEquipos] = useState<Record<number, number[]>>(bloque.equipos || {})
   const [manualMetrics, setManualMetrics] = useState<Record<string,string>>(bloque.manualMetrics || {})
-  const [editingMetrics, setEditingMetrics] = useState(false)
   const [fuerzaEjercicios, setFuerzaEjercicios] = useState<any[]>([])
   const [fuerzaMandamientos, setFuerzaMandamientos] = useState<any[]>([])
 
@@ -3686,13 +3695,7 @@ function BloqueMetodologia({ bloque, index, onChangeProp, onRemoveProp, onMoveUp
     })
   }
 
-  function updateManualMetric(key: string, val: string) {
-    const updated = { ...manualMetrics, [key]: val }
-    setManualMetrics(updated)
-    onChange('manualMetrics', updated)
-  }
-
-  const inp = (field, placeholder, type='text') => (
+  const inp = (field: string, placeholder: string, type='text') => (
     <input className="wp-input" type={type} placeholder={placeholder} value={bloque[field]||''} onChange={e=>onChange(field,e.target.value)}
       style={{ padding:'5px 8px', fontSize:11, width:'100%' }} />
   )
@@ -3707,11 +3710,10 @@ function BloqueMetodologia({ bloque, index, onChangeProp, onRemoveProp, onMoveUp
         <div style={{ display:'flex', gap:6 }}>
           {!isFirst && <button className="hover-scale" onClick={onMoveUp} style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:6, color:'var(--silver)', cursor:'pointer', padding:'2px 8px', fontSize:11 }}>▲ Subir</button>}
           {!isLast && <button className="hover-scale" onClick={onMoveDown} style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:6, color:'var(--silver)', cursor:'pointer', padding:'2px 8px', fontSize:11 }}>▼ Bajar</button>}
-          <button className="hover-bright" onClick={onRemove} style={{ background:'rgba(239,68,68,.1)', border:'1px solid rgba(239,68,68,.25)', borderRadius:6, color:'#f87171', cursor:'pointer', padding:'2px 8px', fontSize:11 }}>✕</button>
+          <button className="hover-bright" onClick={onRemoveProp} style={{ background:'rgba(239,68,68,.1)', border:'1px solid rgba(239,68,68,.25)', borderRadius:6, color:'#f87171', cursor:'pointer', padding:'2px 8px', fontSize:11 }}>✕</button>
         </div>
       </div>
 
-      {/* Checkbox simultánea (solo a partir de la 2da tarea) */}
       {index > 0 && (
         <label style={{ display:'flex', alignItems:'center', gap:6, marginBottom:8, cursor:'pointer', fontSize:10, color: bloque.simultanea ? 'var(--lime)' : 'var(--fog)' }}>
           <input type="checkbox" checked={!!bloque.simultanea} onChange={e => onChange('simultanea', e.target.checked)}
@@ -3721,7 +3723,6 @@ function BloqueMetodologia({ bloque, index, onChangeProp, onRemoveProp, onMoveUp
         </label>
       )}
 
-      {/* Header SITUACIONES SIMULADORAS PREFERENCIALES */}
       <div style={{ textAlign:'center', marginBottom: 12, background:'var(--ink2)', padding:'8px', borderRadius:8, border:'1px solid var(--mist)' }}>
         <strong style={{ fontSize:11, color:'var(--snow)', textTransform:'uppercase', letterSpacing:'0.05em' }}>SITUACIONES SIMULADORAS PREFERENCIALES</strong>
       </div>
@@ -3754,35 +3755,21 @@ function BloqueMetodologia({ bloque, index, onChangeProp, onRemoveProp, onMoveUp
               <label style={{ fontSize:9, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:3 }}>Tarea Específica</label>
               <select className="wp-input" value={bloque.ventana||''} onChange={e=>{ onChange('ventana',e.target.value); onChange('subtareas',[]); onChange('subtarea','') }} style={{ padding:'5px 8px', fontSize:12, appearance:'none', width:'100%' }}>
                 <option value="">— Seleccionar —</option>
-                {(bloque.tipo_entrenamiento === 'OPTIMIZADOR' ? ENTRENAMIENTO_OPTIMIZADOR[bloque.orientacion] : ENTRENAMIENTO_COADYUVANTE[bloque.orientacion]).map(t=><option key={t} value={t} style={{ background:'var(--ink)', color:'var(--snow)' }}>{t} (NE {NE_DEFAULT[t]})</option>)}
+                {(bloque.tipo_entrenamiento === 'OPTIMIZADOR' ? 
+                  (deporte === 'BASQUET' ? ENTRENAMIENTO_BASQUET_OPTIMIZADOR[bloque.orientacion] : ENTRENAMIENTO_OPTIMIZADOR[bloque.orientacion]) : 
+                  (deporte === 'BASQUET' ? ENTRENAMIENTO_BASQUET_COADYUVANTE[bloque.orientacion] : ENTRENAMIENTO_COADYUVANTE[bloque.orientacion])).map((t: string)=><option key={t} value={t} style={{ background:'var(--ink)', color:'var(--snow)' }}>{t} (NE {NE_DEFAULT[t]||0})</option>)}
               </select>
-
-              {bloque.ventana && (() => {
-                const ne = bloque.ne ?? NE_DEFAULT[bloque.ventana] ?? 5
-                const minTotal = (Number(bloque.series)||0) * (Number(bloque.minutos)||0)
-                const ce = minTotal > 0 ? Math.round(minTotal * ne) : null
-                return (
-                  <div style={{ display:'flex', gap:8, marginTop:8, marginBottom:4, alignItems:'center', fontSize:10, fontFamily:'DM Mono,monospace' }}>
-                    <span style={{ color:'var(--lime)', background:'rgba(200,241,53,.1)', border:'1px solid rgba(200,241,53,.25)', borderRadius:4, padding:'2px 6px' }}>NE {ne}</span>
-                    <span style={{ color:'var(--fog)' }}>×{minTotal > 0 ? ` ${minTotal}min` : ' min'}</span>
-                    {ce !== null
-                      ? <span style={{ color:'#c8f135', fontWeight:700, background:'rgba(200,241,53,.08)', border:'1px solid rgba(200,241,53,.3)', borderRadius:4, padding:'2px 6px' }}>CE {ce}</span>
-                      : <span style={{ color:'var(--fog)', fontStyle:'italic' }}>CE — (ingresá series y minutos)</span>
-                    }
-                  </div>
-                )
-              })()}
               
               {bloque.ventana && SUBTAREAS[bloque.ventana] && (
                 <div style={{ marginTop:12, background:'var(--ink3)', padding:'10px', borderRadius:8, border:'1px solid rgba(255,255,255,.05)' }}>
                   <label style={{ fontSize:9, fontWeight:700, color:'var(--lime)', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:5 }}>↳ Opciones de Tarea <span style={{ fontWeight:400, color:'var(--fog)', textTransform:'none' }}>(podés elegir varias)</span></label>
                   <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
                     {SUBTAREAS[bloque.ventana].map(s => {
-                      const selected = getSubtareasArr(bloque).includes(s)
+                      const selected = (bloque.subtareas || []).includes(s)
                       return (
                         <button className="hover-scale" key={s} type="button" onClick={() => {
-                          const current = getSubtareasArr(bloque)
-                          const updated = selected ? current.filter(x => x !== s) : [...current, s]
+                          const current = (bloque.subtareas || [])
+                          const updated = selected ? current.filter((x: string) => x !== s) : [...current, s]
                           onChange('subtareas', updated)
                           onChange('subtarea', updated.join(', '))
                         }}

@@ -476,6 +476,7 @@ function ClubCard({ club, coaches, onRefresh }) {
   const [pais, setPais] = useState(club.pais || '')
   const [logoUrl, setLogoUrl] = useState(club.logo_url || '')
   const [logoPreview, setLogoPreview] = useState(club.logo_url || '')
+  const [deporte, setDeporte] = useState(club.deporte || 'FUTBOL')
   const [saving, setSaving] = useState(false)
 
   async function saveClub() {
@@ -483,6 +484,7 @@ function ClubCard({ club, coaches, onRefresh }) {
     const payload: any = { id: club.id }
     if (nombre !== club.nombre) payload.nombre = nombre
     payload.pais = pais || null  // always send pais to ensure it persists
+    if (deporte !== (club.deporte || 'FUTBOL')) payload.deporte = deporte
     if (logoUrl !== (club.logo_url || '')) payload.logo_url = logoUrl || null
     const res = await fetch('/api/clubs', { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) })
     const data = await res.json()
@@ -530,6 +532,14 @@ function ClubCard({ club, coaches, onRefresh }) {
             <label style={{ fontSize:9, color:'var(--fog)', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:4 }}>País</label>
             <PaisSelector value={pais} onChange={setPais} />
           </div>
+          {/* Deporte */}
+          <div style={{ marginBottom:10 }}>
+            <label style={{ fontSize:9, color:'var(--fog)', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:4 }}>Deporte</label>
+            <select className="wp-input" value={deporte} onChange={e=>setDeporte(e.target.value)} style={{ width:'100%', padding:'7px 12px', fontSize:13 }}>
+              <option value="FUTBOL">Fútbol</option>
+              <option value="BASQUET">Básquetbol</option>
+            </select>
+          </div>
           {/* Escudo */}
           <div>
             <label style={{ fontSize:9, color:'var(--fog)', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:4 }}>Escudo del club</label>
@@ -561,6 +571,10 @@ function ClubCard({ club, coaches, onRefresh }) {
               <p style={{ fontSize:11, color:'var(--silver)', marginTop:1, display:'flex', alignItems:'center', gap:5 }}>
                 {paisObj && <FlagImg code={paisObj.code} size={16} />}
                 {paisObj ? paisObj.name : (club.pais || '')}
+                <span style={{ color:'var(--fog)', margin:'0 4px' }}>•</span>
+                <span style={{ fontWeight: 600, color: (club.deporte === 'BASQUET' ? '#f97316' : '#22c55e') }}>
+                  {club.deporte === 'BASQUET' ? '🏀 BÁSQUET' : '⚽ FÚTBOL'}
+                </span>
               </p>
               <p style={{ fontSize:9, color:'var(--fog)', fontFamily:'DM Mono,monospace', marginTop:1 }}>ID: {club.id}</p>
             </div>
@@ -851,6 +865,7 @@ function CoachRow({ coach, clubs, last, onRefresh }) {
 // ── New Club Form ──────────────────────────────────────────────────────────────
 function NewClubForm({ onSuccess, onCancel }) {
   const [nombre, setNombre] = useState('')
+  const [deporte, setDeporte] = useState('FUTBOL')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -858,7 +873,7 @@ function NewClubForm({ onSuccess, onCancel }) {
     if (!nombre.trim()) return
     setLoading(true); setError('')
     try {
-      const res = await fetch('/api/clubs',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nombre:nombre.trim()})})
+      const res = await fetch('/api/clubs',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nombre:nombre.trim(), deporte})})
       if (!res.ok) { const d=await res.json(); setError(d.error||'Error'); return }
       onSuccess()
     } catch { setError('Error de conexión') }
@@ -867,10 +882,14 @@ function NewClubForm({ onSuccess, onCancel }) {
 
   return (
     <div style={{ background:'var(--ink2)', border:'1px solid rgba(200,241,53,.2)', borderRadius:14, padding:20 }} className="anim-up">
-      <p style={{ fontSize:13, fontWeight:600, color:'var(--lime)', marginBottom:14, textTransform:'uppercase', letterSpacing:'0.06em' }}>🏟️ Nuevo Club</p>
+      <p style={{ fontSize:13, fontWeight:600, color:'var(--lime)', marginBottom:14, textTransform:'uppercase', letterSpacing:'0.06em' }}>✨ Nuevo Club</p>
       <div style={{ display:'flex', gap:10 }}>
         <input className="wp-input" value={nombre} onChange={e=>setNombre(e.target.value)} placeholder="Nombre del club" style={{ flex:1, padding:'10px 14px', fontSize:14 }} autoFocus onKeyDown={e=>e.key==='Enter'&&submit()} />
-        <button onClick={submit} disabled={loading||!nombre.trim()} className="btn-lime" style={{ fontSize:13, padding:'10px 20px' }}>{loading?'Creando...':'Crear →'}</button>
+        <select className="wp-input" value={deporte} onChange={e=>setDeporte(e.target.value)} style={{ width:140, padding:'10px 14px', fontSize:14 }}>
+          <option value="FUTBOL">Fútbol</option>
+          <option value="BASQUET">Básquet</option>
+        </select>
+        <button onClick={submit} disabled={loading||!nombre.trim()} className="btn-lime" style={{ fontSize:13, padding:'10px 20px' }}>{loading?'Creando...':'Crear 🚀'}</button>
         <button onClick={onCancel} className="btn-ghost" style={{ fontSize:13, padding:'10px 14px' }}>Cancelar</button>
       </div>
       {error && <p style={{ fontSize:12, color:'#f87171', marginTop:10 }}>{error}</p>}
