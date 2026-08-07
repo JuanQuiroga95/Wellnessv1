@@ -3236,7 +3236,8 @@ function CalendarioPanel({ teamData, canchas, setCanchas }: { teamData: any[], c
                       const totals: Record<string,number> = {}
                       metricKeys.forEach(k => { totals[k] = 0 })
                       let hasCarga = false
-                      s.ejercicios.forEach((bl:any) => {
+                      const safeEj = Array.isArray(s.ejercicios) ? s.ejercicios : (typeof s.ejercicios === 'string' ? (()=>{try{const p=JSON.parse(s.ejercicios);return Array.isArray(p)?p:[]}catch{return []}})() : []);
+                      safeEj.forEach((bl:any) => {
                         if (!bl.ventana || !TAREAS_CON_ESPACIO.includes(bl.ventana)) return
                         const jugN = getJugadoresBloque(bl, TAREAS_CON_EQUIPO.includes(bl.ventana))
                         const calc = calcularDistancias(jugN, Number(bl.largo), Number(bl.ancho), Number(bl.series), Number(bl.minutos))
