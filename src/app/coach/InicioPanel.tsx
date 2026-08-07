@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { getCuadrante, ENTRENAMIENTO_OPTIMIZADOR, ENTRENAMIENTO_COADYUVANTE } from './utils'
+import { getCuadrante, ENTRENAMIENTO_OPTIMIZADOR, ENTRENAMIENTO_COADYUVANTE, NE_DEFAULT } from './utils'
 import UceChart from './UceChart'
 import { UceSemanalChart, UceMesocicloChart } from './UceExtendedCharts'
 import { Icons, PanelHeader, CuadroHeader } from './Headers'
@@ -120,12 +120,6 @@ export default function InicioPanel({ teamData, session, today }: { teamData: an
         const orientacionCounts: Record<string, number> = { 'A-R': 0, 'Fuerza': 0, 'Resistencia': 0, 'Velocidad': 0, 'Analitico Integrado': 0 }
         let totalBloquesOrientacion = 0
         const uceDataMap: Record<string, any> = {}
-        const NE_DEFAULT: Record<string, number> = {
-          'Partido oficial': 10, 'Partido amistoso': 9, 'Partido de entrenamiento': 8,
-          'Partido modificado': 7, 'Partido reducido': 7, 'Juego de posición': 6,
-          'Juego de posesión': 6, 'Transiciones': 5, 'Rondo': 5, 'Trabajo analítico': 4,
-          'Activación en campo': 2, 'Activación en gimnasio': 2,
-        }
 
         allEvents.forEach(ev => {
           if (ev.fecha) {
@@ -138,7 +132,8 @@ export default function InicioPanel({ teamData, session, today }: { teamData: an
                  totalMin += m
                  
                  const ventana = ej.ventana || ej.tipo || 'Tarea'
-                 const ne = ej.ne ?? NE_DEFAULT[ventana] ?? 5
+                 const neMatch = Object.keys(NE_DEFAULT).find(k => k.toLowerCase() === ventana.toLowerCase())
+                 const ne = ej.ne ?? (neMatch ? NE_DEFAULT[neMatch] : 5)
                  
                  if (!ventanaMap[ventana]) ventanaMap[ventana] = { minTotal: 0, ne }
                  ventanaMap[ventana].minTotal += m
@@ -168,7 +163,8 @@ export default function InicioPanel({ teamData, session, today }: { teamData: an
                ce_total = Object.values(ventanaMap).reduce((s, v) => s + Math.round(v.minTotal * v.ne), 0)
             } else if (ev.tipo === 'partido' || ev.rival) {
                totalMin = 90
-               const ne = NE_DEFAULT[ev.tipo_partido || 'Partido oficial'] || 10
+               const tipoMatch = Object.keys(NE_DEFAULT).find(k => k.toLowerCase() === (ev.tipo_partido || 'Partido oficial').toLowerCase())
+               const ne = (tipoMatch ? NE_DEFAULT[tipoMatch] : 10)
                ce_total = totalMin * ne
             }
             if (totalMin === 0) totalMin = 60
