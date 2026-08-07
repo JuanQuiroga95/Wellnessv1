@@ -46,6 +46,9 @@ const FORMATIONS: Record<string,{label:string; positions:[number,number][]; forF
   '3-4-3':     { label:'3-4-3', forField:['F11','F11_half'], positions:[[.08,.5],[.2,.2],[.2,.5],[.2,.8],[.4,.12],[.4,.37],[.4,.63],[.4,.88],[.62,.2],[.62,.5],[.62,.8]] },
   '3v3':       { label:'3v3', forField:['F5','F7'], positions:[[.12,.5],[.4,.2],[.4,.5],[.4,.8],[.88,.5],[.6,.2],[.6,.8]] },
   '2-3-2 (F7)':{ label:'2-3-2', forField:['F7','F9'], positions:[[.08,.5],[.25,.25],[.25,.75],[.45,.15],[.45,.5],[.45,.85],[.65,.35],[.65,.65]] },
+  'Zona 2-3':  { label:'Zona 2-3', forField:['Basquet_Completa','Basquet_Mitad'], positions:[[.15,.35],[.15,.65],[.3,.5],[.4,.2],[.4,.8]] },
+  'Zona 3-2':  { label:'Zona 3-2', forField:['Basquet_Completa','Basquet_Mitad'], positions:[[.15,.5],[.25,.2],[.25,.8],[.4,.35],[.4,.65]] },
+  'Hombre a Hombre': { label:'Man-to-Man', forField:['Basquet_Completa','Basquet_Mitad'], positions:[[.2,.5],[.3,.2],[.3,.8],[.45,.35],[.45,.65]] }
 }
 
 let _n=0; const uid=()=>`_${Date.now().toString(36)}_${_n++}`
@@ -503,8 +506,8 @@ export default function TacticalBoard({ initialData, onSave, onClose, readOnly, 
           <div style={lbl}>Cancha</div>
           <div style={{display:'flex',gap:2,flexDirection:'column'}}>
             <div style={{display:'flex',gap:2}}>
-              {(['F11','F11_half','F9','F7','F5','Gimnasio','Basquet_Completa','Basquet_Mitad'] as const).map(f=>(
-                <button key={f} onClick={()=>setField(f)} style={tb(field===f)}><span style={{fontSize:10,fontWeight:900}}>{FIELD_CFG[f].label.replace('F11 ','').replace('F5 ','')}</span></button>
+              {(deporte === 'BASQUET' ? ['Basquet_Completa','Basquet_Mitad','Gimnasio'] : ['F11','F11_half','F9','F7','F5','Gimnasio'] as const).map(f=>(
+                <button key={f} onClick={()=>setField(f as FieldType)} style={tb(field===f)}><span style={{fontSize:10,fontWeight:900}}>{FIELD_CFG[f as FieldType].label.replace('F11 ','').replace('F5 ','')}</span></button>
               ))}
               <button onClick={()=>setOrient(o=>o==='horizontal'?'vertical':'horizontal')} style={tb(false)} title="Rotar campo">
                 <span style={{fontSize:12}}>{orient==='horizontal'?'⬌':'⬍'}</span>
@@ -632,7 +635,7 @@ export default function TacticalBoard({ initialData, onSave, onClose, readOnly, 
       </div>}
 
       {/* Canvas */}
-      <div style={{borderRadius:10,overflow:'hidden',border:'1px solid rgba(255,255,255,.05)',boxShadow:'0 6px 30px rgba(0,0,0,.5)'}}>
+      <div style={{borderRadius:10,overflow:'hidden',border:'1px solid rgba(255,255,255,.05)',boxShadow:'0 6px 30px rgba(0,0,0,.5)', width: field === 'Basquet_Mitad' && orient === 'horizontal' ? '50%' : '100%', margin: field === 'Basquet_Mitad' && orient === 'horizontal' ? '0 auto' : '0'}}>
         <svg ref={ref} viewBox={`0 0 ${vbW} ${vbH}`}
           style={{width:'100%',display:'block',cursor:tool==='select'?'default':'crosshair',touchAction:'none'}}
           onMouseDown={down} onMouseMove={move} onMouseUp={up}
@@ -794,5 +797,5 @@ export function TacticalPreview({ data }:{ data:{field:FieldType;elements:El[];o
       <g>${data.elements.map(el=>renderToString(<Elem key={el.id} el={el} sel={false} onDown={()=>{}}/>)).join('')}</g>
     </svg>
   `
-  return <div style={{borderRadius:8,overflow:'hidden',border:'1px solid rgba(255,255,255,.05)'}} dangerouslySetInnerHTML={{__html: previewSvg}} />
+  return <div style={{borderRadius:8,overflow:'hidden',border:'1px solid rgba(255,255,255,.05)', width: data.field === 'Basquet_Mitad' && data.orientation !== 'vertical' ? '50%' : '100%', margin: data.field === 'Basquet_Mitad' && data.orientation !== 'vertical' ? '0 auto' : '0'}} dangerouslySetInnerHTML={{__html: previewSvg}} />
 }
