@@ -280,12 +280,7 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    const NE_DEFAULT: Record<string, number> = {
-      'Partido oficial': 10, 'Partido amistoso': 9, 'Partido de entrenamiento': 8,
-      'Partido modificado': 7, 'Partido reducido': 7, 'Juego de posición': 6,
-      'Juego de posesión': 6, 'Transiciones': 5, 'Rondo': 5, 'Trabajo analítico': 4,
-      'Activación en campo': 2, 'Activación en gimnasio': 2,
-    }
+    const { NE_DEFAULT } = require('@/app/coach/utils')
     const cePerSession: Record<string, any> = {}
     for (const ses of sesiones as any[]) {
       const label = ses.titulo || ses.fecha
@@ -296,7 +291,9 @@ export async function GET(req: NextRequest) {
         const minutos = Number(bl.minutos) || 0
         if (!minutos) continue
         const ventana = bl.ventana || bl.tipo || 'Tarea'
-        const ne = bl.ne ?? NE_DEFAULT[ventana] ?? 5
+        // Find NE case-insensitively
+        const neMatch = Object.keys(NE_DEFAULT).find(k => k.toLowerCase() === ventana.toLowerCase())
+        const ne = bl.ne ?? (neMatch ? NE_DEFAULT[neMatch] : 5)
         if (!ventanaMap[ventana]) ventanaMap[ventana] = { minTotal: 0, ne }
         ventanaMap[ventana].minTotal += series * minutos
         ventanaMap[ventana].ne = ne
