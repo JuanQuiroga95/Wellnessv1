@@ -40,6 +40,35 @@ export const TAREAS_CON_EQUIPO = TODAS_LAS_NUEVAS
 export const TAREAS_PARTIDO_SIMPLE = ['PARTIDO AMISTOSO','PARTIDO COMPETICIÓN','PARTIDO ENTRENAMIENTO', 'JUEGO AMISTOSO', 'JUEGO COMPETICIÓN', 'JUEGO ENTRENAMIENTO']
 export const TAREAS_MOSTRAR_FORM = TODAS_LAS_NUEVAS
 
+export const COEF_POSICION_BASQUET: Record<string, number> = {
+  'Base': 1.15,
+  'Escolta': 1.15,
+  'Guard': 1.15,
+  'Alero': 1.00,
+  'Ala-Pívot': 1.00,
+  'Forward': 1.00,
+  'Pívot': 0.85,
+  'Center': 0.85
+}
+
+export const COEF_POSICION_FUTBOL: Record<string, number> = {
+  'Defensor Central': 0.85,
+  'CD': 0.85, 'CB': 0.85,
+  'Lateral': 1.15,
+  'FB': 1.15, 'WD': 1.15,
+  'Mediocampista': 1.10,
+  'Volante': 1.10,
+  'CM': 1.10, 'DM': 1.10, 'AM': 1.10,
+  'Extremo': 1.15,
+  'Volante Ofensivo': 1.15,
+  'WMF': 1.15, 'WIN': 1.15,
+  'Delantero Centro': 0.95,
+  'STR': 0.95, 'FW': 0.95,
+  'Arquero': 0.10,
+  'Portero': 0.10,
+  'GK': 0.10
+}
+
 export const NE_DEFAULT: Record<string, number> = {
   "PARTIDO COMPETICIÓN": 10,
   "PARTIDO AMISTOSO": 9.5,
@@ -276,8 +305,8 @@ export const mkBars = (items: {name:string, val:number, sub?:string}[], bars: {k
     })
     // x label
     const cx = x0 + (COL_W-4)/2
-    svg += `<text x="${cx.toFixed(1)}" y="${(TOP+BAR_H+12).toFixed(1)}" text-anchor="middle" fill="#333" font-size="8" font-weight="600">${it.name}</text>`
-    if (it.sub) svg += `<text x="${cx.toFixed(1)}" y="${(TOP+BAR_H+22).toFixed(1)}" text-anchor="middle" fill="#888" font-size="7">${it.sub}</text>`
+    svg += `<text x="${cx.toFixed(1)}" y="${(TOP+BAR_H+12).toFixed(1)}" text-anchor="end" transform="rotate(-45, ${cx.toFixed(1)}, ${(TOP+BAR_H+12).toFixed(1)})" fill="#333" font-size="8" font-weight="600">${it.name}</text>`
+    if (it.sub) svg += `<text x="${cx.toFixed(1)}" y="${(TOP+BAR_H+22).toFixed(1)}" text-anchor="end" transform="rotate(-45, ${cx.toFixed(1)}, ${(TOP+BAR_H+22).toFixed(1)})" fill="#888" font-size="7">${it.sub}</text>`
   })
   // line overlay
   if (lineKey && lineVals.some(v=>v>0)) {

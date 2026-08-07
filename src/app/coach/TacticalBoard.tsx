@@ -13,7 +13,7 @@ interface El { id:string; type:string; x:number; y:number; x2?:number; y2?:numbe
 
 interface BoardProps {
   initialData?: { field:FieldType; elements:El[]; series?:El[][]; orientation?:Orientation; cancha_id?:string }
-  onSave?: (d:{ field:FieldType; elements:El[]; series:El[][]; preview:string; cancha_id?:string }) => void
+  onSave?: (d:{ field:FieldType; elements:El[]; series:El[][]; preview:string; cancha_id?:string; orientation?:Orientation }) => void
   onClose?: () => void
   readOnly?: boolean
   onZoneInfo?: (zones: { rw:number; rh:number; area:number }[]) => void
@@ -449,7 +449,7 @@ export default function TacticalBoard({ initialData, onSave, onClose, readOnly, 
     const png=await getPng();if(!png)return
     const a=document.createElement('a');a.href=png;a.download=`tactica_${new Date().toISOString().split('T')[0]}.png`;a.click()
   }
-  const save = async()=>{const p=await getPng();onSave?.({field,elements,series,preview:p,cancha_id:selectedCanchaId})}
+  const save = async()=>{const p=await getPng();onSave?.({field,elements,series,preview:p,cancha_id:selectedCanchaId,orientation:orient})}
 
   useEffect(()=>{
     const h=(e:KeyboardEvent)=>{
@@ -474,9 +474,16 @@ export default function TacticalBoard({ initialData, onSave, onClose, readOnly, 
   if(readOnly){
     return <div style={{borderRadius:10,overflow:'hidden',border:'1px solid rgba(255,255,255,.05)'}}>
       <svg viewBox={`0 0 ${vbW} ${vbH}`} style={{width:'100%',display:'block'}}>
-        {field.startsWith('Basquet') ? (
-          <image href="/cancha_basquet.png" x="0" y="0" width={vbW} height={vbH} preserveAspectRatio={field==='Basquet_Mitad'?"xMinYMid slice":"none"} />
-        ) : (
+        {field.startsWith('Basquet') ? (() => {
+          const isHalf = field === 'Basquet_Mitad';
+          const isVert = orient === 'vertical';
+          const imgW = isVert ? (isHalf ? vbH * 2 : vbH) : (isHalf ? vbW * 2 : vbW);
+          const imgH = isVert ? vbW : vbH;
+          if (isVert) {
+            return <image href="/cancha_basquet.png" x={0} y={-vbW} width={imgW} height={imgH} transform="rotate(90)" preserveAspectRatio="xMidYMid slice" />
+          }
+          return <image href="/cancha_basquet.png" x={0} y={0} width={imgW} height={imgH} preserveAspectRatio="xMidYMid slice" />
+        })() : (
           <>
             <rect width={vbW} height={vbH} fill={field==='Gimnasio'?"#333333":"#1a472a"}/>
             <FieldSVG type={field} vbW={vbW} vbH={vbH} showGrid={false}/>
@@ -631,9 +638,16 @@ export default function TacticalBoard({ initialData, onSave, onClose, readOnly, 
           onMouseDown={down} onMouseMove={move} onMouseUp={up}
           onTouchStart={down} onTouchMove={move} onTouchEnd={up}
           onMouseLeave={()=>{setDrag(null);setDraw(null);setPrev(null);setResizeDrag(null)}}>
-          {field.startsWith('Basquet') ? (
-            <image href="/cancha_basquet.png" x="0" y="0" width={vbW} height={vbH} preserveAspectRatio={field==='Basquet_Mitad'?"xMinYMid slice":"none"} />
-          ) : (
+          {field.startsWith('Basquet') ? (() => {
+            const isHalf = field === 'Basquet_Mitad';
+            const isVert = orient === 'vertical';
+            const imgW = isVert ? (isHalf ? vbH * 2 : vbH) : (isHalf ? vbW * 2 : vbW);
+            const imgH = isVert ? vbW : vbH;
+            if (isVert) {
+              return <image href="/cancha_basquet.png" x={0} y={-vbW} width={imgW} height={imgH} transform="rotate(90)" preserveAspectRatio="xMidYMid slice" />
+            }
+            return <image href="/cancha_basquet.png" x={0} y={0} width={imgW} height={imgH} preserveAspectRatio="xMidYMid slice" />
+          })() : (
             <>
               <rect width={vbW} height={vbH} fill={field==='Gimnasio'?"#333333":"#1a472a"}/>
               <FieldSVG type={field} vbW={vbW} vbH={vbH} showGrid={showGrid}/>
@@ -759,14 +773,21 @@ export default function TacticalBoard({ initialData, onSave, onClose, readOnly, 
 // ═══════════════════════════════════════════════════════════════════
 // PREVIEW
 // ═══════════════════════════════════════════════════════════════════
-export function TacticalPreview({ data }:{ data:{field:FieldType;elements:El[]} }) {
+export function TacticalPreview({ data }:{ data:{field:FieldType;elements:El[];orientation?:'horizontal'|'vertical'} }) {
   if(!data?.elements?.length) return null
   const cfg=FIELD_CFG[data.field]; const ratio=cfg.mW/cfg.mH
   const vbW=860, vbH=Math.round(860/ratio)
   const previewSvg = `
     <svg viewBox="0 0 ${vbW} ${vbH}" style="width:100%;display:block;" xmlns="http://www.w3.org/2000/svg">
       ${data.field.startsWith('Basquet') 
-        ? `<image href="/cancha_basquet.png" x="0" y="0" width="${vbW}" height="${vbH}" preserveAspectRatio="${data.field==='Basquet_Mitad'?'xMinYMid slice':'none'}" />`
+        ? (() => {
+            const isHalf = data.field === 'Basquet_Mitad';
+            const isVert = data.orientation === 'vertical';
+            const imgW = isVert ? (isHalf ? vbH * 2 : vbH) : (isHalf ? vbW * 2 : vbW);
+            const imgH = isVert ? vbW : vbH;
+            if (isVert) return `<image href="/cancha_basquet.png" x="0" y="-${vbW}" width="${imgW}" height="${imgH}" transform="rotate(90)" preserveAspectRatio="xMidYMid slice" />`;
+            return `<image href="/cancha_basquet.png" x="0" y="0" width="${imgW}" height="${imgH}" preserveAspectRatio="xMidYMid slice" />`;
+          })()
         : `<rect width="${vbW}" height="${vbH}" fill="#1a472a"/>`
       }
       ${!data.field.startsWith('Basquet') ? `<g>${renderToString(<FieldSVG type={data.field} vbW={vbW} vbH={vbH} showGrid={false}/>)}</g>` : ''}

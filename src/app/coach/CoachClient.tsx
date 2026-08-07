@@ -1,5 +1,5 @@
 'use client'
-import { mkBars, ENTRENAMIENTO_OPTIMIZADOR, ENTRENAMIENTO_COADYUVANTE, TODAS_LAS_NUEVAS, TODAS_LAS_NUEVAS_BASQUET, TAREAS_CON_ESPACIO, TAREAS_CON_EQUIPO, TAREAS_PARTIDO_SIMPLE, TAREAS_MOSTRAR_FORM, NE_DEFAULT, OBJETIVOS_FISICOS, OBJETIVOS_SECUNDARIOS, TITULOS_SESION, getCuadrante } from './utils'
+import { mkBars, ENTRENAMIENTO_OPTIMIZADOR, ENTRENAMIENTO_COADYUVANTE, TODAS_LAS_NUEVAS, TODAS_LAS_NUEVAS_BASQUET, TAREAS_CON_ESPACIO, TAREAS_CON_EQUIPO, TAREAS_PARTIDO_SIMPLE, TAREAS_MOSTRAR_FORM, NE_DEFAULT, OBJETIVOS_FISICOS, OBJETIVOS_SECUNDARIOS, TITULOS_SESION, getCuadrante, COEF_POSICION_BASQUET, COEF_POSICION_FUTBOL } from './utils'
 
 export const SUBTAREAS: Record<string, string[]> = {
   'PREVENTIVO': ['TRABAJO GRUPAL', 'TRABAJO INDIVIDUAL'],
@@ -3634,6 +3634,8 @@ function BloqueMetodologia({ bloque, index, onChangeProp, onRemoveProp, onMoveUp
   const [imgPreview, setImgPreview] = useState<string|null>(bloque.imagen || null)
   const [equipos, setEquipos] = useState<Record<number, number[]>>(bloque.equipos || {})
   const [manualMetrics, setManualMetrics] = useState<Record<string,string>>(bloque.manualMetrics || {})
+  const [minutosEfectivos, setMinutosEfectivos] = useState<Record<number, number>>(bloque.minutosEfectivos || {})
+  const [showMinutos, setShowMinutos] = useState(false)
   const [fuerzaEjercicios, setFuerzaEjercicios] = useState<any[]>([])
   const [fuerzaMandamientos, setFuerzaMandamientos] = useState<any[]>([])
 
@@ -4060,6 +4062,86 @@ function BloqueMetodologia({ bloque, index, onChangeProp, onRemoveProp, onMoveUp
           </div>
         )
       })()}
+
+      {/* Individual Load Table */}
+      {teamPlayers.length > 0 && esConEspacio && calc && (
+        <div style={{ marginTop: 8, marginBottom: 8, background: 'rgba(255,255,255,.02)', borderRadius: 8, padding: 10, border: '1px solid rgba(255,255,255,.05)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+            <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--silver)', textTransform: 'uppercase' }}>Tiempo Efectivo Individual</span>
+            <button className="hover-scale btn-ghost" type="button" onClick={() => setShowMinutos(!showMinutos)} style={{ fontSize: 9, padding: '2px 6px' }}>{showMinutos ? 'Ocultar' : 'Modificar'}</button>
+          </div>
+          {showMinutos && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: 6, marginBottom: 12 }}>
+              {teamPlayers.map((p: any) => {
+                const inTeams = Object.values(equipos).flat();
+                const isParticipating = esConEquipo ? inTeams.includes(p.jugador_id) : true;
+                if (esConEquipo && !isParticipating) return null;
+                const defMin = Number(bloque.series || 1) * Number(bloque.minutos || 0);
+                const val = minutosEfectivos[p.jugador_id] ?? defMin;
+                return (
+                  <div key={p.jugador_id} style={{ display: 'flex', flexDirection: 'column', background: 'var(--ink2)', padding: '6px 8px', borderRadius: 6, border: '1px solid rgba(255,255,255,.05)' }}>
+                    <span style={{ fontSize: 9, color: 'var(--silver)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.nombre}</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 4 }}>
+                      <input type="number" min={0} value={val} onChange={(e) => {
+                        const newVal = { ...minutosEfectivos, [p.jugador_id]: Number(e.target.value) };
+                        setMinutosEfectivos(newVal);
+                        onChange('minutosEfectivos', newVal);
+                      }} style={{ width: '100%', background: 'transparent', border: 'none', color: 'var(--snow)', fontSize: 12, outline: 'none', fontWeight: 700 }} />
+                      <span style={{ fontSize: 9, color: 'var(--fog)' }}>min</span>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+          <div style={{ overflowX: 'auto' }}>
+            <table className="wp-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: 10 }}>
+              <thead>
+                <tr style={{ background: 'rgba(255,255,255,.05)' }}>
+                  <th style={{ padding: '4px 8px', textAlign: 'left', color: 'var(--fog)' }}>Jugador</th>
+                  <th style={{ padding: '4px 8px', textAlign: 'center', color: 'var(--fog)' }}>Min</th>
+                  <th style={{ padding: '4px 8px', textAlign: 'center', color: 'var(--fog)' }}>Coef</th>
+                  <th style={{ padding: '4px 8px', textAlign: 'center', color: 'var(--fog)' }}>Total (m)</th>
+                  <th style={{ padding: '4px 8px', textAlign: 'center', color: 'var(--fog)' }}>HSR (m)</th>
+                  <th style={{ padding: '4px 8px', textAlign: 'center', color: 'var(--fog)' }}>Sprint (m)</th>
+                  <th style={{ padding: '4px 8px', textAlign: 'center', color: 'var(--fog)' }}>Acc &gt;2 (n)</th>
+                  <th style={{ padding: '4px 8px', textAlign: 'center', color: 'var(--fog)' }}>Dec &gt;2 (n)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {teamPlayers.map((p: any) => {
+                  const inTeams = Object.values(equipos).flat();
+                  const isParticipating = esConEquipo ? inTeams.includes(p.jugador_id) : true;
+                  if (esConEquipo && !isParticipating) return null;
+                  const defMin = Number(bloque.series || 1) * Number(bloque.minutos || 0);
+                  const minEfectivo = minutosEfectivos[p.jugador_id] ?? defMin;
+                  const COEF = deporte === 'BASQUET' ? COEF_POSICION_BASQUET : COEF_POSICION_FUTBOL;
+                  const coef = p.posicion ? (COEF[p.posicion] || 1.0) : 1.0;
+                  
+                  const factor = minEfectivo > 0 ? (minEfectivo / (defMin || 1)) * coef : 0;
+                  const getV = (k:string) => {
+                     const raw = (calc as any)[k];
+                     const r = manualMetrics[k] !== undefined && manualMetrics[k] !== '' ? parseFloat(manualMetrics[k]) : raw;
+                     return Math.round(r * factor);
+                  };
+                  return (
+                    <tr key={p.jugador_id} style={{ borderBottom: '1px solid rgba(255,255,255,.02)' }}>
+                      <td style={{ padding: '4px 8px', color: 'var(--snow)' }}>{p.nombre}</td>
+                      <td style={{ padding: '4px 8px', textAlign: 'center', color: 'var(--silver)' }}>{minEfectivo}</td>
+                      <td style={{ padding: '4px 8px', textAlign: 'center', color: coef !== 1 ? 'var(--lime)' : 'var(--fog)' }}>{coef.toFixed(2)}</td>
+                      <td style={{ padding: '4px 8px', textAlign: 'center', color: 'var(--silver)' }}>{getV('distTotal')}</td>
+                      <td style={{ padding: '4px 8px', textAlign: 'center', color: 'var(--silver)' }}>{getV('distSprint')}</td>
+                      <td style={{ padding: '4px 8px', textAlign: 'center', color: 'var(--silver)' }}>{getV('distSprint25')}</td>
+                      <td style={{ padding: '4px 8px', textAlign: 'center', color: 'var(--silver)' }}>{getV('nAcel')}</td>
+                      <td style={{ padding: '4px 8px', textAlign: 'center', color: 'var(--silver)' }}>{getV('nDecel')}</td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* CE / UCE inline calculation display */}
       {bloque.ventana && (() => {
@@ -7700,8 +7782,8 @@ function AcumPanel({ teamData }) {
                 })
                 // x label
                 const cx = x0 + (COL_W-4)/2
-                svg += `<text x="${cx.toFixed(1)}" y="${(TOP+BAR_H+12).toFixed(1)}" text-anchor="middle" fill="#333" font-size="8" font-weight="600">${it.name}</text>`
-                if (it.sub) svg += `<text x="${cx.toFixed(1)}" y="${(TOP+BAR_H+22).toFixed(1)}" text-anchor="middle" fill="#888" font-size="7">${it.sub}</text>`
+                svg += `<text x="${cx.toFixed(1)}" y="${(TOP+BAR_H+12).toFixed(1)}" text-anchor="end" transform="rotate(-45, ${cx.toFixed(1)}, ${(TOP+BAR_H+12).toFixed(1)})" fill="#333" font-size="8" font-weight="600">${it.name}</text>`
+                if (it.sub) svg += `<text x="${cx.toFixed(1)}" y="${(TOP+BAR_H+22).toFixed(1)}" text-anchor="end" transform="rotate(-45, ${cx.toFixed(1)}, ${(TOP+BAR_H+22).toFixed(1)})" fill="#888" font-size="7">${it.sub}</text>`
               })
               // line overlay
               if (lineKey && lineVals.some(v=>v>0)) {
@@ -9107,8 +9189,8 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
                 })
                 // x label
                 const cx = x0 + (COL_W-4)/2
-                svg += `<text x="${cx.toFixed(1)}" y="${(TOP+BAR_H+12).toFixed(1)}" text-anchor="middle" fill="#333" font-size="8" font-weight="600">${it.name}</text>`
-                if (it.sub) svg += `<text x="${cx.toFixed(1)}" y="${(TOP+BAR_H+22).toFixed(1)}" text-anchor="middle" fill="#888" font-size="7">${it.sub}</text>`
+                svg += `<text x="${cx.toFixed(1)}" y="${(TOP+BAR_H+12).toFixed(1)}" text-anchor="end" transform="rotate(-45, ${cx.toFixed(1)}, ${(TOP+BAR_H+12).toFixed(1)})" fill="#333" font-size="8" font-weight="600">${it.name}</text>`
+                if (it.sub) svg += `<text x="${cx.toFixed(1)}" y="${(TOP+BAR_H+22).toFixed(1)}" text-anchor="end" transform="rotate(-45, ${cx.toFixed(1)}, ${(TOP+BAR_H+22).toFixed(1)})" fill="#888" font-size="7">${it.sub}</text>`
               })
               // line overlay
               if (lineKey && lineVals.some(v=>v>0)) {
@@ -10643,8 +10725,8 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
                   else if (val > 0) bars += `<text x="${(bx+bw/2).toFixed(1)}" y="${(by-3).toFixed(1)}" text-anchor="middle" fill="${v.color}" font-size="9" font-weight="700">${val}</text>`
                 })
                 const cx = x0 + (W_COL-8)/2
-                labels += `<text x="${cx.toFixed(1)}" y="${(TOP+BAR_H+16).toFixed(1)}" text-anchor="middle" fill="#333" font-size="10" font-weight="600">${(p.nombre||'').split(' ')[0]}</text>`
-                labels += `<text x="${cx.toFixed(1)}" y="${(TOP+BAR_H+28).toFixed(1)}" text-anchor="middle" fill="#888" font-size="9">${p.posicion||''}</text>`
+                labels += `<text x="${cx.toFixed(1)}" y="${(TOP+BAR_H+16).toFixed(1)}" text-anchor="end" transform="rotate(-45, ${cx.toFixed(1)}, ${(TOP+BAR_H+16).toFixed(1)})" fill="#333" font-size="10" font-weight="600">${(p.nombre||'').split(' ')[0]}</text>`
+                labels += `<text x="${cx.toFixed(1)}" y="${(TOP+BAR_H+28).toFixed(1)}" text-anchor="end" transform="rotate(-45, ${cx.toFixed(1)}, ${(TOP+BAR_H+28).toFixed(1)})" fill="#888" font-size="9">${p.posicion||''}</text>`
               })
               let linePath = ''
               if (lineKey && lineVals.some(v=>v>0)) {
@@ -12212,7 +12294,13 @@ function ExpoAIPanel({ teamData }: { teamData: any[] }) {
                 <th colSpan={2} style={{ padding:'6px 14px', textAlign:'left', background:'rgba(251,191,36,.05)', color:'#fbbf24', fontSize:9, fontWeight:700, textTransform:'uppercase', borderBottom:'1px solid var(--mist)' }}>JUGADOR</th>
                 {MD_TRAIN.map(md=><th key={md} style={{ padding:'6px 8px', textAlign:'center', background:existingMd.has(md)?'rgba(251,191,36,.05)':'transparent', color:existingMd.has(md)?'#fbbf24':'var(--fog)', fontSize:9, fontWeight:700, borderBottom:'1px solid var(--mist)', opacity:existingMd.has(md)?1:0.4 }}>{md}</th>)}
                 <th style={{ padding:'6px 8px', textAlign:'center', background:'rgba(251,191,36,.08)', color:'#f59e0b', fontSize:9, fontWeight:700, borderBottom:'1px solid var(--mist)' }}>SUMA</th>
-                {REF_COLS.map(c=><th key={c} style={{ padding:'6px 8px', textAlign:'center', color:'#ef4444', fontSize:9, fontWeight:700, borderBottom:'1px solid var(--mist)', background:'rgba(239,68,68,.04)' }}>MD {c}</th>)}
+                {REF_COLS.map((c, i)=><th key={c} style={{ padding:'6px 8px', textAlign:'center', color:'#ef4444', fontSize:9, fontWeight:700, borderBottom:'1px solid var(--mist)', background:'rgba(239,68,68,.04)' }}>
+                  {selectedPartidos[i] ? (
+                    <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:4 }} title={`${selectedPartidos[i].fecha} vs ${selectedPartidos[i].rival||''}`}>
+                      {selectedPartidos[i].rival_foto ? <img src={selectedPartidos[i].rival_foto} style={{width:14,height:14,objectFit:'contain'}} /> : `MD ${c}`}
+                    </div>
+                  ) : `MD ${c}`}
+                </th>)}
                 <th style={{ padding:'6px 8px', textAlign:'center', color:'var(--fog)', fontSize:9, fontWeight:700, borderBottom:'1px solid var(--mist)', background:'rgba(239,68,68,.04)' }}>PROM.</th>
                 <th style={{ padding:'6px 8px', textAlign:'center', color:'#ef4444', fontSize:9, fontWeight:700, borderBottom:'1px solid var(--mist)', background:'rgba(245,158,11,.05)' }}>PORCE. %</th>
                 <th style={{ padding:'6px 8px', textAlign:'center', color:'#22c55e', fontSize:9, fontWeight:700, borderBottom:'1px solid var(--mist)', background:'rgba(34,197,94,.04)' }}>OBJ.</th>
@@ -12267,7 +12355,13 @@ function ExpoAIPanel({ teamData }: { teamData: any[] }) {
                 <th colSpan={2} style={{ padding:'6px 14px', textAlign:'left', background:'rgba(244,63,94,.05)', color:'#f43f5e', fontSize:9, fontWeight:700, textTransform:'uppercase', borderBottom:'1px solid var(--mist)' }}>JUGADOR</th>
                 {MD_TRAIN.map(md=><th key={md} style={{ padding:'6px 8px', textAlign:'center', background:existingMd.has(md)?'rgba(244,63,94,.05)':'transparent', color:existingMd.has(md)?'#f43f5e':'var(--fog)', fontSize:9, fontWeight:700, borderBottom:'1px solid var(--mist)', opacity:existingMd.has(md)?1:0.4 }}>{md}</th>)}
                 <th style={{ padding:'6px 8px', textAlign:'center', background:'rgba(244,63,94,.08)', color:'#f43f5e', fontSize:9, fontWeight:700, borderBottom:'1px solid var(--mist)' }}>SUMA</th>
-                {REF_COLS.map(c=><th key={c} style={{ padding:'6px 8px', textAlign:'center', color:'#ef4444', fontSize:9, fontWeight:700, borderBottom:'1px solid var(--mist)', background:'rgba(239,68,68,.04)' }}>MD {c}</th>)}
+                {REF_COLS.map((c, i)=><th key={c} style={{ padding:'6px 8px', textAlign:'center', color:'#ef4444', fontSize:9, fontWeight:700, borderBottom:'1px solid var(--mist)', background:'rgba(239,68,68,.04)' }}>
+                  {selectedPartidos[i] ? (
+                    <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:4 }} title={`${selectedPartidos[i].fecha} vs ${selectedPartidos[i].rival||''}`}>
+                      {selectedPartidos[i].rival_foto ? <img src={selectedPartidos[i].rival_foto} style={{width:14,height:14,objectFit:'contain'}} /> : `MD ${c}`}
+                    </div>
+                  ) : `MD ${c}`}
+                </th>)}
                 <th style={{ padding:'6px 8px', textAlign:'center', color:'var(--fog)', fontSize:9, fontWeight:700, borderBottom:'1px solid var(--mist)', background:'rgba(239,68,68,.04)' }}>PROM.</th>
                 <th style={{ padding:'6px 8px', textAlign:'center', color:'#ef4444', fontSize:9, fontWeight:700, borderBottom:'1px solid var(--mist)', background:'rgba(245,158,11,.05)' }}>PORCE. %</th>
                 <th style={{ padding:'6px 8px', textAlign:'center', color:'#22c55e', fontSize:9, fontWeight:700, borderBottom:'1px solid var(--mist)', background:'rgba(34,197,94,.04)' }}>OBJ.</th>
@@ -12320,7 +12414,13 @@ function ExpoAIPanel({ teamData }: { teamData: any[] }) {
                 <th colSpan={2} style={{ padding:'6px 14px', textAlign:'left', background:'rgba(14,165,233,.05)', color:'#0ea5e9', fontSize:9, fontWeight:700, textTransform:'uppercase', borderBottom:'1px solid var(--mist)' }}>JUGADOR</th>
                 {MD_TRAIN.map(md=><th key={md} style={{ padding:'6px 8px', textAlign:'center', background:existingMd.has(md)?'rgba(14,165,233,.05)':'transparent', color:existingMd.has(md)?'#0ea5e9':'var(--fog)', fontSize:9, fontWeight:700, borderBottom:'1px solid var(--mist)', opacity:existingMd.has(md)?1:0.4 }}>{md}</th>)}
                 <th style={{ padding:'6px 8px', textAlign:'center', background:'rgba(14,165,233,.08)', color:'#0ea5e9', fontSize:9, fontWeight:700, borderBottom:'1px solid var(--mist)' }}>SUMA</th>
-                {REF_COLS.map(c=><th key={c} style={{ padding:'6px 8px', textAlign:'center', color:'#ef4444', fontSize:9, fontWeight:700, borderBottom:'1px solid var(--mist)', background:'rgba(239,68,68,.04)' }}>MD {c}</th>)}
+                {REF_COLS.map((c, i)=><th key={c} style={{ padding:'6px 8px', textAlign:'center', color:'#ef4444', fontSize:9, fontWeight:700, borderBottom:'1px solid var(--mist)', background:'rgba(239,68,68,.04)' }}>
+                  {selectedPartidos[i] ? (
+                    <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:4 }} title={`${selectedPartidos[i].fecha} vs ${selectedPartidos[i].rival||''}`}>
+                      {selectedPartidos[i].rival_foto ? <img src={selectedPartidos[i].rival_foto} style={{width:14,height:14,objectFit:'contain'}} /> : `MD ${c}`}
+                    </div>
+                  ) : `MD ${c}`}
+                </th>)}
                 <th style={{ padding:'6px 8px', textAlign:'center', color:'var(--fog)', fontSize:9, fontWeight:700, borderBottom:'1px solid var(--mist)', background:'rgba(239,68,68,.04)' }}>PROM.</th>
                 <th style={{ padding:'6px 8px', textAlign:'center', color:'#ef4444', fontSize:9, fontWeight:700, borderBottom:'1px solid var(--mist)', background:'rgba(245,158,11,.05)' }}>PORCE. %</th>
                 <th style={{ padding:'6px 8px', textAlign:'center', color:'#22c55e', fontSize:9, fontWeight:700, borderBottom:'1px solid var(--mist)', background:'rgba(34,197,94,.04)' }}>OBJ.</th>
