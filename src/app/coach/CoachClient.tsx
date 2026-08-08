@@ -1,5 +1,5 @@
 'use client'
-import { mkBars, ENTRENAMIENTO_OPTIMIZADOR, ENTRENAMIENTO_COADYUVANTE, TODAS_LAS_NUEVAS, TODAS_LAS_NUEVAS_BASQUET, TAREAS_CON_ESPACIO, TAREAS_CON_EQUIPO, TAREAS_PARTIDO_SIMPLE, TAREAS_MOSTRAR_FORM, NE_DEFAULT, OBJETIVOS_FISICOS, OBJETIVOS_SECUNDARIOS, TITULOS_SESION, getCuadrante, COEF_POSICION_BASQUET, COEF_POSICION_FUTBOL } from './utils'
+import { mkBars, ENTRENAMIENTO_OPTIMIZADOR, ENTRENAMIENTO_COADYUVANTE, TODAS_LAS_NUEVAS, TODAS_LAS_NUEVAS_BASQUET, TAREAS_CON_ESPACIO, TAREAS_CON_EQUIPO, TAREAS_PARTIDO_SIMPLE, TAREAS_MOSTRAR_FORM, NE_DEFAULT, OBJETIVOS_FISICOS, OBJETIVOS_SECUNDARIOS, TITULOS_SESION, getCuadrante, COEF_POSICION_BASQUET, COEF_POSICION_FUTBOL, ENTRENAMIENTO_BASQUET_OPTIMIZADOR, ENTRENAMIENTO_BASQUET_COADYUVANTE } from './utils'
 
 export const SUBTAREAS: Record<string, string[]> = {
   'PREVENTIVO': ['TRABAJO GRUPAL', 'TRABAJO INDIVIDUAL'],
@@ -1419,13 +1419,13 @@ function PlayerDetail({ isPanama, player:p, logs, wellness, loading, onBack, cic
           {!p.lesion && (
             <div style={{ textAlign:'center', background:`${col}12`, border:`1px solid ${col}33`, borderRadius:16, padding:'16px 24px' }}>
               <div className="display" style={{ fontSize:64, color:col, lineHeight:1 }}>{p.acwr?.ratio>0?p.acwr.ratio.toFixed(2):'—'}</div>
-              <div style={{ fontFamily:'DM Mono,monospace', fontSize:9, color:col, marginTop:6, letterSpacing:'0.06em' }}>ACWR</div>
+              <div style={{ fontFamily:'DM Mono,monospace', fontSize:9, color:col, marginTop:6, letterSpacing:'0.06em' }}>ACWR PONDERADO</div>
             </div>
           )}
         </div>
         {!p.lesion && (
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginTop:20 }}>
-            {[['Carga aguda (suma 7d)',p.acwr?.acuteLoad],['Carga crónica (prom. 4 sem.)',p.acwr?.chronicLoad]].map(([l,v])=>(
+            {[['Carga aguda (EWMA 7d)',p.acwr?.acuteLoad],['Carga crónica (EWMA 28d)',p.acwr?.chronicLoad]].map(([l,v])=>(
               <div key={l} style={{ background:'var(--ink3)', border:'1px solid var(--mist)', borderRadius:10, padding:'12px 16px', textAlign:'center' }}>
                 <div className="mono" style={{ fontSize:20, fontWeight:500, color:'var(--snow)' }}>{v}</div>
                 <div style={{ fontSize:11, color:'var(--silver)', marginTop:2 }}>{l} UA</div>
@@ -1531,15 +1531,15 @@ function PlayerDetail({ isPanama, player:p, logs, wellness, loading, onBack, cic
             <p style={{ fontSize:11, fontWeight:600, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:6, margin:0 }}>Análisis de Carga (ACWR Ponderado)</p>
             <div style={{ display:'flex', alignItems:'center', gap:8, marginTop:8 }}>
               {(() => {
-                const acwrData = calcACWR(logs.map(l=>({fecha:String(l.fecha),carga_ua:Number(l.carga_ua)||0})), new Date(), acwrMetric, ausenciaSet)
+                const acwrData = acwrMetric === 'uce' && p.acwrUce ? p.acwrUce : p.acwr;
                 const SC2:any={optimo:'#22c55e',precaucion:'#f59e0b',peligro:'#ef4444',peligro_bajo:'#3b82f6',sin_datos:'#444'}
                 return (
                   <>
-                    <span style={{ fontSize:28, fontWeight:900, fontFamily:'DM Mono,monospace', color:SC2[acwrData.status]||'#fff', lineHeight:1 }}>
-                      {acwrData.ratio > 0 ? acwrData.ratio.toFixed(2) : '—'}
+                    <span style={{ fontSize:28, fontWeight:900, fontFamily:'DM Mono,monospace', color:SC2[acwrData?.status]||'#fff', lineHeight:1 }}>
+                      {acwrData?.ratio > 0 ? acwrData.ratio.toFixed(2) : '—'}
                     </span>
-                    <span style={{ fontSize:12, padding:'4px 10px', borderRadius:20, background:`${SC2[acwrData.status]||'#444'}20`, color:SC2[acwrData.status]||'#fff', border:`1px solid ${SC2[acwrData.status]||'#444'}44`, fontWeight:700 }}>
-                      {acwrData.label||'—'}
+                    <span style={{ fontSize:12, padding:'4px 10px', borderRadius:20, background:`${SC2[acwrData?.status]||'#444'}20`, color:SC2[acwrData?.status]||'#fff', border:`1px solid ${SC2[acwrData?.status]||'#444'}44`, fontWeight:700 }}>
+                      {acwrData?.label||'—'}
                     </span>
                   </>
                 )
@@ -3757,9 +3757,9 @@ function BloqueMetodologia({ bloque, index, onChangeProp, onRemoveProp, onMoveUp
               <label style={{ fontSize:9, fontWeight:700, color:'var(--silver)', textTransform:'uppercase', letterSpacing:'0.06em', display:'block', marginBottom:3 }}>Tarea Específica</label>
               <select className="wp-input" value={bloque.ventana||''} onChange={e=>{ onChange('ventana',e.target.value); onChange('subtareas',[]); onChange('subtarea','') }} style={{ padding:'5px 8px', fontSize:12, appearance:'none', width:'100%' }}>
                 <option value="">— Seleccionar —</option>
-                {(bloque.tipo_entrenamiento === 'OPTIMIZADOR' ? 
+                {((bloque.tipo_entrenamiento === 'OPTIMIZADOR' ? 
                   (deporte === 'BASQUET' ? ENTRENAMIENTO_BASQUET_OPTIMIZADOR[bloque.orientacion] : ENTRENAMIENTO_OPTIMIZADOR[bloque.orientacion]) : 
-                  (deporte === 'BASQUET' ? ENTRENAMIENTO_BASQUET_COADYUVANTE[bloque.orientacion] : ENTRENAMIENTO_COADYUVANTE[bloque.orientacion])).map((t: string)=><option key={t} value={t} style={{ background:'var(--ink)', color:'var(--snow)' }}>{t} (NE {NE_DEFAULT[t]||0})</option>)}
+                  (deporte === 'BASQUET' ? ENTRENAMIENTO_BASQUET_COADYUVANTE[bloque.orientacion] : ENTRENAMIENTO_COADYUVANTE[bloque.orientacion])) || []).map((t: string)=><option key={t} value={t} style={{ background:'var(--ink)', color:'var(--snow)' }}>{t} (NE {NE_DEFAULT[t]||0})</option>)}
               </select>
               
               {bloque.ventana && SUBTAREAS[bloque.ventana] && (
@@ -9988,8 +9988,8 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
         <div style={{ padding:16, borderTop:'1px solid var(--mist)' }}>
           <p style={{ fontSize:10, fontWeight:700, color:'#60a5fa', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:12 }}>📊 GRÁFICO AGRUPADO · TOTALES POR DÍA DE ENTRENAMIENTO</p>
           <AnimateOnScroll minHeight={200}>
-            <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(260px,1fr))', gap:16 }}>
-              {GRUPOS.map(g=>renderGrupoBar(g,'md','totales'))}
+            <div style={{ display:'flex', flexWrap:'wrap', gap:16, justifyContent:'center' }}>
+              {GRUPOS.map(g=><div key={g.label} style={{ flex:'0 1 calc((100% - 32px) / 3)', minWidth: 260 }}>{renderGrupoBar(g,'md','totales')}</div>)}
             </div>
           </AnimateOnScroll>
         </div>
@@ -10037,8 +10037,8 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
           <div style={{ padding:16, borderTop:'1px solid var(--mist)' }}>
             <p style={{ fontSize:10, fontWeight:700, color:'#a78bfa', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:12 }}>📊 GRÁFICO AGRUPADO · PROMEDIO POR MD</p>
             <AnimateOnScroll minHeight={200}>
-              <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(260px,1fr))', gap:16 }}>
-                {GRUPOS.map(g=>renderGrupoBar(g,'md','promedio'))}
+              <div style={{ display:'flex', flexWrap:'wrap', gap:16, justifyContent:'center' }}>
+                {GRUPOS.map(g=><div key={g.label} style={{ flex:'0 1 calc((100% - 32px) / 3)', minWidth: 260 }}>{renderGrupoBar(g,'md','promedio')}</div>)}
               </div>
             </AnimateOnScroll>
           </div>

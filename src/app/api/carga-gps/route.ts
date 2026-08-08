@@ -5,6 +5,29 @@ import { getSessionFromRequest } from '@/lib/auth'
 
 function isAdmin(s: any) { return s?.rol === 'admin' || s?.rol === 'master_admin' }
 
+function getPosMultiplier(pos: string | null | undefined): number {
+  if (!pos) return 1.0;
+  const p = pos.toLowerCase();
+  
+  // BASKETBALL
+  if (p.includes('base')) return 1.15;
+  if (p.includes('escolta')) return 1.10;
+  if (p.includes('alero') && !p.includes('pívot') && !p.includes('pivot')) return 1.05;
+  if (p.includes('ala-pívot') || p.includes('ala pívot') || p.includes('ala-pivot')) return 1.00;
+  if (p.includes('pívot') || p.includes('pivot')) return 0.90;
+
+  // SOCCER
+  if (p.includes('portero') || p.includes('arquero')) return 0.60;
+  if (p.includes('lateral') || p.includes('carrilero')) return 1.10;
+  if (p.includes('central') || p.includes('defensa') || p.includes('zaguero')) return 0.90;
+  if (p.includes('extremo') || p.includes('wing')) return 1.15;
+  if (p.includes('volante') || p.includes('mediocentro ofensivo') || p.includes('enganche')) return 1.10;
+  if (p.includes('mediocentro') || p.includes('mediocampista') || p.includes('pivote') || p.includes('medio')) return 1.05;
+  if (p.includes('delantero') || p.includes('atacante')) return 1.00;
+
+  return 1.0;
+}
+
 function sumarMetricasBloques(ejercicios: any[]): Record<string, number> {
   const t: Record<string, number> = { distTotal:0, distSprint:0, distMP:0, distAcel:0, distDecel:0, nSprints:0, nAcel:0, nDecel:0, nAcel3:0, nDecel3:0, dist_acc_hi:0, dist_dec_hi:0, sprintN25:0, distSprint25:0, minActivo:0, minPausa:0 }
   if (!Array.isArray(ejercicios)) return t
@@ -222,18 +245,27 @@ export async function GET(req: NextRequest) {
           p.total_rpe = (p.total_rpe || 0) + (Number(log.rpe) || 0)
         }
       }
-      const playerLogDates = new Set(playerLogs.map((l: any) => l.fecha))
+      const playerLogDates = new Set(playerLogs.map((l: any) => typeof l.fecha === 'string' ? l.fecha.slice(0, 10) : String(l.fecha).slice(0, 10)))
+      const posMult = getPosMultiplier(p.posicion)
       for (const fecha of fechasConSesion) {
+        const fechaOnly = typeof fecha === 'string' ? fecha.slice(0, 10) : String(fecha).slice(0, 10)
         const gps = gpsPorFecha[fecha]
-        const playerLog = playerLogs.find((l: any) => l.fecha === fecha)
+        const playerLog = playerLogs.find((l: any) => {
+          const lFecha = typeof l.fecha === 'string' ? l.fecha.slice(0, 10) : String(l.fecha).slice(0, 10)
+          return lFecha === fechaOnly
+        })
         const playerMinutes = playerLog?.duracion_min ? Number(playerLog.duracion_min) : null
         const plannedMinutes = gps.minActivo
         let scale = (playerMinutes !== null && plannedMinutes > 0) ? Math.min(playerMinutes / plannedMinutes, (gps.tipo_sesion === 'partido' ? 2.0 : 1.5)) : 1
+        
+        // Apply position multiplier
+        scale = scale * posMult;
+        
         p.distTotal += Math.round(gps.distTotal * scale); p.distSprint += Math.round(gps.distSprint * scale); p.distMP += Math.round(gps.distMP * scale)
         p.distAcel += Math.round(gps.distAcel * scale); p.distDecel += Math.round(gps.distDecel * scale); p.nSprints += Math.round(gps.nSprints * scale)
         p.nAcel += Math.round(gps.nAcel * scale); p.nDecel += Math.round(gps.nDecel * scale); p.nAcel3 += Math.round((gps.nAcel3||0) * scale); p.nDecel3 += Math.round((gps.nDecel3||0) * scale)
         p.sprintN25 += Math.round((gps.sprintN25||0) * scale); p.distSprint25 += Math.round((gps.distSprint25||0) * scale)
-        if (!playerLogDates.has(fecha)) p.minActivo += plannedMinutes
+        if (!playerLogDates.has(fechaOnly)) p.minActivo += plannedMinutes
         p.diasConGps += 1
       }
     }

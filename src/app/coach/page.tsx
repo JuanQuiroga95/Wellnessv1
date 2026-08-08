@@ -157,7 +157,9 @@ export default async function CoachPage() {
       hora_recordatorio: p.hora_recordatorio ? String(p.hora_recordatorio) : null,
       peso_ideal_min: p.peso_ideal_min ? String(p.peso_ideal_min) : null,
       peso_ideal_max: p.peso_ideal_max ? String(p.peso_ideal_max) : null,
-      posicion_orden: posOrder(p.posicion), acwr: calcACWR(sl, new Date(), 'ua', jugadorAusencias),
+      posicion_orden: posOrder(p.posicion), 
+      acwr: calcACWR(sl, new Date(), 'ua', jugadorAusencias),
+      acwrUce: calcACWR(sl, new Date(), 'uce', jugadorAusencias),
       recentLogs: (() => {
         const uniqueLogsMap = new Map();
         logs.forEach(l => {

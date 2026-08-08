@@ -3,13 +3,12 @@ import { NextResponse } from 'next/server'
 import { getDb } from '@/lib/db'
 
 export async function GET() {
-  const sql = getDb()
-  
-  await sql`ALTER TABLE clubs ADD COLUMN IF NOT EXISTS es_seleccion BOOLEAN DEFAULT FALSE`
-  await sql`ALTER TABLE jugadores ADD COLUMN IF NOT EXISTS club_origen VARCHAR(100)`
-  await sql`ALTER TABLE entrenamiento_logs ADD COLUMN IF NOT EXISTS observaciones TEXT`
-  
-  return NextResponse.json({
-    message: 'Migrations applied successfully'
-  })
+  try {
+    const sql = getDb()
+    await sql`UPDATE entrenamiento_logs SET carga_ua = COALESCE(rpe,0) * COALESCE(duracion_min,0)`
+    return NextResponse.json({ success: true, msg: 'Datos de carga_ua recalculados exitosamente.' })
+  } catch (error: any) {
+    console.error("API FIX ERROR:", error)
+    return NextResponse.json({ error: String(error) }, { status: 500 })
+  }
 }
