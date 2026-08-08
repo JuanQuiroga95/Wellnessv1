@@ -135,15 +135,16 @@ export async function POST(req: NextRequest) {
     const newRpeGym = Math.max(ext.rpe_gimnasio || 0, rpe_gimnasio || 0)
     const [r] = await sql`
       UPDATE entrenamiento_logs 
-      SET rpe = ${newRpe}, rpe_gimnasio = ${newRpeGym}, duracion_min = GREATEST(COALESCE(duracion_min,0), ${duracion_min}), tipo_sesion = ${tipo_sesion}
+      SET rpe = ${newRpe}, rpe_gimnasio = ${newRpeGym}, duracion_min = GREATEST(COALESCE(duracion_min,0), ${duracion_min}), tipo_sesion = ${tipo_sesion}, carga_ua = ${newRpe} * GREATEST(COALESCE(duracion_min,0), ${duracion_min})
       WHERE id = ${ext.id}
       RETURNING id, fecha::text, carga_ua::int`
     return NextResponse.json(r)
   }
 
+  const carga_ua = (rpe || 0) * (duracion_min || 0)
   const [r] = await sql`
-    INSERT INTO entrenamiento_logs(jugador_id, rpe, rpe_gimnasio, duracion_min, tipo_sesion, fecha, club_id)
-    VALUES(${jugador_id}, ${rpe}, ${rpe_gimnasio}, ${duracion_min}, ${tipo_sesion}, ${fecha}, ${clubId})
+    INSERT INTO entrenamiento_logs(jugador_id, rpe, rpe_gimnasio, duracion_min, tipo_sesion, fecha, club_id, carga_ua)
+    VALUES(${jugador_id}, ${rpe}, ${rpe_gimnasio}, ${duracion_min}, ${tipo_sesion}, ${fecha}, ${clubId}, ${carga_ua})
     RETURNING id, fecha::text, carga_ua::int`
   return NextResponse.json(r)
 }
@@ -171,9 +172,9 @@ export async function PATCH(req: NextRequest) {
 
   let r;
   if (duracion_min && tipo_sesion) {
-    [r] = await sql`UPDATE entrenamiento_logs SET duracion_min = ${duracion_min}, tipo_sesion = ${tipo_sesion} WHERE id = ${id} RETURNING id, fecha::text, carga_ua::int, duracion_min::int, rpe::int, tipo_sesion`
+    [r] = await sql`UPDATE entrenamiento_logs SET duracion_min = ${duracion_min}, tipo_sesion = ${tipo_sesion}, carga_ua = COALESCE(rpe,0) * ${duracion_min} WHERE id = ${id} RETURNING id, fecha::text, carga_ua::int, duracion_min::int, rpe::int, tipo_sesion`
   } else if (duracion_min) {
-    [r] = await sql`UPDATE entrenamiento_logs SET duracion_min = ${duracion_min} WHERE id = ${id} RETURNING id, fecha::text, carga_ua::int, duracion_min::int, rpe::int, tipo_sesion`
+    [r] = await sql`UPDATE entrenamiento_logs SET duracion_min = ${duracion_min}, carga_ua = COALESCE(rpe,0) * ${duracion_min} WHERE id = ${id} RETURNING id, fecha::text, carga_ua::int, duracion_min::int, rpe::int, tipo_sesion`
   } else if (tipo_sesion) {
     [r] = await sql`UPDATE entrenamiento_logs SET tipo_sesion = ${tipo_sesion} WHERE id = ${id} RETURNING id, fecha::text, carga_ua::int, duracion_min::int, rpe::int, tipo_sesion`
   }

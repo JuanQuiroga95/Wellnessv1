@@ -17,12 +17,21 @@ const getSubtareasArr = (bloque: any) => {
   if (bloque.subtarea) return [bloque.subtarea]
   return []
 }
-
 function localDateStr(d: Date): string {
   const y = d.getFullYear()
-  const mo = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
-  return `${y}-${mo}-${day}`
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const dStr = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${dStr}`
+}
+
+function getWeatherIcon(code: number) {
+  if (code === 0) return '☀️'
+  if (code >= 1 && code <= 3) return '⛅'
+  if (code === 45 || code === 48) return '🌫️'
+  if ((code >= 51 && code <= 67) || (code >= 80 && code <= 82)) return '🌧️'
+  if (code >= 71 && code <= 77 || code === 85 || code === 86) return '❄️'
+  if (code >= 95) return '⛈️'
+  return '☁️'
 }
 
 function addDays(dateStr: string, n: number): string {
@@ -89,6 +98,8 @@ export default function InicioPanel({ teamData, session, today }: { teamData: an
   const [uceSemanalTotal, setUceSemanalTotal] = useState(0)
   const [mesocicloData, setMesocicloData] = useState<any[]>([])
   const [gpsRealData, setGpsRealData] = useState<any[]>([])
+  const [weatherHoy, setWeatherHoy] = useState<any>(null)
+  const [weatherManana, setWeatherManana] = useState<any>(null)
 
   useEffect(() => {
     async function fetchData() {
@@ -108,6 +119,36 @@ export default function InicioPanel({ teamData, session, today }: { teamData: an
         const mandD = await mandRes.json()
         const mandamientos = mandD.mandamientos || []
         setFuerzaMandamientos(mandamientos)
+
+        // Fetch Weather
+        try {
+          const ipRes = await fetch('https://ipapi.co/json/')
+          const ipData = await ipRes.json()
+          if (ipData.latitude && ipData.longitude) {
+            const meteoRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${ipData.latitude}&longitude=${ipData.longitude}&daily=weathercode,temperature_2m_max,temperature_2m_min&timezone=auto`)
+            const meteoData = await meteoRes.json()
+            if (meteoData.daily && meteoData.daily.time) {
+              const dHoy = meteoData.daily.time.findIndex((t: string) => t === today)
+              if (dHoy !== -1) {
+                setWeatherHoy({
+                  tempMax: Math.round(meteoData.daily.temperature_2m_max[dHoy]),
+                  tempMin: Math.round(meteoData.daily.temperature_2m_min[dHoy]),
+                  code: meteoData.daily.weathercode[dHoy],
+                  city: ipData.city
+                })
+              }
+              const dManana = meteoData.daily.time.findIndex((t: string) => t === tomorrow)
+              if (dManana !== -1) {
+                setWeatherManana({
+                  tempMax: Math.round(meteoData.daily.temperature_2m_max[dManana]),
+                  tempMin: Math.round(meteoData.daily.temperature_2m_min[dManana]),
+                  code: meteoData.daily.weathercode[dManana],
+                  city: ipData.city
+                })
+              }
+            }
+          }
+        } catch(e) {}
 
         const calRes = await fetch(`/api/calendario?desde=${past120Days}&hasta=${tomorrow > weekEnd ? tomorrow : weekEnd}`)
         const calData = await calRes.json()
@@ -599,11 +640,44 @@ export default function InicioPanel({ teamData, session, today }: { teamData: an
         </div>
       </AnimateOnScroll>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 24 }}>
-        {/* Agenda Section */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+        {/* 1. AGENDA ROW (100% width) */}
         <AnimateOnScroll delay={500}>
-          <div style={{ background: 'var(--ink2)', border: '1px solid var(--mist)', borderRadius: 16, padding: 20, height: '100%', minHeight: 350 }}>
-            <CuadroHeader title="AGENDA" subtitle="Próximas actividades" icon={Icons.planificacion} description="Resumen de entrenamientos, partidos y eventos programados para hoy y mañana." />
+          <div style={{ background: 'var(--ink2)', border: '1px solid var(--mist)', borderRadius: 16, padding: 20, minHeight: 350 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 16 }}>
+              <CuadroHeader title="AGENDA" subtitle="Próximas actividades" icon={Icons.planificacion} description="Resumen de entrenamientos, partidos y eventos programados para hoy y mañana." />
+              
+              {/* Weather Widget */}
+              {(weatherHoy || weatherManana) && (
+                <div style={{ display: 'flex', gap: 16, background: 'var(--ink3)', border: '1px solid var(--mist)', borderRadius: 12, padding: '12px 16px' }}>
+                  {weatherHoy && (
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                      <span style={{ fontSize: 10, color: 'var(--fog)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Hoy, {weatherHoy.city}</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
+                        <span style={{ fontSize: 24, lineHeight: 1 }}>{getWeatherIcon(weatherHoy.code)}</span>
+                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                          <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--snow)' }}>{weatherHoy.tempMax}°</span>
+                          <span style={{ fontSize: 11, color: 'var(--fog)' }}>{weatherHoy.tempMin}°</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  {weatherHoy && weatherManana && <div style={{ width: 1, background: 'var(--mist)' }} />}
+                  {weatherManana && (
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                      <span style={{ fontSize: 10, color: 'var(--fog)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Mañana</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
+                        <span style={{ fontSize: 24, lineHeight: 1 }}>{getWeatherIcon(weatherManana.code)}</span>
+                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                          <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--snow)' }}>{weatherManana.tempMax}°</span>
+                          <span style={{ fontSize: 11, color: 'var(--fog)' }}>{weatherManana.tempMin}°</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
             
             <div style={{ marginTop: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
               {/* HOY */}
@@ -671,164 +745,30 @@ export default function InicioPanel({ teamData, session, today }: { teamData: an
 
         {/* Alerts Section */}
         {hasAlerts && (
-          <AnimateOnScroll delay={550}>
-            <div style={{ background: 'var(--ink2)', border: '1px solid var(--mist)', borderRadius: 16, padding: 20, height: '100%', minHeight: 350 }}>
-              <CuadroHeader title="ALERTAS DEL PLANTEL" subtitle="Novedades y avisos" icon={Icons.campana} description="Jugadores con rendimiento destacado o en riesgo de lesión por sobrecarga." />
-              <div style={{ marginTop: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
-                
-                {topPerformers.length >= 3 && (
-                  <>
-                    {gpsRealData.length > 0 ? (() => {
-                      const RANKINGS = [
-                        { key:'max_velocity', label:'Vel. Máxima', unit:'km/h', icon:'⚡', color:'#ef4444', isMax:true },
-                        { key:'dist_hir',     label:'HSR', unit:'m', icon:'🏃', color:'#f59e0b', isMax:false },
-                      ]
-                      return (
-                        <div style={{ background:'var(--ink2)', border:'1px solid rgba(251,191,36,.2)', borderRadius:16, overflow:'hidden', marginBottom:12 }}>
-                          <div style={{ padding:'10px 16px', borderBottom:'1px solid var(--mist)' }}>
-                            <p style={{ fontSize:11, fontWeight:700, color:'#fbbf24', textTransform:'uppercase', letterSpacing:'0.08em' }}>🏆 RANKING DE LOGROS — 14 DÍAS</p>
-                            <p style={{ fontSize:10, color:'var(--fog)', marginTop:2 }}>Top 3 jugadores por velocidad máxima y HSR en el período seleccionado</p>
-                          </div>
-                          <div style={{ display:'flex', flexDirection:'column', gap:1, background:'var(--mist)' }}>
-                            {RANKINGS.map(rank => {
-                              const sorted = [...gpsRealData]
-                                .filter((p:any) => Number(p[rank.key]) > 0)
-                                .sort((a:any,b:any) => Number(b[rank.key]) - Number(a[rank.key]))
-                                .slice(0, 3)
-                              const medals = ['🥇','🥈','🥉']
-                              const medalColors = ['#fbbf24','#94a3b8','#b87333']
-                              return (
-                                <div key={rank.key} style={{ background:'var(--ink2)', padding:'12px' }}>
-                                  <div style={{ fontSize:12, fontWeight:700, color:rank.color, marginBottom:12, display:'flex', alignItems:'center', gap:4 }}>{rank.icon} {rank.label}</div>
-                                  {sorted.length === 0 ? (
-                                    <p style={{ fontSize:11, color:'var(--fog)' }}>Sin datos</p>
-                                  ) : sorted.map((p:any, i:number) => (
-                                    <div key={i} style={{ display:'flex', alignItems:'center', gap:8, marginBottom:i<2?6:0, padding:'6px 8px', borderRadius:10,
-                                      background: i===0 ? 'rgba(251,191,36,.08)' : 'rgba(255,255,255,.02)',
-                                      border: i===0 ? '1px solid rgba(251,191,36,.2)' : '1px solid transparent' }}>
-                                      <span style={{ fontSize:16, lineHeight:1 }}>{medals[i]}</span>
-                                      <div style={{ flex:1, minWidth:0 }}>
-                                        <div style={{ fontSize:11, fontWeight:600, color:'var(--snow)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{p.nombre}</div>
-                                      </div>
-                                      <div style={{ fontFamily:'DM Mono,monospace', fontWeight:800, fontSize:13, color:medalColors[i] }}>
-                                        {Number(p[rank.key]).toFixed(rank.key==='max_velocity'?1:0)} <span style={{ fontSize:9, fontWeight:400, color:'var(--fog)' }}>{rank.unit}</span>
-                                      </div>
-                                    </div>
-                                  ))}
-                                </div>
-                              )
-                            })}
-                          </div>
-                        </div>
-                      )
-                    })() : (
-                      <>
-                        <details style={{ background: 'var(--ink3)', border: '1px solid var(--mist)', borderRadius: 8, overflow: 'hidden' }}>
-                          <summary style={{ padding: '12px 16px', fontSize: 13, fontWeight: 700, color: '#10b981', cursor: 'pointer', listStyle: 'none', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                            <span>🚀 TOP 3 HIGH WORKLOAD (ESTIMADO)</span>
-                            <span style={{ fontSize: 10, color: 'var(--silver)' }}>Ver listado ▼</span>
-                          </summary>
-                          <div style={{ padding: '0 16px 12px 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-                            {topPerformers.slice(0, 3).map((p, i) => (
-                              <div key={i} style={{ background: 'var(--ink2)', border: '1px solid rgba(16,185,129,0.2)', borderRadius: 8, padding: 10, display: 'flex', alignItems: 'center', gap: 12 }}>
-                                <div style={{ fontSize: 18 }}>🛰️</div>
-                                <div style={{ flex: 1 }}>
-                                  <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--snow)' }}>{p.nombre}</div>
-                                  <div style={{ fontSize: 11, color: 'var(--silver)' }}>Distancia Estimada: <span style={{color: '#10b981', fontWeight: 600}}>{p.distTotal}m</span></div>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </details>
-                        
-                        <details style={{ background: 'var(--ink3)', border: '1px solid var(--mist)', borderRadius: 8, overflow: 'hidden', marginTop: 12 }}>
-                          <summary style={{ padding: '12px 16px', fontSize: 13, fontWeight: 700, color: '#ef4444', cursor: 'pointer', listStyle: 'none', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                            <span>📉 TOP 3 LOW WORKLOAD (ESTIMADO)</span>
-                            <span style={{ fontSize: 10, color: 'var(--silver)' }}>Ver listado ▼</span>
-                          </summary>
-                          <div style={{ padding: '0 16px 12px 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-                            {[...topPerformers].slice(-3).reverse().map((p, i) => (
-                              <div key={i} style={{ background: 'var(--ink2)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 8, padding: 10, display: 'flex', alignItems: 'center', gap: 12 }}>
-                                <div style={{ fontSize: 18 }}>📉</div>
-                                <div style={{ flex: 1 }}>
-                                  <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--snow)' }}>{p.nombre}</div>
-                                  <div style={{ fontSize: 11, color: 'var(--silver)' }}>Distancia Estimada: <span style={{color: '#ef4444', fontWeight: 600}}>{p.distTotal}m</span></div>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </details>
-                      </>
-                    )}
-                  </>
-                )}
-
-                {upcomingBirthdays.length > 0 && (
-                  <div>
-                    <h4 style={{ margin: '0 0 12px 0', fontSize: 12, color: '#f59e0b', textTransform: 'uppercase', letterSpacing: '0.1em' }}>🎂 Próximos Cumpleaños</h4>
-                    {upcomingBirthdays.map((p, i) => (
-                      <div key={i} style={{ background: 'var(--ink3)', border: '1px solid rgba(245,158,11,0.2)', borderRadius: 8, padding: 12, display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
-                        <div style={{ fontSize: 20 }}>🎉</div>
-                        <div>
-                          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--snow)' }}>{p.nombre}</div>
-                          <div style={{ fontSize: 11, color: 'var(--silver)', marginTop: 2 }}>
-                            {p.fecha_nacimiento.slice(5).replace('-','/')}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {readaptacionPlayers.length > 0 && (
-                  <div>
-                    <h4 style={{ margin: '0 0 12px 0', fontSize: 12, color: '#f87171', textTransform: 'uppercase', letterSpacing: '0.1em' }}>🏃 Readaptación (Fase Final)</h4>
-                    {readaptacionPlayers.map((p, i) => (
-                      <div key={i} style={{ background: 'var(--ink3)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 8, padding: 12, display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
-                        <div style={{ fontSize: 20 }}>🔥</div>
-                        <div>
-                          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--snow)' }}>{p.nombre}</div>
-                          <div style={{ fontSize: 11, color: 'var(--silver)', marginTop: 2 }}>
-                            {p.lesion.tipo_lesion} - {p.lesion.zona}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {top3.length > 0 && (
-                  <div>
-                    <h4 style={{ margin: '0 0 12px 0', fontSize: 12, color: '#22c55e', textTransform: 'uppercase', letterSpacing: '0.1em' }}>🔥 TOP 3 ALTA CARGA (RPE)</h4>
-                    {top3.map((p, i) => (
-                      <div key={i} style={{ background: 'var(--ink3)', border: '1px solid rgba(34,197,94,0.2)', borderRadius: 8, padding: 12, display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
-                        <div style={{ fontSize: 20 }}>🔥</div>
-                        <div>
-                          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--snow)' }}>{p.nombre}</div>
-                          <div style={{ fontSize: 11, color: 'var(--silver)', marginTop: 2 }}>Carga UA Semanal: <span style={{color: '#10b981', fontWeight: 600}}>{Math.round(p.totalCarga)}</span></div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {bottom3.length > 0 && (
-                  <div>
-                    <h4 style={{ margin: '0 0 12px 0', fontSize: 12, color: '#ef4444', textTransform: 'uppercase', letterSpacing: '0.1em' }}>⚠️ TOP 3 BAJA CARGA (RPE)</h4>
-                    {bottom3.map((p, i) => (
-                      <div key={i} style={{ background: 'var(--ink3)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 8, padding: 12, display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
-                        <div style={{ fontSize: 20 }}>⚠️</div>
-                        <div>
-                          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--snow)' }}>{p.nombre}</div>
-                          <div style={{ fontSize: 11, color: 'var(--silver)', marginTop: 2 }}>Carga UA Semanal: <span style={{color: '#ef4444', fontWeight: 600}}>{Math.round(p.totalCarga)}</span></div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 24 }}>
+            {/* Left: Alertas RPE */}
+            <AnimateOnScroll delay={550}>
+              <div style={{ background: 'var(--ink2)', border: '1px solid var(--mist)', borderRadius: 16, padding: 20, height: '100%', minHeight: 350 }}>
+                <CuadroHeader title="ALERTAS RPE" subtitle="Carga Interna" icon={Icons.campana} description="Jugadores con rendimiento destacado o en riesgo por carga RPE y novedades." />
+                <div style={{ marginTop: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
+                  ${top3}
+                  ${bottom3}
+                  ${upcomingBirthdays}
+                  ${readaptacion}
+                </div>
               </div>
-            </div>
-          </AnimateOnScroll>
+            </AnimateOnScroll>
+
+            {/* Right: Alertas GPS */}
+            <AnimateOnScroll delay={560}>
+              <div style={{ background: 'var(--ink2)', border: '1px solid var(--mist)', borderRadius: 16, padding: 20, height: '100%', minHeight: 350 }}>
+                <CuadroHeader title="ALERTAS GPS" subtitle="Carga Externa" icon={Icons.velocidad} description="Ranking de GPS y estimaciones de carga externa." />
+                <div style={{ marginTop: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
+                  ${topPerformers}
+                </div>
+              </div>
+            </AnimateOnScroll>
+          </div>
         )}
 
         {/* Charts Section */}
