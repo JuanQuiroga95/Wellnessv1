@@ -3710,8 +3710,8 @@ function BloqueMetodologia({ bloque, index, onChangeProp, onRemoveProp, onMoveUp
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10 }}>
         <span style={{ fontSize:11, fontWeight:700, color:'var(--lime)', textTransform:'uppercase', letterSpacing:'0.06em' }}>Tarea {index+1}</span>
         <div style={{ display:'flex', gap:6 }}>
-          {!isFirst && <button className="hover-scale" onClick={onMoveUp} style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:6, color:'var(--silver)', cursor:'pointer', padding:'2px 8px', fontSize:11 }}>▲ Subir</button>}
-          {!isLast && <button className="hover-scale" onClick={onMoveDown} style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:6, color:'var(--silver)', cursor:'pointer', padding:'2px 8px', fontSize:11 }}>▼ Bajar</button>}
+          {!isFirst && <button className="hover-scale" onClick={onMoveUpProp} style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:6, color:'var(--silver)', cursor:'pointer', padding:'2px 8px', fontSize:11 }}>▲ Subir</button>}
+          {!isLast && <button className="hover-scale" onClick={onMoveDownProp} style={{ background:'var(--ink2)', border:'1px solid var(--mist)', borderRadius:6, color:'var(--silver)', cursor:'pointer', padding:'2px 8px', fontSize:11 }}>▼ Bajar</button>}
           <button className="hover-bright" onClick={onRemoveProp} style={{ background:'rgba(239,68,68,.1)', border:'1px solid rgba(239,68,68,.25)', borderRadius:6, color:'#f87171', cursor:'pointer', padding:'2px 8px', fontSize:11 }}>✕</button>
         </div>
       </div>
@@ -4315,7 +4315,7 @@ async function imprimirSesion(f: any, bloques: any[], teamPlayers: any[] = []) {
     @media print{body{padding:10px;background:#fff;color:#111}.no-print{display:none}@page{margin:1.5cm}}
   </style></head><body style="background:#fff;color:#111">
   <div class="no-print" style="margin-bottom:16px">
-    <button class="hover-scale btn-ghost" onclick="window.print()" style="padding: 8px 20px; cursor: pointer;">🖨️ Imprimir / Guardar PDF</button>
+    <button class="hover-scale btn-ghost" onClick={() => window.print()} style="padding: 8px 20px; cursor: pointer;">🖨️ Imprimir / Guardar PDF</button>
   </div>
   <h1>${f.titulo || 'Sesión de entrenamiento'}</h1>
   <div class="meta">
@@ -6141,7 +6141,7 @@ function ComparativaPanel({ teamData }: { teamData: any[] }) {
               .grid3{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
               @media print{@page{size:A4 landscape;margin:.8cm;}body{padding:0;}.np{display:none;}.pb{page-break-before:always;}.grid3{grid-template-columns:1fr 1fr;}}</style></head><body>
               <div class="np" style="margin-bottom:12px;display:flex;gap:10px;align-items:center;">
-                <button  onclick="window.print()" className="hover-scale btn-ghost-blue" style={{ padding: "8px 20px" }}>🖨️ Imprimir / Guardar PDF</button>
+                <button  onClick={() => window.print()} className="hover-scale btn-ghost-blue" style={{ padding: "8px 20px" }}>🖨️ Imprimir / Guardar PDF</button>
                 <span style="font-size:11px;color:#666;">Orientación: Horizontal (Landscape)</span>
               </div>
               <div style="background:#0f172a;color:#c8f135;padding:8px 16px;border-radius:6px;margin-bottom:12px;display:flex;justify-content:space-between;">
@@ -7886,7 +7886,7 @@ function AcumPanel({ teamData }) {
               .grid3{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
               @media print{@page{size:A4 landscape;margin:.8cm;}body{padding:0;}.np{display:none;}.pb{page-break-before:always;}.grid3{grid-template-columns:1fr 1fr;}}</style></head><body>
                 <div class="np" style="margin-bottom:12px;display:flex;gap:10px;align-items:center;">
-                <button  onclick="window.print()" className="hover-scale btn-ghost-blue" style={{ padding: "8px 20px" }}>🖨️ Imprimir / Guardar PDF</button>
+                <button  onClick={() => window.print()} className="hover-scale btn-ghost-blue" style={{ padding: "8px 20px" }}>🖨️ Imprimir / Guardar PDF</button>
                 <span style="font-size:11px;color:#666;">Orientación: Horizontal (Landscape)</span>
               </div>
                 <div style="background:#0f172a;color:#c8f135;padding:8px 16px;border-radius:6px;margin-bottom:12px;display:flex;justify-content:space-between;">
@@ -9390,7 +9390,7 @@ function ControlCargaCalcPanel({ teamData }: { teamData: any[] }) {
               .grid3{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
               @media print{@page{size:A4 landscape;margin:.8cm;}body{padding:0;}.np{display:none;}.pb{page-break-before:always;}.grid3{grid-template-columns:1fr 1fr;}}</style></head><body>
               <div class="np" style="margin-bottom:12px;display:flex;gap:10px;align-items:center;">
-                <button  onclick="window.print()" className="hover-scale btn-ghost-blue" style={{ padding: "8px 20px" }}>🖨️ Imprimir / Guardar PDF</button>
+                <button  onClick={() => window.print()} className="hover-scale btn-ghost-blue" style={{ padding: "8px 20px" }}>🖨️ Imprimir / Guardar PDF</button>
                 <span style="font-size:11px;color:#666;">Orientación: Horizontal (Landscape)</span>
               </div>
               <div style="background:#0f172a;color:#c8f135;padding:8px 16px;border-radius:6px;margin-bottom:12px;display:flex;justify-content:space-between;">
@@ -11064,7 +11064,7 @@ function ControlCargaGpsPanel({ teamData }: { teamData: any[] }) {
               <style>${css}</style>
             </head><body>
               <div class="np" style="margin-bottom:14px;display:flex;gap:10px;align-items:center;">
-                <button  onclick="window.print()" className="hover-scale btn-ghost-blue" style={{ padding: "8px 20px" }}>🖨️ Imprimir / Guardar PDF</button>
+                <button  onClick={() => window.print()} className="hover-scale btn-ghost-blue" style={{ padding: "8px 20px" }}>🖨️ Imprimir / Guardar PDF</button>
                 <span style="font-size:11px;color:#666;">Orientación: Horizontal (Landscape)</span>
               </div>
               <div style="background:#0f172a;color:#c8f135;padding:8px 16px;border-radius:6px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;">
