@@ -916,7 +916,7 @@ export default function InicioPanel({ teamData, session, today }: { teamData: an
         <AnimateOnScroll delay={600}>
           <div style={{ background: 'var(--ink2)', border: '1px solid var(--mist)', borderRadius: 16, padding: 20, height: '100%', minHeight: 350, display: 'flex', flexDirection: 'column' }}>
             <CuadroHeader title="TENDENCIA READINESS" subtitle="Últimos 7 días (Promedio Plantel)" icon={Icons.neuromuscular} description="Evolución del estado de recuperación, estrés, sueño y fatiga del equipo." />
-            <div style={{ width: '100%', flex: 1, minHeight: 160, marginTop: 16 }}>
+            <div style={{ width: '100%', flex: 1, minHeight: 160, marginTop: 16, display: 'flex', flexDirection: 'column' }}>
               {!loading && readinessData.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={readinessData} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
@@ -932,7 +932,7 @@ export default function InicioPanel({ teamData, session, today }: { teamData: an
                     <Tooltip content={<CustomTooltip isReadiness={true} />} />
                     <Area 
                       isAnimationActive={true} 
-                      animationDuration={15000} 
+                      animationDuration={1500} 
                       type="monotone" 
                       dataKey="readiness" 
                       stroke="#22c55e" 
@@ -943,7 +943,7 @@ export default function InicioPanel({ teamData, session, today }: { teamData: an
                   </AreaChart>
                 </ResponsiveContainer>
               ) : (
-                <div style={{ display: 'flex', height: '100%', alignItems: 'center', justifyContent: 'center', color: 'var(--fog)', fontSize: 13 }}>
+                <div style={{ flex: 1, display: 'flex', minHeight: 160, alignItems: 'center', justifyContent: 'center', color: 'var(--fog)', fontSize: 13 }}>
                   {loading ? 'Cargando...' : 'No hay datos recientes de readiness'}
                 </div>
               )}

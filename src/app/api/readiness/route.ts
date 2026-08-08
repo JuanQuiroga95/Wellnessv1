@@ -42,7 +42,8 @@ export async function GET(req: NextRequest) {
     } catch {}
   }
 
-  const wRows = await sql`
+  const [wRows, rpeRows, todayRows, daily] = await Promise.all([
+    sql`
     SELECT j.id AS jugador_id, u.nombre, j.posicion, j.foto_url,
            DATE_TRUNC('week', w.fecha)::text AS semana,
            ROUND(AVG(w.fatiga+w.calidad_sueno+w.dolor_muscular+w.nivel_estres+w.estado_animo),1)::float AS total_wellness,
@@ -61,9 +62,9 @@ export async function GET(req: NextRequest) {
       AND u.activo=true AND u.rol='jugador'
       AND (${isMaster}::boolean OR (u.club_id=${clubId} OR j.club_id=${clubId}))
     GROUP BY j.id, u.nombre, j.posicion, j.foto_url, DATE_TRUNC('week',w.fecha)
-    ORDER BY semana DESC, u.nombre`
+    ORDER BY semana DESC, u.nombre`,
 
-  const rpeRows = await sql`
+    sql`
     SELECT el.jugador_id::int,
            DATE_TRUNC('week', el.fecha)::text AS semana,
            ROUND(AVG(el.rpe),2)::float        AS avg_rpe,
@@ -76,11 +77,9 @@ export async function GET(req: NextRequest) {
       AND u.activo=true AND u.rol='jugador'
       AND (${isMaster}::boolean OR (u.club_id=${clubId} OR j.club_id=${clubId}))
     GROUP BY el.jugador_id, DATE_TRUNC('week',el.fecha)
-    ORDER BY semana DESC`
+    ORDER BY semana DESC`,
 
-  // Bug fix: 2-day window handles UTC-3 (Argentina) timezone offset.
-  // Uses AVG to handle double-session days (2 wellness per day).
-  const todayRows = await sql`
+    sql`
     SELECT j.id AS jugador_id, u.nombre, j.posicion, j.foto_url,
            COALESCE(ROUND(AVG(w.fatiga))::int+ROUND(AVG(w.calidad_sueno))::int+ROUND(AVG(w.dolor_muscular))::int+ROUND(AVG(w.nivel_estres))::int+ROUND(AVG(w.estado_animo))::int, null) AS total_wellness,
            ROUND(AVG(w.fatiga))::int AS fatiga, ROUND(AVG(w.calidad_sueno))::int AS calidad_sueno,
@@ -95,8 +94,9 @@ export async function GET(req: NextRequest) {
     WHERE u.rol='jugador' AND u.activo=true
       AND (${isMaster}::boolean OR (u.club_id=${clubId} OR j.club_id=${clubId}))
     GROUP BY j.id, u.nombre, j.posicion, j.foto_url
-    ORDER BY j.id`
-  const daily = await sql`
+    ORDER BY j.id`,
+
+    sql`
     SELECT w.fecha::text AS date,
            ROUND((25.0 - AVG(w.fatiga + w.calidad_sueno + w.dolor_muscular + w.nivel_estres + w.estado_animo)) * 5.0, 1)::float AS "avgReadiness"
     FROM wellness_logs w
@@ -108,6 +108,7 @@ export async function GET(req: NextRequest) {
       AND (${isMaster}::boolean OR (u.club_id=${clubId} OR j.club_id=${clubId}))
     GROUP BY w.fecha
     ORDER BY w.fecha ASC`
+  ]);
 
   return NextResponse.json({ wRows, rpeRows, todayRows, daily })
 }
