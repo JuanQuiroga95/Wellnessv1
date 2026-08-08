@@ -3634,6 +3634,12 @@ function BloqueMetodologia({ bloque, index, onChangeProp, onRemoveProp, onMoveUp
   const [imgPreview, setImgPreview] = useState<string|null>(bloque.imagen || null)
   const [equipos, setEquipos] = useState<Record<number, number[]>>(bloque.equipos || {})
   const [manualMetrics, setManualMetrics] = useState<Record<string,string>>(bloque.manualMetrics || {})
+  const [editingMetrics, setEditingMetrics] = useState(false)
+  const updateManualMetric = (key: string, val: string) => {
+    const newMetrics = { ...manualMetrics, [key]: val ? Number(val) : undefined }
+    setManualMetrics(newMetrics as any)
+    onChange('manualMetrics', newMetrics)
+  }
   const [minutosEfectivos, setMinutosEfectivos] = useState<Record<number, number>>(bloque.minutosEfectivos || {})
   const [showMinutos, setShowMinutos] = useState(false)
   const [fuerzaEjercicios, setFuerzaEjercicios] = useState<any[]>([])
